@@ -245,30 +245,30 @@ current HomeCore direction.
 
 ### Phase 0 checklist
 
-- [ ] Initialize SvelteKit + TypeScript repo
-- [ ] Enable runes
-- [ ] Add lint/format scripts
-- [ ] Add API base URL config
-- [ ] Add auth API client
-- [ ] Add dashboard API client
-- [ ] Add token persistence
-- [ ] Add login page
-- [ ] Add authenticated app layout
-- [ ] Add placeholder routes for non-dashboard sections
+- [x] Initialize SvelteKit + TypeScript repo
+- [x] Enable runes
+- [x] Add lint/format scripts
+- [x] Add API base URL config
+- [x] Add auth API client
+- [x] Add dashboard API client
+- [x] Add token persistence
+- [x] Add login page
+- [x] Add authenticated app layout
+- [x] Add placeholder routes for non-dashboard sections
 
 ### M1 checklist
 
-- [ ] Implement `/dashboard` redirect behavior
-- [ ] Implement dashboard list page
+- [x] Implement `/dashboard` redirect behavior
+- [x] Implement dashboard list page
 - [ ] Implement dashboard switcher
-- [ ] Implement breakpoint-aware dashboard grid renderer
-- [ ] Implement `markdown` widget
-- [ ] Implement `stat_summary` widget
-- [ ] Implement `mode_chips` widget
-- [ ] Implement `scene_row` widget
-- [ ] Implement `device_grid` widget
-- [ ] Implement `device_list` widget
-- [ ] Implement `event_feed` widget
-- [ ] Implement `dashboard_link` widget
-- [ ] Add unsupported-widget placeholder handling
+- [x] Implement breakpoint-aware dashboard grid renderer
+- [x] Implement `markdown` widget
+- [x] Implement `stat_summary` widget
+- [x] Implement `mode_chips` widget
+- [x] Implement `scene_row` widget
+- [x] Implement `device_grid` widget
+- [x] Implement `device_list` widget
+- [x] Implement `event_feed` widget
+- [x] Implement `dashboard_link` widget
+- [x] Add unsupported-widget placeholder handling
 - [ ] Validate against a real HomeCore dev instance

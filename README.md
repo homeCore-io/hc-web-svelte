@@ -45,3 +45,33 @@ The first milestone is a usable authenticated shell with dashboard browsing:
 - dashboard viewer with a small starter widget catalog
 
 See [`docs/implementation-plan.md`](/home/john/RustroverProjects/homeCore/clients/hc-web-svelte/docs/implementation-plan.md) for the concrete build checklist.
+
+## Current Status
+
+The repo now has the initial Phase 0 foundation in place:
+
+- SvelteKit + TypeScript scaffolded
+- runes-ready Svelte 5 project structure
+- minimal fetch-based HomeCore API client
+- token-backed auth state and login route
+- authenticated app shell and navigation
+- initial dashboard routes:
+  - `/dashboard`
+  - `/dashboards`
+  - `/dashboards/[id]`
+- initial read-only dashboard rendering for:
+  - `markdown`
+  - `stat_summary`
+  - `mode_chips`
+  - `scene_row`
+  - `device_grid`
+  - `device_list`
+  - `event_feed`
+  - `dashboard_link`
+
+Current placeholders remain for:
+
+- devices
+- scenes
+- modes
+- automations

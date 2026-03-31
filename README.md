@@ -71,10 +71,6 @@ The repo now has the initial Phase 0 foundation in place:
   - `event_feed`
   - `dashboard_link`
 
-Current placeholders remain for:
-
-- automations
-
 Current notable gaps:
 
 - dashboard editing and delete flows
@@ -113,6 +109,12 @@ Current modes and events support:
 - sortable, filterable `Modes` grid with schedule/state columns
 - first-class `Events` page backed by `GET /events` plus the live websocket stream
 - shared collapsible filter panel and column dropdown components used across inventory pages
+
+Current automation support:
+
+- sortable, filterable automation inventory table
+- trigger, condition, action, priority, and enabled-state summaries
+- configurable automation columns saved locally
 
 Design references:
 

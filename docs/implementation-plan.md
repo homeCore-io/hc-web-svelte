@@ -253,6 +253,7 @@ Current progress beyond the initial dashboard-only milestone:
 - scene activation implemented
 - configurable `modes` grid page implemented
 - `events` page implemented from the REST log plus live websocket events
+- configurable `automations` read-only grid page implemented
 - shared grid filter/column UI components implemented
 - dashboard lifecycle flows implemented:
   - create from template

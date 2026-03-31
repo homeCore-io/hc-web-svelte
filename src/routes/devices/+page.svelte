@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
+	import CollapsibleFilterPanel from '$lib/components/ui/CollapsibleFilterPanel.svelte';
+	import ColumnDropdown from '$lib/components/ui/ColumnDropdown.svelte';
 	import { listDevices, setDeviceState } from '$lib/api/devices';
 	import {
 		boolAttr,
@@ -149,15 +151,6 @@
 		}
 	}
 
-	function toggleColumn(column: DeviceColumn) {
-		if (visibleColumns.includes(column)) {
-			if (visibleColumns.length === 1) return;
-			visibleColumns = visibleColumns.filter((value) => value !== column);
-			return;
-		}
-		visibleColumns = [...visibleColumns, column];
-	}
-
 	function sortByColumn(column: DeviceColumn) {
 		const nextSort: SortKey | null =
 			column === 'name' ? 'name'
@@ -275,74 +268,48 @@
 		</button>
 	</div>
 
-	<div class="toolbar panel">
-		<div class="toolbar-row toolbar-top">
-			<input bind:value={search} placeholder="Search name, area, type, plugin, canonical name, status" />
-			<button type="button" class="secondary" onclick={() => (toolbarExpanded = !toolbarExpanded)}>
-				{toolbarExpanded ? 'Hide options' : 'Show options'}
-			</button>
+	<CollapsibleFilterPanel
+		bind:search
+		bind:expanded={toolbarExpanded}
+		searchPlaceholder="Search name, area, type, plugin, canonical name, status"
+	>
+		<div class="toolbar-row">
+			<select bind:value={availability}>
+				<option value="all">All devices</option>
+				<option value="online">Online only</option>
+				<option value="offline">Offline only</option>
+			</select>
+			<select bind:value={areaFilter}>
+				<option value="all">All areas</option>
+				{#each areaOptions as area}
+					<option value={area}>{area}</option>
+				{/each}
+			</select>
+			<select bind:value={typeFilter}>
+				<option value="all">All types</option>
+				{#each typeOptions as deviceType}
+					<option value={deviceType}>{deviceType}</option>
+				{/each}
+			</select>
 		</div>
 
-		{#if toolbarExpanded}
-			<div class="toolbar-row">
-				<select bind:value={availability}>
-					<option value="all">All devices</option>
-					<option value="online">Online only</option>
-					<option value="offline">Offline only</option>
+		<div class="toolbar-row preferences">
+			<label>
+				Density
+				<select bind:value={density}>
+					<option value="comfortable">Comfortable</option>
+					<option value="compact">Compact</option>
 				</select>
-				<select bind:value={areaFilter}>
-					<option value="all">All areas</option>
-					{#each areaOptions as area}
-						<option value={area}>{area}</option>
-					{/each}
-				</select>
-				<select bind:value={typeFilter}>
-					<option value="all">All types</option>
-					{#each typeOptions as deviceType}
-						<option value={deviceType}>{deviceType}</option>
-					{/each}
-				</select>
-			</div>
+			</label>
+			<label class="inline-check">
+				<input type="checkbox" bind:checked={showMediaDetails} />
+				<span>Show media details</span>
+			</label>
+			<button type="button" class="secondary" onclick={resetLayout}>Reset layout</button>
+		</div>
 
-			<div class="toolbar-row preferences">
-				<label>
-					Density
-					<select bind:value={density}>
-						<option value="comfortable">Comfortable</option>
-						<option value="compact">Compact</option>
-					</select>
-				</label>
-				<label class="inline-check">
-					<input type="checkbox" bind:checked={showMediaDetails} />
-					<span>Show media details</span>
-				</label>
-				<button type="button" class="secondary" onclick={resetLayout}>Reset layout</button>
-			</div>
-
-			<div class="column-editor">
-				<div>
-					<strong>Columns</strong>
-					<p>Use the dropdown to show or hide columns. Drag table headers to reorder them.</p>
-				</div>
-				<details class="column-dropdown">
-					<summary>Column selection</summary>
-					<div class="column-menu">
-						{#each allColumns as column}
-							<label class="column-option">
-								<input
-									type="checkbox"
-									checked={visibleColumns.includes(column.id)}
-									onchange={() => toggleColumn(column.id)}
-									disabled={visibleColumns.length === 1 && visibleColumns.includes(column.id)}
-								/>
-								<span>{column.label}</span>
-							</label>
-						{/each}
-					</div>
-				</details>
-			</div>
-		{/if}
-	</div>
+		<ColumnDropdown allColumns={allColumns} bind:visibleColumns />
+	</CollapsibleFilterPanel>
 
 	{#if error}
 		<p class="error">{error}</p>
@@ -484,49 +451,10 @@
 	.page { display: grid; gap: 1rem; }
 	.heading, .toolbar-row, .controls, .media-cell { display: flex; gap: 0.75rem; align-items: center; }
 	.heading { justify-content: space-between; }
-	.panel {
-		background: rgba(255, 255, 255, 0.8);
-		border: 1px solid #d7e0ea;
-		border-radius: 1rem;
-		padding: 1rem;
-	}
-	.toolbar { display: grid; gap: 1rem; }
 	.toolbar-row { flex-wrap: wrap; }
-	.toolbar-top { justify-content: space-between; align-items: stretch; }
 	.preferences { justify-content: flex-start; gap: 1rem; }
-	.column-editor { display: grid; gap: 0.75rem; }
-	.column-editor p, .heading p { margin: 0.25rem 0 0; color: #617486; }
-	.column-dropdown summary {
-		width: fit-content;
-		list-style: none;
-		cursor: pointer;
-		padding: 0.65rem 0.9rem;
-		border-radius: 0.8rem;
-		border: 1px solid #cfdae6;
-		background: white;
-		color: #173b61;
-	}
-	.column-dropdown[open] summary { margin-bottom: 0.6rem; }
-	.column-menu {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-		gap: 0.25rem 0.75rem;
-		padding: 0.55rem 0.65rem;
-		border: 1px solid #dbe4ed;
-		border-radius: 0.8rem;
-		background: #f8fbfd;
-		max-width: min(100%, 40rem);
-	}
-	.column-option {
-		display: flex;
-		gap: 0.45rem;
-		align-items: center;
-		font-size: 0.84rem;
-		line-height: 1.2;
-		color: #33485a;
-		padding: 0.15rem 0;
-	}
-	input, select {
+	.heading p { margin: 0.25rem 0 0; color: #617486; }
+	select {
 		padding: 0.72rem 0.85rem;
 		border-radius: 0.8rem;
 		border: 1px solid #cfdae6;
@@ -548,7 +476,7 @@
 		min-height: 2.9rem;
 	}
 	.inline-check input,
-	.column-option input {
+	.inline-check input {
 		margin: 0;
 		min-width: 0;
 		flex: 0 0 auto;
@@ -653,7 +581,5 @@
 	}
 	@media (max-width: 900px) {
 		.preferences > button { margin-left: 0; }
-		input { min-width: 100%; }
-		.toolbar-top { justify-content: start; }
 	}
 </style>

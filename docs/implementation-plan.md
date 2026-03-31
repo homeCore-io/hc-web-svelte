@@ -255,9 +255,42 @@ Current progress beyond the initial dashboard-only milestone:
 - `events` page implemented from the REST log plus live websocket events
 - configurable `automations` read-only grid page implemented
 - automations page shows last-triggered activity from `rule_fired` events
+- automations page supports tag and stale filters
+- automations page cross-links into filtered event views
+- automations page includes a first trace panel built from nearby event correlation
 - shared grid filter/column UI components implemented
+- device detail page is moving to a verbose-but-compact pattern:
+  - immutable overview and diagnostics
+  - separate editable metadata section
+  - select-first area editing
 - dashboard lifecycle flows implemented:
   - create from template
+
+## Current Dashboard Direction
+
+Dashboard work should now follow the card-system plan in:
+
+- [`dashboard-card-plan.md`](/home/john/RustroverProjects/homeCore/clients/hc-web-svelte/docs/dashboard-card-plan.md)
+
+The next dashboard editor work should prioritize:
+
+- shared card shell and visual tokens
+- practical card size metadata
+- drag/drop add from a card catalog
+- right-side inspector editing
+- flexible but constrained freeform placement
+
+## Current Automation Debugging Direction
+
+Automation visibility and future debugging work should follow:
+
+- [`rule-trace-viewer-plan.md`](/home/john/RustroverProjects/homeCore/clients/hc-web-svelte/docs/rule-trace-viewer-plan.md)
+
+Near-term UI work should continue to improve:
+
+- cross-links between automations, devices, scenes, and events
+- rule-centric filtered event views
+- recent rule firing context before a deeper backend trace model exists
   - duplicate
   - export
   - import

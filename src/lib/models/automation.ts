@@ -3,6 +3,8 @@ export type AutomationRule = {
 	name: string;
 	enabled: boolean;
 	priority: number;
+	tags: string[];
+	error?: string | null;
 	trigger: Record<string, unknown>;
 	conditions: Record<string, unknown>[];
 	actions: Record<string, unknown>[];
@@ -15,6 +17,10 @@ export function parseAutomationRule(input: unknown): AutomationRule {
 		name: String(value.name ?? value.id),
 		enabled: Boolean(value.enabled ?? true),
 		priority: Number(value.priority ?? 0),
+		tags: Array.isArray(value.tags)
+			? (value.tags as unknown[]).filter((tag): tag is string => typeof tag === 'string')
+			: [],
+		error: typeof value.error === 'string' ? value.error : null,
 		trigger: ((value.trigger as Record<string, unknown> | undefined) ?? {}) as Record<string, unknown>,
 		conditions: Array.isArray(value.conditions)
 			? (value.conditions as Record<string, unknown>[])
@@ -59,4 +65,9 @@ export function automationActionsSummary(rule: AutomationRule): string {
 	if (count === 0) return 'No actions';
 	const firstType = rule.actions[0]?.type ? String(rule.actions[0].type) : 'Action';
 	return count === 1 ? firstType : `${firstType} +${count - 1}`;
+}
+
+export function automationTagsSummary(rule: AutomationRule): string {
+	if (rule.tags.length === 0) return 'No tags';
+	return rule.tags.join(', ');
 }

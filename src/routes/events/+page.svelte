@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import CollapsibleFilterPanel from '$lib/components/ui/CollapsibleFilterPanel.svelte';
 	import ColumnDropdown from '$lib/components/ui/ColumnDropdown.svelte';
 	import { listEvents } from '$lib/api/events';
@@ -111,6 +112,16 @@
 		typeFilter = 'all';
 	}
 
+	function targetHref(entry: LogEntry): string | null {
+		if (entry.event.rule_id) return `/automations?rule_id=${encodeURIComponent(String(entry.event.rule_id))}`;
+		if (entry.event.scene_id) return `/scenes?scene_id=${encodeURIComponent(String(entry.event.scene_id))}`;
+		if (entry.device_id) return `/devices/${encodeURIComponent(entry.device_id)}`;
+		if (entry.event.device_id && typeof entry.event.device_id === 'string') {
+			return `/devices/${encodeURIComponent(entry.event.device_id)}`;
+		}
+		return null;
+	}
+
 	function isSortColumnActive(column: EventColumn): boolean {
 		return (
 			(column === 'timestamp' && sortBy === 'timestamp') ||
@@ -129,6 +140,10 @@
 	}
 
 	const liveEntries = $derived.by(() => eventsState.items.map((event, index) => toLogEntry(event, index)));
+	const routeType = $derived(page.url.searchParams.get('type')?.trim() ?? '');
+	const routeDeviceId = $derived(page.url.searchParams.get('device_id')?.trim() ?? '');
+	const routeRuleId = $derived(page.url.searchParams.get('rule_id')?.trim() ?? '');
+	const routeSceneId = $derived(page.url.searchParams.get('scene_id')?.trim() ?? '');
 	const merged = $derived.by(() => {
 		const seen = new Set<string>();
 		const combined: LogEntry[] = [];
@@ -146,6 +161,10 @@
 	const filtered = $derived.by(() => {
 		const query = search.trim().toLowerCase();
 		return merged.filter((entry) => {
+			if (routeType && entry.event_type !== routeType) return false;
+			if (routeDeviceId && entry.device_id !== routeDeviceId && entry.event.device_id !== routeDeviceId) return false;
+			if (routeRuleId && entry.event.rule_id !== routeRuleId) return false;
+			if (routeSceneId && entry.event.scene_id !== routeSceneId) return false;
 			if (typeFilter !== 'all' && entry.event_type !== typeFilter) return false;
 			if (!query) return true;
 			return [
@@ -211,6 +230,11 @@
 
 	{#if error}
 		<p class="error">{error}</p>
+	{:else if routeRuleId || routeSceneId || routeDeviceId || routeType}
+		<p class="context">
+			Filtered view.
+			<a href="/events">Show all events</a>
+		</p>
 	{/if}
 	{#if eventsState.error}
 		<p class="error">{eventsState.error}</p>
@@ -262,7 +286,11 @@
 										<span class="pill">{entry.event_type}</span>
 									{:else if column === 'target'}
 										<div class="primary">
-											<strong>{eventTargetLabel(entry)}</strong>
+											{#if targetHref(entry)}
+												<a class="target-link" href={targetHref(entry) ?? undefined}>{eventTargetLabel(entry)}</a>
+											{:else}
+												<strong>{eventTargetLabel(entry)}</strong>
+											{/if}
 											{#if entry.device_id}
 												<span class="subtle">{entry.device_id}</span>
 											{/if}
@@ -350,6 +378,12 @@
 	.primary { display: grid; gap: 0.15rem; }
 	.subtle { font-size: 0.82rem; color: #66798a; word-break: break-word; }
 	.summary { color: #23384b; }
+	.target-link {
+		color: #163c63;
+		text-decoration: none;
+		font-weight: 600;
+	}
+	.target-link:hover { text-decoration: underline; }
 	.pill {
 		display: inline-block;
 		background: #dde9f5;
@@ -369,6 +403,13 @@
 	.live-pill.live {
 		background: #dff4e7;
 		color: #14633a;
+	}
+	.context {
+		margin: 0;
+		padding: 0.85rem 1rem;
+		border-radius: 0.85rem;
+		background: #edf4fb;
+		color: #214564;
 	}
 	.error { color: #b53622; margin: 0; }
 </style>

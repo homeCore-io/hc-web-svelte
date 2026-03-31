@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { listEvents } from '$lib/api/events';
 	import CollapsibleFilterPanel from '$lib/components/ui/CollapsibleFilterPanel.svelte';
 	import ColumnDropdown from '$lib/components/ui/ColumnDropdown.svelte';
@@ -50,6 +51,7 @@
 	let toolbarExpanded = $state(false);
 	let prefsReady = $state(false);
 	let lastActivatedBySceneId = $state<Record<string, string>>({});
+	const routeSceneId = $derived(page.url.searchParams.get('scene_id')?.trim() ?? '');
 
 	$effect(() => {
 		void refresh();
@@ -204,6 +206,7 @@
 	const filtered = $derived.by(() => {
 		const query = search.trim().toLowerCase();
 		const items = allScenes.filter((scene) => {
+			if (routeSceneId && scene.id !== routeSceneId) return false;
 			if (sourceFilter === 'native' && scene.isPlugin) return false;
 			if (sourceFilter === 'plugin' && !scene.isPlugin) return false;
 			if (!query) return true;
@@ -259,6 +262,8 @@
 
 	{#if error}
 		<p class="error">{error}</p>
+	{:else if routeSceneId}
+		<p class="notice">Filtered to scene <code>{routeSceneId}</code>. <a href="/scenes">Show all</a></p>
 	{/if}
 	{#if notice}
 		<p class="notice">{notice}</p>

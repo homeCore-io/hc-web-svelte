@@ -3,6 +3,7 @@
 	import { browser } from '$app/environment';
 	import { deleteDevice, getDevice, listDevices, setDeviceState, updateDevice } from '$lib/api/devices';
 	import {
+		formatRelativeTime,
 		deviceCanonicalReference,
 		deviceDisplayName,
 		durationSecs,
@@ -16,6 +17,7 @@
 		playbackState,
 		positionSecs,
 		sonosData,
+		statusText,
 		supportedActions,
 		supportsAction,
 		uiEnrichments,
@@ -36,6 +38,7 @@
 	let editName = $state('');
 	let editArea = $state('');
 	let editCanonicalName = $state('');
+	let areaSelectValue = $state('');
 
 	$effect(() => {
 		void refresh();
@@ -51,6 +54,7 @@
 			editArea = loadedDevice.area ?? '';
 			editCanonicalName = loadedDevice.canonical_name ?? '';
 			areaOptions = [...new Set(devices.map((item) => item.area?.trim()).filter((value): value is string => Boolean(value)))].sort((a, b) => a.localeCompare(b));
+			areaSelectValue = loadedDevice.area && areaOptions.includes(loadedDevice.area) ? loadedDevice.area : loadedDevice.area ? '__custom__' : '';
 		} catch (value) {
 			error = value instanceof Error ? value.message : 'Unable to load device';
 		} finally {
@@ -80,15 +84,20 @@
 		error = null;
 		notice = null;
 		try {
+			const resolvedArea =
+				areaSelectValue === '__custom__'
+					? (editArea.trim() ? editArea.trim() : null)
+					: (areaSelectValue || null);
 			const updated = await updateDevice(device.device_id, {
 				name: editName.trim() || device.device_id,
-				area: editArea.trim() ? editArea.trim() : null,
+				area: resolvedArea,
 				canonical_name: editCanonicalName.trim() ? editCanonicalName.trim() : null
 			});
 			device = updated;
 			editName = updated.name ?? '';
 			editArea = updated.area ?? '';
 			editCanonicalName = updated.canonical_name ?? '';
+			areaSelectValue = updated.area && areaOptions.includes(updated.area) ? updated.area : updated.area ? '__custom__' : '';
 			notice = 'Device details saved';
 		} catch (value) {
 			error = value instanceof Error ? value.message : 'Unable to save device details';
@@ -145,6 +154,11 @@
 		const raw = (sonos.group_members as unknown[] | undefined) ?? (device.attributes.group_members as unknown[] | undefined) ?? [];
 		return raw.filter((value): value is string => typeof value === 'string');
 	});
+	const knownAreas = $derived.by(() => {
+		const areas = [...areaOptions];
+		if (device?.area && !areas.includes(device.area)) areas.push(device.area);
+		return areas.sort((a, b) => a.localeCompare(b));
+	});
 </script>
 
 {#if loading}
@@ -176,18 +190,44 @@
 
 		<div class="columns">
 			<section class="panel">
-				<h2>Device Info</h2>
-				<dl>
-					<div><dt>ID</dt><dd>{device.device_id}</dd></div>
-					<div><dt>Canonical</dt><dd>{deviceCanonicalReference(device)}</dd></div>
-					<div><dt>Plugin</dt><dd>{device.plugin_id}</dd></div>
-					<div><dt>Area</dt><dd>{device.area ?? 'Unassigned'}</dd></div>
-					<div><dt>Type</dt><dd>{device.device_type ?? 'device'}</dd></div>
-				</dl>
+				<h2>Overview</h2>
+				<div class="chips">
+					<span class:offline={!device.available}>{device.available ? 'Online' : 'Offline'}</span>
+					<span class="meta-chip">{device.device_type ?? 'device'}</span>
+					<span class="meta-chip">{device.plugin_id}</span>
+					{#if device.area}<span class="meta-chip">{device.area}</span>{/if}
+					<a class="chip-link" href={`/events?device_id=${encodeURIComponent(device.device_id)}`}>Recent events</a>
+				</div>
+				<div class="info-grid">
+					<div>
+						<dt>Status</dt>
+						<dd>{statusText(device)}</dd>
+					</div>
+					<div>
+						<dt>Last seen</dt>
+						<dd>{formatRelativeTime(device.last_seen)}</dd>
+					</div>
+					<div>
+						<dt>Device ID</dt>
+						<dd>{device.device_id}</dd>
+					</div>
+					<div>
+						<dt>Canonical</dt>
+						<dd>{deviceCanonicalReference(device)}</dd>
+					</div>
+					<div>
+						<dt>Area</dt>
+						<dd>{device.area ?? 'Unassigned'}</dd>
+					</div>
+					<div>
+						<dt>Supported actions</dt>
+						<dd>{supportedActions(device).length ? supportedActions(device).join(', ') : 'None published'}</dd>
+					</div>
+				</div>
 			</section>
 
 			<section class="panel">
-				<h2>Edit Details</h2>
+				<h2>Edit Metadata</h2>
 				<div class="form-grid">
 					<label>
 						<span>Name</span>
@@ -195,13 +235,25 @@
 					</label>
 					<label>
 						<span>Area</span>
-						<input bind:value={editArea} list="device-areas" placeholder="Area" />
-						<datalist id="device-areas">
-							{#each areaOptions as area}
-								<option value={area}></option>
+						<select
+							bind:value={areaSelectValue}
+							onchange={() => {
+								if (areaSelectValue !== '__custom__') editArea = areaSelectValue;
+							}}
+						>
+							<option value="">Unassigned</option>
+							{#each knownAreas as area}
+								<option value={area}>{area}</option>
 							{/each}
-						</datalist>
+							<option value="__custom__">Custom…</option>
+						</select>
 					</label>
+					{#if areaSelectValue === '__custom__'}
+						<label>
+							<span>Custom area</span>
+							<input bind:value={editArea} placeholder="Area name" />
+						</label>
+					{/if}
 					<label>
 						<span>Canonical name</span>
 						<input bind:value={editCanonicalName} placeholder="living_room.floor_lamp" />
@@ -286,6 +338,28 @@
 				</section>
 			{/if}
 		</div>
+
+		<section class="panel">
+			<h2>Diagnostics</h2>
+			<div class="info-grid">
+				<div>
+					<dt>Plugin</dt>
+					<dd>{device.plugin_id}</dd>
+				</div>
+				<div>
+					<dt>Type</dt>
+					<dd>{device.device_type ?? 'device'}</dd>
+				</div>
+				<div>
+					<dt>Last seen</dt>
+					<dd>{device.last_seen ? new Date(device.last_seen).toLocaleString() : 'Unknown'}</dd>
+				</div>
+				<div>
+					<dt>UI enrichments</dt>
+					<dd>{uiEnrichments(device).length ? uiEnrichments(device).join(', ') : 'None'}</dd>
+				</div>
+			</div>
+		</section>
 
 		{#if isMediaPlayer(device) && (favoriteNames.length || playlistNames.length || groupMembers.length || uiEnrichments(device).length)}
 			<section class="panel">
@@ -379,6 +453,12 @@
 	p { color: #627488; }
 	dl { display: grid; gap: 0.55rem; }
 	dl div, .media-grid { display: grid; gap: 0.15rem; }
+	.info-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+		gap: 0.75rem 1rem;
+	}
+	.info-grid > div { display: grid; gap: 0.15rem; }
 	.media-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
 	dt { font-size: 0.78rem; color: #6a7b8d; text-transform: uppercase; }
 	dd { margin: 0; font-size: 0.95rem; color: #203242; word-break: break-word; }
@@ -392,6 +472,13 @@
 		font: inherit;
 	}
 	input {
+		padding: 0.72rem 0.85rem;
+		border-radius: 0.8rem;
+		border: 1px solid #cfdae6;
+		background: white;
+		font: inherit;
+	}
+	select {
 		padding: 0.72rem 0.85rem;
 		border-radius: 0.8rem;
 		border: 1px solid #cfdae6;
@@ -414,6 +501,16 @@
 		width: fit-content;
 	}
 	.offline { background: #f4dfdf; color: #8b2a2a; }
+	.meta-chip { background: #e7eef6; color: #183b60; }
+	.chip-link {
+		padding: 0.25rem 0.6rem;
+		border-radius: 999px;
+		background: #edf4fb;
+		color: #214564;
+		font-size: 0.8rem;
+		text-decoration: none;
+	}
+	.chip-link:hover { text-decoration: underline; }
 	.notice { color: #14633a; }
 	.error { color: #b53622; }
 	.chips { flex-wrap: wrap; }

@@ -115,11 +115,32 @@ Current automation support:
 - sortable, filterable automation inventory table
 - trigger, condition, action, priority, and enabled-state summaries
 - last-triggered activity from the HomeCore event log
+- tag and stale-rule filtering
+- cross-links between automations and filtered event views
+- first rule trace panel built from recent `rule_fired` and nearby event-log activity
 - configurable automation columns saved locally
+
+Current detail-page support:
+
+- verbose but compact device detail layout
+- immutable diagnostics and overview kept readable
+- editable metadata separated into a focused form
+- select-first area editing with custom-area fallback
+- direct recent-event cross-links from detail pages
+
+Current dashboard design direction:
+
+- Home Assistant style card-based dashboards are the reference direction
+- Mushroom Cards are the styling inspiration for compact card shells and hierarchy
+- planned next steps are documented in:
+  - [`docs/dashboard-card-plan.md`](/home/john/RustroverProjects/homeCore/clients/hc-web-svelte/docs/dashboard-card-plan.md)
+  - [`docs/rule-trace-viewer-plan.md`](/home/john/RustroverProjects/homeCore/clients/hc-web-svelte/docs/rule-trace-viewer-plan.md)
 
 Design references:
 
 - `docs/device-scene-grid-spec.md` for the target `Devices` and `Scenes` data-grid UX
+- `docs/dashboard-card-plan.md` for the dashboard/card system direction
+- `docs/rule-trace-viewer-plan.md` for the automation trace/debugging roadmap
 
 ## Dev Run
 

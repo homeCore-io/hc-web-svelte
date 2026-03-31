@@ -7,7 +7,6 @@
 	};
 
 	const items: NavItem[] = [
-		{ href: '/dashboard', label: 'Dashboard' },
 		{ href: '/dashboards', label: 'Dashboards' },
 		{ href: '/devices', label: 'Devices' },
 		{ href: '/scenes', label: 'Scenes' },
@@ -22,7 +21,7 @@
 <div class="shell">
 	<aside class="sidebar">
 		<div>
-			<h1>HomeCore</h1>
+			<h1><a class="home-link" href="/dashboard">HomeCore</a></h1>
 			<p>Svelte web client</p>
 		</div>
 
@@ -72,6 +71,16 @@
 	.sidebar h1 {
 		margin: 0;
 		font-size: 1.5rem;
+	}
+
+	.home-link {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.home-link:hover {
+		text-decoration: underline;
+		text-underline-offset: 0.18em;
 	}
 
 	.sidebar p {

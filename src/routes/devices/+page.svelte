@@ -294,6 +294,10 @@
 					<option value={deviceType}>{deviceType}</option>
 				{/each}
 			</select>
+			<label class="inline-check">
+				<input type="checkbox" bind:checked={showMediaDetails} />
+				<span>Show media details</span>
+			</label>
 		</div>
 
 		<div class="toolbar-row preferences">
@@ -303,10 +307,6 @@
 					<option value="comfortable">Comfortable</option>
 					<option value="compact">Compact</option>
 				</select>
-			</label>
-			<label class="check">
-				<input type="checkbox" bind:checked={showMediaDetails} />
-				Show media details
 			</label>
 			<button type="button" class="secondary" onclick={resetLayout}>Reset layout</button>
 		</div>
@@ -499,19 +499,22 @@
 	.column-dropdown[open] summary { margin-bottom: 0.6rem; }
 	.column-menu {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-		gap: 0.5rem 1rem;
-		padding: 0.75rem;
+		grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+		gap: 0.25rem 0.75rem;
+		padding: 0.55rem 0.65rem;
 		border: 1px solid #dbe4ed;
 		border-radius: 0.8rem;
 		background: #f8fbfd;
+		max-width: min(100%, 40rem);
 	}
 	.column-option {
 		display: flex;
-		gap: 0.55rem;
+		gap: 0.45rem;
 		align-items: center;
-		font-size: 0.9rem;
+		font-size: 0.84rem;
+		line-height: 1.2;
 		color: #33485a;
+		padding: 0.15rem 0;
 	}
 	input, select {
 		padding: 0.72rem 0.85rem;
@@ -521,6 +524,24 @@
 		font: inherit;
 	}
 	input { min-width: min(360px, 100%); flex: 1; }
+	.inline-check {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+		padding: 0.72rem 0.85rem;
+		border-radius: 0.8rem;
+		border: 1px solid #cfdae6;
+		background: white;
+		color: #33485a;
+		font-size: 0.92rem;
+		white-space: nowrap;
+	}
+	.inline-check input,
+	.column-option input {
+		margin: 0;
+		min-width: 0;
+		flex: 0 0 auto;
+	}
 	button, .secondary-link {
 		border: 0;
 		border-radius: 999px;
@@ -621,5 +642,6 @@
 	@media (max-width: 900px) {
 		.preferences { justify-content: start; }
 		input { min-width: 100%; }
+		.inline-check { width: 100%; justify-content: start; }
 	}
 </style>

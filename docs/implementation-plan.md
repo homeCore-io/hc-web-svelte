@@ -243,10 +243,11 @@ current HomeCore direction.
 
 Current progress beyond the initial dashboard-only milestone:
 
-- read-only `devices` page implemented
+- configurable `devices` grid page implemented
 - device detail page implemented
 - media-player detail/actions implemented
-- read-only `scenes` page implemented
+- configurable `scenes` grid page implemented
+- scene activation implemented
 - read-only `modes` page implemented
 - dashboard lifecycle flows implemented:
   - create from template

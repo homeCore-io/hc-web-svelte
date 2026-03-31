@@ -79,7 +79,6 @@ Current notable gaps:
 
 - dashboard editing and delete flows
 - richer widget fidelity and controls
-- richer device detail and mutation flows
 - websocket-driven state updates outside the event feed
 
 Current dashboard lifecycle support:
@@ -92,10 +91,18 @@ Current dashboard lifecycle support:
 
 Current device support:
 
-- read-only device inventory
+- sortable, filterable device inventory table
+- configurable device columns saved locally
 - device detail route
 - media-player detail/status
 - basic media actions from device detail when supported by HomeCore
+- inline device table controls for common toggles and media play or pause
+
+Current scene support:
+
+- sortable, filterable scene inventory table
+- configurable scene columns saved locally
+- inline `Activate` control
 
 Design references:
 

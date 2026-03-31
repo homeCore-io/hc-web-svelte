@@ -1,15 +1,120 @@
 <script lang="ts">
-	import { listDevices } from '$lib/api/devices';
-	import { deviceDisplayName, type DeviceState } from '$lib/models/device';
+	import { browser } from '$app/environment';
+	import { goto } from '$app/navigation';
+	import { listDevices, setDeviceState } from '$lib/api/devices';
+	import {
+		boolAttr,
+		deviceDisplayName,
+		formatRelativeTime,
+		isMediaPlayer,
+		mediaImageUrl,
+		mediaSummary,
+		playbackState,
+		sortText,
+		statusIcon,
+		statusText,
+		statusTone,
+		supportsAction,
+		supportsInlineToggle,
+		type DeviceState
+	} from '$lib/models/device';
+
+	type AvailabilityFilter = 'all' | 'online' | 'offline';
+	type Density = 'comfortable' | 'compact';
+	type SortKey = 'name' | 'area' | 'status' | 'type' | 'last_seen';
+	type DeviceColumn =
+		| 'status_icon'
+		| 'name'
+		| 'area'
+		| 'device_type'
+		| 'status_text'
+		| 'media_info'
+		| 'last_seen'
+		| 'control'
+		| 'canonical_name'
+		| 'plugin';
+
+	type DevicePrefs = {
+		columns: DeviceColumn[];
+		density: Density;
+		showMediaDetails: boolean;
+	};
+
+	const PREFS_KEY = 'hc-web-svelte:devices:grid';
+	const defaultColumns: DeviceColumn[] = [
+		'status_icon',
+		'name',
+		'area',
+		'device_type',
+		'status_text',
+		'last_seen',
+		'control'
+	];
+	const allColumns: { id: DeviceColumn; label: string }[] = [
+		{ id: 'status_icon', label: 'Status icon' },
+		{ id: 'name', label: 'Name' },
+		{ id: 'area', label: 'Area' },
+		{ id: 'device_type', label: 'Type' },
+		{ id: 'status_text', label: 'Status' },
+		{ id: 'media_info', label: 'Media info' },
+		{ id: 'last_seen', label: 'Last changed' },
+		{ id: 'control', label: 'Control' },
+		{ id: 'canonical_name', label: 'Canonical name' },
+		{ id: 'plugin', label: 'Plugin' }
+	];
 
 	let devices = $state<DeviceState[]>([]);
 	let loading = $state(true);
+	let busyId = $state<string | null>(null);
 	let error = $state<string | null>(null);
+	let notice = $state<string | null>(null);
 	let search = $state('');
-	let availability = $state<'all' | 'online' | 'offline'>('all');
+	let availability = $state<AvailabilityFilter>('all');
+	let areaFilter = $state('all');
+	let typeFilter = $state('all');
+	let sortBy = $state<SortKey>('name');
+	let density = $state<Density>('comfortable');
+	let showMediaDetails = $state(false);
+	let visibleColumns = $state<DeviceColumn[]>([...defaultColumns]);
+	let prefsReady = $state(false);
 
 	$effect(() => {
 		void refresh();
+	});
+
+	$effect(() => {
+		if (!browser || prefsReady) return;
+		const raw = localStorage.getItem(PREFS_KEY);
+		if (raw) {
+			try {
+				const parsed = JSON.parse(raw) as Partial<DevicePrefs>;
+				if (Array.isArray(parsed.columns)) {
+					const filtered = parsed.columns.filter((value): value is DeviceColumn =>
+						allColumns.some((column) => column.id === value)
+					);
+					if (filtered.length > 0) visibleColumns = filtered;
+				}
+				if (parsed.density === 'compact' || parsed.density === 'comfortable') {
+					density = parsed.density;
+				}
+				if (typeof parsed.showMediaDetails === 'boolean') {
+					showMediaDetails = parsed.showMediaDetails;
+				}
+			} catch {
+				localStorage.removeItem(PREFS_KEY);
+			}
+		}
+		prefsReady = true;
+	});
+
+	$effect(() => {
+		if (!browser || !prefsReady) return;
+		const prefs: DevicePrefs = {
+			columns: visibleColumns,
+			density,
+			showMediaDetails
+		};
+		localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
 	});
 
 	async function refresh() {
@@ -24,11 +129,68 @@
 		}
 	}
 
+	async function send(device: DeviceState, body: Record<string, unknown>, label: string) {
+		busyId = device.device_id;
+		error = null;
+		notice = null;
+		try {
+			await setDeviceState(device.device_id, body);
+			notice = `${label} sent for ${deviceDisplayName(device)}`;
+			await refresh();
+		} catch (value) {
+			error = value instanceof Error ? value.message : `${label} failed`;
+		} finally {
+			busyId = null;
+		}
+	}
+
+	function toggleColumn(column: DeviceColumn) {
+		if (visibleColumns.includes(column)) {
+			if (visibleColumns.length === 1) return;
+			visibleColumns = visibleColumns.filter((value) => value !== column);
+			return;
+		}
+		visibleColumns = [...visibleColumns, column];
+	}
+
+	function moveColumn(column: DeviceColumn, direction: -1 | 1) {
+		const index = visibleColumns.indexOf(column);
+		if (index < 0) return;
+		const nextIndex = index + direction;
+		if (nextIndex < 0 || nextIndex >= visibleColumns.length) return;
+		const copy = [...visibleColumns];
+		const [item] = copy.splice(index, 1);
+		copy.splice(nextIndex, 0, item);
+		visibleColumns = copy;
+	}
+
+	function resetLayout() {
+		visibleColumns = [...defaultColumns];
+		density = 'comfortable';
+		showMediaDetails = false;
+	}
+
+	function openDevice(device: DeviceState) {
+		void goto(`/devices/${device.device_id}`);
+	}
+
+	const areaOptions = $derived.by(() =>
+		[...new Set(devices.map((device) => device.area?.trim()).filter((value): value is string => Boolean(value)))]
+			.sort((a, b) => a.localeCompare(b))
+	);
+
+	const typeOptions = $derived.by(() =>
+		[...new Set(devices.map((device) => device.device_type?.trim()).filter((value): value is string => Boolean(value)))]
+			.sort((a, b) => a.localeCompare(b))
+	);
+
 	const filtered = $derived.by(() => {
 		const query = search.trim().toLowerCase();
 		return devices.filter((device) => {
 			if (availability === 'online' && !device.available) return false;
 			if (availability === 'offline' && device.available) return false;
+			if (areaFilter !== 'all' && (device.area?.trim() || 'Unassigned') !== areaFilter) return false;
+			if (typeFilter !== 'all' && (device.device_type?.trim() || 'device') !== typeFilter) return false;
 			if (!query) return true;
 			return [
 				deviceDisplayName(device),
@@ -36,7 +198,9 @@
 				device.canonical_name,
 				device.area,
 				device.device_type,
-				device.plugin_id
+				device.plugin_id,
+				statusText(device),
+				mediaSummary(device)
 			]
 				.filter(Boolean)
 				.join(' ')
@@ -45,15 +209,16 @@
 		});
 	});
 
-	const grouped = $derived.by(() => {
-		const map = new Map<string, DeviceState[]>();
-		for (const device of filtered) {
-			const area = device.area?.trim() || 'Unassigned';
-			const group = map.get(area) ?? [];
-			group.push(device);
-			map.set(area, group);
-		}
-		return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+	const sorted = $derived.by(() => {
+		const items = [...filtered];
+		items.sort((a, b) => {
+			if (sortBy === 'name') return sortText(deviceDisplayName(a)).localeCompare(sortText(deviceDisplayName(b)));
+			if (sortBy === 'area') return sortText(a.area ?? 'Unassigned').localeCompare(sortText(b.area ?? 'Unassigned'));
+			if (sortBy === 'status') return sortText(statusText(a)).localeCompare(sortText(statusText(b)));
+			if (sortBy === 'type') return sortText(a.device_type ?? 'device').localeCompare(sortText(b.device_type ?? 'device'));
+			return (Date.parse(b.last_seen ?? '') || 0) - (Date.parse(a.last_seen ?? '') || 0);
+		});
+		return items;
 	});
 </script>
 
@@ -61,128 +226,319 @@
 	<div class="heading">
 		<div>
 			<h1>Devices</h1>
-			<p>Read-only device inventory grouped by area.</p>
+			<p>Sortable, filterable device inventory with configurable columns and inline controls.</p>
 		</div>
 		<button type="button" onclick={refresh} disabled={loading}>
 			{loading ? 'Refreshing…' : 'Refresh'}
 		</button>
 	</div>
 
-	<div class="filters">
-		<input bind:value={search} placeholder="Search name, area, type, plugin, canonical name" />
-		<select bind:value={availability}>
-			<option value="all">All devices</option>
-			<option value="online">Online only</option>
-			<option value="offline">Offline only</option>
-		</select>
+	<div class="toolbar panel">
+		<div class="toolbar-row">
+			<input bind:value={search} placeholder="Search name, area, type, plugin, canonical name, status" />
+			<select bind:value={availability}>
+				<option value="all">All devices</option>
+				<option value="online">Online only</option>
+				<option value="offline">Offline only</option>
+			</select>
+			<select bind:value={areaFilter}>
+				<option value="all">All areas</option>
+				{#each areaOptions as area}
+					<option value={area}>{area}</option>
+				{/each}
+			</select>
+			<select bind:value={typeFilter}>
+				<option value="all">All types</option>
+				{#each typeOptions as deviceType}
+					<option value={deviceType}>{deviceType}</option>
+				{/each}
+			</select>
+			<select bind:value={sortBy}>
+				<option value="name">Sort: Name</option>
+				<option value="area">Sort: Area</option>
+				<option value="status">Sort: Status</option>
+				<option value="type">Sort: Type</option>
+				<option value="last_seen">Sort: Last changed</option>
+			</select>
+		</div>
+
+		<div class="toolbar-row preferences">
+			<label>
+				Density
+				<select bind:value={density}>
+					<option value="comfortable">Comfortable</option>
+					<option value="compact">Compact</option>
+				</select>
+			</label>
+			<label class="check">
+				<input type="checkbox" bind:checked={showMediaDetails} />
+				Show media details
+			</label>
+			<button type="button" class="secondary" onclick={resetLayout}>Reset layout</button>
+		</div>
+
+		<div class="column-editor">
+			<div>
+				<strong>Columns</strong>
+				<p>Choose the columns you want to see and adjust their order.</p>
+			</div>
+			<div class="column-list">
+				{#each allColumns as column}
+					<div class="column-item">
+						<label class="check">
+							<input
+								type="checkbox"
+								checked={visibleColumns.includes(column.id)}
+								onchange={() => toggleColumn(column.id)}
+							/>
+							{column.label}
+						</label>
+						<div class="move-buttons">
+							<button type="button" class="ghost" onclick={() => moveColumn(column.id, -1)}>↑</button>
+							<button type="button" class="ghost" onclick={() => moveColumn(column.id, 1)}>↓</button>
+						</div>
+					</div>
+				{/each}
+			</div>
+		</div>
 	</div>
 
 	{#if error}
 		<p class="error">{error}</p>
-	{:else if loading && devices.length === 0}
+	{/if}
+	{#if notice}
+		<p class="notice">{notice}</p>
+	{/if}
+
+	{#if loading && devices.length === 0}
 		<p>Loading devices…</p>
-	{:else if grouped.length === 0}
+	{:else if sorted.length === 0}
 		<p>No devices match the current filters.</p>
 	{:else}
-		<div class="groups">
-			{#each grouped as [area, items]}
-				<section class="panel">
-					<h2>{area}</h2>
-					<div class="grid">
-						{#each items as device}
-							<article class="card">
-								<div class="card-top">
-									<a class="device-link" href={`/devices/${device.device_id}`}>
-										<strong>{deviceDisplayName(device)}</strong>
-									</a>
-									<span class:offline={!device.available}>
-										{device.available ? 'Online' : 'Offline'}
-									</span>
-								</div>
-								<p>{device.device_type ?? 'device'}</p>
-								<dl>
-									<div>
-										<dt>ID</dt>
-										<dd>{device.device_id}</dd>
-									</div>
-									<div>
-										<dt>Plugin</dt>
-										<dd>{device.plugin_id}</dd>
-									</div>
-									{#if device.canonical_name}
-										<div>
-											<dt>Canonical</dt>
-											<dd>{device.canonical_name}</dd>
-										</div>
-									{/if}
-								</dl>
-							</article>
+		<div class="table-wrap panel">
+			<table class:compact={density === 'compact'}>
+				<thead>
+					<tr>
+						{#each visibleColumns as column}
+							<th scope="col">{allColumns.find((value) => value.id === column)?.label ?? column}</th>
 						{/each}
-					</div>
-				</section>
-			{/each}
+					</tr>
+				</thead>
+				<tbody>
+					{#each sorted as device}
+						<tr class:offline={!device.available} onclick={() => openDevice(device)}>
+							{#each visibleColumns as column}
+								<td data-column={column}>
+									{#if column === 'status_icon'}
+										<span class={`status tone-${statusTone(device)}`} title={statusText(device)}>
+											{statusIcon(device)}
+										</span>
+									{:else if column === 'name'}
+										<div class="primary">
+											<a href={`/devices/${device.device_id}`} onclick={(event) => event.stopPropagation()}>
+												{deviceDisplayName(device)}
+											</a>
+											<span class="subtle">{device.device_id}</span>
+										</div>
+									{:else if column === 'area'}
+										{device.area ?? 'Unassigned'}
+									{:else if column === 'device_type'}
+										{device.device_type ?? 'device'}
+									{:else if column === 'status_text'}
+										<div class="primary">
+											<span>{statusText(device)}</span>
+											{#if isMediaPlayer(device) && playbackState(device) !== statusText(device).toLowerCase()}
+												<span class="subtle">{playbackState(device)}</span>
+											{/if}
+										</div>
+									{:else if column === 'media_info'}
+										{#if isMediaPlayer(device)}
+											<div class:media-cell={showMediaDetails}>
+												{#if showMediaDetails && mediaImageUrl(device)}
+													<img src={mediaImageUrl(device) ?? ''} alt="" />
+												{/if}
+												<div class="primary">
+													<span>{mediaSummary(device) ?? 'Nothing playing'}</span>
+													{#if showMediaDetails}
+														<span class="subtle">{playbackState(device)}</span>
+													{/if}
+												</div>
+											</div>
+										{:else}
+											<span class="subtle">—</span>
+										{/if}
+									{:else if column === 'last_seen'}
+										<div class="primary">
+											<span>{formatRelativeTime(device.last_seen)}</span>
+											{#if device.last_seen}
+												<span class="subtle">{new Date(device.last_seen).toLocaleString()}</span>
+											{/if}
+										</div>
+									{:else if column === 'control'}
+										<div class="controls">
+											{#if supportsInlineToggle(device)}
+												<button
+													type="button"
+													class="secondary"
+													onclick={(event) => {
+														event.stopPropagation();
+														void send(
+															device,
+															{ on: !boolAttr(device.attributes.on) },
+															boolAttr(device.attributes.on) ? 'Turn off' : 'Turn on'
+														);
+													}}
+													disabled={busyId === device.device_id}
+												>
+													{boolAttr(device.attributes.on) ? 'Turn off' : 'Turn on'}
+												</button>
+											{:else if isMediaPlayer(device)}
+												{#if playbackState(device) === 'playing' && supportsAction(device, 'pause')}
+													<button type="button" class="secondary" onclick={(event) => {
+														event.stopPropagation();
+														void send(device, { action: 'pause' }, 'Pause');
+													}} disabled={busyId === device.device_id}>Pause</button>
+												{:else if supportsAction(device, 'play')}
+													<button type="button" class="secondary" onclick={(event) => {
+														event.stopPropagation();
+														void send(device, { action: 'play' }, 'Play');
+													}} disabled={busyId === device.device_id}>Play</button>
+												{/if}
+											{:else}
+												<a class="secondary-link" href={`/devices/${device.device_id}`} onclick={(event) => event.stopPropagation()}>Details</a>
+											{/if}
+										</div>
+									{:else if column === 'canonical_name'}
+										{device.canonical_name ?? '—'}
+									{:else if column === 'plugin'}
+										{device.plugin_id}
+									{/if}
+								</td>
+							{/each}
+						</tr>
+					{/each}
+				</tbody>
+			</table>
 		</div>
 	{/if}
 </section>
 
 <style>
-	.page, .groups { display: grid; gap: 1rem; }
-	.heading, .filters, .card-top { display: flex; gap: 1rem; justify-content: space-between; align-items: center; }
-	.filters { justify-content: start; flex-wrap: wrap; }
+	.page { display: grid; gap: 1rem; }
+	.heading, .toolbar-row, .column-item, .check, .move-buttons, .controls, .media-cell { display: flex; gap: 0.75rem; align-items: center; }
+	.heading { justify-content: space-between; }
+	.panel {
+		background: rgba(255, 255, 255, 0.8);
+		border: 1px solid #d7e0ea;
+		border-radius: 1rem;
+		padding: 1rem;
+	}
+	.toolbar { display: grid; gap: 1rem; }
+	.toolbar-row { flex-wrap: wrap; }
+	.preferences { justify-content: space-between; }
+	.column-editor { display: grid; gap: 0.75rem; }
+	.column-editor p, .heading p { margin: 0.25rem 0 0; color: #617486; }
+	.column-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.6rem; }
+	.column-item {
+		justify-content: space-between;
+		background: #f7fafc;
+		border: 1px solid #dbe4ed;
+		border-radius: 0.8rem;
+		padding: 0.55rem 0.7rem;
+	}
 	input, select {
-		padding: 0.75rem 0.9rem;
+		padding: 0.72rem 0.85rem;
 		border-radius: 0.8rem;
 		border: 1px solid #cfdae6;
 		background: white;
 		font: inherit;
 	}
-	input { min-width: min(480px, 100%); flex: 1; }
-	button {
+	input { min-width: min(360px, 100%); flex: 1; }
+	label { font-size: 0.95rem; color: #33485a; }
+	.check { gap: 0.5rem; }
+	button, .secondary-link {
 		border: 0;
 		border-radius: 999px;
 		padding: 0.65rem 1rem;
 		background: #153a63;
 		color: white;
 		cursor: pointer;
+		font: inherit;
+		text-decoration: none;
 	}
-	.panel {
-		background: rgba(255,255,255,0.75);
-		border: 1px solid #d7e0ea;
-		border-radius: 1rem;
-		padding: 1rem;
+	.secondary, .secondary-link {
+		background: #e6eef7;
+		color: #173b61;
 	}
-	h1, h2, p, dl { margin: 0; }
-	.grid {
-		margin-top: 1rem;
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-		gap: 0.85rem;
+	.ghost {
+		background: #eef3f8;
+		color: #173b61;
+		padding: 0.35rem 0.6rem;
 	}
-	.card {
-		background: white;
-		border: 1px solid #dbe5ef;
-		border-radius: 0.95rem;
-		padding: 1rem;
-		display: grid;
-		gap: 0.6rem;
+	.table-wrap { overflow: auto; padding: 0; }
+	table {
+		width: 100%;
+		border-collapse: collapse;
+		min-width: 960px;
 	}
-	.device-link { color: inherit; text-decoration: none; }
-	.device-link:hover { text-decoration: underline; }
-	.card p { color: #627488; }
-	span {
-		padding: 0.25rem 0.6rem;
+	th, td {
+		padding: 0.95rem 0.85rem;
+		border-bottom: 1px solid #e4ebf2;
+		text-align: left;
+		vertical-align: middle;
+	}
+	th {
+		position: sticky;
+		top: 0;
+		background: #f7fafc;
+		font-size: 0.82rem;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: #627488;
+	}
+	tbody tr { cursor: pointer; }
+	tbody tr:hover { background: #f8fbfd; }
+	tbody tr.offline { background: rgba(249, 240, 240, 0.45); }
+	table.compact th, table.compact td { padding: 0.6rem 0.65rem; }
+	a { color: #163c63; text-decoration: none; }
+	a:hover { text-decoration: underline; }
+	.primary { display: grid; gap: 0.15rem; }
+	.subtle {
+		font-size: 0.82rem;
+		color: #66798a;
+		word-break: break-word;
+	}
+	.status {
+		display: inline-grid;
+		place-items: center;
+		width: 2rem;
+		height: 2rem;
 		border-radius: 999px;
-		background: #dff4e7;
-		color: #14633a;
-		font-size: 0.8rem;
+		font-size: 1rem;
+		font-weight: 700;
 	}
-	.offline {
-		background: #f4dfdf;
-		color: #8b2a2a;
+	.tone-good { background: #e1f5e8; color: #12693a; }
+	.tone-warn { background: #fff0da; color: #995c00; }
+	.tone-idle { background: #e8eef5; color: #39546e; }
+	.tone-media { background: #e5ecff; color: #234da3; }
+	.tone-offline { background: #f7e3e3; color: #983434; }
+	.media-cell img {
+		width: 2.8rem;
+		height: 2.8rem;
+		object-fit: cover;
+		border-radius: 0.55rem;
+		border: 1px solid #d8e0ea;
 	}
-	dl { display: grid; gap: 0.45rem; }
-	dl div { display: grid; gap: 0.12rem; }
-	dt { font-size: 0.78rem; color: #6a7b8d; text-transform: uppercase; }
-	dd { margin: 0; font-size: 0.95rem; color: #203242; word-break: break-word; }
 	.error { color: #b53622; }
+	.notice {
+		margin: 0;
+		padding: 0.85rem 1rem;
+		border-radius: 0.85rem;
+		background: #e6f4ea;
+		color: #155b36;
+	}
+	@media (max-width: 900px) {
+		.preferences { justify-content: start; }
+		input { min-width: 100%; }
+	}
 </style>

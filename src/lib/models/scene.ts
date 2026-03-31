@@ -5,6 +5,16 @@ export type Scene = {
 	states?: Record<string, unknown>;
 };
 
+export function sceneStateCount(scene: Scene): number {
+	return Object.keys(scene.states ?? {}).length;
+}
+
+export function sceneSummary(scene: Scene): string {
+	if (scene.description?.trim()) return scene.description;
+	const count = sceneStateCount(scene);
+	return count === 1 ? '1 captured device state' : `${count} captured device states`;
+}
+
 export function parseScene(input: unknown): Scene {
 	const value = input as Record<string, unknown>;
 	return {

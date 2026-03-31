@@ -103,6 +103,7 @@
 	<section class="page">
 		<div class="heading">
 			<div>
+				<a class="back-link" href="/devices">← Back to devices</a>
 				<h1>{deviceDisplayName(device)}</h1>
 				<p>{device.device_type ?? 'device'} via {device.plugin_id}</p>
 			</div>
@@ -260,6 +261,19 @@
 	.heading, .actions, .control-row, .chips, .progress-label { display: flex; gap: 0.75rem; }
 	.heading { justify-content: space-between; align-items: start; }
 	.actions { align-items: center; }
+	.back-link {
+		display: inline-flex;
+		align-items: center;
+		width: fit-content;
+		padding: 0.45rem 0.8rem;
+		border-radius: 999px;
+		background: #e7eef6;
+		color: #183b60;
+		text-decoration: none;
+		font-size: 0.92rem;
+		margin-bottom: 0.6rem;
+	}
+	.back-link:hover { background: #dce7f3; }
 	.panel {
 		background: rgba(255,255,255,0.82);
 		border: 1px solid #d7e0ea;

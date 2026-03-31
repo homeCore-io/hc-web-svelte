@@ -24,6 +24,8 @@
 	let search = $state('');
 	let sortBy = $state<SortKey>('name');
 	let visibleColumns = $state<SceneColumn[]>([...defaultColumns]);
+	let addColumn = $state<SceneColumn | ''>('');
+	let draggedColumn = $state<SceneColumn | null>(null);
 	let prefsReady = $state(false);
 
 	$effect(() => {
@@ -89,6 +91,12 @@
 		visibleColumns = [...visibleColumns, column];
 	}
 
+	function addSelectedColumn() {
+		if (!addColumn) return;
+		toggleColumn(addColumn);
+		addColumn = '';
+	}
+
 	function moveColumn(column: SceneColumn, direction: -1 | 1) {
 		const index = visibleColumns.indexOf(column);
 		if (index < 0) return;
@@ -98,6 +106,22 @@
 		const [item] = copy.splice(index, 1);
 		copy.splice(nextIndex, 0, item);
 		visibleColumns = copy;
+	}
+
+	function handleDragStart(column: SceneColumn) {
+		draggedColumn = column;
+	}
+
+	function handleDrop(targetColumn: SceneColumn) {
+		if (!draggedColumn || draggedColumn === targetColumn) return;
+		const fromIndex = visibleColumns.indexOf(draggedColumn);
+		const toIndex = visibleColumns.indexOf(targetColumn);
+		if (fromIndex < 0 || toIndex < 0) return;
+		const copy = [...visibleColumns];
+		const [item] = copy.splice(fromIndex, 1);
+		copy.splice(toIndex, 0, item);
+		visibleColumns = copy;
+		draggedColumn = null;
 	}
 
 	function resetLayout() {
@@ -122,6 +146,10 @@
 		});
 		return items;
 	});
+
+	const hiddenColumns = $derived.by(() =>
+		allColumns.filter((column) => !visibleColumns.includes(column.id))
+	);
 </script>
 
 <section class="page">
@@ -144,20 +172,34 @@
 			</select>
 			<button type="button" class="secondary" onclick={resetLayout}>Reset layout</button>
 		</div>
-		<div class="column-list">
-			{#each allColumns as column}
-				<div class="column-item">
-					<label class="check">
-						<input
-							type="checkbox"
-							checked={visibleColumns.includes(column.id)}
-							onchange={() => toggleColumn(column.id)}
-						/>
-						{column.label}
-					</label>
+		<div class="column-actions">
+			<select bind:value={addColumn} disabled={hiddenColumns.length === 0}>
+				<option value="">Add column…</option>
+				{#each hiddenColumns as column}
+					<option value={column.id}>{column.label}</option>
+				{/each}
+			</select>
+			<button type="button" class="secondary" onclick={addSelectedColumn} disabled={!addColumn}>Add</button>
+		</div>
+		<div class="column-list" role="list">
+			{#each visibleColumns as column}
+				<div
+					class:dragging={draggedColumn === column}
+					class="column-item"
+					draggable="true"
+					role="listitem"
+					aria-grabbed={draggedColumn === column}
+					ondragstart={() => handleDragStart(column)}
+					ondragover={(event) => event.preventDefault()}
+					ondrop={() => handleDrop(column)}
+					ondragend={() => (draggedColumn = null)}
+				>
+					<span class="drag-handle" title="Drag to reorder">⋮⋮</span>
+					<span class="column-label">{allColumns.find((value) => value.id === column)?.label ?? column}</span>
 					<div class="move-buttons">
-						<button type="button" class="ghost" onclick={() => moveColumn(column.id, -1)}>↑</button>
-						<button type="button" class="ghost" onclick={() => moveColumn(column.id, 1)}>↓</button>
+						<button type="button" class="ghost" onclick={() => moveColumn(column, -1)}>↑</button>
+						<button type="button" class="ghost" onclick={() => moveColumn(column, 1)}>↓</button>
+						<button type="button" class="ghost danger" onclick={() => toggleColumn(column)} disabled={visibleColumns.length === 1}>×</button>
 					</div>
 				</div>
 			{/each}
@@ -218,7 +260,7 @@
 
 <style>
 	.page { display: grid; gap: 1rem; }
-	.heading, .toolbar-row, .column-item, .check, .move-buttons { display: flex; gap: 0.75rem; align-items: center; }
+	.heading, .toolbar-row, .column-item, .move-buttons, .column-actions { display: flex; gap: 0.75rem; align-items: center; }
 	.heading { justify-content: space-between; }
 	.panel {
 		background: rgba(255,255,255,0.8);
@@ -227,17 +269,19 @@
 		padding: 1rem;
 	}
 	.toolbar { display: grid; gap: 1rem; }
-	.column-list { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+	.column-actions { flex-wrap: wrap; }
+	.column-list { display: grid; gap: 0.45rem; }
 	.column-item {
 		justify-content: space-between;
 		background: #f7fafc;
 		border: 1px solid #dbe4ed;
-		border-radius: 999px;
-		padding: 0.35rem 0.45rem 0.35rem 0.65rem;
+		border-radius: 0.8rem;
+		padding: 0.45rem 0.55rem;
 		gap: 0.45rem;
-		flex: 0 1 auto;
-		max-width: 100%;
+		grid-template-columns: auto 1fr auto;
+		cursor: grab;
 	}
+	.column-item.dragging { opacity: 0.55; }
 	input, select {
 		padding: 0.72rem 0.85rem;
 		border-radius: 0.8rem;
@@ -262,6 +306,14 @@
 		padding: 0.2rem 0.45rem;
 		font-size: 0.8rem;
 	}
+	.column-label { font-size: 0.9rem; color: #33485a; }
+	.drag-handle {
+		color: #789;
+		font-size: 0.9rem;
+		letter-spacing: -0.1em;
+		user-select: none;
+	}
+	.danger { color: #9a2d2d; }
 	.table-wrap { overflow: auto; padding: 0; }
 	table { width: 100%; border-collapse: collapse; min-width: 760px; }
 	th, td {

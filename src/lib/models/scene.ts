@@ -5,6 +5,14 @@ export type Scene = {
 	states?: Record<string, unknown>;
 };
 
+export type DisplayScene = {
+	id: string;
+	name: string;
+	description?: string | null;
+	states?: Record<string, unknown>;
+	isPlugin: boolean;
+};
+
 export function sceneStateCount(scene: Scene): number {
 	return Object.keys(scene.states ?? {}).length;
 }
@@ -13,6 +21,11 @@ export function sceneSummary(scene: Scene): string {
 	if (scene.description?.trim()) return scene.description;
 	const count = sceneStateCount(scene);
 	return count === 1 ? '1 captured device state' : `${count} captured device states`;
+}
+
+export function pluginSceneSummary(scene: DisplayScene): string {
+	if (!scene.isPlugin) return sceneSummary(scene);
+	return scene.description?.trim() || 'Plugin-managed scene device';
 }
 
 export function parseScene(input: unknown): Scene {

@@ -103,6 +103,8 @@ Current scene support:
 
 - sortable, filterable scene inventory table
 - configurable scene columns saved locally
+- native HomeCore scenes and plugin-managed scene devices shown together
+- collapsible top toolbar like the devices page
 - inline `Activate` control
 
 Design references:

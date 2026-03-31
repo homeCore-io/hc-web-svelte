@@ -1,23 +1,31 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
 	import { activateScene, listScenes } from '$lib/api/scenes';
-	import { sceneStateCount, sceneSummary, type Scene } from '$lib/models/scene';
+	import { listDevices, setDeviceState } from '$lib/api/devices';
+	import { deviceDisplayName, type DeviceState } from '$lib/models/device';
+	import {
+		pluginSceneSummary,
+		sceneStateCount,
+		type DisplayScene,
+		type Scene
+	} from '$lib/models/scene';
 
-	type SortKey = 'name' | 'state_count';
+	type SortKey = 'name' | 'state_count' | 'source';
 	type SortDirection = 'asc' | 'desc';
-	type SceneColumn = 'name' | 'summary' | 'state_count' | 'activate' | 'id';
+	type SceneColumn = 'name' | 'summary' | 'source' | 'state_count' | 'activate' | 'id';
 
 	const PREFS_KEY = 'hc-web-svelte:scenes:grid';
-	const defaultColumns: SceneColumn[] = ['name', 'summary', 'state_count', 'activate'];
+	const defaultColumns: SceneColumn[] = ['name', 'summary', 'source', 'state_count', 'activate'];
 	const allColumns: { id: SceneColumn; label: string }[] = [
 		{ id: 'name', label: 'Name' },
 		{ id: 'summary', label: 'Summary' },
+		{ id: 'source', label: 'Source' },
 		{ id: 'state_count', label: 'Captured states' },
 		{ id: 'activate', label: 'Control' },
 		{ id: 'id', label: 'Scene ID' }
 	];
 
-	let scenes = $state<Scene[]>([]);
+	let nativeScenes = $state<Scene[]>([]);
+	let pluginSceneDevices = $state<DeviceState[]>([]);
 	let loading = $state(true);
 	let busyId = $state<string | null>(null);
 	let error = $state<string | null>(null);
@@ -25,8 +33,10 @@
 	let search = $state('');
 	let sortBy = $state<SortKey>('name');
 	let sortDirection = $state<SortDirection>('asc');
+	let sourceFilter = $state<'all' | 'native' | 'plugin'>('all');
 	let visibleColumns = $state<SceneColumn[]>([...defaultColumns]);
 	let draggedColumn = $state<SceneColumn | null>(null);
+	let toolbarExpanded = $state(false);
 	let prefsReady = $state(false);
 
 	$effect(() => {
@@ -34,7 +44,7 @@
 	});
 
 	$effect(() => {
-		if (!browser || prefsReady) return;
+		if (typeof localStorage === 'undefined' || prefsReady) return;
 		const raw = localStorage.getItem(PREFS_KEY);
 		if (raw) {
 			try {
@@ -53,7 +63,7 @@
 	});
 
 	$effect(() => {
-		if (!browser || !prefsReady) return;
+		if (typeof localStorage === 'undefined' || !prefsReady) return;
 		localStorage.setItem(PREFS_KEY, JSON.stringify({ columns: visibleColumns }));
 	});
 
@@ -61,7 +71,9 @@
 		loading = true;
 		error = null;
 		try {
-			scenes = await listScenes();
+			const [loadedScenes, loadedDevices] = await Promise.all([listScenes(), listDevices()]);
+			nativeScenes = loadedScenes;
+			pluginSceneDevices = loadedDevices.filter((device) => device.device_type === 'scene');
 		} catch (value) {
 			error = value instanceof Error ? value.message : 'Unable to load scenes';
 		} finally {
@@ -69,12 +81,16 @@
 		}
 	}
 
-	async function activate(scene: Scene) {
+	async function activate(scene: DisplayScene) {
 		busyId = scene.id;
 		error = null;
 		notice = null;
 		try {
-			await activateScene(scene.id);
+			if (scene.isPlugin) {
+				await setDeviceState(scene.id, { activate: true });
+			} else {
+				await activateScene(scene.id);
+			}
 			notice = `Activation sent for ${scene.name}`;
 		} catch (value) {
 			error = value instanceof Error ? value.message : 'Unable to activate scene';
@@ -96,6 +112,7 @@
 		const nextSort: SortKey | null =
 			column === 'name' ? 'name'
 			: column === 'state_count' ? 'state_count'
+			: column === 'source' ? 'source'
 			: null;
 		if (!nextSort) return;
 		if (sortBy === nextSort) {
@@ -103,7 +120,7 @@
 			return;
 		}
 		sortBy = nextSort;
-		sortDirection = nextSort === 'state_count' ? 'desc' : 'asc';
+		sortDirection = 'asc';
 	}
 
 	function handleDragStart(column: SceneColumn) {
@@ -126,13 +143,38 @@
 		visibleColumns = [...defaultColumns];
 		sortBy = 'name';
 		sortDirection = 'asc';
+		sourceFilter = 'all';
 	}
+
+	function isSortColumnActive(column: SceneColumn): boolean {
+		return (
+			(column === 'name' && sortBy === 'name') ||
+			(column === 'state_count' && sortBy === 'state_count') ||
+			(column === 'source' && sortBy === 'source')
+		);
+	}
+
+	const allScenes = $derived.by<DisplayScene[]>(() => [
+		...nativeScenes.map((scene) => ({
+			...scene,
+			isPlugin: false
+		})),
+		...pluginSceneDevices.map((device) => ({
+			id: device.device_id,
+			name: deviceDisplayName(device),
+			description: null,
+			states: {},
+			isPlugin: true
+		}))
+	]);
 
 	const filtered = $derived.by(() => {
 		const query = search.trim().toLowerCase();
-		const items = scenes.filter((scene) => {
+		const items = allScenes.filter((scene) => {
+			if (sourceFilter === 'native' && scene.isPlugin) return false;
+			if (sourceFilter === 'plugin' && !scene.isPlugin) return false;
 			if (!query) return true;
-			return [scene.name, scene.description, scene.id]
+			return [scene.name, pluginSceneSummary(scene), scene.id, scene.isPlugin ? 'plugin' : 'native']
 				.filter(Boolean)
 				.join(' ')
 				.toLowerCase()
@@ -141,6 +183,7 @@
 		items.sort((a, b) => {
 			let result = 0;
 			if (sortBy === 'state_count') result = sceneStateCount(a) - sceneStateCount(b);
+			else if (sortBy === 'source') result = (a.isPlugin ? 'plugin' : 'native').localeCompare(b.isPlugin ? 'plugin' : 'native');
 			else result = a.name.localeCompare(b.name);
 			return sortDirection === 'asc' ? result : -result;
 		});
@@ -152,7 +195,7 @@
 	<div class="heading">
 		<div>
 			<h1>Scenes</h1>
-			<p>Scene inventory using the same grid model, with a single Activate control.</p>
+			<p>Native scenes and plugin-managed scene devices in one grid.</p>
 		</div>
 		<button type="button" onclick={refresh} disabled={loading}>
 			{loading ? 'Refreshing…' : 'Refresh'}
@@ -160,33 +203,46 @@
 	</div>
 
 	<div class="toolbar panel">
-		<div class="toolbar-row">
-			<input bind:value={search} placeholder="Search scene name or description" />
-			<button type="button" class="secondary" onclick={resetLayout}>Reset layout</button>
+		<div class="toolbar-row toolbar-top">
+			<input bind:value={search} placeholder="Search scene name, summary, source" />
+			<button type="button" class="secondary" onclick={() => (toolbarExpanded = !toolbarExpanded)}>
+				{toolbarExpanded ? 'Hide options' : 'Show options'}
+			</button>
 		</div>
 
-		<div class="column-editor">
-			<div>
-				<strong>Columns</strong>
-				<p>Use the dropdown to show or hide columns. Drag table headers to reorder them.</p>
+		{#if toolbarExpanded}
+			<div class="toolbar-row">
+				<select bind:value={sourceFilter}>
+					<option value="all">All scenes</option>
+					<option value="native">Native only</option>
+					<option value="plugin">Plugin only</option>
+				</select>
+				<button type="button" class="secondary" onclick={resetLayout}>Reset layout</button>
 			</div>
-			<details class="column-dropdown">
-				<summary>Column selection</summary>
-				<div class="column-menu">
-					{#each allColumns as column}
-						<label class="column-option">
-							<input
-								type="checkbox"
-								checked={visibleColumns.includes(column.id)}
-								onchange={() => toggleColumn(column.id)}
-								disabled={visibleColumns.length === 1 && visibleColumns.includes(column.id)}
-							/>
-							<span>{column.label}</span>
-						</label>
-					{/each}
+
+			<div class="column-editor">
+				<div>
+					<strong>Columns</strong>
+					<p>Use the dropdown to show or hide columns. Drag table headers to reorder them.</p>
 				</div>
-			</details>
-		</div>
+				<details class="column-dropdown">
+					<summary>Column selection</summary>
+					<div class="column-menu">
+						{#each allColumns as column}
+							<label class="column-option">
+								<input
+									type="checkbox"
+									checked={visibleColumns.includes(column.id)}
+									onchange={() => toggleColumn(column.id)}
+									disabled={visibleColumns.length === 1 && visibleColumns.includes(column.id)}
+								/>
+								<span>{column.label}</span>
+							</label>
+						{/each}
+					</div>
+				</details>
+			</div>
+		{/if}
 	</div>
 
 	{#if error}
@@ -196,8 +252,10 @@
 		<p class="notice">{notice}</p>
 	{/if}
 
-	{#if loading && scenes.length === 0}
+	{#if loading && allScenes.length === 0}
 		<p>Loading scenes…</p>
+	{:else if allScenes.length === 0}
+		<p>No scenes found.</p>
 	{:else if filtered.length === 0}
 		<p>No scenes match the current filters.</p>
 	{:else}
@@ -218,7 +276,7 @@
 								<button type="button" class="header-button" onclick={() => sortByColumn(column)}>
 									<span class="drag-handle" title="Drag to reorder">⋮⋮</span>
 									<span>{allColumns.find((value) => value.id === column)?.label ?? column}</span>
-									{#if (column === 'name' && sortBy === 'name') || (column === 'state_count' && sortBy === 'state_count')}
+									{#if isSortColumnActive(column)}
 										<span class="sort-indicator">{sortDirection === 'asc' ? '↑' : '↓'}</span>
 									{/if}
 								</button>
@@ -237,7 +295,11 @@
 											<span class="subtle">{scene.id}</span>
 										</div>
 									{:else if column === 'summary'}
-										{sceneSummary(scene)}
+										{pluginSceneSummary(scene)}
+									{:else if column === 'source'}
+										<span class:plugin-pill={scene.isPlugin} class="pill">
+											{scene.isPlugin ? 'Plugin' : 'Native'}
+										</span>
 									{:else if column === 'state_count'}
 										<span class="pill">{sceneStateCount(scene)}</span>
 									{:else if column === 'activate'}
@@ -268,6 +330,8 @@
 		padding: 1rem;
 	}
 	.toolbar { display: grid; gap: 1rem; }
+	.toolbar-row { flex-wrap: wrap; }
+	.toolbar-top { justify-content: space-between; align-items: stretch; }
 	.column-editor { display: grid; gap: 0.75rem; }
 	.column-dropdown summary {
 		width: fit-content;
@@ -299,20 +363,15 @@
 		color: #33485a;
 		padding: 0.15rem 0;
 	}
-	input {
+	input, select {
 		padding: 0.72rem 0.85rem;
 		border-radius: 0.8rem;
 		border: 1px solid #cfdae6;
 		background: white;
 		font: inherit;
-		min-width: min(360px, 100%);
-		flex: 1;
 	}
-	.column-option input {
-		margin: 0;
-		min-width: 0;
-		flex: 0 0 auto;
-	}
+	input { min-width: min(360px, 100%); flex: 1; }
+	.column-option input { margin: 0; min-width: 0; flex: 0 0 auto; }
 	button {
 		border: 0;
 		border-radius: 999px;
@@ -324,7 +383,7 @@
 	}
 	.secondary { background: #e6eef7; color: #173b61; }
 	.table-wrap { overflow: auto; padding: 0; }
-	table { width: 100%; border-collapse: collapse; min-width: 760px; }
+	table { width: 100%; border-collapse: collapse; min-width: 860px; }
 	th, td {
 		padding: 0.95rem 0.85rem;
 		border-bottom: 1px solid #e4ebf2;
@@ -369,6 +428,10 @@
 		border-radius: 999px;
 		font-size: 0.82rem;
 	}
+	.plugin-pill {
+		background: #f0e7fb;
+		color: #5e2c91;
+	}
 	.notice {
 		margin: 0;
 		padding: 0.85rem 1rem;
@@ -377,4 +440,8 @@
 		color: #155b36;
 	}
 	.error { color: #b53622; }
+	@media (max-width: 900px) {
+		input { min-width: 100%; }
+		.toolbar-top { justify-content: start; }
+	}
 </style>

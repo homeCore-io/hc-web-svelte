@@ -248,6 +248,7 @@ Current progress beyond the initial dashboard-only milestone:
 - device metadata edit/delete implemented
 - media-player detail/actions implemented
 - configurable `scenes` grid page implemented
+- scenes page now merges native scenes with plugin scene devices
 - scene activation implemented
 - read-only `modes` page implemented
 - dashboard lifecycle flows implemented:

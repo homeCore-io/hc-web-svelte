@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { getDevice, setDeviceState } from '$lib/api/devices';
+	import { goto } from '$app/navigation';
+	import { browser } from '$app/environment';
+	import { deleteDevice, getDevice, listDevices, setDeviceState, updateDevice } from '$lib/api/devices';
 	import {
 		deviceCanonicalReference,
 		deviceDisplayName,
@@ -26,8 +28,14 @@
 	let device = $state<DeviceState | null>(null);
 	let loading = $state(true);
 	let busy = $state(false);
+	let savingMeta = $state(false);
+	let deleting = $state(false);
 	let error = $state<string | null>(null);
 	let notice = $state<string | null>(null);
+	let areaOptions = $state<string[]>([]);
+	let editName = $state('');
+	let editArea = $state('');
+	let editCanonicalName = $state('');
 
 	$effect(() => {
 		void refresh();
@@ -37,7 +45,12 @@
 		loading = true;
 		error = null;
 		try {
-			device = await getDevice(params.id);
+			const [loadedDevice, devices] = await Promise.all([getDevice(params.id), listDevices()]);
+			device = loadedDevice;
+			editName = loadedDevice.name ?? '';
+			editArea = loadedDevice.area ?? '';
+			editCanonicalName = loadedDevice.canonical_name ?? '';
+			areaOptions = [...new Set(devices.map((item) => item.area?.trim()).filter((value): value is string => Boolean(value)))].sort((a, b) => a.localeCompare(b));
 		} catch (value) {
 			error = value instanceof Error ? value.message : 'Unable to load device';
 		} finally {
@@ -58,6 +71,45 @@
 			error = value instanceof Error ? value.message : `${label} failed`;
 		} finally {
 			busy = false;
+		}
+	}
+
+	async function saveMetadata() {
+		if (!device) return;
+		savingMeta = true;
+		error = null;
+		notice = null;
+		try {
+			const updated = await updateDevice(device.device_id, {
+				name: editName.trim() || device.device_id,
+				area: editArea.trim() ? editArea.trim() : null,
+				canonical_name: editCanonicalName.trim() ? editCanonicalName.trim() : null
+			});
+			device = updated;
+			editName = updated.name ?? '';
+			editArea = updated.area ?? '';
+			editCanonicalName = updated.canonical_name ?? '';
+			notice = 'Device details saved';
+		} catch (value) {
+			error = value instanceof Error ? value.message : 'Unable to save device details';
+		} finally {
+			savingMeta = false;
+		}
+	}
+
+	async function removeDevice() {
+		if (!device || !browser) return;
+		const confirmed = window.confirm(`Delete device "${deviceDisplayName(device)}"?`);
+		if (!confirmed) return;
+		deleting = true;
+		error = null;
+		notice = null;
+		try {
+			await deleteDevice(device.device_id);
+			void goto('/devices');
+		} catch (value) {
+			error = value instanceof Error ? value.message : 'Unable to delete device';
+			deleting = false;
 		}
 	}
 
@@ -132,6 +184,44 @@
 					<div><dt>Area</dt><dd>{device.area ?? 'Unassigned'}</dd></div>
 					<div><dt>Type</dt><dd>{device.device_type ?? 'device'}</dd></div>
 				</dl>
+			</section>
+
+			<section class="panel">
+				<h2>Edit Details</h2>
+				<div class="form-grid">
+					<label>
+						<span>Name</span>
+						<input bind:value={editName} placeholder="Device name" />
+					</label>
+					<label>
+						<span>Area</span>
+						<input bind:value={editArea} list="device-areas" placeholder="Area" />
+						<datalist id="device-areas">
+							{#each areaOptions as area}
+								<option value={area}></option>
+							{/each}
+						</datalist>
+					</label>
+					<label>
+						<span>Canonical name</span>
+						<input bind:value={editCanonicalName} placeholder="living_room.floor_lamp" />
+					</label>
+				</div>
+				<div class="form-actions">
+					<button type="button" onclick={saveMetadata} disabled={savingMeta || busy || deleting}>
+						{savingMeta ? 'Saving…' : 'Save details'}
+					</button>
+					<button type="button" class="secondary" onclick={() => {
+						editName = device?.name ?? '';
+						editArea = device?.area ?? '';
+						editCanonicalName = device?.canonical_name ?? '';
+					}} disabled={savingMeta || deleting}>
+						Reset
+					</button>
+					<button type="button" class="danger" onclick={removeDevice} disabled={savingMeta || deleting}>
+						{deleting ? 'Deleting…' : 'Delete device'}
+					</button>
+				</div>
 			</section>
 
 			{#if isMediaPlayer(device)}
@@ -282,6 +372,9 @@
 		display: grid;
 		gap: 0.8rem;
 	}
+	.form-grid { display: grid; gap: 0.8rem; }
+	.form-grid label { display: grid; gap: 0.35rem; }
+	.form-grid span { padding: 0; background: transparent; color: #617486; font-size: 0.82rem; }
 	h1, h2, p, dl { margin: 0; }
 	p { color: #627488; }
 	dl { display: grid; gap: 0.55rem; }
@@ -298,7 +391,20 @@
 		cursor: pointer;
 		font: inherit;
 	}
+	input {
+		padding: 0.72rem 0.85rem;
+		border-radius: 0.8rem;
+		border: 1px solid #cfdae6;
+		background: white;
+		font: inherit;
+	}
+	.form-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+	}
 	.secondary { background: #e7eef6; color: #183b60; }
+	.danger { background: #f7e3e3; color: #8b2a2a; }
 	span, .chip {
 		padding: 0.25rem 0.6rem;
 		border-radius: 999px;

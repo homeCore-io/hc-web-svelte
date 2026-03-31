@@ -94,6 +94,7 @@ Current device support:
 - sortable, filterable device inventory table
 - configurable device columns saved locally
 - device detail route
+- device metadata edit and delete from the detail page
 - media-player detail/status
 - basic media actions from device detail when supported by HomeCore
 - inline device table controls for common toggles and media play or pause

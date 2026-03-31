@@ -15,3 +15,16 @@ export function setDeviceState(id: string, body: Record<string, unknown>): Promi
 		body: JSON.stringify(body)
 	});
 }
+
+export function updateDevice(id: string, body: Record<string, unknown>): Promise<DeviceState> {
+	return apiRequest<DeviceState>(`/devices/${id}`, {
+		method: 'PATCH',
+		body: JSON.stringify(body)
+	});
+}
+
+export function deleteDevice(id: string): Promise<void> {
+	return apiRequest<void>(`/devices/${id}`, {
+		method: 'DELETE'
+	});
+}

@@ -245,6 +245,7 @@ Current progress beyond the initial dashboard-only milestone:
 
 - configurable `devices` grid page implemented
 - device detail page implemented
+- device metadata edit/delete implemented
 - media-player detail/actions implemented
 - configurable `scenes` grid page implemented
 - scene activation implemented

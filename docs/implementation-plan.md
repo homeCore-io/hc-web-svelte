@@ -255,6 +255,10 @@ Current progress beyond the initial dashboard-only milestone:
   - import
   - set default
 
+Related page design specs:
+
+- `docs/device-scene-grid-spec.md` defines the long-term `Devices` and `Scenes` grid UX, including configurable columns, saved views, typed status renderers, and richer media presentation
+
 ## Concrete Build Checklist
 
 ### Phase 0 checklist

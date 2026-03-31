@@ -97,6 +97,10 @@ Current device support:
 - media-player detail/status
 - basic media actions from device detail when supported by HomeCore
 
+Design references:
+
+- `docs/device-scene-grid-spec.md` for the target `Devices` and `Scenes` data-grid UX
+
 ## Dev Run
 
 For local development, the Svelte app uses relative `/api/v1` requests and relies on a Vite proxy.

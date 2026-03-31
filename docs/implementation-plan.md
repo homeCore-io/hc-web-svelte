@@ -249,6 +249,7 @@ Current progress beyond the initial dashboard-only milestone:
 - media-player detail/actions implemented
 - configurable `scenes` grid page implemented
 - scenes page now merges native scenes with plugin scene devices
+- scenes page shows last activation from the HomeCore event log
 - scene activation implemented
 - read-only `modes` page implemented
 - dashboard lifecycle flows implemented:

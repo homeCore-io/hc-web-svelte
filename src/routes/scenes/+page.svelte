@@ -1,7 +1,8 @@
 <script lang="ts">
+	import { listEvents } from '$lib/api/events';
 	import { activateScene, listScenes } from '$lib/api/scenes';
 	import { listDevices, setDeviceState } from '$lib/api/devices';
-	import { deviceDisplayName, type DeviceState } from '$lib/models/device';
+	import { deviceDisplayName, formatRelativeTime, type DeviceState } from '$lib/models/device';
 	import {
 		pluginSceneSummary,
 		sceneStateCount,
@@ -9,16 +10,24 @@
 		type Scene
 	} from '$lib/models/scene';
 
-	type SortKey = 'name' | 'state_count' | 'source';
+	type SortKey = 'name' | 'state_count' | 'source' | 'last_activated';
 	type SortDirection = 'asc' | 'desc';
-	type SceneColumn = 'name' | 'summary' | 'source' | 'state_count' | 'activate' | 'id';
+	type SceneColumn =
+		| 'name'
+		| 'summary'
+		| 'source'
+		| 'last_activated'
+		| 'state_count'
+		| 'activate'
+		| 'id';
 
 	const PREFS_KEY = 'hc-web-svelte:scenes:grid';
-	const defaultColumns: SceneColumn[] = ['name', 'summary', 'source', 'state_count', 'activate'];
+	const defaultColumns: SceneColumn[] = ['name', 'summary', 'source', 'last_activated', 'activate'];
 	const allColumns: { id: SceneColumn; label: string }[] = [
 		{ id: 'name', label: 'Name' },
 		{ id: 'summary', label: 'Summary' },
 		{ id: 'source', label: 'Source' },
+		{ id: 'last_activated', label: 'Last Activated' },
 		{ id: 'state_count', label: 'Captured states' },
 		{ id: 'activate', label: 'Control' },
 		{ id: 'id', label: 'Scene ID' }
@@ -38,6 +47,7 @@
 	let draggedColumn = $state<SceneColumn | null>(null);
 	let toolbarExpanded = $state(false);
 	let prefsReady = $state(false);
+	let lastActivatedBySceneId = $state<Record<string, string>>({});
 
 	$effect(() => {
 		void refresh();
@@ -71,9 +81,14 @@
 		loading = true;
 		error = null;
 		try {
-			const [loadedScenes, loadedDevices] = await Promise.all([listScenes(), listDevices()]);
+			const [loadedScenes, loadedDevices, recentSceneEvents] = await Promise.all([
+				listScenes(),
+				listDevices(),
+				listEvents({ limit: 1000, type: 'scene_activated' })
+			]);
 			nativeScenes = loadedScenes;
 			pluginSceneDevices = loadedDevices.filter((device) => device.device_type === 'scene');
+			lastActivatedBySceneId = buildLastActivatedLookup(recentSceneEvents);
 		} catch (value) {
 			error = value instanceof Error ? value.message : 'Unable to load scenes';
 		} finally {
@@ -91,6 +106,10 @@
 			} else {
 				await activateScene(scene.id);
 			}
+			lastActivatedBySceneId = {
+				...lastActivatedBySceneId,
+				[scene.id]: new Date().toISOString()
+			};
 			notice = `Activation sent for ${scene.name}`;
 		} catch (value) {
 			error = value instanceof Error ? value.message : 'Unable to activate scene';
@@ -112,6 +131,7 @@
 		const nextSort: SortKey | null =
 			column === 'name' ? 'name'
 			: column === 'state_count' ? 'state_count'
+			: column === 'last_activated' ? 'last_activated'
 			: column === 'source' ? 'source'
 			: null;
 		if (!nextSort) return;
@@ -150,21 +170,41 @@
 		return (
 			(column === 'name' && sortBy === 'name') ||
 			(column === 'state_count' && sortBy === 'state_count') ||
+			(column === 'last_activated' && sortBy === 'last_activated') ||
 			(column === 'source' && sortBy === 'source')
 		);
+	}
+
+	function buildLastActivatedLookup(
+		entries: {
+			event_type: string;
+			event?: { scene_id?: string; timestamp?: string };
+		}[]
+	): Record<string, string> {
+		const lookup: Record<string, string> = {};
+		for (const entry of entries) {
+			if (entry.event_type !== 'scene_activated') continue;
+			const sceneId = entry.event?.scene_id;
+			const timestamp = entry.event?.timestamp;
+			if (!sceneId || !timestamp) continue;
+			if (!(sceneId in lookup)) lookup[sceneId] = timestamp;
+		}
+		return lookup;
 	}
 
 	const allScenes = $derived.by<DisplayScene[]>(() => [
 		...nativeScenes.map((scene) => ({
 			...scene,
-			isPlugin: false
+			isPlugin: false,
+			lastActivated: lastActivatedBySceneId[scene.id] ?? null
 		})),
 		...pluginSceneDevices.map((device) => ({
 			id: device.device_id,
 			name: deviceDisplayName(device),
 			description: null,
 			states: {},
-			isPlugin: true
+			isPlugin: true,
+			lastActivated: lastActivatedBySceneId[device.device_id] ?? null
 		}))
 	]);
 
@@ -183,6 +223,11 @@
 		items.sort((a, b) => {
 			let result = 0;
 			if (sortBy === 'state_count') result = sceneStateCount(a) - sceneStateCount(b);
+			else if (sortBy === 'last_activated') {
+				const aTime = a.lastActivated ? Date.parse(a.lastActivated) : 0;
+				const bTime = b.lastActivated ? Date.parse(b.lastActivated) : 0;
+				result = aTime - bTime;
+			}
 			else if (sortBy === 'source') result = (a.isPlugin ? 'plugin' : 'native').localeCompare(b.isPlugin ? 'plugin' : 'native');
 			else result = a.name.localeCompare(b.name);
 			return sortDirection === 'asc' ? result : -result;
@@ -300,6 +345,15 @@
 										<span class:plugin-pill={scene.isPlugin} class="pill">
 											{scene.isPlugin ? 'Plugin' : 'Native'}
 										</span>
+									{:else if column === 'last_activated'}
+										<div class="primary">
+											<strong>{formatRelativeTime(scene.lastActivated)}</strong>
+											{#if scene.lastActivated}
+												<span class="subtle">{new Date(scene.lastActivated).toLocaleString()}</span>
+											{:else}
+												<span class="subtle">Never recorded</span>
+											{/if}
+										</div>
 									{:else if column === 'state_count'}
 										<span class="pill">{sceneStateCount(scene)}</span>
 									{:else if column === 'activate'}

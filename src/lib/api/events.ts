@@ -1,11 +1,24 @@
-import type { HcEvent } from '$lib/models/event';
-import { buildWebSocketUrl, getStoredToken } from './client';
+import type { HcEvent, LogEntry } from '$lib/models/event';
+import { apiRequest, buildWebSocketUrl, getStoredToken } from './client';
 
 export type EventStreamHandlers = {
 	onEvent: (event: HcEvent) => void;
 	onConnected?: (connected: boolean) => void;
 	onError?: (message: string) => void;
 };
+
+export async function listEvents(options: {
+	limit?: number;
+	type?: string;
+	deviceId?: string;
+} = {}): Promise<LogEntry[]> {
+	const params = new URLSearchParams();
+	if (options.limit) params.set('limit', String(options.limit));
+	if (options.type?.trim()) params.set('type', options.type.trim());
+	if (options.deviceId?.trim()) params.set('device_id', options.deviceId.trim());
+	const suffix = params.size > 0 ? `?${params.toString()}` : '';
+	return apiRequest<LogEntry[]>(`/events${suffix}`);
+}
 
 export class HomeCoreEventsApi {
 	#socket: WebSocket | null = null;

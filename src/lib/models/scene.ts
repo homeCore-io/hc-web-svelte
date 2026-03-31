@@ -11,6 +11,7 @@ export type DisplayScene = {
 	description?: string | null;
 	states?: Record<string, unknown>;
 	isPlugin: boolean;
+	lastActivated?: string | null;
 };
 
 export function sceneStateCount(scene: Scene): number {

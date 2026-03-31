@@ -80,6 +80,7 @@
 	let showMediaDetails = $state(false);
 	let visibleColumns = $state<DeviceColumn[]>([...defaultColumns]);
 	let draggedColumn = $state<DeviceColumn | null>(null);
+	let toolbarExpanded = $state(false);
 	let prefsReady = $state(false);
 
 	$effect(() => {
@@ -275,64 +276,72 @@
 	</div>
 
 	<div class="toolbar panel">
-		<div class="toolbar-row">
+		<div class="toolbar-row toolbar-top">
 			<input bind:value={search} placeholder="Search name, area, type, plugin, canonical name, status" />
-			<select bind:value={availability}>
-				<option value="all">All devices</option>
-				<option value="online">Online only</option>
-				<option value="offline">Offline only</option>
-			</select>
-			<select bind:value={areaFilter}>
-				<option value="all">All areas</option>
-				{#each areaOptions as area}
-					<option value={area}>{area}</option>
-				{/each}
-			</select>
-			<select bind:value={typeFilter}>
-				<option value="all">All types</option>
-				{#each typeOptions as deviceType}
-					<option value={deviceType}>{deviceType}</option>
-				{/each}
-			</select>
+			<button type="button" class="secondary" onclick={() => (toolbarExpanded = !toolbarExpanded)}>
+				{toolbarExpanded ? 'Hide options' : 'Show options'}
+			</button>
 		</div>
 
-		<div class="toolbar-row preferences">
-			<label>
-				Density
-				<select bind:value={density}>
-					<option value="comfortable">Comfortable</option>
-					<option value="compact">Compact</option>
+		{#if toolbarExpanded}
+			<div class="toolbar-row">
+				<select bind:value={availability}>
+					<option value="all">All devices</option>
+					<option value="online">Online only</option>
+					<option value="offline">Offline only</option>
 				</select>
-			</label>
-			<label class="inline-check">
-				<input type="checkbox" bind:checked={showMediaDetails} />
-				<span>Show media details</span>
-			</label>
-			<button type="button" class="secondary" onclick={resetLayout}>Reset layout</button>
-		</div>
-
-		<div class="column-editor">
-			<div>
-				<strong>Columns</strong>
-				<p>Use the dropdown to show or hide columns. Drag table headers to reorder them.</p>
-			</div>
-			<details class="column-dropdown">
-				<summary>Column selection</summary>
-				<div class="column-menu">
-					{#each allColumns as column}
-						<label class="column-option">
-							<input
-								type="checkbox"
-								checked={visibleColumns.includes(column.id)}
-								onchange={() => toggleColumn(column.id)}
-								disabled={visibleColumns.length === 1 && visibleColumns.includes(column.id)}
-							/>
-							<span>{column.label}</span>
-						</label>
+				<select bind:value={areaFilter}>
+					<option value="all">All areas</option>
+					{#each areaOptions as area}
+						<option value={area}>{area}</option>
 					{/each}
+				</select>
+				<select bind:value={typeFilter}>
+					<option value="all">All types</option>
+					{#each typeOptions as deviceType}
+						<option value={deviceType}>{deviceType}</option>
+					{/each}
+				</select>
+			</div>
+
+			<div class="toolbar-row preferences">
+				<label>
+					Density
+					<select bind:value={density}>
+						<option value="comfortable">Comfortable</option>
+						<option value="compact">Compact</option>
+					</select>
+				</label>
+				<label class="inline-check">
+					<input type="checkbox" bind:checked={showMediaDetails} />
+					<span>Show media details</span>
+				</label>
+				<button type="button" class="secondary" onclick={resetLayout}>Reset layout</button>
+			</div>
+
+			<div class="column-editor">
+				<div>
+					<strong>Columns</strong>
+					<p>Use the dropdown to show or hide columns. Drag table headers to reorder them.</p>
 				</div>
-			</details>
-		</div>
+				<details class="column-dropdown">
+					<summary>Column selection</summary>
+					<div class="column-menu">
+						{#each allColumns as column}
+							<label class="column-option">
+								<input
+									type="checkbox"
+									checked={visibleColumns.includes(column.id)}
+									onchange={() => toggleColumn(column.id)}
+									disabled={visibleColumns.length === 1 && visibleColumns.includes(column.id)}
+								/>
+								<span>{column.label}</span>
+							</label>
+						{/each}
+					</div>
+				</details>
+			</div>
+		{/if}
 	</div>
 
 	{#if error}
@@ -483,6 +492,7 @@
 	}
 	.toolbar { display: grid; gap: 1rem; }
 	.toolbar-row { flex-wrap: wrap; }
+	.toolbar-top { justify-content: space-between; align-items: stretch; }
 	.preferences { justify-content: flex-start; gap: 1rem; }
 	.column-editor { display: grid; gap: 0.75rem; }
 	.column-editor p, .heading p { margin: 0.25rem 0 0; color: #617486; }
@@ -644,5 +654,6 @@
 	@media (max-width: 900px) {
 		.preferences > button { margin-left: 0; }
 		input { min-width: 100%; }
+		.toolbar-top { justify-content: start; }
 	}
 </style>

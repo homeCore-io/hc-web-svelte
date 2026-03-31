@@ -115,17 +115,19 @@
 	{:else if widget.type === 'device_grid'}
 		<div class="device-grid">
 			{#each selectedDevices as device}
-				<div class="device-card">
+				<a class="device-card device-link" href={`/devices/${device.device_id}`}>
 					<strong>{device.name ?? device.device_id}</strong>
 					<span>{device.area ?? device.device_type ?? 'Device'}</span>
-				</div>
+				</a>
 			{/each}
 		</div>
 	{:else if widget.type === 'device_list'}
 		<ul class="device-list">
 			{#each selectedDevices as device}
 				<li>
-					<strong>{device.name ?? device.device_id}</strong>
+					<a class="device-link" href={`/devices/${device.device_id}`}>
+						<strong>{device.name ?? device.device_id}</strong>
+					</a>
 					<span>{device.area ?? device.device_type ?? 'Device'}</span>
 				</li>
 			{/each}
@@ -240,6 +242,15 @@
 		flex-direction: column;
 		padding-bottom: 0.75rem;
 		border-bottom: 1px solid #e4ebf2;
+	}
+
+	.device-link {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.device-link:hover {
+		text-decoration: underline;
 	}
 
 	.links a {

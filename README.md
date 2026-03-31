@@ -90,6 +90,13 @@ Current dashboard lifecycle support:
 - import from JSON
 - set default dashboard
 
+Current device support:
+
+- read-only device inventory
+- device detail route
+- media-player detail/status
+- basic media actions from device detail when supported by HomeCore
+
 ## Dev Run
 
 For local development, the Svelte app uses relative `/api/v1` requests and relies on a Vite proxy.

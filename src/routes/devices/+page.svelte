@@ -92,7 +92,9 @@
 						{#each items as device}
 							<article class="card">
 								<div class="card-top">
-									<strong>{deviceDisplayName(device)}</strong>
+									<a class="device-link" href={`/devices/${device.device_id}`}>
+										<strong>{deviceDisplayName(device)}</strong>
+									</a>
 									<span class:offline={!device.available}>
 										{device.available ? 'Online' : 'Offline'}
 									</span>
@@ -164,6 +166,8 @@
 		display: grid;
 		gap: 0.6rem;
 	}
+	.device-link { color: inherit; text-decoration: none; }
+	.device-link:hover { text-decoration: underline; }
 	.card p { color: #627488; }
 	span {
 		padding: 0.25rem 0.6rem;

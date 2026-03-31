@@ -36,6 +36,34 @@ class DashboardsState {
 	get defaultDashboard() {
 		return this.items.find((item) => item.is_default) ?? this.items[0] ?? null;
 	}
+
+	async createFromTemplate(id: string) {
+		const created = await dashboardsApi.createDashboardFromTemplate(id);
+		await this.load();
+		return created;
+	}
+
+	async duplicate(id: string) {
+		const created = await dashboardsApi.duplicateDashboard(id);
+		await this.load();
+		return created;
+	}
+
+	async export(id: string) {
+		return dashboardsApi.exportDashboard(id);
+	}
+
+	async import(dashboard: DashboardDefinition) {
+		const created = await dashboardsApi.importDashboard(dashboard);
+		await this.load();
+		return created;
+	}
+
+	async setDefault(id: string) {
+		const updated = await dashboardsApi.setDefaultDashboard(id);
+		await this.load();
+		return updated;
+	}
 }
 
 export const dashboardsState = new DashboardsState();

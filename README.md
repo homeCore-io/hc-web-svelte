@@ -77,10 +77,18 @@ Current placeholders remain for:
 
 Current notable gaps:
 
-- dashboard CRUD/templates/import/export
+- dashboard editing and delete flows
 - richer widget fidelity and controls
 - richer device detail and mutation flows
 - websocket-driven state updates outside the event feed
+
+Current dashboard lifecycle support:
+
+- create from template
+- duplicate
+- export to JSON
+- import from JSON
+- set default dashboard
 
 ## Dev Run
 

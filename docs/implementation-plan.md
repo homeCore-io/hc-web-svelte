@@ -246,6 +246,12 @@ Current progress beyond the initial dashboard-only milestone:
 - read-only `devices` page implemented
 - read-only `scenes` page implemented
 - read-only `modes` page implemented
+- dashboard lifecycle flows implemented:
+  - create from template
+  - duplicate
+  - export
+  - import
+  - set default
 
 ## Concrete Build Checklist
 

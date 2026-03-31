@@ -1,11 +1,81 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { dashboardsState } from '$lib/stores/dashboards.svelte';
+	import type { DashboardDefinition } from '$lib/models/dashboard';
 
 	$effect(() => {
 		if (!dashboardsState.loaded && !dashboardsState.loading) {
 			void dashboardsState.load();
 		}
 	});
+
+	let busyAction = $state<string | null>(null);
+	let pageError = $state<string | null>(null);
+	let pageNotice = $state<string | null>(null);
+	let importOpen = $state(false);
+	let importValue = $state('');
+
+	async function runAction(action: string, task: () => Promise<void>) {
+		busyAction = action;
+		pageError = null;
+		pageNotice = null;
+		try {
+			await task();
+		} catch (error) {
+			pageError = error instanceof Error ? error.message : 'Dashboard action failed';
+		} finally {
+			busyAction = null;
+		}
+	}
+
+	async function createFromTemplate(templateId: string) {
+		await runAction(`template:${templateId}`, async () => {
+			const created = await dashboardsState.createFromTemplate(templateId);
+			pageNotice = `Created ${created.name}`;
+			await goto(`/dashboards/${created.id}`);
+		});
+	}
+
+	async function duplicateDashboard(id: string) {
+		await runAction(`duplicate:${id}`, async () => {
+			const created = await dashboardsState.duplicate(id);
+			pageNotice = `Duplicated ${created.name}`;
+			await goto(`/dashboards/${created.id}`);
+		});
+	}
+
+	async function setDefault(id: string) {
+		await runAction(`default:${id}`, async () => {
+			const updated = await dashboardsState.setDefault(id);
+			pageNotice = `${updated.name} is now your default dashboard`;
+		});
+	}
+
+	async function exportDashboard(dashboard: DashboardDefinition) {
+		await runAction(`export:${dashboard.id}`, async () => {
+			const exported = await dashboardsState.export(dashboard.id);
+			const text = JSON.stringify(exported, null, 2);
+			if (navigator.clipboard?.writeText) {
+				await navigator.clipboard.writeText(text);
+				pageNotice = `Copied ${dashboard.name} JSON to the clipboard`;
+			} else {
+				importValue = text;
+				importOpen = true;
+				pageNotice = `Exported ${dashboard.name} JSON into the import dialog`;
+			}
+		});
+	}
+
+	async function importDashboard() {
+		await runAction('import', async () => {
+			const parsed = JSON.parse(importValue) as DashboardDefinition;
+			const created = await dashboardsState.import(parsed);
+			importValue = '';
+			importOpen = false;
+			pageNotice = `Imported ${created.name}`;
+			await goto(`/dashboards/${created.id}`);
+		});
+	}
 </script>
 
 <section class="page">
@@ -14,12 +84,46 @@
 			<h1>Dashboards</h1>
 			<p>Saved HomeCore dashboards plus available starter templates.</p>
 		</div>
-		<button type="button" onclick={() => dashboardsState.load()} disabled={dashboardsState.loading}>
-			{dashboardsState.loading ? 'Refreshing…' : 'Refresh'}
-		</button>
+		<div class="actions">
+			<button type="button" class="secondary" onclick={() => (importOpen = true)}>Import</button>
+			<button
+				type="button"
+				onclick={() => dashboardsState.load()}
+				disabled={dashboardsState.loading || !!busyAction}
+			>
+				{dashboardsState.loading ? 'Refreshing…' : 'Refresh'}
+			</button>
+		</div>
 	</div>
 
-	{#if dashboardsState.error}
+	{#if pageError || dashboardsState.error}
+		<p class="error">{pageError ?? dashboardsState.error}</p>
+	{/if}
+	{#if pageNotice}
+		<p class="notice">{pageNotice}</p>
+	{/if}
+
+	{#if importOpen}
+		<section class="panel import-panel">
+			<div class="card-header">
+				<h2>Import Dashboard</h2>
+				<button type="button" class="secondary" onclick={() => (importOpen = false)}>Close</button>
+			</div>
+			<p>Paste exported dashboard JSON. The imported copy will be owned by the current user.</p>
+			<textarea bind:value={importValue} rows="14" placeholder="Paste dashboard JSON here"></textarea>
+			<div class="actions">
+				<button
+					type="button"
+					onclick={importDashboard}
+					disabled={!importValue.trim() || busyAction === 'import'}
+				>
+					{busyAction === 'import' ? 'Importing…' : 'Import Dashboard'}
+				</button>
+			</div>
+		</section>
+	{/if}
+
+	{#if dashboardsState.error && !dashboardsState.items.length}
 		<p class="error">{dashboardsState.error}</p>
 	{:else if dashboardsState.loading && !dashboardsState.items.length}
 		<p>Loading dashboards…</p>
@@ -32,7 +136,7 @@
 				{:else}
 					<div class="cards">
 						{#each dashboardsState.items as dashboard}
-							<a class="card" href={`/dashboards/${dashboard.id}`}>
+							<article class="card">
 								<div class="card-header">
 									<strong>{dashboard.name}</strong>
 									{#if dashboard.is_default}
@@ -40,7 +144,41 @@
 									{/if}
 								</div>
 								<p>{dashboard.description ?? dashboard.id}</p>
-							</a>
+								<div class="tags">
+									{#each dashboard.tags as tag}
+										<span class="tag">{tag}</span>
+									{/each}
+								</div>
+								<div class="card-actions">
+									<a class="link-button" href={`/dashboards/${dashboard.id}`}>Open</a>
+									<button
+										type="button"
+										class="secondary"
+										onclick={() => duplicateDashboard(dashboard.id)}
+										disabled={busyAction === `duplicate:${dashboard.id}`}
+									>
+										{busyAction === `duplicate:${dashboard.id}` ? 'Duplicating…' : 'Duplicate'}
+									</button>
+									<button
+										type="button"
+										class="secondary"
+										onclick={() => exportDashboard(dashboard)}
+										disabled={busyAction === `export:${dashboard.id}`}
+									>
+										{busyAction === `export:${dashboard.id}` ? 'Exporting…' : 'Export'}
+									</button>
+									{#if !dashboard.is_default}
+										<button
+											type="button"
+											class="secondary"
+											onclick={() => setDefault(dashboard.id)}
+											disabled={busyAction === `default:${dashboard.id}`}
+										>
+											{busyAction === `default:${dashboard.id}` ? 'Saving…' : 'Set Default'}
+										</button>
+									{/if}
+								</div>
+							</article>
 						{/each}
 					</div>
 				{/if}
@@ -53,6 +191,15 @@
 						<div class="card muted-card">
 							<strong>{template.name}</strong>
 							<p>{template.description ?? template.id}</p>
+							<div class="card-actions">
+								<button
+									type="button"
+									onclick={() => createFromTemplate(template.id)}
+									disabled={busyAction === `template:${template.id}`}
+								>
+									{busyAction === `template:${template.id}` ? 'Creating…' : 'Create From Template'}
+								</button>
+							</div>
 						</div>
 					{/each}
 				</div>
@@ -65,6 +212,19 @@
 	.page {
 		display: grid;
 		gap: 1.25rem;
+	}
+
+	.heading,
+	.actions,
+	.card-actions,
+	.tags {
+		display: flex;
+		gap: 0.75rem;
+	}
+
+	.heading {
+		justify-content: space-between;
+		align-items: start;
 	}
 
 	.heading h1,
@@ -98,13 +258,11 @@
 
 	.card {
 		display: grid;
-		gap: 0.4rem;
+		gap: 0.6rem;
 		padding: 1rem;
 		border-radius: 0.95rem;
 		background: white;
 		border: 1px solid #dbe5ef;
-		color: inherit;
-		text-decoration: none;
 	}
 
 	.card-header {
@@ -126,6 +284,15 @@
 		font-size: 0.8rem;
 	}
 
+	.tag,
+	.notice {
+		padding: 0.22rem 0.55rem;
+		border-radius: 999px;
+		background: #eef3f8;
+		color: #31506b;
+		font-size: 0.8rem;
+	}
+
 	.muted-card {
 		background: #f6f8fb;
 	}
@@ -134,18 +301,52 @@
 		color: #b53622;
 	}
 
-	button {
+	.notice {
+		background: #dff4e7;
+		color: #14633a;
+		width: fit-content;
+	}
+
+	button,
+	.link-button {
 		border: 0;
 		border-radius: 999px;
 		padding: 0.65rem 1rem;
 		background: #153a63;
 		color: white;
 		cursor: pointer;
+		text-decoration: none;
+		font: inherit;
+	}
+
+	.secondary {
+		background: #e7eef6;
+		color: #183b60;
+	}
+
+	textarea {
+		width: 100%;
+		border-radius: 0.8rem;
+		border: 1px solid #cfdae6;
+		padding: 0.9rem;
+		font: 0.9rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+		resize: vertical;
+	}
+
+	.import-panel {
+		gap: 0.9rem;
+		display: grid;
 	}
 
 	@media (max-width: 960px) {
 		.columns {
 			grid-template-columns: 1fr;
+		}
+
+		.heading,
+		.actions,
+		.card-actions {
+			flex-wrap: wrap;
 		}
 	}
 </style>

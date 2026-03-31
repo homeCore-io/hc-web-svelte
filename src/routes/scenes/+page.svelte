@@ -4,6 +4,7 @@
 	import { sceneStateCount, sceneSummary, type Scene } from '$lib/models/scene';
 
 	type SortKey = 'name' | 'state_count';
+	type SortDirection = 'asc' | 'desc';
 	type SceneColumn = 'name' | 'summary' | 'state_count' | 'activate' | 'id';
 
 	const PREFS_KEY = 'hc-web-svelte:scenes:grid';
@@ -23,8 +24,8 @@
 	let notice = $state<string | null>(null);
 	let search = $state('');
 	let sortBy = $state<SortKey>('name');
+	let sortDirection = $state<SortDirection>('asc');
 	let visibleColumns = $state<SceneColumn[]>([...defaultColumns]);
-	let addColumn = $state<SceneColumn | ''>('');
 	let draggedColumn = $state<SceneColumn | null>(null);
 	let prefsReady = $state(false);
 
@@ -91,21 +92,18 @@
 		visibleColumns = [...visibleColumns, column];
 	}
 
-	function addSelectedColumn() {
-		if (!addColumn) return;
-		toggleColumn(addColumn);
-		addColumn = '';
-	}
-
-	function moveColumn(column: SceneColumn, direction: -1 | 1) {
-		const index = visibleColumns.indexOf(column);
-		if (index < 0) return;
-		const nextIndex = index + direction;
-		if (nextIndex < 0 || nextIndex >= visibleColumns.length) return;
-		const copy = [...visibleColumns];
-		const [item] = copy.splice(index, 1);
-		copy.splice(nextIndex, 0, item);
-		visibleColumns = copy;
+	function sortByColumn(column: SceneColumn) {
+		const nextSort: SortKey | null =
+			column === 'name' ? 'name'
+			: column === 'state_count' ? 'state_count'
+			: null;
+		if (!nextSort) return;
+		if (sortBy === nextSort) {
+			sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+			return;
+		}
+		sortBy = nextSort;
+		sortDirection = nextSort === 'state_count' ? 'desc' : 'asc';
 	}
 
 	function handleDragStart(column: SceneColumn) {
@@ -126,6 +124,8 @@
 
 	function resetLayout() {
 		visibleColumns = [...defaultColumns];
+		sortBy = 'name';
+		sortDirection = 'asc';
 	}
 
 	const filtered = $derived.by(() => {
@@ -139,17 +139,13 @@
 				.includes(query);
 		});
 		items.sort((a, b) => {
-			if (sortBy === 'state_count') {
-				return sceneStateCount(b) - sceneStateCount(a);
-			}
-			return a.name.localeCompare(b.name);
+			let result = 0;
+			if (sortBy === 'state_count') result = sceneStateCount(a) - sceneStateCount(b);
+			else result = a.name.localeCompare(b.name);
+			return sortDirection === 'asc' ? result : -result;
 		});
 		return items;
 	});
-
-	const hiddenColumns = $derived.by(() =>
-		allColumns.filter((column) => !visibleColumns.includes(column.id))
-	);
 </script>
 
 <section class="page">
@@ -166,43 +162,30 @@
 	<div class="toolbar panel">
 		<div class="toolbar-row">
 			<input bind:value={search} placeholder="Search scene name or description" />
-			<select bind:value={sortBy}>
-				<option value="name">Sort: Name</option>
-				<option value="state_count">Sort: Captured states</option>
-			</select>
 			<button type="button" class="secondary" onclick={resetLayout}>Reset layout</button>
 		</div>
-		<div class="column-actions">
-			<select bind:value={addColumn} disabled={hiddenColumns.length === 0}>
-				<option value="">Add column…</option>
-				{#each hiddenColumns as column}
-					<option value={column.id}>{column.label}</option>
-				{/each}
-			</select>
-			<button type="button" class="secondary" onclick={addSelectedColumn} disabled={!addColumn}>Add</button>
-		</div>
-		<div class="column-list" role="list">
-			{#each visibleColumns as column}
-				<div
-					class:dragging={draggedColumn === column}
-					class="column-item"
-					draggable="true"
-					role="listitem"
-					aria-grabbed={draggedColumn === column}
-					ondragstart={() => handleDragStart(column)}
-					ondragover={(event) => event.preventDefault()}
-					ondrop={() => handleDrop(column)}
-					ondragend={() => (draggedColumn = null)}
-				>
-					<span class="drag-handle" title="Drag to reorder">⋮⋮</span>
-					<span class="column-label">{allColumns.find((value) => value.id === column)?.label ?? column}</span>
-					<div class="move-buttons">
-						<button type="button" class="ghost" onclick={() => moveColumn(column, -1)}>↑</button>
-						<button type="button" class="ghost" onclick={() => moveColumn(column, 1)}>↓</button>
-						<button type="button" class="ghost danger" onclick={() => toggleColumn(column)} disabled={visibleColumns.length === 1}>×</button>
-					</div>
+
+		<div class="column-editor">
+			<div>
+				<strong>Columns</strong>
+				<p>Use the dropdown to show or hide columns. Drag table headers to reorder them.</p>
+			</div>
+			<details class="column-dropdown">
+				<summary>Column selection</summary>
+				<div class="column-menu">
+					{#each allColumns as column}
+						<label class="column-option">
+							<input
+								type="checkbox"
+								checked={visibleColumns.includes(column.id)}
+								onchange={() => toggleColumn(column.id)}
+								disabled={visibleColumns.length === 1 && visibleColumns.includes(column.id)}
+							/>
+							<span>{column.label}</span>
+						</label>
+					{/each}
 				</div>
-			{/each}
+			</details>
 		</div>
 	</div>
 
@@ -223,7 +206,23 @@
 				<thead>
 					<tr>
 						{#each visibleColumns as column}
-							<th scope="col">{allColumns.find((value) => value.id === column)?.label ?? column}</th>
+							<th
+								scope="col"
+								class:dragging={draggedColumn === column}
+								draggable="true"
+								ondragstart={() => handleDragStart(column)}
+								ondragover={(event) => event.preventDefault()}
+								ondrop={() => handleDrop(column)}
+								ondragend={() => (draggedColumn = null)}
+							>
+								<button type="button" class="header-button" onclick={() => sortByColumn(column)}>
+									<span class="drag-handle" title="Drag to reorder">⋮⋮</span>
+									<span>{allColumns.find((value) => value.id === column)?.label ?? column}</span>
+									{#if (column === 'name' && sortBy === 'name') || (column === 'state_count' && sortBy === 'state_count')}
+										<span class="sort-indicator">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+									{/if}
+								</button>
+							</th>
 						{/each}
 					</tr>
 				</thead>
@@ -260,7 +259,7 @@
 
 <style>
 	.page { display: grid; gap: 1rem; }
-	.heading, .toolbar-row, .column-item, .move-buttons, .column-actions { display: flex; gap: 0.75rem; align-items: center; }
+	.heading, .toolbar-row { display: flex; gap: 0.75rem; align-items: center; }
 	.heading { justify-content: space-between; }
 	.panel {
 		background: rgba(255,255,255,0.8);
@@ -269,27 +268,43 @@
 		padding: 1rem;
 	}
 	.toolbar { display: grid; gap: 1rem; }
-	.column-actions { flex-wrap: wrap; }
-	.column-list { display: grid; gap: 0.45rem; }
-	.column-item {
-		justify-content: space-between;
-		background: #f7fafc;
+	.column-editor { display: grid; gap: 0.75rem; }
+	.column-dropdown summary {
+		width: fit-content;
+		list-style: none;
+		cursor: pointer;
+		padding: 0.65rem 0.9rem;
+		border-radius: 0.8rem;
+		border: 1px solid #cfdae6;
+		background: white;
+		color: #173b61;
+	}
+	.column-dropdown[open] summary { margin-bottom: 0.6rem; }
+	.column-menu {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+		gap: 0.5rem 1rem;
+		padding: 0.75rem;
 		border: 1px solid #dbe4ed;
 		border-radius: 0.8rem;
-		padding: 0.45rem 0.55rem;
-		gap: 0.45rem;
-		grid-template-columns: auto 1fr auto;
-		cursor: grab;
+		background: #f8fbfd;
 	}
-	.column-item.dragging { opacity: 0.55; }
-	input, select {
+	.column-option {
+		display: flex;
+		gap: 0.55rem;
+		align-items: center;
+		font-size: 0.9rem;
+		color: #33485a;
+	}
+	input {
 		padding: 0.72rem 0.85rem;
 		border-radius: 0.8rem;
 		border: 1px solid #cfdae6;
 		background: white;
 		font: inherit;
+		min-width: min(360px, 100%);
+		flex: 1;
 	}
-	input { min-width: min(360px, 100%); flex: 1; }
 	button {
 		border: 0;
 		border-radius: 999px;
@@ -300,20 +315,6 @@
 		font: inherit;
 	}
 	.secondary { background: #e6eef7; color: #173b61; }
-	.ghost {
-		background: #eef3f8;
-		color: #173b61;
-		padding: 0.2rem 0.45rem;
-		font-size: 0.8rem;
-	}
-	.column-label { font-size: 0.9rem; color: #33485a; }
-	.drag-handle {
-		color: #789;
-		font-size: 0.9rem;
-		letter-spacing: -0.1em;
-		user-select: none;
-	}
-	.danger { color: #9a2d2d; }
 	.table-wrap { overflow: auto; padding: 0; }
 	table { width: 100%; border-collapse: collapse; min-width: 760px; }
 	th, td {
@@ -329,6 +330,27 @@
 		letter-spacing: 0.04em;
 		color: #627488;
 	}
+	th.dragging { opacity: 0.55; }
+	.header-button {
+		display: inline-flex;
+		gap: 0.45rem;
+		align-items: center;
+		border: 0;
+		background: transparent;
+		padding: 0;
+		color: inherit;
+		font: inherit;
+		text-transform: inherit;
+		letter-spacing: inherit;
+		cursor: pointer;
+	}
+	.drag-handle {
+		color: #789;
+		font-size: 0.9rem;
+		letter-spacing: -0.1em;
+		user-select: none;
+	}
+	.sort-indicator { color: #173b61; }
 	.primary { display: grid; gap: 0.15rem; }
 	.subtle { font-size: 0.82rem; color: #66798a; word-break: break-word; }
 	.pill {

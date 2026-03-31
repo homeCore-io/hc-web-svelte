@@ -23,6 +23,7 @@
 	type AvailabilityFilter = 'all' | 'online' | 'offline';
 	type Density = 'comfortable' | 'compact';
 	type SortKey = 'name' | 'area' | 'status' | 'type' | 'last_seen';
+	type SortDirection = 'asc' | 'desc';
 	type DeviceColumn =
 		| 'status_icon'
 		| 'name'
@@ -74,10 +75,10 @@
 	let areaFilter = $state('all');
 	let typeFilter = $state('all');
 	let sortBy = $state<SortKey>('name');
+	let sortDirection = $state<SortDirection>('asc');
 	let density = $state<Density>('comfortable');
 	let showMediaDetails = $state(false);
 	let visibleColumns = $state<DeviceColumn[]>([...defaultColumns]);
-	let addColumn = $state<DeviceColumn | ''>('');
 	let draggedColumn = $state<DeviceColumn | null>(null);
 	let prefsReady = $state(false);
 
@@ -156,21 +157,21 @@
 		visibleColumns = [...visibleColumns, column];
 	}
 
-	function addSelectedColumn() {
-		if (!addColumn) return;
-		toggleColumn(addColumn);
-		addColumn = '';
-	}
-
-	function moveColumn(column: DeviceColumn, direction: -1 | 1) {
-		const index = visibleColumns.indexOf(column);
-		if (index < 0) return;
-		const nextIndex = index + direction;
-		if (nextIndex < 0 || nextIndex >= visibleColumns.length) return;
-		const copy = [...visibleColumns];
-		const [item] = copy.splice(index, 1);
-		copy.splice(nextIndex, 0, item);
-		visibleColumns = copy;
+	function sortByColumn(column: DeviceColumn) {
+		const nextSort: SortKey | null =
+			column === 'name' ? 'name'
+			: column === 'area' ? 'area'
+			: column === 'status_icon' || column === 'status_text' ? 'status'
+			: column === 'device_type' ? 'type'
+			: column === 'last_seen' ? 'last_seen'
+			: null;
+		if (!nextSort) return;
+		if (sortBy === nextSort) {
+			sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+			return;
+		}
+		sortBy = nextSort;
+		sortDirection = nextSort === 'last_seen' ? 'desc' : 'asc';
 	}
 
 	function handleDragStart(column: DeviceColumn) {
@@ -193,10 +194,22 @@
 		visibleColumns = [...defaultColumns];
 		density = 'comfortable';
 		showMediaDetails = false;
+		sortBy = 'name';
+		sortDirection = 'asc';
 	}
 
 	function openDevice(device: DeviceState) {
 		void goto(`/devices/${device.device_id}`);
+	}
+
+	function isSortColumnActive(column: DeviceColumn): boolean {
+		return (
+			(column === 'name' && sortBy === 'name') ||
+			(column === 'area' && sortBy === 'area') ||
+			((column === 'status_icon' || column === 'status_text') && sortBy === 'status') ||
+			(column === 'device_type' && sortBy === 'type') ||
+			(column === 'last_seen' && sortBy === 'last_seen')
+		);
 	}
 
 	const areaOptions = $derived.by(() =>
@@ -238,18 +251,16 @@
 	const sorted = $derived.by(() => {
 		const items = [...filtered];
 		items.sort((a, b) => {
-			if (sortBy === 'name') return sortText(deviceDisplayName(a)).localeCompare(sortText(deviceDisplayName(b)));
-			if (sortBy === 'area') return sortText(a.area ?? 'Unassigned').localeCompare(sortText(b.area ?? 'Unassigned'));
-			if (sortBy === 'status') return sortText(statusText(a)).localeCompare(sortText(statusText(b)));
-			if (sortBy === 'type') return sortText(a.device_type ?? 'device').localeCompare(sortText(b.device_type ?? 'device'));
-			return (Date.parse(b.last_seen ?? '') || 0) - (Date.parse(a.last_seen ?? '') || 0);
+			let result = 0;
+			if (sortBy === 'name') result = sortText(deviceDisplayName(a)).localeCompare(sortText(deviceDisplayName(b)));
+			else if (sortBy === 'area') result = sortText(a.area ?? 'Unassigned').localeCompare(sortText(b.area ?? 'Unassigned'));
+			else if (sortBy === 'status') result = sortText(statusText(a)).localeCompare(sortText(statusText(b)));
+			else if (sortBy === 'type') result = sortText(a.device_type ?? 'device').localeCompare(sortText(b.device_type ?? 'device'));
+			else result = (Date.parse(a.last_seen ?? '') || 0) - (Date.parse(b.last_seen ?? '') || 0);
+			return sortDirection === 'asc' ? result : -result;
 		});
 		return items;
 	});
-
-	const hiddenColumns = $derived.by(() =>
-		allColumns.filter((column) => !visibleColumns.includes(column.id))
-	);
 </script>
 
 <section class="page">
@@ -283,13 +294,6 @@
 					<option value={deviceType}>{deviceType}</option>
 				{/each}
 			</select>
-			<select bind:value={sortBy}>
-				<option value="name">Sort: Name</option>
-				<option value="area">Sort: Area</option>
-				<option value="status">Sort: Status</option>
-				<option value="type">Sort: Type</option>
-				<option value="last_seen">Sort: Last changed</option>
-			</select>
 		</div>
 
 		<div class="toolbar-row preferences">
@@ -310,42 +314,24 @@
 		<div class="column-editor">
 			<div>
 				<strong>Columns</strong>
-				<p>Add hidden columns from the list, then drag visible ones to reorder them.</p>
+				<p>Use the dropdown to show or hide columns. Drag table headers to reorder them.</p>
 			</div>
-			<div class="column-actions">
-				<select bind:value={addColumn} disabled={hiddenColumns.length === 0}>
-					<option value="">Add column…</option>
-					{#each hiddenColumns as column}
-						<option value={column.id}>{column.label}</option>
+			<details class="column-dropdown">
+				<summary>Column selection</summary>
+				<div class="column-menu">
+					{#each allColumns as column}
+						<label class="column-option">
+							<input
+								type="checkbox"
+								checked={visibleColumns.includes(column.id)}
+								onchange={() => toggleColumn(column.id)}
+								disabled={visibleColumns.length === 1 && visibleColumns.includes(column.id)}
+							/>
+							<span>{column.label}</span>
+						</label>
 					{/each}
-				</select>
-				<button type="button" class="secondary" onclick={addSelectedColumn} disabled={!addColumn}>
-					Add
-				</button>
-			</div>
-			<div class="column-list" role="list">
-				{#each visibleColumns as column}
-					<div
-						class:dragging={draggedColumn === column}
-						class="column-item"
-						draggable="true"
-						role="listitem"
-						aria-grabbed={draggedColumn === column}
-						ondragstart={() => handleDragStart(column)}
-						ondragover={(event) => event.preventDefault()}
-						ondrop={() => handleDrop(column)}
-						ondragend={() => (draggedColumn = null)}
-					>
-						<span class="drag-handle" title="Drag to reorder">⋮⋮</span>
-						<span class="column-label">{allColumns.find((value) => value.id === column)?.label ?? column}</span>
-						<div class="move-buttons">
-							<button type="button" class="ghost" onclick={() => moveColumn(column, -1)}>↑</button>
-							<button type="button" class="ghost" onclick={() => moveColumn(column, 1)}>↓</button>
-							<button type="button" class="ghost danger" onclick={() => toggleColumn(column)} disabled={visibleColumns.length === 1}>×</button>
-						</div>
-					</div>
-				{/each}
-			</div>
+				</div>
+			</details>
 		</div>
 	</div>
 
@@ -366,7 +352,23 @@
 				<thead>
 					<tr>
 						{#each visibleColumns as column}
-							<th scope="col">{allColumns.find((value) => value.id === column)?.label ?? column}</th>
+							<th
+								scope="col"
+								class:dragging={draggedColumn === column}
+								draggable="true"
+								ondragstart={() => handleDragStart(column)}
+								ondragover={(event) => event.preventDefault()}
+								ondrop={() => handleDrop(column)}
+								ondragend={() => (draggedColumn = null)}
+							>
+								<button type="button" class="header-button" onclick={() => sortByColumn(column)}>
+									<span class="drag-handle" title="Drag to reorder">⋮⋮</span>
+									<span>{allColumns.find((value) => value.id === column)?.label ?? column}</span>
+									{#if isSortColumnActive(column)}
+										<span class="sort-indicator">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+									{/if}
+								</button>
+							</th>
 						{/each}
 					</tr>
 				</thead>
@@ -471,7 +473,7 @@
 
 <style>
 	.page { display: grid; gap: 1rem; }
-	.heading, .toolbar-row, .column-item, .move-buttons, .controls, .media-cell, .column-actions { display: flex; gap: 0.75rem; align-items: center; }
+	.heading, .toolbar-row, .controls, .media-cell { display: flex; gap: 0.75rem; align-items: center; }
 	.heading { justify-content: space-between; }
 	.panel {
 		background: rgba(255, 255, 255, 0.8);
@@ -484,19 +486,33 @@
 	.preferences { justify-content: space-between; }
 	.column-editor { display: grid; gap: 0.75rem; }
 	.column-editor p, .heading p { margin: 0.25rem 0 0; color: #617486; }
-	.column-actions { flex-wrap: wrap; }
-	.column-list { display: grid; gap: 0.45rem; }
-	.column-item {
-		justify-content: space-between;
-		background: #f7fafc;
+	.column-dropdown summary {
+		width: fit-content;
+		list-style: none;
+		cursor: pointer;
+		padding: 0.65rem 0.9rem;
+		border-radius: 0.8rem;
+		border: 1px solid #cfdae6;
+		background: white;
+		color: #173b61;
+	}
+	.column-dropdown[open] summary { margin-bottom: 0.6rem; }
+	.column-menu {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+		gap: 0.5rem 1rem;
+		padding: 0.75rem;
 		border: 1px solid #dbe4ed;
 		border-radius: 0.8rem;
-		padding: 0.45rem 0.55rem;
-		gap: 0.45rem;
-		grid-template-columns: auto 1fr auto;
-		cursor: grab;
+		background: #f8fbfd;
 	}
-	.column-item.dragging { opacity: 0.55; }
+	.column-option {
+		display: flex;
+		gap: 0.55rem;
+		align-items: center;
+		font-size: 0.9rem;
+		color: #33485a;
+	}
 	input, select {
 		padding: 0.72rem 0.85rem;
 		border-radius: 0.8rem;
@@ -505,13 +521,6 @@
 		font: inherit;
 	}
 	input { min-width: min(360px, 100%); flex: 1; }
-	.column-label { font-size: 0.9rem; color: #33485a; }
-	.drag-handle {
-		color: #789;
-		font-size: 0.9rem;
-		letter-spacing: -0.1em;
-		user-select: none;
-	}
 	button, .secondary-link {
 		border: 0;
 		border-radius: 999px;
@@ -526,13 +535,6 @@
 		background: #e6eef7;
 		color: #173b61;
 	}
-	.ghost {
-		background: #eef3f8;
-		color: #173b61;
-		padding: 0.2rem 0.45rem;
-		font-size: 0.8rem;
-	}
-	.danger { color: #9a2d2d; }
 	.table-wrap { overflow: auto; padding: 0; }
 	table {
 		width: 100%;
@@ -554,6 +556,27 @@
 		letter-spacing: 0.04em;
 		color: #627488;
 	}
+	th.dragging { opacity: 0.55; }
+	.header-button {
+		display: inline-flex;
+		gap: 0.45rem;
+		align-items: center;
+		border: 0;
+		background: transparent;
+		padding: 0;
+		color: inherit;
+		font: inherit;
+		text-transform: inherit;
+		letter-spacing: inherit;
+		cursor: pointer;
+	}
+	.drag-handle {
+		color: #789;
+		font-size: 0.9rem;
+		letter-spacing: -0.1em;
+		user-select: none;
+	}
+	.sort-indicator { color: #173b61; }
 	tbody tr { cursor: pointer; }
 	tbody tr:hover { background: #f8fbfd; }
 	tbody tr.offline { background: rgba(249, 240, 240, 0.45); }

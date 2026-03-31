@@ -251,7 +251,9 @@ Current progress beyond the initial dashboard-only milestone:
 - scenes page now merges native scenes with plugin scene devices
 - scenes page shows last activation from the HomeCore event log
 - scene activation implemented
-- read-only `modes` page implemented
+- configurable `modes` grid page implemented
+- `events` page implemented from the REST log plus live websocket events
+- shared grid filter/column UI components implemented
 - dashboard lifecycle flows implemented:
   - create from template
   - duplicate

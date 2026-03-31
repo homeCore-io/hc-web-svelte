@@ -108,6 +108,12 @@ Current scene support:
 - collapsible top toolbar like the devices page
 - inline `Activate` control
 
+Current modes and events support:
+
+- sortable, filterable `Modes` grid with schedule/state columns
+- first-class `Events` page backed by `GET /events` plus the live websocket stream
+- shared collapsible filter panel and column dropdown components used across inventory pages
+
 Design references:
 
 - `docs/device-scene-grid-spec.md` for the target `Devices` and `Scenes` data-grid UX

@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { listEvents } from '$lib/api/events';
+	import CollapsibleFilterPanel from '$lib/components/ui/CollapsibleFilterPanel.svelte';
+	import ColumnDropdown from '$lib/components/ui/ColumnDropdown.svelte';
 	import { activateScene, listScenes } from '$lib/api/scenes';
 	import { listDevices, setDeviceState } from '$lib/api/devices';
 	import { deviceDisplayName, formatRelativeTime, type DeviceState } from '$lib/models/device';
@@ -116,15 +118,6 @@
 		} finally {
 			busyId = null;
 		}
-	}
-
-	function toggleColumn(column: SceneColumn) {
-		if (visibleColumns.includes(column)) {
-			if (visibleColumns.length === 1) return;
-			visibleColumns = visibleColumns.filter((value) => value !== column);
-			return;
-		}
-		visibleColumns = [...visibleColumns, column];
 	}
 
 	function sortByColumn(column: SceneColumn) {
@@ -247,48 +240,22 @@
 		</button>
 	</div>
 
-	<div class="toolbar panel">
-		<div class="toolbar-row toolbar-top">
-			<input bind:value={search} placeholder="Search scene name, summary, source" />
-			<button type="button" class="secondary" onclick={() => (toolbarExpanded = !toolbarExpanded)}>
-				{toolbarExpanded ? 'Hide options' : 'Show options'}
-			</button>
+	<CollapsibleFilterPanel
+		bind:search
+		bind:expanded={toolbarExpanded}
+		searchPlaceholder="Search scene name, summary, source"
+	>
+		<div class="toolbar-row">
+			<select bind:value={sourceFilter}>
+				<option value="all">All scenes</option>
+				<option value="native">Native only</option>
+				<option value="plugin">Plugin only</option>
+			</select>
+			<button type="button" class="secondary" onclick={resetLayout}>Reset layout</button>
 		</div>
 
-		{#if toolbarExpanded}
-			<div class="toolbar-row">
-				<select bind:value={sourceFilter}>
-					<option value="all">All scenes</option>
-					<option value="native">Native only</option>
-					<option value="plugin">Plugin only</option>
-				</select>
-				<button type="button" class="secondary" onclick={resetLayout}>Reset layout</button>
-			</div>
-
-			<div class="column-editor">
-				<div>
-					<strong>Columns</strong>
-					<p>Use the dropdown to show or hide columns. Drag table headers to reorder them.</p>
-				</div>
-				<details class="column-dropdown">
-					<summary>Column selection</summary>
-					<div class="column-menu">
-						{#each allColumns as column}
-							<label class="column-option">
-								<input
-									type="checkbox"
-									checked={visibleColumns.includes(column.id)}
-									onchange={() => toggleColumn(column.id)}
-									disabled={visibleColumns.length === 1 && visibleColumns.includes(column.id)}
-								/>
-								<span>{column.label}</span>
-							</label>
-						{/each}
-					</div>
-				</details>
-			</div>
-		{/if}
-	</div>
+		<ColumnDropdown allColumns={allColumns} bind:visibleColumns />
+	</CollapsibleFilterPanel>
 
 	{#if error}
 		<p class="error">{error}</p>
@@ -377,55 +344,14 @@
 	.page { display: grid; gap: 1rem; }
 	.heading, .toolbar-row { display: flex; gap: 0.75rem; align-items: center; }
 	.heading { justify-content: space-between; }
-	.panel {
-		background: rgba(255,255,255,0.8);
-		border: 1px solid #d7e0ea;
-		border-radius: 1rem;
-		padding: 1rem;
-	}
-	.toolbar { display: grid; gap: 1rem; }
 	.toolbar-row { flex-wrap: wrap; }
-	.toolbar-top { justify-content: space-between; align-items: stretch; }
-	.column-editor { display: grid; gap: 0.75rem; }
-	.column-dropdown summary {
-		width: fit-content;
-		list-style: none;
-		cursor: pointer;
-		padding: 0.65rem 0.9rem;
-		border-radius: 0.8rem;
-		border: 1px solid #cfdae6;
-		background: white;
-		color: #173b61;
-	}
-	.column-dropdown[open] summary { margin-bottom: 0.6rem; }
-	.column-menu {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-		gap: 0.25rem 0.75rem;
-		padding: 0.55rem 0.65rem;
-		border: 1px solid #dbe4ed;
-		border-radius: 0.8rem;
-		background: #f8fbfd;
-		max-width: min(100%, 34rem);
-	}
-	.column-option {
-		display: flex;
-		gap: 0.45rem;
-		align-items: center;
-		font-size: 0.84rem;
-		line-height: 1.2;
-		color: #33485a;
-		padding: 0.15rem 0;
-	}
-	input, select {
+	select {
 		padding: 0.72rem 0.85rem;
 		border-radius: 0.8rem;
 		border: 1px solid #cfdae6;
 		background: white;
 		font: inherit;
 	}
-	input { min-width: min(360px, 100%); flex: 1; }
-	.column-option input { margin: 0; min-width: 0; flex: 0 0 auto; }
 	button {
 		border: 0;
 		border-radius: 999px;
@@ -494,8 +420,4 @@
 		color: #155b36;
 	}
 	.error { color: #b53622; }
-	@media (max-width: 900px) {
-		input { min-width: 100%; }
-		.toolbar-top { justify-content: start; }
-	}
 </style>

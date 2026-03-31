@@ -51,3 +51,13 @@ export function modeDisplayName(mode: ModeState): string {
 	if (mode.device_id === 'mode_night') return 'Night Mode';
 	return mode.device_id.replace(/^mode_/, '').replaceAll('_', ' ');
 }
+
+export function modeStatusLabel(mode: ModeState): string {
+	return mode.on ? 'On' : 'Off';
+}
+
+export function modeWindowSummary(mode: ModeState): string {
+	const on = mode.effective_on ?? 'Unknown';
+	const off = mode.effective_off ?? 'Unknown';
+	return `${on} to ${off}`;
+}

@@ -12,6 +12,7 @@
 		{ href: '/devices', label: 'Devices' },
 		{ href: '/scenes', label: 'Scenes' },
 		{ href: '/modes', label: 'Modes' },
+		{ href: '/events', label: 'Events' },
 		{ href: '/automations', label: 'Automations' }
 	];
 

@@ -59,6 +59,8 @@ The repo now has the initial Phase 0 foundation in place:
   - `/dashboard`
   - `/dashboards`
   - `/dashboards/[id]`
+- dashboard switcher in the dashboard view
+- live websocket-backed event stream store for dashboard event widgets
 - initial read-only dashboard rendering for:
   - `markdown`
   - `stat_summary`
@@ -75,3 +77,37 @@ Current placeholders remain for:
 - scenes
 - modes
 - automations
+
+Current notable gaps:
+
+- dashboard CRUD/templates/import/export
+- richer widget fidelity and controls
+- real devices/scenes/modes pages
+- websocket-driven state updates outside the event feed
+
+## Dev Run
+
+For local development, the Svelte app uses relative `/api/v1` requests and relies on a Vite proxy.
+
+Default proxy target:
+
+- `http://localhost:8080`
+
+If `homeCore` is running on a different host or port, set:
+
+- `HOMECORE_DEV_PROXY_TARGET`
+
+Example for this LAN host:
+
+```bash
+HOMECORE_DEV_PROXY_TARGET=http://10.0.1.30:8080 npm run dev
+```
+
+Then open:
+
+```text
+http://10.0.1.30:5173
+```
+
+If you prefer bypassing the proxy entirely, `VITE_HOMECORE_API_BASE_URL` can still be set to a full
+`/api/v1` base URL, but the proxy path is the intended dev default.

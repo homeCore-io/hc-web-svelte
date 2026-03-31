@@ -260,7 +260,7 @@ current HomeCore direction.
 
 - [x] Implement `/dashboard` redirect behavior
 - [x] Implement dashboard list page
-- [ ] Implement dashboard switcher
+- [x] Implement dashboard switcher
 - [x] Implement breakpoint-aware dashboard grid renderer
 - [x] Implement `markdown` widget
 - [x] Implement `stat_summary` widget
@@ -271,4 +271,4 @@ current HomeCore direction.
 - [x] Implement `event_feed` widget
 - [x] Implement `dashboard_link` widget
 - [x] Add unsupported-widget placeholder handling
-- [ ] Validate against a real HomeCore dev instance
+- [x] Validate against a real HomeCore dev instance

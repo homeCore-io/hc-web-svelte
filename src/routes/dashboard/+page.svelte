@@ -7,9 +7,7 @@
 	$effect(() => {
 		void (async () => {
 			try {
-				if (!dashboardsState.items.length) {
-					await dashboardsState.load();
-				}
+				await dashboardsState.ensureLoaded();
 				if (dashboardsState.defaultDashboard) {
 					await goto(`/dashboards/${dashboardsState.defaultDashboard.id}`);
 				} else {

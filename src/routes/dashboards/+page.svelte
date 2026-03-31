@@ -2,7 +2,7 @@
 	import { dashboardsState } from '$lib/stores/dashboards.svelte';
 
 	$effect(() => {
-		if (!dashboardsState.items.length && !dashboardsState.loading) {
+		if (!dashboardsState.loaded && !dashboardsState.loading) {
 			void dashboardsState.load();
 		}
 	});
@@ -14,6 +14,9 @@
 			<h1>Dashboards</h1>
 			<p>Saved HomeCore dashboards plus available starter templates.</p>
 		</div>
+		<button type="button" onclick={() => dashboardsState.load()} disabled={dashboardsState.loading}>
+			{dashboardsState.loading ? 'Refreshing…' : 'Refresh'}
+		</button>
 	</div>
 
 	{#if dashboardsState.error}
@@ -129,6 +132,15 @@
 
 	.error {
 		color: #b53622;
+	}
+
+	button {
+		border: 0;
+		border-radius: 999px;
+		padding: 0.65rem 1rem;
+		background: #153a63;
+		color: white;
+		cursor: pointer;
 	}
 
 	@media (max-width: 960px) {

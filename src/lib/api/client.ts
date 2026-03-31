@@ -15,9 +15,26 @@ type RequestOptions = RequestInit & {
 	auth?: boolean;
 };
 
-function getStoredToken(): string | null {
+export function getStoredToken(): string | null {
 	if (typeof localStorage === 'undefined') return null;
 	return localStorage.getItem(TOKEN_STORAGE_KEY);
+}
+
+export function buildWebSocketUrl(path: string, token: string): string {
+	const cleanPath = path.startsWith('/') ? path : `/${path}`;
+	const isAbsolute = /^https?:\/\//.test(API_BASE_URL);
+	if (isAbsolute) {
+		const base = new URL(API_BASE_URL);
+		base.protocol = base.protocol === 'https:' ? 'wss:' : 'ws:';
+		base.pathname = `${base.pathname.replace(/\/$/, '')}${cleanPath}`;
+		base.searchParams.set('token', token);
+		return base.toString();
+	}
+
+	const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+	const base = new URL(`${protocol}//${window.location.host}${API_BASE_URL.replace(/\/$/, '')}${cleanPath}`);
+	base.searchParams.set('token', token);
+	return base.toString();
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {

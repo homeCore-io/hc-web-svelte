@@ -25,6 +25,12 @@ export function isMediaPlayer(device: DeviceState): boolean {
 	);
 }
 
+export function isSceneLikeDevice(device: DeviceState): boolean {
+	const deviceType = String(device.device_type ?? '').toLowerCase();
+	const kind = String(device.attributes.kind ?? '').toLowerCase();
+	return deviceType === 'scene' || kind === 'scene';
+}
+
 export function playbackState(device: DeviceState): string {
 	return String(device.attributes.state ?? 'unknown').toLowerCase();
 }

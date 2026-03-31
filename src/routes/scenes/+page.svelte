@@ -227,13 +227,16 @@
 		padding: 1rem;
 	}
 	.toolbar { display: grid; gap: 1rem; }
-	.column-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.6rem; }
+	.column-list { display: flex; flex-wrap: wrap; gap: 0.45rem; }
 	.column-item {
 		justify-content: space-between;
 		background: #f7fafc;
 		border: 1px solid #dbe4ed;
-		border-radius: 0.8rem;
-		padding: 0.55rem 0.7rem;
+		border-radius: 999px;
+		padding: 0.35rem 0.45rem 0.35rem 0.65rem;
+		gap: 0.45rem;
+		flex: 0 1 auto;
+		max-width: 100%;
 	}
 	input, select {
 		padding: 0.72rem 0.85rem;
@@ -256,7 +259,8 @@
 	.ghost {
 		background: #eef3f8;
 		color: #173b61;
-		padding: 0.35rem 0.6rem;
+		padding: 0.2rem 0.45rem;
+		font-size: 0.8rem;
 	}
 	.table-wrap { overflow: auto; padding: 0; }
 	table { width: 100%; border-collapse: collapse; min-width: 760px; }

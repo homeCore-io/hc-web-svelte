@@ -6,6 +6,7 @@
 		boolAttr,
 		deviceDisplayName,
 		formatRelativeTime,
+		isSceneLikeDevice,
 		isMediaPlayer,
 		mediaImageUrl,
 		mediaSummary,
@@ -175,18 +176,19 @@
 	}
 
 	const areaOptions = $derived.by(() =>
-		[...new Set(devices.map((device) => device.area?.trim()).filter((value): value is string => Boolean(value)))]
+		[...new Set(devices.filter((device) => !isSceneLikeDevice(device)).map((device) => device.area?.trim()).filter((value): value is string => Boolean(value)))]
 			.sort((a, b) => a.localeCompare(b))
 	);
 
 	const typeOptions = $derived.by(() =>
-		[...new Set(devices.map((device) => device.device_type?.trim()).filter((value): value is string => Boolean(value)))]
+		[...new Set(devices.filter((device) => !isSceneLikeDevice(device)).map((device) => device.device_type?.trim()).filter((value): value is string => Boolean(value)))]
 			.sort((a, b) => a.localeCompare(b))
 	);
 
 	const filtered = $derived.by(() => {
 		const query = search.trim().toLowerCase();
 		return devices.filter((device) => {
+			if (isSceneLikeDevice(device)) return false;
 			if (availability === 'online' && !device.available) return false;
 			if (availability === 'offline' && device.available) return false;
 			if (areaFilter !== 'all' && (device.area?.trim() || 'Unassigned') !== areaFilter) return false;
@@ -438,13 +440,16 @@
 	.preferences { justify-content: space-between; }
 	.column-editor { display: grid; gap: 0.75rem; }
 	.column-editor p, .heading p { margin: 0.25rem 0 0; color: #617486; }
-	.column-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.6rem; }
+	.column-list { display: flex; flex-wrap: wrap; gap: 0.45rem; }
 	.column-item {
 		justify-content: space-between;
 		background: #f7fafc;
 		border: 1px solid #dbe4ed;
-		border-radius: 0.8rem;
-		padding: 0.55rem 0.7rem;
+		border-radius: 999px;
+		padding: 0.35rem 0.45rem 0.35rem 0.65rem;
+		gap: 0.45rem;
+		flex: 0 1 auto;
+		max-width: 100%;
 	}
 	input, select {
 		padding: 0.72rem 0.85rem;
@@ -454,7 +459,7 @@
 		font: inherit;
 	}
 	input { min-width: min(360px, 100%); flex: 1; }
-	label { font-size: 0.95rem; color: #33485a; }
+	label { font-size: 0.88rem; color: #33485a; }
 	.check { gap: 0.5rem; }
 	button, .secondary-link {
 		border: 0;
@@ -473,7 +478,8 @@
 	.ghost {
 		background: #eef3f8;
 		color: #173b61;
-		padding: 0.35rem 0.6rem;
+		padding: 0.2rem 0.45rem;
+		font-size: 0.8rem;
 	}
 	.table-wrap { overflow: auto; padding: 0; }
 	table {

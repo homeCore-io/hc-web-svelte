@@ -241,6 +241,12 @@ Move immediately to dashboard lifecycle flows:
 That will validate the newer dashboard API surface early and keep `hc-web-svelte` aligned with the
 current HomeCore direction.
 
+Current progress beyond the initial dashboard-only milestone:
+
+- read-only `devices` page implemented
+- read-only `scenes` page implemented
+- read-only `modes` page implemented
+
 ## Concrete Build Checklist
 
 ### Phase 0 checklist

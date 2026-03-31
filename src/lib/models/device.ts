@@ -8,3 +8,7 @@ export type DeviceState = {
 	available: boolean;
 	attributes: Record<string, unknown>;
 };
+
+export function deviceDisplayName(device: DeviceState): string {
+	return device.name ?? device.device_id;
+}

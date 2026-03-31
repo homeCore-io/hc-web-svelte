@@ -73,16 +73,13 @@ The repo now has the initial Phase 0 foundation in place:
 
 Current placeholders remain for:
 
-- devices
-- scenes
-- modes
 - automations
 
 Current notable gaps:
 
 - dashboard CRUD/templates/import/export
 - richer widget fidelity and controls
-- real devices/scenes/modes pages
+- richer device detail and mutation flows
 - websocket-driven state updates outside the event feed
 
 ## Dev Run

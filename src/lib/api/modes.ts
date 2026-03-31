@@ -1,6 +1,7 @@
-import type { ModeState } from '$lib/models/mode';
+import { parseModeState, type ModeState } from '$lib/models/mode';
 import { apiRequest } from './client';
 
-export function listModes(): Promise<ModeState[]> {
-	return apiRequest<ModeState[]>('/modes');
+export async function listModes(): Promise<ModeState[]> {
+	const response = await apiRequest<unknown[]>('/modes');
+	return response.map(parseModeState);
 }

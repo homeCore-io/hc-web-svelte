@@ -1,7 +1,10 @@
 <script lang="ts">
+	import { listEvents } from '$lib/api/events';
 	import CollapsibleFilterPanel from '$lib/components/ui/CollapsibleFilterPanel.svelte';
 	import ColumnDropdown from '$lib/components/ui/ColumnDropdown.svelte';
 	import { listAutomations } from '$lib/api/automations';
+	import { eventsState } from '$lib/stores/events.svelte';
+	import { formatRelativeTime } from '$lib/models/device';
 	import {
 		automationActionsSummary,
 		automationConditionsSummary,
@@ -10,12 +13,13 @@
 	} from '$lib/models/automation';
 
 	type EnabledFilter = 'all' | 'enabled' | 'disabled';
-	type SortKey = 'name' | 'priority' | 'trigger' | 'enabled';
+	type SortKey = 'name' | 'priority' | 'trigger' | 'enabled' | 'last_triggered';
 	type SortDirection = 'asc' | 'desc';
 	type AutomationColumn =
 		| 'enabled'
 		| 'name'
 		| 'priority'
+		| 'last_triggered'
 		| 'trigger'
 		| 'conditions'
 		| 'actions'
@@ -26,6 +30,7 @@
 		'enabled',
 		'name',
 		'priority',
+		'last_triggered',
 		'trigger',
 		'conditions',
 		'actions'
@@ -34,6 +39,7 @@
 		{ id: 'enabled', label: 'Enabled' },
 		{ id: 'name', label: 'Name' },
 		{ id: 'priority', label: 'Priority' },
+		{ id: 'last_triggered', label: 'Last Triggered' },
 		{ id: 'trigger', label: 'Trigger' },
 		{ id: 'conditions', label: 'Conditions' },
 		{ id: 'actions', label: 'Actions' },
@@ -52,8 +58,10 @@
 	let draggedColumn = $state<AutomationColumn | null>(null);
 	let toolbarExpanded = $state(false);
 	let prefsReady = $state(false);
+	let lastTriggeredByRuleId = $state<Record<string, string>>({});
 
 	$effect(() => {
+		eventsState.connect();
 		void refresh();
 	});
 
@@ -85,7 +93,12 @@
 		loading = true;
 		error = null;
 		try {
-			automations = await listAutomations();
+			const [loadedAutomations, recentRuleEvents] = await Promise.all([
+				listAutomations(),
+				listEvents({ limit: 1000, type: 'rule_fired' })
+			]);
+			automations = loadedAutomations;
+			lastTriggeredByRuleId = buildLastTriggeredLookup(recentRuleEvents);
 		} catch (value) {
 			error = value instanceof Error ? value.message : 'Unable to load automations';
 		} finally {
@@ -97,6 +110,7 @@
 		const nextSort: SortKey | null =
 			column === 'name' ? 'name'
 			: column === 'priority' ? 'priority'
+			: column === 'last_triggered' ? 'last_triggered'
 			: column === 'trigger' ? 'trigger'
 			: column === 'enabled' ? 'enabled'
 			: null;
@@ -137,9 +151,42 @@
 		return (
 			(column === 'name' && sortBy === 'name') ||
 			(column === 'priority' && sortBy === 'priority') ||
+			(column === 'last_triggered' && sortBy === 'last_triggered') ||
 			(column === 'trigger' && sortBy === 'trigger') ||
 			(column === 'enabled' && sortBy === 'enabled')
 		);
+	}
+
+	function buildLastTriggeredLookup(
+		entries: {
+			event_type: string;
+			event?: { rule_id?: string; timestamp?: string };
+		}[]
+	): Record<string, string> {
+		const lookup: Record<string, string> = {};
+		for (const entry of entries) {
+			if (entry.event_type !== 'rule_fired') continue;
+			const ruleId = entry.event?.rule_id;
+			const timestamp = entry.event?.timestamp;
+			if (!ruleId || !timestamp) continue;
+			if (!(ruleId in lookup)) lookup[ruleId] = timestamp;
+		}
+		return lookup;
+	}
+
+	const liveLastTriggeredByRuleId = $derived.by(() => {
+		const lookup: Record<string, string> = {};
+		for (const event of eventsState.items) {
+			if (event.type !== 'rule_fired') continue;
+			const ruleId = typeof event.rule_id === 'string' ? event.rule_id : null;
+			if (!ruleId || ruleId in lookup) continue;
+			lookup[ruleId] = event.timestamp;
+		}
+		return lookup;
+	});
+
+	function lastTriggered(rule: AutomationRule): string | null {
+		return liveLastTriggeredByRuleId[rule.id] ?? lastTriggeredByRuleId[rule.id] ?? null;
 	}
 
 	const triggerOptions = $derived.by(() =>
@@ -175,6 +222,11 @@
 		items.sort((a, b) => {
 			let result = 0;
 			if (sortBy === 'priority') result = a.priority - b.priority;
+			else if (sortBy === 'last_triggered') {
+				const aTime = lastTriggered(a) ? Date.parse(lastTriggered(a) ?? '') : 0;
+				const bTime = lastTriggered(b) ? Date.parse(lastTriggered(b) ?? '') : 0;
+				result = aTime - bTime;
+			}
 			else if (sortBy === 'trigger') result = automationTriggerSummary(a).localeCompare(automationTriggerSummary(b));
 			else if (sortBy === 'enabled') result = Number(a.enabled) - Number(b.enabled);
 			else result = a.name.localeCompare(b.name);
@@ -268,6 +320,15 @@
 										</div>
 									{:else if column === 'priority'}
 										<span class="pill">{rule.priority}</span>
+									{:else if column === 'last_triggered'}
+										<div class="primary">
+											<strong>{formatRelativeTime(lastTriggered(rule))}</strong>
+											{#if lastTriggered(rule)}
+												<span class="subtle">{new Date(lastTriggered(rule) ?? '').toLocaleString()}</span>
+											{:else}
+												<span class="subtle">Never recorded</span>
+											{/if}
+										</div>
 									{:else if column === 'trigger'}
 										<div class="primary">
 											<strong>{String(rule.trigger.type ?? 'Unknown')}</strong>

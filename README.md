@@ -114,6 +114,7 @@ Current automation support:
 
 - sortable, filterable automation inventory table
 - trigger, condition, action, priority, and enabled-state summaries
+- last-triggered activity from the HomeCore event log
 - configurable automation columns saved locally
 
 Design references:

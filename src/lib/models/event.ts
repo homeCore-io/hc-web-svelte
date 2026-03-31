@@ -10,6 +10,8 @@ export type LogEntry = {
 	event_type: string;
 	device_id?: string;
 	event: HcEvent & {
+		rule_id?: string;
+		rule_name?: string;
 		scene_id?: string;
 		scene_name?: string;
 	};

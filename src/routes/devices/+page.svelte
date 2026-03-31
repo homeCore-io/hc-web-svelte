@@ -294,10 +294,6 @@
 					<option value={deviceType}>{deviceType}</option>
 				{/each}
 			</select>
-			<label class="inline-check">
-				<input type="checkbox" bind:checked={showMediaDetails} />
-				<span>Show media details</span>
-			</label>
 		</div>
 
 		<div class="toolbar-row preferences">
@@ -307,6 +303,10 @@
 					<option value="comfortable">Comfortable</option>
 					<option value="compact">Compact</option>
 				</select>
+			</label>
+			<label class="inline-check">
+				<input type="checkbox" bind:checked={showMediaDetails} />
+				<span>Show media details</span>
 			</label>
 			<button type="button" class="secondary" onclick={resetLayout}>Reset layout</button>
 		</div>
@@ -483,7 +483,7 @@
 	}
 	.toolbar { display: grid; gap: 1rem; }
 	.toolbar-row { flex-wrap: wrap; }
-	.preferences { justify-content: space-between; }
+	.preferences { justify-content: flex-start; gap: 1rem; }
 	.column-editor { display: grid; gap: 0.75rem; }
 	.column-editor p, .heading p { margin: 0.25rem 0 0; color: #617486; }
 	.column-dropdown summary {
@@ -535,6 +535,7 @@
 		color: #33485a;
 		font-size: 0.92rem;
 		white-space: nowrap;
+		min-height: 2.9rem;
 	}
 	.inline-check input,
 	.column-option input {
@@ -556,6 +557,7 @@
 		background: #e6eef7;
 		color: #173b61;
 	}
+	.preferences > button { margin-left: auto; }
 	.table-wrap { overflow: auto; padding: 0; }
 	table {
 		width: 100%;
@@ -640,8 +642,7 @@
 		color: #155b36;
 	}
 	@media (max-width: 900px) {
-		.preferences { justify-content: start; }
+		.preferences > button { margin-left: 0; }
 		input { min-width: 100%; }
-		.inline-check { width: 100%; justify-content: start; }
 	}
 </style>

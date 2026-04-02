@@ -230,3 +230,11 @@ Before implementing more editor behavior, define:
 - inspector layout
 
 That keeps the upcoming dashboard editor work coherent instead of turning into one-off card forms.
+
+## Deferred Follow-Up
+
+Add a HomeCore dashboard-store reload path after dashboard editor development is complete.
+
+- Goal: avoid requiring a HomeCore restart when `data/dashboards.json` changes during development
+- Rationale: the web UI is an API client, so file edits are invisible until the server reloads its persistent dashboard store
+- Scope: server-side reload endpoint, file watcher, or another explicit refresh mechanism

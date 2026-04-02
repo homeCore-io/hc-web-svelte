@@ -51,6 +51,15 @@
 		});
 	}
 
+	async function deleteDashboard(id: string, name: string) {
+		const confirmed = window.confirm(`Delete dashboard "${name}"?`);
+		if (!confirmed) return;
+		await runAction(`delete:${id}`, async () => {
+			await dashboardsState.delete(id);
+			pageNotice = `Deleted ${name}`;
+		});
+	}
+
 	async function exportDashboard(dashboard: DashboardDefinition) {
 		await runAction(`export:${dashboard.id}`, async () => {
 			const exported = await dashboardsState.export(dashboard.id);
@@ -76,6 +85,13 @@
 			await goto(`/dashboards/${created.id}`);
 		});
 	}
+
+	async function reloadDashboardStore() {
+		await runAction('reload-store', async () => {
+			const result = await dashboardsState.reloadStore();
+			pageNotice = `Reloaded dashboard store with ${result.dashboards_total} dashboard${result.dashboards_total === 1 ? '' : 's'}`;
+		});
+	}
 </script>
 
 <section class="page">
@@ -86,6 +102,14 @@
 		</div>
 		<div class="actions">
 			<button type="button" class="secondary" onclick={() => (importOpen = true)}>Import</button>
+			<button
+				type="button"
+				class="secondary"
+				onclick={reloadDashboardStore}
+				disabled={dashboardsState.loading || !!busyAction}
+			>
+				{busyAction === 'reload-store' ? 'Reloading Store…' : 'Reload Store'}
+			</button>
 			<button
 				type="button"
 				onclick={() => dashboardsState.load()}
@@ -132,7 +156,10 @@
 			<section class="panel">
 				<h2>Saved</h2>
 				{#if dashboardsState.items.length === 0}
-					<p>No dashboards yet.</p>
+					<div class="empty-state">
+						<strong>Clean workspace</strong>
+						<p>No saved dashboards yet. Start from a template on the right, or import a dashboard JSON backup.</p>
+					</div>
 				{:else}
 					<div class="cards">
 						{#each dashboardsState.items as dashboard}
@@ -177,6 +204,14 @@
 											{busyAction === `default:${dashboard.id}` ? 'Saving…' : 'Set Default'}
 										</button>
 									{/if}
+									<button
+										type="button"
+										class="danger"
+										onclick={() => deleteDashboard(dashboard.id, dashboard.name)}
+										disabled={busyAction === `delete:${dashboard.id}`}
+									>
+										{busyAction === `delete:${dashboard.id}` ? 'Deleting…' : 'Delete'}
+									</button>
 								</div>
 							</article>
 						{/each}
@@ -234,7 +269,7 @@
 
 	.heading p {
 		margin: 0.4rem 0 0;
-		color: #607287;
+		color: var(--hc-text-muted);
 	}
 
 	.columns {
@@ -244,9 +279,9 @@
 	}
 
 	.panel {
-		background: rgba(255, 255, 255, 0.75);
-		border: 1px solid #d7e0ea;
-		border-radius: 1rem;
+		background: var(--hc-surface);
+		border: 1px solid var(--hc-border);
+		border-radius: 0.7rem;
 		padding: 1rem;
 	}
 
@@ -260,9 +295,9 @@
 		display: grid;
 		gap: 0.6rem;
 		padding: 1rem;
-		border-radius: 0.95rem;
-		background: white;
-		border: 1px solid #dbe5ef;
+		border-radius: 0.55rem;
+		background: var(--hc-surface);
+		border: 1px solid var(--hc-border);
 	}
 
 	.card-header {
@@ -273,62 +308,67 @@
 
 	p {
 		margin: 0;
-		color: #627488;
+		color: var(--hc-text-muted);
 	}
 
 	.badge {
 		padding: 0.2rem 0.55rem;
-		border-radius: 999px;
-		background: #dceaf7;
-		color: #16456d;
+		border-radius: 0.4rem;
+		background: var(--hc-accent-soft);
+		color: var(--hc-accent);
 		font-size: 0.8rem;
 	}
 
 	.tag,
 	.notice {
 		padding: 0.22rem 0.55rem;
-		border-radius: 999px;
-		background: #eef3f8;
-		color: #31506b;
+		border-radius: 0.4rem;
+		background: var(--hc-surface-soft);
+		color: var(--hc-text-muted);
 		font-size: 0.8rem;
 	}
 
 	.muted-card {
-		background: #f6f8fb;
+		background: var(--hc-surface-soft);
 	}
 
-	.error {
-		color: #b53622;
+	.empty-state {
+		margin-top: 1rem;
+		display: grid;
+		gap: 0.45rem;
+		padding: 1rem;
+		border-radius: 0.55rem;
+		background: var(--hc-surface-soft);
+		border: 1px solid var(--hc-border);
 	}
+
+	.error { color: var(--hc-danger); }
 
 	.notice {
-		background: #dff4e7;
-		color: #14633a;
+		background: var(--hc-success-soft);
+		color: var(--hc-success);
 		width: fit-content;
 	}
 
 	button,
 	.link-button {
-		border: 0;
-		border-radius: 999px;
-		padding: 0.65rem 1rem;
-		background: #153a63;
-		color: white;
-		cursor: pointer;
 		text-decoration: none;
-		font: inherit;
 	}
 
 	.secondary {
-		background: #e7eef6;
-		color: #183b60;
+		background: var(--hc-surface);
+		color: var(--hc-text);
+	}
+
+	.danger {
+		background: var(--hc-danger-soft);
+		color: var(--hc-danger);
+		border-color: color-mix(in srgb, var(--hc-danger) 20%, var(--hc-border));
 	}
 
 	textarea {
 		width: 100%;
-		border-radius: 0.8rem;
-		border: 1px solid #cfdae6;
-		padding: 0.9rem;
+		border-radius: 0.45rem;
 		font: 0.9rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
 		resize: vertical;
 	}

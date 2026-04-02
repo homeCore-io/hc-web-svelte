@@ -1,18 +1,20 @@
 <script lang="ts">
 	import { authState } from '$lib/stores/auth.svelte';
+	import MaterialIcon from '$lib/components/ui/MaterialIcon.svelte';
 
 	type NavItem = {
 		href: string;
 		label: string;
+		icon: 'dashboard' | 'devices' | 'scenes' | 'modes' | 'events' | 'automation';
 	};
 
 	const items: NavItem[] = [
-		{ href: '/dashboards', label: 'Dashboards' },
-		{ href: '/devices', label: 'Devices' },
-		{ href: '/scenes', label: 'Scenes' },
-		{ href: '/modes', label: 'Modes' },
-		{ href: '/events', label: 'Events' },
-		{ href: '/automations', label: 'Automations' }
+		{ href: '/dashboards', label: 'Dashboards', icon: 'dashboard' },
+		{ href: '/devices', label: 'Devices', icon: 'devices' },
+		{ href: '/scenes', label: 'Scenes', icon: 'scenes' },
+		{ href: '/modes', label: 'Modes', icon: 'modes' },
+		{ href: '/events', label: 'Events', icon: 'events' },
+		{ href: '/automations', label: 'Automations', icon: 'automation' }
 	];
 
 	let { children } = $props();
@@ -27,7 +29,10 @@
 
 		<nav>
 			{#each items as item}
-				<a href={item.href}>{item.label}</a>
+				<a href={item.href}>
+					<MaterialIcon name={item.icon} size={18} />
+					<span>{item.label}</span>
+				</a>
 			{/each}
 		</nav>
 	</aside>
@@ -55,17 +60,18 @@
 		display: grid;
 		grid-template-columns: 240px minmax(0, 1fr);
 		min-height: 100vh;
-		background: #eef2f7;
-		color: #16202b;
+		background: var(--hc-bg);
+		color: var(--hc-text);
 	}
 
 	.sidebar {
-		padding: 1.5rem;
-		background: linear-gradient(180deg, #102132, #1a3551);
-		color: white;
+		padding: 1.2rem;
+		background: #ffffff;
+		color: var(--hc-text);
+		border-right: 1px solid var(--hc-border);
 		display: flex;
 		flex-direction: column;
-		gap: 1.5rem;
+		gap: 1.2rem;
 	}
 
 	.sidebar h1 {
@@ -85,7 +91,7 @@
 
 	.sidebar p {
 		margin: 0.25rem 0 0;
-		color: #b8cbe0;
+		color: var(--hc-text-muted);
 	}
 
 	.sidebar nav {
@@ -95,15 +101,20 @@
 	}
 
 	.sidebar a {
-		color: inherit;
+		color: var(--hc-text-muted);
 		text-decoration: none;
-		padding: 0.7rem 0.85rem;
-		border-radius: 0.8rem;
-		background: rgba(255, 255, 255, 0.06);
+		padding: 0.58rem 0.68rem;
+		border-radius: 0.65rem;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.55rem;
+		border: 1px solid transparent;
 	}
 
 	.sidebar a:hover {
-		background: rgba(255, 255, 255, 0.14);
+		background: var(--hc-surface-muted);
+		border-color: var(--hc-border);
+		color: var(--hc-text);
 	}
 
 	.main {
@@ -116,14 +127,13 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		padding: 1rem 1.5rem;
-		background: rgba(255, 255, 255, 0.9);
-		backdrop-filter: blur(10px);
-		border-bottom: 1px solid #d8e0ea;
+		padding: 0.85rem 1.2rem;
+		background: var(--hc-surface);
+		border-bottom: 1px solid var(--hc-border);
 	}
 
 	.content {
-		padding: 1.5rem;
+		padding: 1.2rem;
 	}
 
 	.muted {
@@ -133,12 +143,11 @@
 	}
 
 	button {
-		border: 0;
-		border-radius: 999px;
-		padding: 0.6rem 1rem;
-		background: #d54b32;
-		color: white;
+		padding: 0.5rem 0.75rem;
+		background: var(--hc-danger-soft);
+		color: var(--hc-danger);
 		cursor: pointer;
+		border: 1px solid color-mix(in srgb, var(--hc-danger) 18%, var(--hc-border));
 	}
 
 	@media (max-width: 900px) {

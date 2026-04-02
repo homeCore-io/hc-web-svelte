@@ -1,8 +1,12 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
+	import MaterialIcon from '$lib/components/ui/MaterialIcon.svelte';
 	import { deleteDevice, getDevice, listDevices, setDeviceState, updateDevice } from '$lib/api/devices';
 	import {
+		deviceStatusIconName,
+		deviceStatusIconOptionsForDevice,
+		deviceStatusIconOptions,
 		formatRelativeTime,
 		deviceCanonicalReference,
 		deviceDisplayName,
@@ -18,6 +22,7 @@
 		positionSecs,
 		sonosData,
 		statusText,
+		statusTone,
 		supportedActions,
 		supportsAction,
 		uiEnrichments,
@@ -38,6 +43,7 @@
 	let editName = $state('');
 	let editArea = $state('');
 	let editCanonicalName = $state('');
+	let editStatusIcon = $state('');
 	let areaSelectValue = $state('');
 
 	$effect(() => {
@@ -53,6 +59,7 @@
 			editName = loadedDevice.name ?? '';
 			editArea = loadedDevice.area ?? '';
 			editCanonicalName = loadedDevice.canonical_name ?? '';
+			editStatusIcon = loadedDevice.status_icon ?? '';
 			areaOptions = [...new Set(devices.map((item) => item.area?.trim()).filter((value): value is string => Boolean(value)))].sort((a, b) => a.localeCompare(b));
 			areaSelectValue = loadedDevice.area && areaOptions.includes(loadedDevice.area) ? loadedDevice.area : loadedDevice.area ? '__custom__' : '';
 		} catch (value) {
@@ -91,12 +98,14 @@
 			const updated = await updateDevice(device.device_id, {
 				name: editName.trim() || device.device_id,
 				area: resolvedArea,
-				canonical_name: editCanonicalName.trim() ? editCanonicalName.trim() : null
+				canonical_name: editCanonicalName.trim() ? editCanonicalName.trim() : null,
+				status_icon: editStatusIcon || null
 			});
 			device = updated;
 			editName = updated.name ?? '';
 			editArea = updated.area ?? '';
 			editCanonicalName = updated.canonical_name ?? '';
+			editStatusIcon = updated.status_icon ?? '';
 			areaSelectValue = updated.area && areaOptions.includes(updated.area) ? updated.area : updated.area ? '__custom__' : '';
 			notice = 'Device details saved';
 		} catch (value) {
@@ -159,6 +168,12 @@
 		if (device?.area && !areas.includes(device.area)) areas.push(device.area);
 		return areas.sort((a, b) => a.localeCompare(b));
 	});
+	const statusIconGroups = $derived(deviceStatusIconOptionsForDevice(device));
+	const selectedStatusIconPreview = $derived.by(() => {
+		const selected = deviceStatusIconOptions.find((option) => option.value === editStatusIcon);
+		return selected?.value ?? (device ? deviceStatusIconName(device) : 'devices');
+	});
+
 </script>
 
 {#if loading}
@@ -170,7 +185,12 @@
 		<div class="heading">
 			<div>
 				<a class="back-link" href="/devices">← Back to devices</a>
-				<h1>{deviceDisplayName(device)}</h1>
+				<div class="title-row">
+					<span class={`status-icon tone-${statusTone(device)}`} aria-hidden="true">
+						<MaterialIcon name={deviceStatusIconName(device)} size={18} />
+					</span>
+					<h1>{deviceDisplayName(device)}</h1>
+				</div>
 				<p>{device.device_type ?? 'device'} via {device.plugin_id}</p>
 			</div>
 			<div class="actions">
@@ -228,12 +248,12 @@
 
 			<section class="panel">
 				<h2>Edit Metadata</h2>
-				<div class="form-grid">
-					<label>
+				<div class="metadata-grid">
+					<label class="field field-wide">
 						<span>Name</span>
 						<input bind:value={editName} placeholder="Device name" />
 					</label>
-					<label>
+					<label class="field">
 						<span>Area</span>
 						<select
 							bind:value={areaSelectValue}
@@ -249,14 +269,45 @@
 						</select>
 					</label>
 					{#if areaSelectValue === '__custom__'}
-						<label>
+						<label class="field">
 							<span>Custom area</span>
 							<input bind:value={editArea} placeholder="Area name" />
 						</label>
 					{/if}
-					<label>
+					<label class="field">
 						<span>Canonical name</span>
 						<input bind:value={editCanonicalName} placeholder="living_room.floor_lamp" />
+					</label>
+					<label class="field field-wide">
+						<span>Status icon</span>
+						<div class="icon-field">
+							<div class="icon-preview-row compact">
+								<span class={`status-icon tone-${statusTone(device)}`} aria-hidden="true">
+									<MaterialIcon
+										name={selectedStatusIconPreview}
+										size={18}
+									/>
+								</span>
+								<div class="icon-copy">
+									<strong>
+										{editStatusIcon
+											? deviceStatusIconOptions.find((option) => option.value === editStatusIcon)?.label ?? editStatusIcon
+											: 'Automatic'}
+									</strong>
+									<small>Used anywhere this device renders a status icon.</small>
+								</div>
+							</div>
+							<select bind:value={editStatusIcon}>
+								<option value="">Automatic</option>
+								{#each statusIconGroups as group}
+									<optgroup label={group.label}>
+										{#each group.options as option}
+											<option value={option.value}>{option.label}</option>
+										{/each}
+									</optgroup>
+								{/each}
+							</select>
+						</div>
 					</label>
 				</div>
 				<div class="form-actions">
@@ -267,6 +318,7 @@
 						editName = device?.name ?? '';
 						editArea = device?.area ?? '';
 						editCanonicalName = device?.canonical_name ?? '';
+						editStatusIcon = device?.status_icon ?? '';
 					}} disabled={savingMeta || deleting}>
 						Reset
 					</button>
@@ -425,32 +477,92 @@
 	.heading, .actions, .control-row, .chips, .progress-label { display: flex; gap: 0.75rem; }
 	.heading { justify-content: space-between; align-items: start; }
 	.actions { align-items: center; }
+	.title-row {
+		display: flex;
+		align-items: center;
+		gap: 0.65rem;
+	}
+	.status-icon {
+		width: 2rem;
+		height: 2rem;
+		display: grid;
+		place-items: center;
+		border-radius: 0.45rem;
+		background: var(--hc-surface-soft);
+		color: var(--hc-text-muted);
+	}
 	.back-link {
 		display: inline-flex;
 		align-items: center;
 		width: fit-content;
-		padding: 0.45rem 0.8rem;
-		border-radius: 999px;
-		background: #e7eef6;
-		color: #183b60;
+		padding: 0.4rem 0.68rem;
+		border-radius: 0.45rem;
+		background: var(--hc-surface-soft);
+		color: var(--hc-accent);
+		border: 1px solid var(--hc-border);
 		text-decoration: none;
-		font-size: 0.92rem;
+		font-size: 0.88rem;
 		margin-bottom: 0.6rem;
 	}
-	.back-link:hover { background: #dce7f3; }
+	.back-link:hover { background: var(--hc-surface); }
 	.panel {
-		background: rgba(255,255,255,0.82);
-		border: 1px solid #d7e0ea;
-		border-radius: 1rem;
+		background: var(--hc-surface);
+		border: 1px solid var(--hc-border);
+		border-radius: 0.7rem;
 		padding: 1rem;
 		display: grid;
 		gap: 0.8rem;
 	}
-	.form-grid { display: grid; gap: 0.8rem; }
-	.form-grid label { display: grid; gap: 0.35rem; }
-	.form-grid span { padding: 0; background: transparent; color: #617486; font-size: 0.82rem; }
+	.metadata-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+		gap: 0.8rem 1rem;
+		align-items: start;
+	}
+	.field {
+		display: grid;
+		gap: 0.35rem;
+	}
+	.field-wide {
+		grid-column: span 2;
+	}
+	.field span {
+		padding: 0;
+		background: transparent;
+		color: var(--hc-text-muted);
+		font-size: 0.78rem;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+	.icon-field {
+		display: grid;
+		gap: 0.45rem;
+	}
+	.icon-preview-row {
+		display: flex;
+		align-items: center;
+		gap: 0.55rem;
+	}
+	.icon-preview-row.compact {
+		padding: 0.4rem 0.55rem;
+		border: 1px solid var(--hc-border);
+		background: var(--hc-surface-soft);
+		border-radius: 0.45rem;
+	}
+	.icon-copy {
+		display: grid;
+		gap: 0.08rem;
+	}
+	.icon-copy strong {
+		font-size: 0.84rem;
+		color: var(--hc-text);
+	}
+	.icon-preview-row small {
+		color: var(--hc-text-muted);
+		font-size: 0.78rem;
+	}
 	h1, h2, p, dl { margin: 0; }
-	p { color: #627488; }
+	p { color: var(--hc-text-muted); }
 	dl { display: grid; gap: 0.55rem; }
 	dl div, .media-grid { display: grid; gap: 0.15rem; }
 	.info-grid {
@@ -460,67 +572,59 @@
 	}
 	.info-grid > div { display: grid; gap: 0.15rem; }
 	.media-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
-	dt { font-size: 0.78rem; color: #6a7b8d; text-transform: uppercase; }
-	dd { margin: 0; font-size: 0.95rem; color: #203242; word-break: break-word; }
-	button {
-		border: 0;
-		border-radius: 999px;
-		padding: 0.65rem 1rem;
-		background: #153a63;
-		color: white;
-		cursor: pointer;
-		font: inherit;
-	}
-	input {
-		padding: 0.72rem 0.85rem;
-		border-radius: 0.8rem;
-		border: 1px solid #cfdae6;
-		background: white;
-		font: inherit;
-	}
-	select {
-		padding: 0.72rem 0.85rem;
-		border-radius: 0.8rem;
-		border: 1px solid #cfdae6;
-		background: white;
-		font: inherit;
-	}
+	dt { font-size: 0.78rem; color: var(--hc-text-muted); text-transform: uppercase; }
+	dd { margin: 0; font-size: 0.95rem; color: var(--hc-text); word-break: break-word; }
 	.form-actions {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.75rem;
 	}
-	.secondary { background: #e7eef6; color: #183b60; }
-	.danger { background: #f7e3e3; color: #8b2a2a; }
+	.secondary {
+		background: var(--hc-surface);
+		color: var(--hc-text);
+	}
+	.danger {
+		background: var(--hc-danger-soft);
+		color: var(--hc-danger);
+		border-color: color-mix(in srgb, var(--hc-danger) 20%, var(--hc-border));
+	}
 	span, .chip {
 		padding: 0.25rem 0.6rem;
-		border-radius: 999px;
-		background: #dff4e7;
-		color: #14633a;
+		border-radius: 0.45rem;
+		background: var(--hc-success-soft);
+		color: var(--hc-success);
 		font-size: 0.8rem;
 		width: fit-content;
+		border: 1px solid transparent;
 	}
-	.offline { background: #f4dfdf; color: #8b2a2a; }
-	.meta-chip { background: #e7eef6; color: #183b60; }
+	.offline { background: var(--hc-danger-soft); color: var(--hc-danger); }
+	.meta-chip { background: var(--hc-surface-soft); color: var(--hc-text-muted); }
 	.chip-link {
 		padding: 0.25rem 0.6rem;
-		border-radius: 999px;
-		background: #edf4fb;
-		color: #214564;
+		border-radius: 0.45rem;
+		background: var(--hc-accent-soft);
+		color: var(--hc-accent);
 		font-size: 0.8rem;
 		text-decoration: none;
+		border: 1px solid transparent;
 	}
 	.chip-link:hover { text-decoration: underline; }
-	.notice { color: #14633a; }
-	.error { color: #b53622; }
+	.notice { color: var(--hc-success); }
+	.error { color: var(--hc-danger); }
 	.chips { flex-wrap: wrap; }
 	.media-meta { display: grid; gap: 0.25rem; }
 	progress { width: 100%; height: 0.75rem; }
 	.progress { display: grid; gap: 0.35rem; }
-	.progress-label { justify-content: space-between; color: #627488; font-size: 0.9rem; }
+	.progress-label { justify-content: space-between; color: var(--hc-text-muted); font-size: 0.9rem; }
 	.action-list { display: grid; gap: 0.5rem; }
+	.tone-good { background: var(--hc-success-soft); color: var(--hc-success); }
+	.tone-warn { background: var(--hc-warn-soft); color: var(--hc-warn); }
+	.tone-idle { background: var(--hc-surface-soft); color: var(--hc-text-muted); }
+	.tone-media { background: var(--hc-accent-soft); color: var(--hc-accent); }
+	.tone-offline { background: var(--hc-danger-soft); color: var(--hc-danger); }
 	@media (max-width: 860px) {
 		.heading { flex-direction: column; }
 		.actions, .control-row { flex-wrap: wrap; }
+		.field-wide { grid-column: span 1; }
 	}
 </style>

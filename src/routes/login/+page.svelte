@@ -1,4 +1,5 @@
 <script lang="ts">
+	import MaterialIcon from '$lib/components/ui/MaterialIcon.svelte';
 	import { authState } from '$lib/stores/auth.svelte';
 
 	let username = $state('');
@@ -18,6 +19,9 @@
 <div class="login-shell">
 	<section class="login-card">
 		<div>
+			<div class="brand-mark" aria-hidden="true">
+				<MaterialIcon name="home" size={22} />
+			</div>
 			<h1>HomeCore</h1>
 			<p>Sign in to the Svelte web client.</p>
 		</div>
@@ -49,20 +53,29 @@
 		place-items: center;
 		padding: 1.5rem;
 		background:
-			radial-gradient(circle at top left, rgba(23, 89, 152, 0.22), transparent 32%),
-			radial-gradient(circle at bottom right, rgba(213, 75, 50, 0.12), transparent 28%),
-			linear-gradient(180deg, #eef3f7, #e6edf4);
+			linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.55)),
+			repeating-linear-gradient(0deg, transparent, transparent 47px, rgba(21, 101, 192, 0.035) 48px);
 	}
 
 	.login-card {
 		width: min(440px, 100%);
-		padding: 1.5rem;
-		border-radius: 1.2rem;
-		background: rgba(255, 255, 255, 0.92);
-		border: 1px solid #d9e4ef;
-		box-shadow: 0 18px 48px rgba(16, 33, 50, 0.12);
+		padding: 1.25rem;
+		border-radius: 0.8rem;
+		background: rgba(255, 255, 255, 0.94);
+		border: 1px solid var(--hc-border);
 		display: grid;
-		gap: 1rem;
+		gap: 0.9rem;
+	}
+
+	.brand-mark {
+		width: 2.25rem;
+		height: 2.25rem;
+		display: grid;
+		place-items: center;
+		border-radius: 0.55rem;
+		background: var(--hc-accent-soft);
+		color: var(--hc-accent);
+		margin-bottom: 0.5rem;
 	}
 
 	h1 {
@@ -72,7 +85,7 @@
 
 	p {
 		margin: 0.3rem 0 0;
-		color: #5f7286;
+		color: var(--hc-text-muted);
 	}
 
 	label {
@@ -85,25 +98,13 @@
 		font-weight: 600;
 	}
 
-	input {
-		padding: 0.85rem 0.95rem;
-		border-radius: 0.85rem;
-		border: 1px solid #cfd9e5;
-		font: inherit;
-	}
-
 	button {
-		border: 0;
-		border-radius: 999px;
-		padding: 0.85rem 1.1rem;
 		font: inherit;
 		font-weight: 700;
-		color: white;
-		background: linear-gradient(135deg, #12416b, #215f97);
-		cursor: pointer;
+		color: var(--hc-surface);
+		background: var(--hc-accent);
+		border-color: var(--hc-accent);
 	}
 
-	.error {
-		color: #b53622;
-	}
+	.error { color: var(--hc-danger); }
 </style>

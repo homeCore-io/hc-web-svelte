@@ -1,6 +1,8 @@
 export type DashboardVisibility = 'private' | 'shared' | 'public';
 export type DashboardBreakpoint = 'mobile' | 'tablet' | 'desktop' | 'tv';
 export type DashboardRefreshPolicy = 'live' | 'poll' | 'manual' | 'passive';
+export type DashboardCardTone = 'neutral' | 'good' | 'warn' | 'media' | 'danger';
+export type DashboardSectionLayoutPolicy = 'grid' | 'stack' | 'row';
 export type DashboardWidgetType =
 	| 'device_grid'
 	| 'device_list'
@@ -22,6 +24,18 @@ export type DashboardWidgetPlacement = {
 	y: number;
 	w: number;
 	h: number;
+	section_id?: string | null;
+};
+
+export type DashboardSection = {
+	id: string;
+	breakpoint: DashboardBreakpoint;
+	title: string;
+	order: number;
+	y: number;
+	layout_policy: DashboardSectionLayoutPolicy;
+	min_h: number;
+	hidden: boolean;
 };
 
 export type DashboardLayout = {
@@ -52,9 +66,12 @@ export type DashboardDefinition = {
 	is_default?: boolean;
 	created_at: string;
 	updated_at: string;
+	sections: DashboardSection[];
 	layouts: DashboardLayout[];
 	widgets: DashboardWidget[];
 };
+
+export const DASHBOARD_BREAKPOINTS: DashboardBreakpoint[] = ['mobile', 'tablet', 'desktop', 'tv'];
 
 export function dashboardBreakpointForWidth(width: number): DashboardBreakpoint {
 	if (width < 600) return 'mobile';
@@ -78,8 +95,28 @@ export function parseDashboard(input: unknown): DashboardDefinition {
 		const nested = value.dashboard as Record<string, unknown>;
 		return {
 			...(nested as DashboardDefinition),
+			sections:
+				((nested.sections as DashboardSection[] | undefined) ?? []).map((section) => ({
+					...section,
+					layout_policy: section.layout_policy ?? 'grid',
+					min_h: Math.max(1, section.min_h ?? 1),
+					hidden: section.hidden ?? false
+				})),
 			is_default: (value.is_default as boolean | undefined) ?? false
 		};
 	}
-	return value as DashboardDefinition;
+	return {
+		...(value as DashboardDefinition),
+		sections:
+			((value.sections as DashboardSection[] | undefined) ?? []).map((section) => ({
+				...section,
+				layout_policy: section.layout_policy ?? 'grid',
+				min_h: Math.max(1, section.min_h ?? 1),
+				hidden: section.hidden ?? false
+			}))
+	};
+}
+
+export function cloneDashboardDefinition(input: DashboardDefinition): DashboardDefinition {
+	return parseDashboard(JSON.parse(JSON.stringify(input)) as unknown);
 }

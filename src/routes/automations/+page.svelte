@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import MaterialIcon from '$lib/components/ui/MaterialIcon.svelte';
 	import { listEvents } from '$lib/api/events';
 	import { eventSummary, eventTargetLabel, type LogEntry } from '$lib/models/event';
 	import CollapsibleFilterPanel from '$lib/components/ui/CollapsibleFilterPanel.svelte';
@@ -241,6 +242,11 @@
 		selectedTraceTimestamp = null;
 	}
 
+	function automationTone(rule: AutomationRule): 'good' | 'warn' | 'idle' {
+		if (rule.error) return 'warn';
+		return rule.enabled ? 'good' : 'idle';
+	}
+
 	const triggerOptions = $derived.by(() =>
 		[...new Set(automations.map((rule) => String(rule.trigger.type ?? 'Unknown')))].sort((a, b) =>
 			a.localeCompare(b)
@@ -339,7 +345,7 @@
 	<div class="heading">
 		<div>
 			<h1>Automations</h1>
-			<p>Read-only automation inventory with trigger, condition, and action summaries.</p>
+			<p>Compact rule inventory with state-aware icons, cleaner tables, and trace context.</p>
 		</div>
 		<button type="button" onclick={refresh} disabled={loading}>
 			{loading ? 'Refreshing…' : 'Refresh'}
@@ -421,7 +427,8 @@
 							{#each visibleColumns as column}
 								<td>
 									{#if column === 'enabled'}
-										<span class:disabled-pill={!rule.enabled} class="pill">
+										<span class:disabled-pill={!rule.enabled} class={`pill enabled-pill tone-${automationTone(rule)}`}>
+											<MaterialIcon name={rule.enabled ? 'automation' : 'power_off'} size={14} />
 											{rule.enabled ? 'Enabled' : 'Disabled'}
 										</span>
 									{:else if column === 'stale'}
@@ -431,7 +438,10 @@
 											<span class="subtle">No</span>
 										{/if}
 									{:else if column === 'name'}
-										<div class="primary">
+										<div class="primary automation-name">
+											<span class={`automation-icon tone-${automationTone(rule)}`} aria-hidden="true">
+												<MaterialIcon name={rule.error ? 'warning' : 'automation'} size={16} />
+											</span>
 											<strong>{rule.name}</strong>
 											<span class="subtle">{rule.id}</span>
 											{#if rule.error}
@@ -580,22 +590,15 @@
 	.heading, .toolbar-row { display: flex; gap: 0.75rem; align-items: center; }
 	.heading { justify-content: space-between; }
 	.toolbar-row { flex-wrap: wrap; }
-	select {
-		padding: 0.72rem 0.85rem;
-		border-radius: 0.8rem;
-		border: 1px solid #cfdae6;
-		background: white;
-		font: inherit;
-	}
 	.inline-check {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.45rem;
-		padding: 0.72rem 0.85rem;
-		border-radius: 0.8rem;
-		border: 1px solid #cfdae6;
-		background: white;
-		color: #33485a;
+		padding: 0.58rem 0.72rem;
+		border-radius: 0.45rem;
+		border: 1px solid var(--hc-border);
+		background: var(--hc-surface);
+		color: var(--hc-text);
 		font-size: 0.92rem;
 		white-space: nowrap;
 		min-height: 2.9rem;
@@ -605,20 +608,10 @@
 		min-width: 0;
 		flex: 0 0 auto;
 	}
-	button {
-		border: 0;
-		border-radius: 999px;
-		padding: 0.65rem 1rem;
-		background: #153a63;
-		color: white;
-		cursor: pointer;
-		font: inherit;
-	}
-	.secondary { background: #e6eef7; color: #173b61; }
 	.panel {
-		background: rgba(255,255,255,0.8);
-		border: 1px solid #d7e0ea;
-		border-radius: 1rem;
+		background: var(--hc-surface);
+		border: 1px solid var(--hc-border);
+		border-radius: 0.7rem;
 		padding: 1rem;
 	}
 	.table-wrap { overflow: auto; padding: 0; }
@@ -630,11 +623,11 @@
 		vertical-align: middle;
 	}
 	th {
-		background: #f7fafc;
+		background: var(--hc-surface-soft);
 		font-size: 0.82rem;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
-		color: #627488;
+		color: var(--hc-text-muted);
 	}
 	th.dragging { opacity: 0.55; }
 	.header-button {
@@ -656,26 +649,45 @@
 		letter-spacing: -0.1em;
 		user-select: none;
 	}
-	.sort-indicator { color: #173b61; }
-	tr.disabled { background: rgba(244, 240, 240, 0.45); }
+	.sort-indicator { color: var(--hc-accent); }
+	tr.disabled { background: color-mix(in srgb, var(--hc-danger-soft) 40%, white); }
 	.primary { display: grid; gap: 0.15rem; }
-	.subtle { font-size: 0.82rem; color: #66798a; word-break: break-word; }
-	.stale-text { font-size: 0.82rem; color: #8b2a2a; }
+	.automation-name {
+		grid-template-columns: auto minmax(0, 1fr);
+		gap: 0.15rem 0.55rem;
+		align-items: center;
+	}
+	.automation-name strong,
+	.automation-name .subtle,
+	.automation-name .stale-text,
+	.automation-name .trace-link { grid-column: 2; }
+	.automation-icon {
+		width: 1.65rem;
+		height: 1.65rem;
+		display: grid;
+		place-items: center;
+		border-radius: 0.45rem;
+		grid-row: 1 / span 4;
+	}
+	.subtle { font-size: 0.82rem; color: var(--hc-text-muted); word-break: break-word; }
+	.stale-text { font-size: 0.82rem; color: var(--hc-danger); }
 	.pill {
-		display: inline-block;
-		background: #dff4e7;
-		color: #14633a;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		background: var(--hc-success-soft);
+		color: var(--hc-success);
 		padding: 0.25rem 0.6rem;
-		border-radius: 999px;
+		border-radius: 0.45rem;
 		font-size: 0.82rem;
 	}
 	.disabled-pill {
-		background: #f4dfdf;
-		color: #8b2a2a;
+		background: var(--hc-surface-soft);
+		color: var(--hc-text-muted);
 	}
 	.stale-pill {
-		background: #fff0da;
-		color: #995c00;
+		background: var(--hc-warn-soft);
+		color: var(--hc-warn);
 	}
 	.row-links {
 		display: flex;
@@ -686,20 +698,20 @@
 	.context {
 		margin: 0;
 		padding: 0.85rem 1rem;
-		border-radius: 0.85rem;
-		background: #edf4fb;
-		color: #214564;
+		border-radius: 0.5rem;
+		background: var(--hc-accent-soft);
+		color: var(--hc-accent);
 	}
 	.inline-link {
 		font-size: 0.82rem;
-		color: #163c63;
+		color: var(--hc-accent);
 		text-decoration: none;
 	}
 	.inline-link:hover { text-decoration: underline; }
 	.trace-link {
 		border: 0;
 		background: transparent;
-		color: #163c63;
+		color: var(--hc-accent);
 		padding: 0;
 		margin: 0;
 		font: inherit;
@@ -733,7 +745,7 @@
 		color: #213444;
 	}
 	.trace-chip.selected-fire {
-		background: #153a63;
+		background: var(--hc-accent);
 		color: white;
 	}
 	.trace-timeline {
@@ -748,17 +760,17 @@
 		grid-template-columns: 8.5rem minmax(0, 1fr);
 		gap: 0.9rem;
 		padding: 0.8rem 0.9rem;
-		border: 1px solid #dbe5ee;
-		border-radius: 0.9rem;
-		background: #fbfdff;
+		border: 1px solid var(--hc-border);
+		border-radius: 0.5rem;
+		background: var(--hc-surface);
 	}
 	.trace-timeline li.anchor-event {
-		border-color: #9db8d8;
-		background: #f0f6fc;
+		border-color: color-mix(in srgb, var(--hc-accent) 25%, var(--hc-border));
+		background: var(--hc-accent-soft);
 	}
 	.timeline-time {
 		font-size: 0.82rem;
-		color: #627488;
+		color: var(--hc-text-muted);
 	}
 	.timeline-body {
 		display: grid;
@@ -772,19 +784,22 @@
 		flex-wrap: wrap;
 	}
 	.timeline-summary {
-		color: #314657;
+		color: var(--hc-text);
 		font-size: 0.92rem;
 	}
 	.chips { display: flex; gap: 0.45rem; flex-wrap: wrap; }
 	.tag-chip {
 		display: inline-block;
-		background: #e7eef6;
-		color: #183b60;
+		background: var(--hc-surface-soft);
+		color: var(--hc-text-muted);
 		padding: 0.2rem 0.55rem;
-		border-radius: 999px;
+		border-radius: 0.4rem;
 		font-size: 0.8rem;
 	}
-	.error { color: #b53622; }
+	.tone-good { background: var(--hc-success-soft); color: var(--hc-success); }
+	.tone-warn { background: var(--hc-warn-soft); color: var(--hc-warn); }
+	.tone-idle { background: var(--hc-surface-soft); color: var(--hc-text-muted); }
+	.error { color: var(--hc-danger); }
 	@media (max-width: 760px) {
 		.trace-timeline li {
 			grid-template-columns: 1fr;

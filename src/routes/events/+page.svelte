@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import MaterialIcon from '$lib/components/ui/MaterialIcon.svelte';
+	import type { MaterialIconName } from '$lib/components/ui/MaterialIcon.svelte';
 	import CollapsibleFilterPanel from '$lib/components/ui/CollapsibleFilterPanel.svelte';
 	import ColumnDropdown from '$lib/components/ui/ColumnDropdown.svelte';
 	import { listEvents } from '$lib/api/events';
@@ -192,13 +194,28 @@
 		});
 		return items;
 	});
+
+	function eventIconName(entry: LogEntry): MaterialIconName {
+		if (entry.event.rule_id) return 'automation';
+		if (entry.event.scene_id) return 'scenes';
+		if (entry.device_id || entry.event.device_id) return 'devices';
+		if (entry.event_type.includes('warn') || entry.event_type.includes('error')) return 'warning';
+		return 'events';
+	}
+
+	function eventTone(entry: LogEntry): 'good' | 'warn' | 'idle' | 'media' {
+		if (entry.event_type.includes('warn') || entry.event_type.includes('error')) return 'warn';
+		if (entry.event.rule_id) return 'media';
+		if (entry.event.scene_id) return 'good';
+		return 'idle';
+	}
 </script>
 
 <section class="page">
 	<div class="heading">
 		<div>
 			<h1>Events</h1>
-			<p>Recent HomeCore event log plus the live stream.</p>
+			<p>Compact activity stream with live state and source-aware icons.</p>
 		</div>
 		<div class="heading-actions">
 			<span class:live={eventsState.connected} class="live-pill">
@@ -283,9 +300,15 @@
 											<span class="subtle">{new Date(entry.event.timestamp).toLocaleString()}</span>
 										</div>
 									{:else if column === 'event_type'}
-										<span class="pill">{entry.event_type}</span>
+										<span class={`pill tone-${eventTone(entry)}`}>
+											<MaterialIcon name={eventIconName(entry)} size={14} />
+											{entry.event_type}
+										</span>
 									{:else if column === 'target'}
-										<div class="primary">
+										<div class="primary event-target">
+											<span class={`event-icon tone-${eventTone(entry)}`} aria-hidden="true">
+												<MaterialIcon name={eventIconName(entry)} size={16} />
+											</span>
 											{#if targetHref(entry)}
 												<a class="target-link" href={targetHref(entry) ?? undefined}>{eventTargetLabel(entry)}</a>
 											{:else}
@@ -316,27 +339,10 @@
 	.heading { justify-content: space-between; }
 	.heading-actions { flex-wrap: wrap; justify-content: end; }
 	.toolbar-row { flex-wrap: wrap; }
-	select {
-		padding: 0.72rem 0.85rem;
-		border-radius: 0.8rem;
-		border: 1px solid #cfdae6;
-		background: white;
-		font: inherit;
-	}
-	button {
-		border: 0;
-		border-radius: 999px;
-		padding: 0.65rem 1rem;
-		background: #153a63;
-		color: white;
-		cursor: pointer;
-		font: inherit;
-	}
-	.secondary { background: #e6eef7; color: #173b61; }
 	.panel {
-		background: rgba(255,255,255,0.8);
-		border: 1px solid #d7e0ea;
-		border-radius: 1rem;
+		background: var(--hc-surface);
+		border: 1px solid var(--hc-border);
+		border-radius: 0.7rem;
 		padding: 1rem;
 	}
 	.table-wrap { overflow: auto; padding: 0; }
@@ -348,11 +354,11 @@
 		vertical-align: middle;
 	}
 	th {
-		background: #f7fafc;
+		background: var(--hc-surface-soft);
 		font-size: 0.82rem;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
-		color: #627488;
+		color: var(--hc-text-muted);
 	}
 	th.dragging { opacity: 0.55; }
 	.header-button {
@@ -374,42 +380,62 @@
 		letter-spacing: -0.1em;
 		user-select: none;
 	}
-	.sort-indicator { color: #173b61; }
+	.sort-indicator { color: var(--hc-accent); }
 	.primary { display: grid; gap: 0.15rem; }
-	.subtle { font-size: 0.82rem; color: #66798a; word-break: break-word; }
-	.summary { color: #23384b; }
+	.event-target {
+		grid-template-columns: auto minmax(0, 1fr);
+		gap: 0.15rem 0.55rem;
+		align-items: center;
+	}
+	.event-target > :global(*) { grid-column: 2; }
+	.event-icon {
+		width: 1.65rem;
+		height: 1.65rem;
+		display: grid;
+		place-items: center;
+		border-radius: 0.45rem;
+		grid-row: 1 / span 2;
+	}
+	.subtle { font-size: 0.82rem; color: var(--hc-text-muted); word-break: break-word; }
+	.summary { color: var(--hc-text); }
 	.target-link {
-		color: #163c63;
+		color: var(--hc-accent);
 		text-decoration: none;
 		font-weight: 600;
 	}
 	.target-link:hover { text-decoration: underline; }
 	.pill {
-		display: inline-block;
-		background: #dde9f5;
-		color: #173e65;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		background: var(--hc-accent-soft);
+		color: var(--hc-accent);
 		padding: 0.25rem 0.6rem;
-		border-radius: 999px;
+		border-radius: 0.45rem;
 		font-size: 0.82rem;
 	}
 	.live-pill {
 		display: inline-block;
 		padding: 0.3rem 0.7rem;
-		border-radius: 999px;
-		background: #f4dfdf;
-		color: #8b2a2a;
+		border-radius: 0.45rem;
+		background: var(--hc-danger-soft);
+		color: var(--hc-danger);
 		font-size: 0.82rem;
 	}
 	.live-pill.live {
-		background: #dff4e7;
-		color: #14633a;
+		background: var(--hc-success-soft);
+		color: var(--hc-success);
 	}
 	.context {
 		margin: 0;
 		padding: 0.85rem 1rem;
-		border-radius: 0.85rem;
-		background: #edf4fb;
-		color: #214564;
+		border-radius: 0.5rem;
+		background: var(--hc-accent-soft);
+		color: var(--hc-accent);
 	}
-	.error { color: #b53622; margin: 0; }
+	.tone-good { background: var(--hc-success-soft); color: var(--hc-success); }
+	.tone-warn { background: var(--hc-warn-soft); color: var(--hc-warn); }
+	.tone-idle { background: var(--hc-surface-soft); color: var(--hc-text-muted); }
+	.tone-media { background: var(--hc-accent-soft); color: var(--hc-accent); }
+	.error { color: var(--hc-danger); margin: 0; }
 </style>

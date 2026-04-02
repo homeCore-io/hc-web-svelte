@@ -1,6 +1,24 @@
+export type DeviceStatusIcon =
+	| 'power'
+	| 'power_off'
+	| 'lock'
+	| 'lock_open'
+	| 'motion'
+	| 'open'
+	| 'closed'
+	| 'play'
+	| 'pause'
+	| 'stop'
+	| 'media'
+	| 'devices'
+	| 'offline'
+	| 'warning'
+	| 'check';
+
 export type DeviceState = {
 	device_id: string;
 	canonical_name?: string | null;
+	status_icon?: string | null;
 	plugin_id: string;
 	name?: string | null;
 	area?: string | null;
@@ -179,6 +197,144 @@ export function statusTone(device: DeviceState): 'good' | 'warn' | 'idle' | 'med
 	const open = boolAttr(device.attributes.open ?? device.attributes.contact);
 	if (open !== null) return open ? 'warn' : 'idle';
 	return 'idle';
+}
+
+export const deviceStatusIconOptions: { value: DeviceStatusIcon; label: string }[] = [
+	{ value: 'power', label: 'Power on' },
+	{ value: 'power_off', label: 'Power off' },
+	{ value: 'lock', label: 'Locked' },
+	{ value: 'lock_open', label: 'Unlocked' },
+	{ value: 'motion', label: 'Motion' },
+	{ value: 'open', label: 'Open' },
+	{ value: 'closed', label: 'Closed' },
+	{ value: 'play', label: 'Play' },
+	{ value: 'pause', label: 'Pause' },
+	{ value: 'stop', label: 'Stop' },
+	{ value: 'media', label: 'Media' },
+	{ value: 'devices', label: 'Generic device' },
+	{ value: 'offline', label: 'Offline' },
+	{ value: 'warning', label: 'Warning' },
+	{ value: 'check', label: 'Check' }
+];
+
+export function deviceStatusIconOptionsForDevice(device: DeviceState | null | undefined): {
+	label: string;
+	options: { value: DeviceStatusIcon; label: string }[];
+}[] {
+	if (!device) {
+		return [
+			{
+				label: 'General',
+				options: deviceStatusIconOptions.filter((option) =>
+					['devices', 'power', 'power_off', 'warning', 'offline', 'check'].includes(option.value)
+				)
+			}
+		];
+	}
+
+	if (!device.available) {
+		return [
+			{
+				label: 'Availability',
+				options: deviceStatusIconOptions.filter((option) =>
+					['offline', 'warning', 'devices', 'check'].includes(option.value)
+				)
+			}
+		];
+	}
+
+	if (isMediaPlayer(device)) {
+		return [
+			{
+				label: 'Playback',
+				options: deviceStatusIconOptions.filter((option) =>
+					['play', 'pause', 'stop', 'media', 'power', 'power_off', 'offline'].includes(option.value)
+				)
+			}
+		];
+	}
+
+	const locked = boolAttr(device.attributes.locked);
+	if (locked !== null) {
+		return [
+			{
+				label: 'Security',
+				options: deviceStatusIconOptions.filter((option) =>
+					['lock', 'lock_open', 'warning', 'offline', 'check'].includes(option.value)
+				)
+			}
+		];
+	}
+
+	const motion = boolAttr(device.attributes.motion);
+	if (motion !== null) {
+		return [
+			{
+				label: 'Presence',
+				options: deviceStatusIconOptions.filter((option) =>
+					['motion', 'warning', 'check', 'offline'].includes(option.value)
+				)
+			}
+		];
+	}
+
+	const open = boolAttr(device.attributes.open ?? device.attributes.contact);
+	if (open !== null) {
+		return [
+			{
+				label: 'Contact',
+				options: deviceStatusIconOptions.filter((option) =>
+					['open', 'closed', 'warning', 'offline', 'check'].includes(option.value)
+				)
+			}
+		];
+	}
+
+	const on = boolAttr(device.attributes.on);
+	if (on !== null) {
+		return [
+			{
+				label: 'Power',
+				options: deviceStatusIconOptions.filter((option) =>
+					['power', 'power_off', 'warning', 'offline', 'check'].includes(option.value)
+				)
+			}
+		];
+	}
+
+	return [
+		{
+			label: 'General',
+			options: deviceStatusIconOptions.filter((option) =>
+				['devices', 'power', 'power_off', 'warning', 'offline', 'check'].includes(option.value)
+			)
+		}
+	];
+}
+
+export function isDeviceStatusIcon(value: unknown): value is DeviceStatusIcon {
+	return typeof value === 'string' && deviceStatusIconOptions.some((option) => option.value === value);
+}
+
+export function deviceStatusIconName(device: DeviceState): DeviceStatusIcon {
+	if (isDeviceStatusIcon(device.status_icon)) return device.status_icon;
+	if (!device.available) return 'offline';
+	if (isMediaPlayer(device)) {
+		const state = playbackState(device);
+		if (state === 'playing') return 'play';
+		if (state === 'paused') return 'pause';
+		if (state === 'stopped') return 'stop';
+		return 'media';
+	}
+	const on = boolAttr(device.attributes.on);
+	if (on !== null) return on ? 'power' : 'power_off';
+	const locked = boolAttr(device.attributes.locked);
+	if (locked !== null) return locked ? 'lock' : 'lock_open';
+	const motion = boolAttr(device.attributes.motion);
+	if (motion !== null) return 'motion';
+	const open = boolAttr(device.attributes.open ?? device.attributes.contact);
+	if (open !== null) return open ? 'open' : 'closed';
+	return 'devices';
 }
 
 export function sortText(value: string | null | undefined): string {

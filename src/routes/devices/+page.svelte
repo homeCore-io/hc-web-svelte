@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
+	import MaterialIcon from '$lib/components/ui/MaterialIcon.svelte';
 	import CollapsibleFilterPanel from '$lib/components/ui/CollapsibleFilterPanel.svelte';
 	import ColumnDropdown from '$lib/components/ui/ColumnDropdown.svelte';
 	import { listDevices, setDeviceState } from '$lib/api/devices';
 	import {
 		boolAttr,
+		deviceStatusIconName,
 		deviceDisplayName,
 		formatRelativeTime,
 		isSceneLikeDevice,
@@ -14,7 +16,6 @@
 		mediaSummary,
 		playbackState,
 		sortText,
-		statusIcon,
 		statusText,
 		statusTone,
 		supportsAction,
@@ -261,7 +262,7 @@
 	<div class="heading">
 		<div>
 			<h1>Devices</h1>
-			<p>Sortable, filterable device inventory with configurable columns and inline controls.</p>
+			<p>Flat inventory view with compact status icons, configurable columns, and inline device controls.</p>
 		</div>
 		<button type="button" onclick={refresh} disabled={loading}>
 			{loading ? 'Refreshing…' : 'Refresh'}
@@ -355,7 +356,7 @@
 								<td data-column={column}>
 									{#if column === 'status_icon'}
 										<span class={`status tone-${statusTone(device)}`} title={statusText(device)}>
-											{statusIcon(device)}
+											<MaterialIcon name={deviceStatusIconName(device)} size={18} />
 										</span>
 									{:else if column === 'name'}
 										<div class="primary">
@@ -453,24 +454,17 @@
 	.heading { justify-content: space-between; }
 	.toolbar-row { flex-wrap: wrap; }
 	.preferences { justify-content: flex-start; gap: 1rem; }
-	.heading p { margin: 0.25rem 0 0; color: #617486; }
-	select {
-		padding: 0.72rem 0.85rem;
-		border-radius: 0.8rem;
-		border: 1px solid #cfdae6;
-		background: white;
-		font: inherit;
-	}
+	.heading p { margin: 0.25rem 0 0; color: var(--hc-text-muted); }
 	input { min-width: min(360px, 100%); flex: 1; }
 	.inline-check {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.45rem;
-		padding: 0.72rem 0.85rem;
-		border-radius: 0.8rem;
-		border: 1px solid #cfdae6;
-		background: white;
-		color: #33485a;
+		padding: 0.58rem 0.72rem;
+		border-radius: 0.45rem;
+		border: 1px solid var(--hc-border);
+		background: var(--hc-surface);
+		color: var(--hc-text);
 		font-size: 0.92rem;
 		white-space: nowrap;
 		min-height: 2.9rem;
@@ -481,20 +475,7 @@
 		min-width: 0;
 		flex: 0 0 auto;
 	}
-	button, .secondary-link {
-		border: 0;
-		border-radius: 999px;
-		padding: 0.65rem 1rem;
-		background: #153a63;
-		color: white;
-		cursor: pointer;
-		font: inherit;
-		text-decoration: none;
-	}
-	.secondary, .secondary-link {
-		background: #e6eef7;
-		color: #173b61;
-	}
+	.secondary-link { text-decoration: none; }
 	.preferences > button { margin-left: auto; }
 	.table-wrap { overflow: auto; padding: 0; }
 	table {
@@ -511,11 +492,11 @@
 	th {
 		position: sticky;
 		top: 0;
-		background: #f7fafc;
+		background: var(--hc-surface-soft);
 		font-size: 0.82rem;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
-		color: #627488;
+		color: var(--hc-text-muted);
 	}
 	th.dragging { opacity: 0.55; }
 	.header-button {
@@ -537,17 +518,17 @@
 		letter-spacing: -0.1em;
 		user-select: none;
 	}
-	.sort-indicator { color: #173b61; }
+	.sort-indicator { color: var(--hc-accent); }
 	tbody tr { cursor: pointer; }
-	tbody tr:hover { background: #f8fbfd; }
-	tbody tr.offline { background: rgba(249, 240, 240, 0.45); }
+	tbody tr:hover { background: var(--hc-surface-soft); }
+	tbody tr.offline { background: color-mix(in srgb, var(--hc-danger-soft) 65%, white); }
 	table.compact th, table.compact td { padding: 0.6rem 0.65rem; }
-	a { color: #163c63; text-decoration: none; }
+	a { color: var(--hc-accent); text-decoration: none; }
 	a:hover { text-decoration: underline; }
 	.primary { display: grid; gap: 0.15rem; }
 	.subtle {
 		font-size: 0.82rem;
-		color: #66798a;
+		color: var(--hc-text-muted);
 		word-break: break-word;
 	}
 	.status {
@@ -555,15 +536,13 @@
 		place-items: center;
 		width: 2rem;
 		height: 2rem;
-		border-radius: 999px;
-		font-size: 1rem;
-		font-weight: 700;
+		border-radius: 0.45rem;
 	}
-	.tone-good { background: #e1f5e8; color: #12693a; }
-	.tone-warn { background: #fff0da; color: #995c00; }
-	.tone-idle { background: #e8eef5; color: #39546e; }
-	.tone-media { background: #e5ecff; color: #234da3; }
-	.tone-offline { background: #f7e3e3; color: #983434; }
+	.tone-good { background: var(--hc-success-soft); color: var(--hc-success); }
+	.tone-warn { background: var(--hc-warn-soft); color: var(--hc-warn); }
+	.tone-idle { background: var(--hc-surface-soft); color: var(--hc-text-muted); }
+	.tone-media { background: var(--hc-accent-soft); color: var(--hc-accent); }
+	.tone-offline { background: var(--hc-danger-soft); color: var(--hc-danger); }
 	.media-cell img {
 		width: 2.8rem;
 		height: 2.8rem;
@@ -571,13 +550,13 @@
 		border-radius: 0.55rem;
 		border: 1px solid #d8e0ea;
 	}
-	.error { color: #b53622; }
+	.error { color: var(--hc-danger); }
 	.notice {
 		margin: 0;
 		padding: 0.85rem 1rem;
-		border-radius: 0.85rem;
-		background: #e6f4ea;
-		color: #155b36;
+		border-radius: 0.5rem;
+		background: var(--hc-success-soft);
+		color: var(--hc-success);
 	}
 	@media (max-width: 900px) {
 		.preferences > button { margin-left: 0; }

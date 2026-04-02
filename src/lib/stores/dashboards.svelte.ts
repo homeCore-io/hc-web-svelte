@@ -33,6 +33,17 @@ class DashboardsState {
 		return this.items.find((item) => item.id === id) ?? null;
 	}
 
+	mergeDashboard(dashboard: DashboardDefinition) {
+		const nextItems = this.items.slice();
+		const index = nextItems.findIndex((item) => item.id === dashboard.id);
+		if (index >= 0) {
+			nextItems[index] = dashboard;
+		} else {
+			nextItems.push(dashboard);
+		}
+		this.items = nextItems;
+	}
+
 	get defaultDashboard() {
 		return this.items.find((item) => item.is_default) ?? this.items[0] ?? null;
 	}
@@ -63,6 +74,17 @@ class DashboardsState {
 		const updated = await dashboardsApi.setDefaultDashboard(id);
 		await this.load();
 		return updated;
+	}
+
+	async delete(id: string) {
+		await dashboardsApi.deleteDashboard(id);
+		await this.load();
+	}
+
+	async reloadStore() {
+		const result = await dashboardsApi.reloadDashboards();
+		await this.load();
+		return result;
 	}
 }
 

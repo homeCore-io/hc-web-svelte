@@ -1,4 +1,5 @@
 <script lang="ts">
+	import MaterialIcon from '$lib/components/ui/MaterialIcon.svelte';
 	import CollapsibleFilterPanel from '$lib/components/ui/CollapsibleFilterPanel.svelte';
 	import ColumnDropdown from '$lib/components/ui/ColumnDropdown.svelte';
 	import { listModes } from '$lib/api/modes';
@@ -172,13 +173,17 @@
 		});
 		return items;
 	});
+
+	function modeTone(mode: ModeState): 'good' | 'idle' {
+		return mode.on ? 'good' : 'idle';
+	}
 </script>
 
 <section class="page">
 	<div class="heading">
 		<div>
 			<h1>Modes</h1>
-			<p>Sortable mode inventory with schedule and state details.</p>
+			<p>Compact mode inventory with cleaner state cues and schedule detail.</p>
 		</div>
 		<button type="button" onclick={refresh} disabled={loading}>
 			{loading ? 'Refreshing…' : 'Refresh'}
@@ -248,14 +253,20 @@
 							{#each visibleColumns as column}
 								<td>
 									{#if column === 'name'}
-										<div class="primary">
+										<div class="primary mode-name">
+											<span class={`mode-icon tone-${modeTone(mode)}`} aria-hidden="true">
+												<MaterialIcon name="modes" size={16} />
+											</span>
 											<strong>{modeDisplayName(mode)}</strong>
 											<span class="subtle">{mode.device_id}</span>
 										</div>
 									{:else if column === 'kind'}
 										<span class="pill">{mode.kind ?? 'manual'}</span>
 									{:else if column === 'status'}
-										<span class:off={!mode.on} class="pill status-pill">{modeStatusLabel(mode)}</span>
+										<span class:off={!mode.on} class={`pill status-pill tone-${modeTone(mode)}`}>
+											<MaterialIcon name={mode.on ? 'check' : 'power_off'} size={14} />
+											{modeStatusLabel(mode)}
+										</span>
 									{:else if column === 'effective_window'}
 										<div class="primary">
 											<strong>{modeWindowSummary(mode)}</strong>
@@ -290,27 +301,10 @@
 	.heading, .toolbar-row { display: flex; gap: 0.75rem; align-items: center; }
 	.heading { justify-content: space-between; }
 	.toolbar-row { flex-wrap: wrap; }
-	select {
-		padding: 0.72rem 0.85rem;
-		border-radius: 0.8rem;
-		border: 1px solid #cfdae6;
-		background: white;
-		font: inherit;
-	}
-	button {
-		border: 0;
-		border-radius: 999px;
-		padding: 0.65rem 1rem;
-		background: #153a63;
-		color: white;
-		cursor: pointer;
-		font: inherit;
-	}
-	.secondary { background: #e6eef7; color: #173b61; }
 	.panel {
-		background: rgba(255,255,255,0.8);
-		border: 1px solid #d7e0ea;
-		border-radius: 1rem;
+		background: var(--hc-surface);
+		border: 1px solid var(--hc-border);
+		border-radius: 0.7rem;
 		padding: 1rem;
 	}
 	.table-wrap { overflow: auto; padding: 0; }
@@ -322,11 +316,11 @@
 		vertical-align: middle;
 	}
 	th {
-		background: #f7fafc;
+		background: var(--hc-surface-soft);
 		font-size: 0.82rem;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
-		color: #627488;
+		color: var(--hc-text-muted);
 	}
 	th.dragging { opacity: 0.55; }
 	.header-button {
@@ -348,20 +342,39 @@
 		letter-spacing: -0.1em;
 		user-select: none;
 	}
-	.sort-indicator { color: #173b61; }
+	.sort-indicator { color: var(--hc-accent); }
 	.primary { display: grid; gap: 0.15rem; }
-	.subtle { font-size: 0.82rem; color: #66798a; word-break: break-word; }
+	.mode-name {
+		grid-template-columns: auto minmax(0, 1fr);
+		gap: 0.15rem 0.55rem;
+		align-items: center;
+	}
+	.mode-name strong,
+	.mode-name .subtle { grid-column: 2; }
+	.mode-icon {
+		width: 1.65rem;
+		height: 1.65rem;
+		display: grid;
+		place-items: center;
+		border-radius: 0.45rem;
+		grid-row: 1 / span 2;
+	}
+	.subtle { font-size: 0.82rem; color: var(--hc-text-muted); word-break: break-word; }
 	.pill {
-		display: inline-block;
-		background: #dde9f5;
-		color: #173e65;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		background: var(--hc-accent-soft);
+		color: var(--hc-accent);
 		padding: 0.25rem 0.6rem;
-		border-radius: 999px;
+		border-radius: 0.45rem;
 		font-size: 0.82rem;
 	}
 	.status-pill.off {
-		background: #f4dfdf;
-		color: #8b2a2a;
+		background: var(--hc-surface-soft);
+		color: var(--hc-text-muted);
 	}
-	.error { color: #b53622; }
+	.tone-good { background: var(--hc-success-soft); color: var(--hc-success); }
+	.tone-idle { background: var(--hc-surface-soft); color: var(--hc-text-muted); }
+	.error { color: var(--hc-danger); }
 </style>

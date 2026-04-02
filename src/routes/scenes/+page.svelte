@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import MaterialIcon from '$lib/components/ui/MaterialIcon.svelte';
 	import { listEvents } from '$lib/api/events';
 	import CollapsibleFilterPanel from '$lib/components/ui/CollapsibleFilterPanel.svelte';
 	import ColumnDropdown from '$lib/components/ui/ColumnDropdown.svelte';
@@ -187,6 +188,10 @@
 		return lookup;
 	}
 
+	function sceneSourceTone(scene: DisplayScene): 'plugin' | 'native' {
+		return scene.isPlugin ? 'plugin' : 'native';
+	}
+
 	const allScenes = $derived.by<DisplayScene[]>(() => [
 		...nativeScenes.map((scene) => ({
 			...scene,
@@ -236,7 +241,7 @@
 	<div class="heading">
 		<div>
 			<h1>Scenes</h1>
-			<p>Native scenes and plugin-managed scene devices in one grid.</p>
+			<p>Compact scene catalog with source-aware icons and activation state context.</p>
 		</div>
 		<button type="button" onclick={refresh} disabled={loading}>
 			{loading ? 'Refreshing…' : 'Refresh'}
@@ -307,14 +312,18 @@
 							{#each visibleColumns as column}
 								<td>
 									{#if column === 'name'}
-										<div class="primary">
+										<div class="primary scene-name">
+											<span class={`scene-icon tone-${sceneSourceTone(scene)}`} aria-hidden="true">
+												<MaterialIcon name="scenes" size={16} />
+											</span>
 											<strong>{scene.name}</strong>
 											<span class="subtle">{scene.id}</span>
 										</div>
 									{:else if column === 'summary'}
 										{pluginSceneSummary(scene)}
 									{:else if column === 'source'}
-										<span class:plugin-pill={scene.isPlugin} class="pill">
+										<span class:plugin-pill={scene.isPlugin} class="pill source-pill">
+											<MaterialIcon name={scene.isPlugin ? 'devices' : 'scenes'} size={14} />
 											{scene.isPlugin ? 'Plugin' : 'Native'}
 										</span>
 									{:else if column === 'last_activated'}
@@ -350,23 +359,6 @@
 	.heading, .toolbar-row { display: flex; gap: 0.75rem; align-items: center; }
 	.heading { justify-content: space-between; }
 	.toolbar-row { flex-wrap: wrap; }
-	select {
-		padding: 0.72rem 0.85rem;
-		border-radius: 0.8rem;
-		border: 1px solid #cfdae6;
-		background: white;
-		font: inherit;
-	}
-	button {
-		border: 0;
-		border-radius: 999px;
-		padding: 0.65rem 1rem;
-		background: #153a63;
-		color: white;
-		cursor: pointer;
-		font: inherit;
-	}
-	.secondary { background: #e6eef7; color: #173b61; }
 	.table-wrap { overflow: auto; padding: 0; }
 	table { width: 100%; border-collapse: collapse; min-width: 860px; }
 	th, td {
@@ -376,11 +368,11 @@
 		vertical-align: middle;
 	}
 	th {
-		background: #f7fafc;
+		background: var(--hc-surface-soft);
 		font-size: 0.82rem;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
-		color: #627488;
+		color: var(--hc-text-muted);
 	}
 	th.dragging { opacity: 0.55; }
 	.header-button {
@@ -402,27 +394,46 @@
 		letter-spacing: -0.1em;
 		user-select: none;
 	}
-	.sort-indicator { color: #173b61; }
+	.sort-indicator { color: var(--hc-accent); }
 	.primary { display: grid; gap: 0.15rem; }
-	.subtle { font-size: 0.82rem; color: #66798a; word-break: break-word; }
+	.scene-name {
+		grid-template-columns: auto minmax(0, 1fr);
+		gap: 0.15rem 0.55rem;
+		align-items: center;
+	}
+	.scene-name strong,
+	.scene-name .subtle { grid-column: 2; }
+	.scene-icon {
+		width: 1.6rem;
+		height: 1.6rem;
+		display: grid;
+		place-items: center;
+		border-radius: 0.45rem;
+		grid-row: 1 / span 2;
+	}
+	.subtle { font-size: 0.82rem; color: var(--hc-text-muted); word-break: break-word; }
 	.pill {
-		display: inline-block;
-		background: #dde9f5;
-		color: #173e65;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		background: var(--hc-accent-soft);
+		color: var(--hc-accent);
 		padding: 0.25rem 0.6rem;
-		border-radius: 999px;
+		border-radius: 0.45rem;
 		font-size: 0.82rem;
 	}
 	.plugin-pill {
-		background: #f0e7fb;
-		color: #5e2c91;
+		background: var(--hc-surface-soft);
+		color: var(--hc-text);
 	}
 	.notice {
 		margin: 0;
 		padding: 0.85rem 1rem;
-		border-radius: 0.85rem;
-		background: #e6f4ea;
-		color: #155b36;
+		border-radius: 0.5rem;
+		background: var(--hc-success-soft);
+		color: var(--hc-success);
 	}
-	.error { color: #b53622; }
+	.tone-native { background: color-mix(in srgb, var(--hc-success-soft) 70%, white); color: var(--hc-success); }
+	.tone-plugin { background: var(--hc-surface-soft); color: var(--hc-text-muted); }
+	.error { color: var(--hc-danger); }
 </style>

@@ -130,9 +130,9 @@ Current detail-page support:
 
 Current dashboard design direction:
 
-- Home Assistant style card-based dashboards are the reference direction
-- Mushroom Cards are the styling inspiration for compact card shells and hierarchy
-- planned next steps are documented in:
+- Card-based dashboards with configurable, persistent layouts
+- Compact card shells with clear visual hierarchy
+- Planned next steps are documented in:
   - [`docs/dashboard-card-plan.md`](/home/john/RustroverProjects/homeCore/clients/hc-web-svelte/docs/dashboard-card-plan.md)
   - [`docs/rule-trace-viewer-plan.md`](/home/john/RustroverProjects/homeCore/clients/hc-web-svelte/docs/rule-trace-viewer-plan.md)
 

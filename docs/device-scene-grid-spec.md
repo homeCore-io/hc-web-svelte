@@ -4,7 +4,7 @@
 
 Define the target interaction model for the `Devices` and `Scenes` pages in `hc-web-svelte`.
 
-These pages should be built as configurable data-grid experiences first, with card or detail views treated as secondary affordances. The goal is to match and improve on the strong parts of HomeSeer-style sortable and filterable lists while fitting HomeCore's API-first and multi-client design.
+These pages should be built as configurable data-grid experiences first, with card or detail views treated as secondary affordances. The goal is a fast, sortable, filterable list that fits HomeCore's API-first and multi-client design.
 
 ## Design Principles
 

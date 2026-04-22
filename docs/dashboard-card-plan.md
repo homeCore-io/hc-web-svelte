@@ -2,7 +2,7 @@
 
 ## Goal
 
-Make HomeCore dashboards feel closer to a modern Home Assistant setup:
+Make HomeCore dashboards feel modern and information-rich:
 
 - many card/widget types
 - highly flexible placement
@@ -12,33 +12,20 @@ Make HomeCore dashboards feel closer to a modern Home Assistant setup:
 
 This is a design and implementation sequence, not a one-shot rewrite.
 
-## Reference Direction
+## Design Direction
 
-Home Assistant's dashboard model is useful for three reasons:
+Card-based dashboards earn their keep for three reasons:
 
 1. views can use different layout modes instead of forcing one dashboard style
 2. cards are composable and typed, with clear responsibility per card
 3. dense cards can still be readable because primary, secondary, icon, and action areas are visually separated
 
-The official Home Assistant docs are useful references for:
-
-- dashboard views and layout styles  
-  https://www.home-assistant.io/dashboards/views/
-- card catalog and add-card patterns  
-  https://www.home-assistant.io/dashboards/cards/
-- sections-based dashboards  
-  https://www.home-assistant.io/dashboards/sections/
-
-For visual treatment, Mushroom Cards are the best style reference:
+Visual treatment aims for:
 
 - compact card shells
 - strong icon treatment
 - primary/secondary text hierarchy
 - clean chip-like actions
-
-Reference:
-
-- https://github.com/piitaya/lovelace-mushroom
 
 ## Recommended HomeCore Card System
 

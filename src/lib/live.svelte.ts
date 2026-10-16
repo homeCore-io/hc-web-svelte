@@ -1,10 +1,17 @@
 /**
  * The connection to homeCore's event stream (through the UI server, S3).
  *
- * R0 only shows that it is connected; R2 starts using what arrives. The UI
- * server adds the session's token to the upgrade, so this URL carries none.
+ * Asks for the house as it stands on every connect (`snapshot=true`, H2), so
+ * a reconnect after an outage resynchronises everything rather than leaving
+ * whatever changed meanwhile stale. Frames go to whoever listens: rooms now,
+ * devices in R2. The UI server adds the session's token to the upgrade, so
+ * this URL carries none.
  */
+import type { Frame } from './house.js';
+
 export type LiveState = 'connecting' | 'live' | 'offline';
+
+type Listener = (frame: Frame) => void;
 
 class Live {
 	state = $state<LiveState>('connecting');
@@ -12,6 +19,13 @@ class Live {
 	#retry = 0;
 	#timer: ReturnType<typeof setTimeout> | null = null;
 	#wanted = false;
+	#listeners = new Set<Listener>();
+
+	/** Hear every frame from now on. Returns the way to stop. */
+	listen(listener: Listener): () => void {
+		this.#listeners.add(listener);
+		return () => this.#listeners.delete(listener);
+	}
 
 	start(): void {
 		this.#wanted = true;
@@ -30,11 +44,21 @@ class Live {
 		this.state = 'connecting';
 		const url = new URL('/api/v1/events/stream', location.href);
 		url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+		url.searchParams.set('snapshot', 'true');
 		const socket = new WebSocket(url);
 		this.#socket = socket;
 		socket.onopen = () => {
 			this.#retry = 0;
 			this.state = 'live';
+		};
+		socket.onmessage = (message) => {
+			let frame: Frame;
+			try {
+				frame = JSON.parse(String(message.data)) as Frame;
+			} catch {
+				return;
+			}
+			for (const listener of this.#listeners) listener(frame);
 		};
 		socket.onclose = () => {
 			if (this.#socket !== socket) return;

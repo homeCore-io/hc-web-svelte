@@ -1,8 +1,8 @@
 /**
  * A slug as words: `living_room` → "Living room".
  *
- * Until homeCore keeps the name a room was given (H1), its slug is all there
- * is; this is the best reading of it, and goes away when H1 lands.
+ * A homeCore from before H1 keeps only a room's slug; this is the best
+ * reading of it. Can go once every homeCore the app talks to has H1.
  */
 export function humanise(slug: string): string {
 	const words = slug.replace(/[_-]+/g, ' ').trim();

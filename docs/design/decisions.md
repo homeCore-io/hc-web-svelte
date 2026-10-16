@@ -638,7 +638,41 @@ Settings → R6 alerts → R7 displays.
   through the UI server comes from that address.
 - So the UI server refuses (401) any request to homeCore that carries no
   session and no `Authorization` header, except signing in and refreshing. A
-  credential always wins over the whitelist in homeCore.
-- **Open for the house:** anything else on fractal that passes requests to
-  homeCore (the old hc-web-lit dev server) has the same exposure; and the
-  whitelist itself is described in homeCore as deprecated.
+  credential wins over the whitelist in homeCore's REST API — and, from H2,
+  on the event stream too (B5).
+- The old hc-web-lit dev server on fractal had the same exposure; it was
+  stopped on 2026-10-16. The whitelist itself is described in homeCore as
+  deprecated; removing fractal from it is the household's call.
+
+## B3 — Rooms a bridge reports are made; renames and merges leave aliases (R1, 2026-10-16)
+
+- Refines D10 for H1. A room is a record with an id assigned once (rooms that
+  existed keep the id they had), the name as typed, its slug, and aliases.
+- A room a plugin reports that the house does not have is **made**, named as
+  the bridge spells it. A rename keeps the old slug as an alias, so the bridge
+  still saying "Tv room" puts its devices in the renamed room instead of
+  bringing the old one back. **Merging** a room into another (new:
+  `POST /areas/{id}/merge`) moves every slug it answered to, so a bridge's room
+  can be folded away for good; deleting one only lasts until the bridge
+  reports it again.
+- Migration names the existing rooms in Title Case ("Tv Room"); the first
+  bridge to spell a room its own way ("Master Bedroom") replaces the guess. A
+  person's name is never replaced.
+
+## B4 — Device and scene changes are announced by homeCore's store (R1, 2026-10-16)
+
+- For H2. Devices are written from dozens of places and deleted from eight, so
+  the events (`device_added`, `device_metadata_changed`, `device_removed`,
+  `scene_changed`, `scene_removed`) are raised by the state store on any write
+  that changes them, not by each edit path. Room events come from the rooms
+  module. A state report raises none of these; it has its own event.
+- The snapshot is opt-in (`?snapshot=true`), because clients written before it
+  would not know the frame.
+
+## B5 — On the event stream, a token wins over the whitelist (R1, 2026-10-16)
+
+- Found building H2: the stream checked the whitelist before the token, so a
+  signed-in person's stream through the UI server (a whitelisted address)
+  counted as admin, while their REST calls counted as them. Now the stream
+  matches REST. It matters more with a snapshot, which will be scoped to what
+  the person may read (D8).

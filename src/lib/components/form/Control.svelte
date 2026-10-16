@@ -98,6 +98,8 @@
 		onchange([...items, p.value]);
 	}
 
+	const labelOf = (x: unknown) => field.options?.find((o) => same(o.value, x))?.label ?? entry(x);
+
 	// ---- tables ----
 	const columns = $derived(Array.isArray(field.item) ? field.item : []);
 	const rows = $derived(Array.isArray(value) ? (value as Record<string, unknown>[]) : []);
@@ -123,7 +125,7 @@
 			>
 		{/each}
 	</div>
-{:else if field.kind === 'enum'}
+{:else if field.kind === 'enum' || (field.kind === 'select' && field.options && !field.allow_create)}
 	<select
 		{id}
 		{disabled}
@@ -165,7 +167,7 @@
 	<div class="list">
 		{#each items as x, i (i)}
 			<span class="chip"
-				>{entry(x)}{#if !disabled}<button
+				>{labelOf(x)}{#if !disabled}<button
 						type="button"
 						aria-label={`Remove ${entry(x)}`}
 						onclick={() => onchange(items.filter((_, j) => j !== i))}
@@ -173,7 +175,23 @@
 					>{/if}</span
 			>
 		{/each}
-		{#if !disabled}
+		{#if !disabled && field.options}
+			<select
+				class="pick"
+				aria-label={`Add to ${label}`}
+				value=""
+				onchange={(e) => {
+					const v = e.currentTarget.value;
+					e.currentTarget.value = '';
+					if (v !== '') onchange([...items, JSON.parse(v)]);
+				}}
+			>
+				<option value="">Add…</option>
+				{#each field.options.filter((o) => !items.some( (x) => same(x, o.value) )) as o (String(o.value))}
+					<option value={JSON.stringify(o.value)}>{o.label}</option>
+				{/each}
+			</select>
+		{:else if !disabled}
 			<div class="add">
 				<input
 					{id}
@@ -381,6 +399,10 @@
 	.add {
 		display: flex;
 		gap: 6px;
+	}
+	.pick {
+		height: 34px;
+		width: auto;
 	}
 	.add input {
 		height: 34px;

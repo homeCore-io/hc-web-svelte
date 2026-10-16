@@ -47,6 +47,22 @@ class DeviceStore {
 		});
 	}
 
+	/**
+	 * Read one device again, for a change homeCore doesn't announce (a
+	 * helper's settings, A1). Keeps the schema the app already has.
+	 */
+	async refresh(id: string): Promise<void> {
+		try {
+			const res = await fetch(`/api/v1/devices/${encodeURIComponent(id)}`);
+			if (!res.ok) return;
+			const fresh = (await res.json()) as CoreDevice;
+			const had = this.byId[id];
+			this.byId = { ...this.byId, [id]: { ...fresh, schema: fresh.schema ?? had?.schema } };
+		} catch {
+			// The next event about it will bring it up to date.
+		}
+	}
+
 	async #fetchSchema(id: string): Promise<void> {
 		try {
 			const res = await fetch(`/api/v1/devices/${encodeURIComponent(id)}/schema`);

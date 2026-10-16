@@ -1,15 +1,17 @@
 <!--
-	One reading over the last day, from homeCore's history: a line for a number,
+	One reading over the last day (or `span`), from homeCore's history: a line for a number,
 	a band for on/off. Drawn as plain SVG — no chart library to ship.
 -->
 <script lang="ts">
+	const DAY = 24 * 3600_000;
 	let {
 		deviceId,
 		attr,
 		label,
 		unit,
 		bool,
-		current
+		current,
+		span = DAY
 	}: {
 		deviceId: string;
 		attr: string;
@@ -17,6 +19,8 @@
 		unit?: string;
 		bool: boolean;
 		current?: unknown;
+		/** How far back, in ms: a day unless said. */
+		span?: number;
 	} = $props();
 
 	interface Point {
@@ -24,17 +28,19 @@
 		v: number;
 	}
 
-	const DAY = 24 * 3600_000;
+	const spanText = $derived(span <= DAY ? '24 hours' : `${Math.round(span / DAY)} days`);
+	const spanShort = $derived(span <= DAY ? '24 h' : `${Math.round(span / DAY)} d`);
 	let points = $state<Point[] | null>(null);
 	let failed = $state(false);
 
 	$effect(() => {
 		const id = deviceId;
 		const name = attr;
+		const back = span;
 		let gone = false;
 		points = null;
 		failed = false;
-		const from = new Date(Date.now() - DAY).toISOString();
+		const from = new Date(Date.now() - back).toISOString();
 		fetch(
 			`/api/v1/devices/${encodeURIComponent(id)}/history?attribute=${encodeURIComponent(name)}&from=${encodeURIComponent(from)}&max_points=160`
 		)
@@ -62,14 +68,14 @@
 		// Nothing recorded means nothing changed: it held its current value.
 		const now = typeof current === 'boolean' ? (current ? 1 : 0) : Number(current);
 		const series =
-			points.length > 0 || !Number.isFinite(now) ? points : [{ t: Date.now() - DAY, v: now }];
+			points.length > 0 || !Number.isFinite(now) ? points : [{ t: Date.now() - span, v: now }];
 		return series.length === 0 ? null : draw(series);
 	});
 
 	function draw(points: Point[]) {
 		const end = Date.now();
-		const start = end - DAY;
-		const x = (t: number) => ((Math.max(t, start) - start) / DAY) * W;
+		const start = end - span;
+		const x = (t: number) => ((Math.max(t, start) - start) / span) * W;
 		if (bool) {
 			// Bands where it was true, each lasting until the next reading.
 			const bands: { x: number; w: number }[] = [];
@@ -101,7 +107,7 @@
 
 <div class="chart">
 	<div class="head">
-		<span>{label}, last 24 hours</span>
+		<span>{label}, last {spanText}</span>
 		{#if shape && !bool}
 			<span class="num range"
 				>{fmt(shape.min) === fmt(shape.max)
@@ -119,20 +125,20 @@
 	{:else if points === null}
 		<div class="placeholder"></div>
 	{:else if shape === null}
-		<p class="quiet">Nothing recorded in the last day.</p>
+		<p class="quiet">Nothing recorded in the last {spanText}.</p>
 	{:else}
 		<svg
 			viewBox={`0 0 ${W} ${H}`}
 			preserveAspectRatio="none"
 			role="img"
-			aria-label={`${label} over the last 24 hours`}
+			aria-label={`${label} over the last ${spanText}`}
 		>
 			{#each shape.bands as b, i (i)}
 				<rect x={b.x} y="8" width={b.w} height={H - 16} rx="3" />
 			{/each}
 			{#if shape.line}<path d={shape.line} />{/if}
 		</svg>
-		<div class="axis" aria-hidden="true"><span>24 h ago</span><span>now</span></div>
+		<div class="axis" aria-hidden="true"><span>{spanShort} ago</span><span>now</span></div>
 	{/if}
 </div>
 

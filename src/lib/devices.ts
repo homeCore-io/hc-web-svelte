@@ -78,6 +78,8 @@ export interface CoreDevice {
 	device_id: string;
 	name: string;
 	name_override?: string;
+	/** homeCore's rule-facing name: set once, so renaming never breaks a rule. */
+	canonical_name?: string;
 	plugin_id?: string;
 	area?: string;
 	area_override?: string;

@@ -9,6 +9,7 @@
  * Kept free of components and stores so every rule here is tested on plain
  * data — including that no card offers a control a device doesn't declare.
  */
+import { remaining } from './helpers.js';
 import { displayName, type AttributeSchema, type CoreDevice, type Schema } from './devices.js';
 
 export type IconName =
@@ -239,7 +240,8 @@ function describe(
 		}
 		case 'timer': {
 			const state = typeof a.state === 'string' ? a.state : 'idle';
-			const left = num(a.remaining_secs) ?? 0;
+			// Counted from when it started, so a card keeps time between events.
+			const left = remaining(a, now) ?? num(a.remaining_secs) ?? 0;
 			const running = state === 'running';
 			v.icon = 'timer';
 			v.tone = running ? 'on' : 'off';
@@ -511,6 +513,14 @@ export function reading(a: Record<string, unknown>, s: Schema, name: string): st
 	const value = a[name];
 	if (value === undefined || value === null) return undefined;
 	const spec = s.attributes[name];
+	const moment = epochOf(name, value);
+	if (moment !== undefined)
+		return new Date(moment).toLocaleString([], {
+			day: 'numeric',
+			month: 'short',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
 	if (typeof value === 'boolean') {
 		const said = value ? spec?.states?.when_true.label : spec?.states?.when_false.label;
 		return cap(said ?? (value ? words(name) : `Not ${words(name).toLowerCase()}`));
@@ -524,6 +534,22 @@ export function reading(a: Record<string, unknown>, s: Schema, name: string): st
 	}
 	if (typeof value === 'string') return cap(words(value));
 	return undefined;
+}
+
+/**
+ * A moment sent as Unix seconds — Ecowitt's `last_strike: "1792109048"` —
+ * in ms, so it reads as a time rather than a ten-digit number. Only for
+ * attributes named like a time, so a big count is never taken for one.
+ */
+export function epochOf(name: string, value: unknown): number | undefined {
+	if (!/(^last_|_at$|_time$|^time$|timestamp)/.test(name)) return undefined;
+	const n =
+		typeof value === 'number'
+			? value
+			: typeof value === 'string' && /^\d{9,11}$/.test(value)
+				? Number(value)
+				: NaN;
+	return n >= 1e9 && n < 1e11 ? n * 1000 : undefined;
 }
 
 function unitLetter(unit: string | undefined): string {
@@ -585,10 +611,10 @@ function fmt(n: number): string {
 	return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, '');
 }
 
-function words(s: string): string {
+export function words(s: string): string {
 	return s.replace(/[_-]+/g, ' ').trim();
 }
 
-function cap(s: string): string {
+export function cap(s: string): string {
 	return s === '' ? s : s[0]!.toUpperCase() + s.slice(1);
 }

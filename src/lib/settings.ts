@@ -35,31 +35,22 @@ export const SETTINGS: SettingsItem[] = [
 		slug: 'scenes',
 		label: 'Scenes',
 		group: 'house',
-		words: 'scenes',
-		detail: 'homeCore’s own scenes',
-		coming: { what: 'Making and changing homeCore’s own scenes.', when: 'A1, the house model' }
+		words: 'scenes movie bedtime',
+		detail: 'homeCore’s own scenes'
 	},
 	{
 		slug: 'modes',
 		label: 'Modes',
 		group: 'house',
-		words: 'modes solar sunset sunrise offset night day',
-		detail: 'Day, night and your own',
-		coming: {
-			what: 'Modes and their definitions, with solar offsets.',
-			when: 'A1, the house model'
-		}
+		words: 'modes solar sunset sunrise offset night day away guests',
+		detail: 'Day, night and your own'
 	},
 	{
 		slug: 'helpers',
 		label: 'Helpers',
 		group: 'house',
-		words: 'helpers timers switches counters flags',
-		detail: 'Timers, switches and counters',
-		coming: {
-			what: 'Timers, virtual switches and counters for automations to use.',
-			when: 'A1, the house model'
-		}
+		words: 'helpers timers switches counters flags groups thresholds schedules glue',
+		detail: 'Timers, switches and counters'
 	},
 	{
 		slug: 'automations',

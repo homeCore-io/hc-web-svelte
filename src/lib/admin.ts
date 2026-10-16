@@ -58,3 +58,28 @@ export const saveAlertRule = (rule: AlertRule) =>
 	send('PUT', `/alert-rules/${encodeURIComponent(rule.id)}`, rule);
 export const deleteAlertRule = (id: string) =>
 	send('DELETE', `/alert-rules/${encodeURIComponent(id)}`, {});
+
+/** Delete a room; its devices are left in no room. */
+export const deleteRoom = (id: string) => send('DELETE', room(id), {});
+
+/**
+ * Merge a room into another (H1): its devices move, its names become the
+ * other's aliases (so a plugin still saying the old name lands there), and
+ * the UI server points what it keeps about the room at the other one.
+ */
+export async function mergeRoom(id: string, into: string): Promise<string | null> {
+	const err = await send('POST', `${room(id)}/merge`, { into });
+	if (err) return err;
+	try {
+		const res = await fetch('/ui/rooms/merged', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ from: id, into })
+		});
+		if (res.ok) return null;
+		const said = (await res.json().catch(() => ({}))) as { error?: string };
+		return `Merged, but pages still mention the old room: ${said.error ?? res.status}`;
+	} catch {
+		return 'Merged, but pages still mention the old room: the UI server is not answering.';
+	}
+}

@@ -13,6 +13,8 @@ export interface CoreRoom {
 	/** Absent from a homeCore before H1, whose `name` is the slug. */
 	slug?: string;
 	aliases?: string[];
+	/** Who chose the name: a person, a plugin (`bridge`), or homeCore guessing from a slug. */
+	named_by?: 'person' | 'bridge' | 'guessed';
 	device_ids?: string[];
 }
 
@@ -21,6 +23,7 @@ export interface Room {
 	name: string;
 	slug: string;
 	aliases: string[];
+	namedBy?: 'person' | 'bridge' | 'guessed';
 	deviceIds: string[];
 }
 
@@ -39,6 +42,7 @@ export function roomFromCore(r: CoreRoom): Room {
 		name: typed ? r.name : humanise(r.name),
 		slug: r.slug ?? r.name,
 		aliases: r.aliases ?? [],
+		...(r.named_by ? { namedBy: r.named_by } : {}),
 		deviceIds: r.device_ids ?? []
 	};
 }

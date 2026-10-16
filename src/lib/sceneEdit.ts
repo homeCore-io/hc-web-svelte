@@ -1,0 +1,91 @@
+/**
+ * Making a scene (A1): homeCore's own scenes set chosen devices to chosen
+ * states (`Scene.states`: device id → attributes). What a scene can set on a
+ * device comes from its schema — the attributes it says are writable — so
+ * any plugin's devices can be in one.
+ */
+import { cap, words } from './card.js';
+import type { CoreDevice } from './devices.js';
+
+export interface Setting {
+	attr: string;
+	label: string;
+	kind: 'bool' | 'range' | 'enum';
+	min?: number;
+	max?: number;
+	step?: number;
+	unit?: string;
+	options?: { value: string; label: string }[];
+}
+
+/** The settings a scene can give a device, primary ones first; none for sensors. */
+export function settingsOf(d: CoreDevice, max = 3): Setting[] {
+	const attrs = d.schema?.attributes ?? {};
+	const primary = d.schema?.primary ?? [];
+	const rank = (a: string) => (primary.includes(a) ? primary.indexOf(a) : a === 'on' ? -1 : 100);
+	const out: Setting[] = [];
+	for (const [attr, spec] of Object.entries(attrs)) {
+		if (!spec.writable || spec.category === 'config' || spec.category === 'diagnostic') continue;
+		const label = spec.display_name ?? cap(words(attr));
+		if (spec.kind === 'bool') out.push({ attr, label, kind: 'bool' });
+		else if (
+			(spec.kind === 'integer' || spec.kind === 'float' || spec.kind === 'color_temp') &&
+			spec.min !== undefined &&
+			spec.max !== undefined
+		)
+			out.push({
+				attr,
+				label,
+				kind: 'range',
+				min: spec.min,
+				max: spec.max,
+				step: spec.step ?? 1,
+				unit: spec.unit
+			});
+		else if (spec.kind === 'enum' && spec.options?.length)
+			out.push({
+				attr,
+				label,
+				kind: 'enum',
+				options: spec.options.map((o) =>
+					typeof o === 'string'
+						? { value: o, label: cap(words(o)) }
+						: { value: o.value, label: o.label ?? cap(words(o.value)) }
+				)
+			});
+	}
+	return out.sort((a, b) => rank(a.attr) - rank(b.attr)).slice(0, max);
+}
+
+/** Whether a device can be in a scene at all. */
+export const sceneable = (d: CoreDevice) => d.device_type !== 'scene' && settingsOf(d).length > 0;
+
+/** What the device is set to now, for the settings a scene can give it. */
+export function stateNow(d: CoreDevice, settings = settingsOf(d)): Record<string, unknown> {
+	const out: Record<string, unknown> = {};
+	for (const s of settings) {
+		const v = d.attributes[s.attr];
+		if (v !== undefined && v !== null) out[s.attr] = v;
+	}
+	// Off is off: a dimmer's last brightness says nothing a scene should set.
+	if (out.on === false) for (const s of settings) if (s.attr !== 'on') delete out[s.attr];
+	return out;
+}
+
+/** A device's entry in words: "on · 30 %", "off". */
+export function describeState(state: Record<string, unknown>, settings: Setting[]): string {
+	if ('actions' in state) return 'runs its own steps';
+	if (state.on === false) return 'off';
+	const parts = settings
+		.filter((s) => s.attr !== 'on' && state[s.attr] !== undefined)
+		.map((s) =>
+			s.kind === 'range'
+				? `${String(state[s.attr])}${s.unit ? ` ${s.unit}` : ''}`
+				: (s.options?.find((o) => o.value === state[s.attr])?.label ?? String(state[s.attr]))
+		);
+	return [state.on === true ? 'on' : '', ...parts].filter(Boolean).join(' · ') || 'as set';
+}
+
+/** Whether two scenes' states differ. */
+export const differ = (a: Record<string, unknown>, b: Record<string, unknown>) =>
+	JSON.stringify(a) !== JSON.stringify(b);

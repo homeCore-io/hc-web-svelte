@@ -14,7 +14,7 @@
  * Writes to one document are queued, so two arriving together are judged one
  * after the other against what the first actually left.
  */
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
@@ -108,6 +108,25 @@ export class DocStore {
 			}
 		}
 		return { ok: true, doc };
+	}
+
+	/**
+	 * The ids of every document of a kind.
+	 * @param {string} kind
+	 * @returns {Promise<string[]>}
+	 */
+	async ids(kind) {
+		if (!KIND.test(kind)) throw new Error(`bad document kind: ${kind}`);
+		try {
+			const names = await readdir(path.join(this.root, kind));
+			return names
+				.filter((n) => n.endsWith('.json'))
+				.map((n) => n.slice(0, -5))
+				.filter((id) => ID.test(id));
+		} catch (e) {
+			if (/** @type {NodeJS.ErrnoException} */ (e).code === 'ENOENT') return [];
+			throw e;
+		}
 	}
 
 	/**

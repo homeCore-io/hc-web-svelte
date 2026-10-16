@@ -24,14 +24,24 @@ if (!existsSync(manifestPath)) {
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 
 // The home page's code: SvelteKit's entries, the root layout and the root page.
-const starts = Object.entries(manifest)
-	.filter(
-		([key, c]) =>
-			c.isEntry === true ||
-			key.endsWith('src/routes/+layout.svelte') ||
-			key.endsWith('src/routes/+page.svelte')
-	)
-	.map(([key]) => key);
+// What Home needs first: the client's entry, the root layout (node 0) and
+// the node routed to "/". Every route's node is marked an entry in the
+// manifest, so entries alone would count every page in the app against Home.
+const generated = '.svelte-kit/generated/build/client-optimized';
+const app = readFileSync(path.join(generated, 'app.js'), 'utf8');
+const home = /"\/": \[(-?\d+)/.exec(app)?.[1];
+if (home === undefined) {
+	console.error('Could not find the route for "/" in the build.');
+	process.exit(2);
+}
+const isNode = (/** @type {string} */ key) => key.startsWith(`${generated}/nodes/`);
+const starts = [
+	...Object.entries(manifest)
+		.filter(([key, c]) => c.isEntry === true && !isNode(key))
+		.map(([key]) => key),
+	`${generated}/nodes/0.js`,
+	`${generated}/nodes/${home.replace('-', '')}.js`
+];
 
 /** @type {Set<string>} */
 const seen = new Set();

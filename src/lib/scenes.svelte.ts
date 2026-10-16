@@ -10,6 +10,8 @@ import { live } from './live.svelte.js';
 export interface CoreScene {
 	id: string;
 	name: string;
+	/** Device id → what to set it to: attributes, or `{ actions: [...] }`. */
+	states?: Record<string, unknown>;
 }
 
 class Scenes {

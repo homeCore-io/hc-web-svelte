@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cardFor, type CardView } from './card.js';
+import { cardFor, epochOf, type CardView } from './card.js';
 import { HOUSE, FIXTURE_NOW } from './fixtures/house.js';
 import type { CoreDevice } from './devices.js';
 
@@ -199,4 +199,11 @@ describe('every card', () => {
 			expect(c.stateLine, d.device_id).not.toBe('');
 		}
 	});
+});
+
+it('reads Unix seconds named like a time as a moment, and nothing else', () => {
+	expect(epochOf('last_strike', '1792109048')).toBe(1792109048000);
+	expect(epochOf('updated_at', 1792109048)).toBe(1792109048000);
+	expect(epochOf('strike_count', 1792109048)).toBeUndefined();
+	expect(epochOf('last_strike', '22')).toBeUndefined();
 });

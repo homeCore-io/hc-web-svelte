@@ -471,3 +471,59 @@ homeCore.
 - The new app starts from the generated home and new pages. Pages made with
   hc-web-lit and hc-web-flutter stay for those clients.
 - An import tool can come later if they are missed.
+
+---
+
+# From 05 — The two servers, and round one
+
+## S1 — The UI server is SvelteKit with its Node adapter (2026-10-15)
+
+- The app and its server are one project, TypeScript throughout: one build,
+  one container.
+
+## S2 — The UI server stores one JSON file per document (2026-10-15)
+
+- In its data directory (a volume), written atomically. Readable, diffable,
+  trivial to back up. SQLite remains the option if querying or concurrent
+  writes outgrow files.
+
+## S3, S4 — One origin; homeCore passed through and trusted for sign-in (2026-10-15)
+
+- The browser talks only to the UI server, which passes `/api/v1/…` and the
+  event stream through to homeCore unchanged. homeCore needs no CORS.
+- Every `/ui/…` request is checked by asking homeCore who the token belongs to
+  and what it may do (`/auth/me`, cached briefly). The UI server stores
+  nothing about passwords.
+
+## S6 — Round one is the household side, without hand-built pages (2026-10-15)
+
+**In:** sign-in; phone, tablet and desktop navigation; the generated home;
+generated room pages; cards for every kind in the house in three forms, live,
+with waiting and offline states; generated device details in the address;
+scenes and modes; personalise; shared edit of the generated home and rooms;
+search; alerts (once homeCore's H4 exists); displays with a key, home page and
+kiosk behaviour (PIN unlock once H5 exists); Settings for rooms, device name
+and room, displays and themes.
+
+**Later:** hand-built pages and the canvas; per-size adjustments; the
+advanced text editor; custom details popups; third-party cards; the rest of
+the admin console; room and device permissions.
+
+## S5 — The order of homeCore work (2026-10-15)
+
+- **H1** rooms with a stable id and typed name, and **H2** the event-stream
+  fixes, come before the app is usable.
+- **H3** display keys, **H4** alert rules and **H5** PINs come within round
+  one.
+- **H6** room and device permissions is the next round.
+
+## S7 — homeCore work lands on core's develop branch (2026-10-15)
+
+- Each H-change is made, documented and tested in the `core/` monorepo and
+  lands on its `develop` branch as it is done — no long-lived branch.
+
+## S8 — Backups: two volumes for now (2026-10-15)
+
+- The UI server's data volume, and its export archive, are backed up
+  alongside homeCore's. Having homeCore's own backup fetch the UI archive, so
+  one backup holds both, can come later.

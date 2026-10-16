@@ -57,9 +57,9 @@ true`. A visual editor cannot build or read that without parsing Rhai.
 (disabled) waits for a timer, re-checks the door and sends a Telegram
 message — what an alert time rule (H4) now does without a rule.
 
-**Three rules command a device that doesn't exist.** "Door Opened -
-Bathroom" and both "Play Music on Close" rules send to `bathroom`; the
-speaker is `sonos_bathroom`. homeCore has no device by that name, yet
+**Two rules command a device that doesn't exist.** Both "Play Music on Close"
+rules send their "play a favourite" step to `bathroom`; the speaker is
+`sonos_bathroom`, which their first step uses correctly. homeCore has no device by that name, yet
 history records those steps as succeeded and `/automations/stale-refs`
 reports nothing. Whether a plugin answers to `bathroom` anyway is invisible
 from homeCore. A rule's references must be checked against the house, and a

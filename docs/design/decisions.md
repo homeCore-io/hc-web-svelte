@@ -316,3 +316,68 @@ household.
 - **[core]:** needs per-user PINs and a short-lived session on a display's
   device — the PIN identifies the person, and while unlocked the display acts
   with that person's rights, not its own.
+
+---
+
+# From 03 — Cards
+
+## C1 — Three device card forms, and a short list of other cards (2026-10-15)
+
+- **Device cards:** Compact (one row), Standard (the default: icon, name,
+  state line, one control), Large (Standard plus the next most-used controls
+  inline). Details always hold the rest.
+- **Other cards:** room, summary chip, scene, mode chips, reading, chart,
+  camera, and page items (heading, text, image, link) on hand-built pages.
+
+## C2 — A scene card is a button: tap runs it (2026-10-15)
+
+- **An exception to D2.** A scene's only action is to run, so tapping a scene
+  card runs it; **long-press opens its details** (what it sets).
+- **Consequence for N6:** on a scene card, long-press is details rather than
+  the star/hide shortcut, so scenes are starred or hidden from Customise mode.
+
+## C4 — Lock and unlock on the card (2026-10-15)
+
+- The lock card shows Lock or Unlock according to its state. Unlocking asks
+  first where confirmation is set (D2).
+
+## C5 — Room cards: a summary, and "All off" when something is on (2026-10-15)
+
+- Name, icon, and a summary — lights on, temperature, anything open,
+  anything playing — plus an **All off** control shown only while something in
+  the room is on.
+
+## C3 — The per-kind table is the starting point (2026-10-15)
+
+- `03-cards.md` §3 — state line, card control, what Large adds, what details
+  lead with, for every kind in the house — is adopted as is, to be tuned row
+  by row as cards are designed. The generic rule (§4) covers every other kind.
+
+## C6 — Infrastructure is shown like any device (2026-10-15)
+
+- Gateways, bridges and Pico remotes appear in their rooms on the generated
+  home like everything else. Anyone who doesn't want one there hides it
+  (personalise, or shared edit).
+
+## C7 — Multi-channel devices: one card, a switch per channel (2026-10-15)
+
+- A Z-Wave device reporting `ep1_on`, `ep2_on`… is **one card** with a switch
+  for each channel, labelled from the channel names where set.
+
+## C8 — An unconfirmed command is reported after 5 seconds, longer for slow kinds (2026-10-15)
+
+- After a press the card shows the new state at once, marked as waiting. If
+  the house hasn't confirmed it (the state change carrying the command's
+  correlation id) within **5 seconds** — longer for slow kinds such as locks
+  — the card returns to the real state and says the command didn't take.
+
+## C9 — Alarming states: a built-in set, plus time rules (2026-10-15)
+
+- **Built in:** wet, smoke, offline, lock jammed, low battery.
+- **Rules an admin sets in Settings**, such as "garage open after 10 pm" or
+  "front door unlocked for 30 minutes".
+- Alarming states are emphasised on their cards and listed in Alerts (N7).
+- **Open for 04:** where these rules live and are evaluated. If each screen
+  works them out for itself, two screens can disagree, and a display would
+  have to be running to notice anything; evaluating them in homeCore avoids
+  both. **[core?]**

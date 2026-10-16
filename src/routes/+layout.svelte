@@ -16,6 +16,8 @@
 	import { devices } from '#lib/devices.svelte.js';
 	import { scenes } from '#lib/scenes.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
+	import { personal } from '#lib/personal.svelte.js';
+	import { theme } from '#lib/theme.svelte.js';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -34,9 +36,14 @@
 		void rooms.load();
 		void devices.load();
 		void scenes.load();
+		const unhear = personal.onLoad((doc) => theme.adopt(doc.theme));
+		void personal.load();
 		clock.start();
 		live.start();
-		return () => live.stop();
+		return () => {
+			unhear();
+			live.stop();
+		};
 	});
 </script>
 

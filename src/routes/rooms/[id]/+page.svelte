@@ -12,6 +12,8 @@
 	import { clock } from '#lib/clock.svelte.js';
 	import { heading } from '#lib/heading.svelte.js';
 	import CardGrid from '#lib/components/CardGrid.svelte';
+	import CustomiseBar from '#lib/components/CustomiseBar.svelte';
+	import CustomiseButton from '#lib/components/CustomiseButton.svelte';
 
 	const id = $derived(page.params.id ?? '');
 	const room = $derived(rooms.list.find((r) => r.id === id));
@@ -32,10 +34,12 @@
 	<p class="quiet">Nothing in {name} yet.</p>
 {:else}
 	<div class="room">
+		<CustomiseButton page={`room:${id}`} />
+		<CustomiseBar page={`room:${id}`} />
 		{#each sections as s (s.key)}
 			<section>
 				<h2 class="section-label">{s.title}</h2>
-				<CardGrid devices={devicesOf(s.cards)} large={['media_player']} />
+				<CardGrid devices={devicesOf(s.cards)} large={['media_player']} page={`room:${id}`} />
 			</section>
 		{/each}
 	</div>

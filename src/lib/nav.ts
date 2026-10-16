@@ -1,9 +1,9 @@
 /**
  * Where the app can go (02 — N2, N3).
  *
- * The phone bar's default is Home · Pages · Scenes · More; it becomes
- * configurable in R4/R5. The desktop sidebar has room for Alerts and the
- * rooms themselves.
+ * The phone bar's default is Home · Pages · Scenes · More, and each person
+ * may choose their own (N2, `barFor`). The desktop sidebar has room for
+ * Alerts and the rooms themselves.
  */
 import type { Component } from 'svelte';
 import House from '@lucide/svelte/icons/house';
@@ -11,6 +11,8 @@ import LayoutGrid from '@lucide/svelte/icons/layout-grid';
 import Sparkles from '@lucide/svelte/icons/sparkles';
 import Bell from '@lucide/svelte/icons/bell';
 import Menu from '@lucide/svelte/icons/menu';
+import Search from '@lucide/svelte/icons/search';
+import DoorOpen from '@lucide/svelte/icons/door-open';
 
 export interface Destination {
 	id: string;
@@ -29,6 +31,31 @@ export const SCENES: Destination = {
 };
 export const ALERTS: Destination = { id: 'alerts', label: 'Alerts', href: '/alerts', icon: Bell };
 export const MORE: Destination = { id: 'more', label: 'More', href: '/more', icon: Menu };
+
+export const SEARCH: Destination = { id: 'search', label: 'Search', href: '#search', icon: Search };
+
+const BY_ID: Record<string, Destination> = {
+	home: HOME,
+	pages: PAGES,
+	scenes: SCENES,
+	alerts: ALERTS,
+	search: SEARCH
+};
+
+/**
+ * A person's phone bar (N2) from their choices — destinations by id, or
+ * `room:{id}` for a room — with More always last.
+ */
+export function barFor(choices: string[], rooms: { id: string; name: string }[]): Destination[] {
+	const out: Destination[] = [];
+	for (const c of choices) {
+		if (c.startsWith('room:')) {
+			const room = rooms.find((r) => r.id === c.slice(5));
+			if (room) out.push({ id: c, label: room.name, href: `/rooms/${room.id}`, icon: DoorOpen });
+		} else if (BY_ID[c]) out.push(BY_ID[c]);
+	}
+	return [...out, MORE];
+}
 
 /** The phone bar, by default (N2). */
 export const PHONE_BAR = [HOME, PAGES, SCENES, MORE];

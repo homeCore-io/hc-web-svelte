@@ -1,0 +1,143 @@
+import { describe, expect, it } from 'vitest';
+import {
+	addChange,
+	apply,
+	barOf,
+	nudge,
+	nudgeFavourite,
+	toggleFavourite,
+	type Change
+} from './layers.js';
+
+const items = ['a', 'b', 'c', 'd'];
+const id = (x: string) => x;
+
+describe('a personal layer over a generated page (M2)', () => {
+	it('with no changes, the page is as generated', () => {
+		expect(apply(items, id).shown).toEqual(items);
+	});
+
+	it('hides, and offers the hidden back', () => {
+		const l = apply(items, id, [{ op: 'hide', ref: 'b' }]);
+		expect(l.shown).toEqual(['a', 'c', 'd']);
+		expect(l.hidden).toEqual(['b']);
+	});
+
+	it('moves before another, or to the end', () => {
+		expect(apply(items, id, [{ op: 'move', ref: 'd', before: 'a' }]).shown).toEqual([
+			'd',
+			'a',
+			'b',
+			'c'
+		]);
+		expect(apply(items, id, [{ op: 'move', ref: 'a', before: null }]).shown).toEqual([
+			'b',
+			'c',
+			'd',
+			'a'
+		]);
+	});
+
+	it('survives the page changing underneath: new items appear, gone ones are skipped', () => {
+		const changes: Change[] = [
+			{ op: 'move', ref: 'c', before: 'a' },
+			{ op: 'hide', ref: 'gone' },
+			{ op: 'move', ref: 'gone', before: 'a' }
+		];
+		expect(apply(['a', 'b', 'c', 'new'], id, changes).shown).toEqual(['c', 'a', 'b', 'new']);
+	});
+
+	it('moving before something that has gone puts it last', () => {
+		expect(apply(items, id, [{ op: 'move', ref: 'a', before: 'gone' }]).shown).toEqual([
+			'b',
+			'c',
+			'd',
+			'a'
+		]);
+	});
+
+	it('remembers a card’s form', () => {
+		const l = apply(items, id, [{ op: 'form', ref: 'b', form: 'large' }]);
+		expect(l.form('b')).toBe('large');
+		expect(l.form('a')).toBeUndefined();
+	});
+});
+
+describe('the list of changes stays the size of what was changed', () => {
+	it('hide then show leaves one show', () => {
+		let list = addChange([], { op: 'hide', ref: 'a' });
+		list = addChange(list, { op: 'show', ref: 'a' });
+		expect(list).toEqual([{ op: 'show', ref: 'a' }]);
+	});
+
+	it('a second move of the same card replaces the first, and goes last', () => {
+		let list = addChange([], { op: 'move', ref: 'a', before: 'c' });
+		list = addChange(list, { op: 'hide', ref: 'b' });
+		list = addChange(list, { op: 'move', ref: 'a', before: null });
+		expect(list).toEqual([
+			{ op: 'hide', ref: 'b' },
+			{ op: 'move', ref: 'a', before: null }
+		]);
+	});
+
+	it('form and visibility are kept apart', () => {
+		let list = addChange([], { op: 'form', ref: 'a', form: 'large' });
+		list = addChange(list, { op: 'hide', ref: 'a' });
+		expect(list).toHaveLength(2);
+	});
+});
+
+describe('Customise’s up and down', () => {
+	it('up puts it before the one above', () => {
+		expect(nudge(items, 'c', -1)).toEqual({ op: 'move', ref: 'c', before: 'b' });
+	});
+
+	it('down puts it before the one two along, or last', () => {
+		expect(nudge(items, 'b', 1)).toEqual({ op: 'move', ref: 'b', before: 'd' });
+		expect(nudge(items, 'c', 1)).toEqual({ op: 'move', ref: 'c', before: null });
+	});
+
+	it('does nothing past either end', () => {
+		expect(nudge(items, 'a', -1)).toBeUndefined();
+		expect(nudge(items, 'd', 1)).toBeUndefined();
+	});
+
+	it('and what it makes, applied, moves exactly one place', () => {
+		const down = nudge(items, 'b', 1)!;
+		expect(apply(items, id, [down]).shown).toEqual(['a', 'c', 'b', 'd']);
+	});
+});
+
+describe('favourites', () => {
+	it('star and unstar', () => {
+		expect(toggleFavourite(['x'], 'y')).toEqual(['x', 'y']);
+		expect(toggleFavourite(['x', 'y'], 'x')).toEqual(['y']);
+	});
+
+	it('reorder', () => {
+		expect(nudgeFavourite(['x', 'y', 'z'], 'z', -1)).toEqual(['x', 'z', 'y']);
+		expect(nudgeFavourite(['x', 'y'], 'x', -1)).toEqual(['x', 'y']);
+	});
+});
+
+describe('the phone bar (N2)', () => {
+	it('defaults to Home, Pages, Scenes', () => {
+		expect(barOf(undefined, [])).toEqual(['home', 'pages', 'scenes']);
+	});
+
+	it('keeps known destinations and real rooms, no repeats, at most four', () => {
+		expect(
+			barOf(
+				{
+					version: 1,
+					bar: ['home', 'room:r1', 'room:gone', 'nonsense', 'home', 'alerts', 'scenes', 'pages']
+				},
+				['r1']
+			)
+		).toEqual(['home', 'room:r1', 'alerts', 'scenes']);
+	});
+
+	it('an emptied bar falls back to the default', () => {
+		expect(barOf({ version: 1, bar: [] }, [])).toEqual(['home', 'pages', 'scenes']);
+	});
+});

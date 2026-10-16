@@ -1,34 +1,65 @@
 <!--
 	Devices as cards on the grid (03 §6): two Standard cards across a phone,
-	more as the screen widens; a Large card spans two.
+	more as the screen widens; a Large card spans two. With a `page`, the
+	person's own layer for it applies (M2): their order, what they hid, the
+	form they chose — and in Customise mode, the tools to change them.
 -->
 <script lang="ts">
 	import type { CoreDevice } from '#lib/devices.js';
 	import { displayName } from '#lib/devices.js';
 	import { kindOf } from '#lib/card.js';
+	import { apply, ref, type Form } from '#lib/layers.js';
 	import { commands } from '#lib/commands.svelte.js';
-	import { page } from '$app/state';
+	import { personal } from '#lib/personal.svelte.js';
+	import { customise } from '#lib/customise.svelte.js';
+	import { page as here } from '$app/state';
 	import { openDevice } from '#lib/popup.js';
 	import DeviceCard from './DeviceCard.svelte';
 	import SceneCard from './SceneCard.svelte';
+	import Arrange from './Arrange.svelte';
 
-	let { devices, large = [] }: { devices: CoreDevice[]; large?: string[] } = $props();
+	let {
+		devices,
+		large = [],
+		page
+	}: { devices: CoreDevice[]; large?: string[]; page?: string } = $props();
 
-	const sceneAction = (d: CoreDevice) =>
-		d.schema?.actions?.some((a) => a.id === 'activate') ? 'activate' : undefined;
+	const layered = $derived(
+		apply(devices, (d) => ref.device(d.device_id), page ? personal.changes(page) : [])
+	);
+	const arranging = $derived(page !== undefined && customise.on(page));
+	const list = $derived(arranging ? [...layered.shown, ...layered.hidden] : layered.shown);
+	const shownRefs = $derived(layered.shown.map((d) => ref.device(d.device_id)));
+	const hiddenSet = $derived(new Set(layered.hidden));
+
+	const isScene = (d: CoreDevice) =>
+		kindOf(d) === 'scene' && (d.schema?.actions?.some((a) => a.id === 'activate') ?? false);
+	const formOf = (d: CoreDevice): Form =>
+		layered.form(ref.device(d.device_id)) ?? (large.includes(kindOf(d)) ? 'large' : 'standard');
 </script>
 
 <div class="grid">
-	{#each devices as d (d.device_id)}
-		{#if kindOf(d) === 'scene' && sceneAction(d)}
-			<SceneCard
-				name={displayName(d)}
-				run={() => commands.act(d.device_id, 'activate')}
-				details={() => openDevice(d.device_id, page.url)}
-			/>
-		{:else}
-			<DeviceCard device={d} form={large.includes(kindOf(d)) ? 'large' : 'standard'} />
-		{/if}
+	{#each list as d (d.device_id)}
+		{@const form = formOf(d)}
+		<Arrange
+			page={page ?? ''}
+			ref={ref.device(d.device_id)}
+			name={displayName(d)}
+			shown={shownRefs}
+			hidden={hiddenSet.has(d)}
+			form={isScene(d) ? undefined : form}
+			wide={form === 'large'}
+		>
+			{#if isScene(d)}
+				<SceneCard
+					name={displayName(d)}
+					run={() => commands.act(d.device_id, 'activate')}
+					details={() => openDevice(d.device_id, here.url)}
+				/>
+			{:else}
+				<DeviceCard device={d} {form} {page} />
+			{/if}
+		</Arrange>
 	{/each}
 </div>
 

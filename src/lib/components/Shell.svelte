@@ -11,7 +11,9 @@
 	import Bell from '@lucide/svelte/icons/bell';
 	import Settings from '@lucide/svelte/icons/settings';
 	import House from '@lucide/svelte/icons/house';
-	import { PHONE_BAR, SIDEBAR, isAt, titleFor } from '#lib/nav.js';
+	import { SIDEBAR, barFor, isAt, titleFor } from '#lib/nav.js';
+	import { barOf } from '#lib/layers.js';
+	import { personal } from '#lib/personal.svelte.js';
 	import { session } from '#lib/me.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { live } from '#lib/live.svelte.js';
@@ -24,6 +26,15 @@
 
 	const pathname = $derived(page.url.pathname);
 	const title = $derived(heading.text ?? titleFor(pathname));
+	const bar = $derived(
+		barFor(
+			barOf(
+				personal.doc,
+				rooms.list.map((r) => r.id)
+			),
+			rooms.list
+		)
+	);
 	const initial = $derived((session.me?.username ?? '?').slice(0, 1).toUpperCase());
 	const liveLabel = $derived(
 		live.state === 'live'
@@ -115,8 +126,16 @@
 	</div>
 
 	<nav class="bar" aria-label="Main">
-		{#each PHONE_BAR as d (d.id)}
-			<a href={d.href} aria-current={isAt(pathname, d.href) ? 'page' : undefined}>
+		{#each bar as d (d.id)}
+			<a
+				href={d.href}
+				aria-current={d.href !== '#search' && isAt(pathname, d.href) ? 'page' : undefined}
+				onclick={(e) => {
+					if (d.href !== '#search') return;
+					e.preventDefault();
+					finder.open = true;
+				}}
+			>
 				<d.icon size={22} strokeWidth={1.8} aria-hidden="true" />
 				<span>{d.label}</span>
 			</a>
@@ -195,7 +214,8 @@
 		bottom: 0;
 		z-index: 3;
 		display: grid;
-		grid-template-columns: repeat(4, minmax(0, 1fr));
+		grid-auto-flow: column;
+		grid-auto-columns: minmax(0, 1fr);
 		padding: 6px var(--space-2) calc(6px + env(safe-area-inset-bottom));
 		background: var(--sheet);
 		border-top: 1px solid var(--line);
@@ -211,6 +231,13 @@
 		color: var(--ink-muted);
 		font-size: 11px;
 		font-weight: 600;
+		min-width: 0;
+	}
+	.bar a span {
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.bar a[aria-current='page'] {
 		color: var(--accent);

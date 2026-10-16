@@ -723,3 +723,33 @@ Settings → R6 alerts → R7 displays.
   homeCore's own scenes have none yet.
 - **Search** ranks the start of a name first and needs every word to match
   name, room or kind. Settings join it when Settings exists (R5).
+
+## B9 — Personalising, as built (R4, 2026-10-16)
+
+- **The UI server's store** (S2): one JSON file per document under the data
+  directory, written to a temporary file and renamed, each with a version.
+  A save names the version it was made against; a stale one is refused with
+  the current document (409). Writes to one document are queued.
+- **A person's document** (`/ui/prefs`, only theirs, named by their homeCore
+  id) holds their favourites, their changes per page (`home`,
+  `room:{id}`), their phone bar and their light/dark choice. The app shows a
+  change at once and saves behind; on a conflict it reapplies the same
+  change to what the server has, so changes on two of their screens both
+  survive. Their other screens hear of it on `/ui/events` (server-sent
+  events, announced only to the person whose document it is).
+- **Changes** are `hide`, `show`, `move … before …` and `form`, keyed by
+  `device:`, `room:` and `scene:` ids (M2). A later change to the same thing
+  replaces the earlier, so the list stays the size of what was changed.
+- **Favourites** are one ordered list, shown at the top of Home; anything
+  can be starred from wherever it appears.
+- **Customise** (N6) is a mode per page: a banner saying only you see these
+  changes, Reset to shared, Done; each card goes quiet with its tools under
+  it. **Long-press or right-click** a card for the shortcut: star, or hide
+  for me.
+- **The phone bar** (N2) is chosen on Me: up to four of Home, Pages, Scenes,
+  Alerts, Search or any room, then More.
+- **Light/dark** moved from this browser to the person's document, with a
+  copy kept in the browser for the first paint; a choice made before R4 is
+  saved for them rather than lost.
+- **Not yet:** the household default bar and household edits (R5), and
+  undo within a Customise session.

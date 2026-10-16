@@ -20,11 +20,36 @@
 	import type { CoreDevice } from '#lib/devices.js';
 	import { page } from '$app/state';
 	import { deviceHref, openDevice } from '#lib/popup.js';
+	import { ref, toggleFavourite } from '#lib/layers.js';
+	import { personal } from '#lib/personal.svelte.js';
+	import Star from '@lucide/svelte/icons/star';
+	import EyeOff from '@lucide/svelte/icons/eye-off';
 	import Icon from './Icon.svelte';
 	import Toggle from './Toggle.svelte';
 
 	type Form = 'compact' | 'standard' | 'large';
-	let { device, form = 'standard' }: { device: CoreDevice; form?: Form } = $props();
+	let {
+		device,
+		form = 'standard',
+		page: layerPage
+	}: { device: CoreDevice; form?: Form; page?: string } = $props();
+
+	// Long-press (or right-click): the personalise shortcut — star or hide (N6).
+	const HOLD_MS = 500;
+	let menu = $state(false);
+	let hold: ReturnType<typeof setTimeout> | undefined;
+	let held = false;
+	const deviceRef = $derived(ref.device(device.device_id));
+	const fav = $derived(personal.isFavourite(deviceRef));
+	function press(e: PointerEvent) {
+		held = false;
+		if (e.pointerType === 'mouse') return;
+		hold = setTimeout(() => {
+			held = true;
+			menu = true;
+		}, HOLD_MS);
+	}
+	const letGo = () => clearTimeout(hold);
 
 	const card = $derived(
 		withPending(cardFor(device, clock.now), commands.pending[device.device_id])
@@ -112,9 +137,59 @@
 		onclick={(e) => {
 			if (e.metaKey || e.ctrlKey || e.shiftKey) return;
 			e.preventDefault();
+			if (held) {
+				held = false;
+				return;
+			}
 			openDevice(device.device_id, page.url);
 		}}
+		onpointerdown={press}
+		onpointerup={letGo}
+		onpointerleave={letGo}
+		onpointercancel={letGo}
+		oncontextmenu={(e) => {
+			e.preventDefault();
+			letGo();
+			menu = true;
+		}}
 	></a>
+	{#if menu}
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="menu"
+			role="menu"
+			aria-label={`${card.name} — for me`}
+			tabindex="-1"
+			onkeydown={(e) => e.key === 'Escape' && (menu = false)}
+		>
+			<button
+				role="menuitem"
+				onclick={() => {
+					menu = false;
+					void personal.change((d) => ({
+						...d,
+						favourites: toggleFavourite(d.favourites, deviceRef)
+					}));
+				}}
+			>
+				<Star size={16} fill={fav ? 'currentColor' : 'none'} />
+				{fav ? 'Remove from favourites' : 'Add to favourites'}
+			</button>
+			{#if layerPage}
+				<button
+					role="menuitem"
+					onclick={() => {
+						menu = false;
+						void personal.changePage(layerPage, { op: 'hide', ref: deviceRef });
+					}}
+				>
+					<EyeOff size={16} />
+					Hide for me
+				</button>
+			{/if}
+			<button role="menuitem" class="cancel" onclick={() => (menu = false)}>Cancel</button>
+		</div>
+	{/if}
 	<div class="top">
 		<span class="icon"><Icon name={card.icon} size={form === 'compact' ? 18 : 20} /></span>
 		{#if form === 'compact'}
@@ -227,7 +302,40 @@
 		box-shadow: var(--shadow);
 		min-width: 0;
 	}
+	.menu {
+		position: absolute;
+		inset: 6px;
+		z-index: 6;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		gap: 4px;
+		padding: 6px;
+		border-radius: calc(var(--radius) - 4px);
+		background: var(--sheet);
+		border: 1px solid var(--line);
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+	}
+	.menu button {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		min-height: 36px;
+		padding: 0 10px;
+		border: none;
+		border-radius: 8px;
+		background: var(--surface-2);
+		font-size: 13px;
+		font-weight: 600;
+		text-align: left;
+	}
+	.menu .cancel {
+		background: none;
+		color: var(--ink-muted);
+		justify-content: center;
+	}
 	.cover {
+		-webkit-touch-callout: none;
 		position: absolute;
 		inset: 0;
 		border-radius: var(--radius);

@@ -574,3 +574,42 @@ On a mid-range phone and a base iPad, on the home network:
 
 Checked automatically on every change against a recorded copy of this
 house's devices. Settles D12's numbers.
+
+---
+
+# From 07 — Round one plan
+
+## P1 — Milestones in the order written (2026-10-15)
+
+R0 foundations → R1 homeCore rooms and live updates → R2 the generated home,
+live → R3 details, scenes, search → R4 personalise → R5 shared editing and
+Settings → R6 alerts → R7 displays.
+
+## P2 — Try-outs on a dev instance against the live homeCore (2026-10-15)
+
+- A dev instance on fractal, on its own port, reachable from the Mac, talking
+  to the live homeCore. From R2 its controls operate real devices.
+- Its UI data is its own volume, separate from anything that exists today.
+
+## P3 — homeCore changes reach the house through homeCore's own releases (2026-10-15)
+
+- H-changes are committed on core's `develop` (S7). To reach the house, they
+  go through **homeCore's release process** — release notes entry, CI green on
+  the release commit, then the tag (`AGENTS.md`, "Releasing") — after which
+  GitHub Actions builds the container and **the user deploys it by hand**.
+- So a milestone that needs an H-change (R1, R6, R7) can be tried on the
+  house only after a homeCore release has been cut and deployed. Until then
+  the UI side is built and tested against a recorded or locally run homeCore.
+- Releases, pushes and tags are outward-facing: each is confirmed with the
+  user before it happens. H1's room migration must be called out in that
+  release's notes.
+
+## P4 — Automated tests never command the live house (2026-10-15)
+
+- Tests use a recorded copy of the house; only people trying a milestone press
+  real buttons.
+
+## P5 — No gate between milestones (2026-10-15)
+
+- Work continues from one milestone to the next; each is tried and reviewed
+  when convenient rather than blocking the next.

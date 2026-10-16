@@ -13,6 +13,9 @@
 	import { session } from '#lib/me.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { live } from '#lib/live.svelte.js';
+	import { devices } from '#lib/devices.svelte.js';
+	import { scenes } from '#lib/scenes.svelte.js';
+	import { clock } from '#lib/clock.svelte.js';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -29,6 +32,9 @@
 	$effect(() => {
 		if (session.me === null) return;
 		void rooms.load();
+		void devices.load();
+		void scenes.load();
+		clock.start();
 		live.start();
 		return () => live.stop();
 	});

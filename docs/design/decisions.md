@@ -676,3 +676,29 @@ Settings → R6 alerts → R7 displays.
   counted as admin, while their REST calls counted as them. Now the stream
   matches REST. It matters more with a snapshot, which will be scoped to what
   the person may read (D8).
+
+## B6 — A command is confirmed by the device reporting what was asked (R2, 2026-10-16)
+
+- Refines C8. homeCore accepts a command without handing back its
+  correlation id, so the app treats a command as confirmed when the device
+  reports the values asked for (allowing a bridge to round a level). This is
+  also what a person means by "it worked": the light is on, whoever turned it
+  on. Asking for what the device already reports is sent without waiting,
+  since homeCore sends nothing back for a change that changes nothing.
+- Actions (play, a scene) have no value to wait for; they report only a
+  failure to send. Locks get 20 seconds, everything else 5.
+
+## B7 — The generated home and rooms, as built (R2, 2026-10-16)
+
+- **Home:** chips for leaks, what's open, what's unlocked, lights on and
+  what's playing, each opening the cards behind it; the house's modes and
+  the scenes in no room; then every room with its summary and All off.
+  Devices in no room are listed under "Not in a room".
+- **A room page:** controls, scenes, sensors, then infrastructure (C6), as
+  Standard cards; media players as Large.
+- **All off** turns off lights, switches, fans and players that are on —
+  never locks, modes or timers — and a room's summary counts every one of
+  them, so the button never sits beside "All quiet".
+- **To revisit:** this house has 21 scenes in no room, which is most of
+  Home on a phone. Personalising (R4) can hide or star them; giving them
+  rooms is the other answer.

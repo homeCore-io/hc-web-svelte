@@ -15,11 +15,12 @@
 	import { session } from '#lib/me.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { live } from '#lib/live.svelte.js';
+	import { heading } from '#lib/heading.svelte.js';
 
 	let { children }: { children: Snippet } = $props();
 
 	const pathname = $derived(page.url.pathname);
-	const title = $derived(titleFor(pathname));
+	const title = $derived(heading.text ?? titleFor(pathname));
 	const initial = $derived((session.me?.username ?? '?').slice(0, 1).toUpperCase());
 	const liveLabel = $derived(
 		live.state === 'live'
@@ -53,7 +54,11 @@
 			<div class="rooms">
 				<p class="section-label">Rooms</p>
 				{#each rooms.list as r (r.id)}
-					<a class="room" href={`/rooms/${r.id}`}>{r.name}</a>
+					<a
+						class="room"
+						href={`/rooms/${r.id}`}
+						aria-current={pathname === `/rooms/${r.id}` ? 'page' : undefined}>{r.name}</a
+					>
 				{/each}
 			</div>
 		{/if}
@@ -346,6 +351,10 @@
 		padding: 0 10px;
 		border-radius: 8px;
 		text-decoration: none;
+	}
+	.room[aria-current='page'] {
+		background: var(--nav-on);
+		font-weight: 600;
 	}
 	.room:hover,
 	.dest:hover {

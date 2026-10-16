@@ -12,9 +12,12 @@
 	import { scenes } from '#lib/scenes.svelte.js';
 	import { commands } from '#lib/commands.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
+	import { page } from '$app/state';
+	import { openDevice } from '#lib/popup.js';
 	import Icon from '#lib/components/Icon.svelte';
 	import RoomRow from '#lib/components/RoomRow.svelte';
 	import SceneCard from '#lib/components/SceneCard.svelte';
+	import ModeChips from '#lib/components/ModeChips.svelte';
 
 	const list = $derived(Object.values(devices.byId));
 	const cards = $derived(new Map(list.map((d) => [d.device_id, cardFor(d, clock.now)])));
@@ -53,28 +56,17 @@
 		{#if modes.length > 0 || looseScenes.length > 0 || scenes.list.length > 0}
 			<section>
 				<h2 class="section-label">Scenes &amp; modes</h2>
-				{#if modes.length > 0}
-					<div class="modes">
-						{#each modes as m (m.device_id)}
-							{@const on = commands.pending[m.device_id]?.want.on ?? m.attributes.on === true}
-							<button
-								class="mode"
-								aria-pressed={on === true}
-								disabled={!m.schema?.attributes.on?.writable}
-								onclick={() => commands.set(m.device_id, 'mode', { on: !on }, m.attributes)}
-							>
-								<Icon name="mode" size={16} />
-								{displayName(m)}
-							</button>
-						{/each}
-					</div>
-				{/if}
+				<ModeChips />
 				<div class="scenes">
 					{#each scenes.list as s (s.id)}
 						<SceneCard name={s.name} run={() => scenes.run(s.id)} />
 					{/each}
 					{#each looseScenes as d (d.device_id)}
-						<SceneCard name={displayName(d)} run={() => commands.act(d.device_id, 'activate')} />
+						<SceneCard
+							name={displayName(d)}
+							run={() => commands.act(d.device_id, 'activate')}
+							details={() => openDevice(d.device_id, page.url)}
+						/>
 					{/each}
 				</div>
 			</section>
@@ -122,8 +114,7 @@
 	.quiet {
 		color: var(--ink-muted);
 	}
-	.chips,
-	.modes {
+	.chips {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 8px;
@@ -146,23 +137,6 @@
 		border-color: var(--alert-line);
 		background: var(--alert-bg);
 		color: var(--alert);
-	}
-	.mode {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		height: var(--target);
-		padding: 0 14px 0 12px;
-		border-radius: 22px;
-		border: 1px solid var(--line);
-		background: var(--surface);
-		font-size: 14px;
-		font-weight: 600;
-	}
-	.mode[aria-pressed='true'] {
-		background: var(--accent);
-		border-color: var(--accent);
-		color: var(--accent-ink);
 	}
 	.scenes {
 		display: grid;

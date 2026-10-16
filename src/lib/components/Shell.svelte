@@ -16,6 +16,9 @@
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { live } from '#lib/live.svelte.js';
 	import { heading } from '#lib/heading.svelte.js';
+	import DetailsHost from './DetailsHost.svelte';
+	import SearchBox from './SearchBox.svelte';
+	import { finder } from '#lib/finder.svelte.js';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -92,7 +95,12 @@
 				aria-label={liveLabel}
 				title={liveLabel}
 			></span>
-			<button class="icon" aria-label="Search" title="Search (arrives in R3)">
+			<button
+				class="icon"
+				aria-label="Search"
+				title="Search (⌘K)"
+				onclick={() => (finder.open = true)}
+			>
 				<Search size={22} strokeWidth={1.8} aria-hidden="true" />
 			</button>
 			<a class="icon" href="/alerts" aria-label="Alerts">
@@ -102,6 +110,8 @@
 		<main>
 			{@render children()}
 		</main>
+		<DetailsHost />
+		<SearchBox />
 	</div>
 
 	<nav class="bar" aria-label="Main">

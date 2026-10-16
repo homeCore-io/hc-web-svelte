@@ -4,7 +4,7 @@
  * values invented. For tests (P4: tests never touch the live house) and the
  * card gallery at `/dev/cards`.
  */
-import type { AttributeSchema, CoreDevice, Schema } from '../devices.js';
+import type { AttributeSchema, CoreDevice, DeviceAction, ParamSpec, Schema } from '../devices.js';
 
 const NOW = '2026-10-16T12:00:00Z';
 const ago = (min: number) => new Date(Date.parse(NOW) - min * 60_000).toISOString();
@@ -60,18 +60,63 @@ const lightSchema: Schema = {
 	primary: ['on', 'brightness_pct', 'color_temp', 'color_xy']
 };
 
-const rokuActions = [
-	'power_on',
-	'power_off',
-	'play',
-	'pause',
-	'play_pause',
-	'stop',
-	'next',
-	'previous',
-	'volume_up',
-	'volume_down'
-].map((id) => ({ id, label: id.replace('_', ' ') }));
+const BUTTON: ParamSpec = {
+	name: 'button',
+	kind: 'int',
+	label: 'Button',
+	required: true,
+	options_from: {
+		attribute: { attribute: 'available_buttons', label_key: 'name', value_key: 'number' }
+	}
+};
+
+const rokuActions: DeviceAction[] = [
+	...['power_on', 'power_off'].map((id) => ({
+		id,
+		label: id.replace('_', ' '),
+		category: 'Power'
+	})),
+	...['play', 'pause', 'play_pause', 'stop', 'next', 'previous'].map((id) => ({
+		id,
+		label: id.replace('_', ' '),
+		category: 'Transport',
+		params:
+			id === 'next' || id === 'previous'
+				? [{ name: 'count', kind: 'int', required: false, default: 1 }]
+				: []
+	})),
+	{
+		id: 'launch_app',
+		label: 'Launch a channel',
+		category: 'Apps',
+		params: [
+			{
+				name: 'app',
+				kind: 'enum',
+				label: 'Channel',
+				required: true,
+				options_from: {
+					attribute: { attribute: 'available_apps', label_key: 'name', value_key: 'id' }
+				}
+			}
+		]
+	},
+	{
+		id: 'select_source',
+		label: 'Select a source',
+		category: 'Apps',
+		writes: 'source',
+		params: [
+			{
+				name: 'source',
+				kind: 'enum',
+				label: 'Source',
+				required: true,
+				options_from: { attribute: { attribute: 'available_sources' } }
+			}
+		]
+	}
+];
 
 export const HOUSE: CoreDevice[] = [
 	device(
@@ -80,7 +125,13 @@ export const HOUSE: CoreDevice[] = [
 		'light',
 		'plugin.hue',
 		'den',
-		{ on: true, brightness_pct: 80, color_temp: 2700, color_xy: { x: 0.45, y: 0.41 } },
+		{
+			on: true,
+			brightness_pct: 80,
+			color_temp: 2700,
+			color_xy: { x: 0.45, y: 0.41 },
+			supports_dimming: true
+		},
 		lightSchema
 	),
 	device(
@@ -156,7 +207,18 @@ export const HOUSE: CoreDevice[] = [
 		'media_player',
 		'plugin.roku',
 		'den',
-		{ on: true, state: 'playing', app_name: 'Netflix', media_title: 'Nature', source: 'Netflix' },
+		{
+			on: true,
+			state: 'playing',
+			app_name: 'Netflix',
+			media_title: 'Nature',
+			source: 'Netflix',
+			available_apps: [
+				{ id: '12', name: 'Netflix' },
+				{ id: '837', name: 'YouTube' }
+			],
+			available_sources: ['Netflix', 'YouTube', 'HDMI 1']
+		},
 		{
 			attributes: {
 				on: bool(true, 'on', 'off'),
@@ -379,19 +441,45 @@ export const HOUSE: CoreDevice[] = [
 		'keypad',
 		'plugin.lutron',
 		'hallway',
-		{ last_button: 2, last_button_name: 'Button 2' },
 		{
-			attributes: { last_button: { kind: 'integer', writable: false }, last_button_name: text() },
+			last_button: 2,
+			last_button_name: 'Button 2',
+			available_buttons: [
+				{ name: 'Evening', number: 2 },
+				{ name: 'All off', number: 5 }
+			]
+		},
+		{
+			attributes: {
+				last_button: { kind: 'integer', writable: false },
+				last_button_name: text(),
+				available_buttons: { kind: 'json', writable: false }
+			},
 			actions: [
 				{
 					id: 'press_button',
 					label: 'Press a button',
-					params: [{ name: 'button', required: true }]
+					category: 'Buttons',
+					params: [{ ...BUTTON }]
 				},
 				{
 					id: 'set_led',
 					label: 'Set a button LED',
-					params: [{ name: 'button' }, { name: 'state' }]
+					category: 'Buttons',
+					params: [
+						{ ...BUTTON },
+						{
+							name: 'state',
+							kind: 'enum',
+							label: 'LED',
+							required: true,
+							default: '1',
+							options: [
+								{ value: '0', label: 'Off' },
+								{ value: '1', label: 'On' }
+							]
+						}
+					]
 				}
 			],
 			primary: ['last_button', 'last_button_name']

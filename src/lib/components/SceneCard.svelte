@@ -1,17 +1,36 @@
 <!--
 	A scene is a button: tapping runs it (C2). It says so for a moment, since
-	most scenes report nothing back to confirm. Long-press for details comes
-	with details, in R3.
+	most scenes report nothing back to confirm. Long-press — or right-click —
+	opens its details, where there are any.
 -->
 <script lang="ts">
 	import Check from '@lucide/svelte/icons/check';
 	import Icon from './Icon.svelte';
 
-	let { name, run }: { name: string; run: () => Promise<boolean> } = $props();
+	let { name, run, details }: { name: string; run: () => Promise<boolean>; details?: () => void } =
+		$props();
+
+	// Long-press: held this long without moving away, it's details, not a run.
+	const HOLD_MS = 500;
+	let hold: ReturnType<typeof setTimeout> | undefined;
+	let held = false;
+	function press() {
+		held = false;
+		if (!details) return;
+		hold = setTimeout(() => {
+			held = true;
+			details?.();
+		}, HOLD_MS);
+	}
+	const release = () => clearTimeout(hold);
 	let status = $state<'idle' | 'running' | 'done' | 'failed'>('idle');
 	let timer: ReturnType<typeof setTimeout> | undefined;
 
 	async function go() {
+		if (held) {
+			held = false;
+			return;
+		}
 		if (status === 'running') return;
 		status = 'running';
 		status = (await run()) ? 'done' : 'failed';
@@ -25,6 +44,16 @@
 	class:done={status === 'done'}
 	class:failed={status === 'failed'}
 	onclick={go}
+	onpointerdown={press}
+	onpointerup={release}
+	onpointerleave={release}
+	onpointercancel={release}
+	oncontextmenu={(e) => {
+		if (!details) return;
+		e.preventDefault();
+		release();
+		details();
+	}}
 >
 	<span class="orb">
 		{#if status === 'done'}<Check size={16} />{:else}<Icon name="scene" size={16} />{/if}
@@ -47,6 +76,8 @@
 		font-weight: 600;
 		text-align: left;
 		min-width: 0;
+		-webkit-touch-callout: none;
+		user-select: none;
 	}
 	.orb {
 		width: 30px;

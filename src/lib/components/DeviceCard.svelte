@@ -5,8 +5,8 @@
 	draws it, overlays a command still waiting for the house (C8), and sends
 	what a control asks for.
 
-	Only visible controls act (D2). Tapping the rest of the card will open the
-	device's details in R3.
+	Only visible controls act (D2); tapping anywhere else on the card opens the
+	device's details (D3), in the address (N5).
 -->
 <script lang="ts">
 	import Play from '@lucide/svelte/icons/play';
@@ -18,6 +18,8 @@
 	import { commands } from '#lib/commands.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import type { CoreDevice } from '#lib/devices.js';
+	import { page } from '$app/state';
+	import { deviceHref, openDevice } from '#lib/popup.js';
 	import Icon from './Icon.svelte';
 	import Toggle from './Toggle.svelte';
 
@@ -103,6 +105,16 @@
 	class:offline={off}
 	aria-label={card.name}
 >
+	<a
+		class="cover"
+		href={deviceHref(device.device_id, page.url)}
+		aria-label={`${card.name} — details`}
+		onclick={(e) => {
+			if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+			e.preventDefault();
+			openDevice(device.device_id, page.url);
+		}}
+	></a>
 	<div class="top">
 		<span class="icon"><Icon name={card.icon} size={form === 'compact' ? 18 : 20} /></span>
 		{#if form === 'compact'}
@@ -214,6 +226,17 @@
 		border: 1px solid var(--card-line);
 		box-shadow: var(--shadow);
 		min-width: 0;
+	}
+	.cover {
+		position: absolute;
+		inset: 0;
+		border-radius: var(--radius);
+		z-index: 1;
+	}
+	.channels,
+	.extras {
+		position: relative;
+		z-index: 2;
 	}
 	.card.compact {
 		min-height: 56px;

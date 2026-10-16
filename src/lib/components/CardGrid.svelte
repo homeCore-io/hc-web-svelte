@@ -7,6 +7,8 @@
 	import { displayName } from '#lib/devices.js';
 	import { kindOf } from '#lib/card.js';
 	import { commands } from '#lib/commands.svelte.js';
+	import { page } from '$app/state';
+	import { openDevice } from '#lib/popup.js';
 	import DeviceCard from './DeviceCard.svelte';
 	import SceneCard from './SceneCard.svelte';
 
@@ -19,7 +21,11 @@
 <div class="grid">
 	{#each devices as d (d.device_id)}
 		{#if kindOf(d) === 'scene' && sceneAction(d)}
-			<SceneCard name={displayName(d)} run={() => commands.act(d.device_id, 'activate')} />
+			<SceneCard
+				name={displayName(d)}
+				run={() => commands.act(d.device_id, 'activate')}
+				details={() => openDevice(d.device_id, page.url)}
+			/>
 		{:else}
 			<DeviceCard device={d} form={large.includes(kindOf(d)) ? 'large' : 'standard'} />
 		{/if}

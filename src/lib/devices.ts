@@ -33,11 +33,30 @@ export interface AttributeSchema {
 	states?: { when_true: StateLabel; when_false: StateLabel };
 }
 
+export interface ParamSpec {
+	name: string;
+	kind: string;
+	label?: string;
+	required?: boolean;
+	default?: unknown;
+	unit?: string;
+	min?: number;
+	max?: number;
+	options?: { value: string; label?: string }[];
+	options_from?: {
+		attribute?: { attribute: string; label_key?: string; value_key?: string };
+		devices?: { device_type?: string; facet?: string; plugin_id?: string; exclude_self?: boolean };
+	};
+}
+
 export interface DeviceAction {
 	id: string;
 	label: string;
+	category?: string;
 	confirm?: string;
-	params?: { name: string; required?: boolean }[];
+	/** The attribute this action stands in for (a Roku's `select_source` for `source`). */
+	writes?: string;
+	params?: ParamSpec[];
 }
 
 export interface Schema {

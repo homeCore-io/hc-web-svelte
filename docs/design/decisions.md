@@ -527,3 +527,50 @@ the admin console; room and device permissions.
 - The UI server's data volume, and its export archive, are backed up
   alongside homeCore's. Having homeCore's own backup fetch the UI archive, so
   one backup holds both, can come later.
+
+---
+
+# From 06 — Visual design
+
+## V1 — One design system: Calm is the light theme, Night panel the dark (2026-10-15)
+
+- From the three mockup directions, **A (Calm)** becomes the light theme and
+  **B (Night panel)** the dark theme. C (Bright tiles) is not taken forward.
+- Everything but colour is shared: **Figtree** for all text, **IBM Plex Mono**
+  for numbers and readings; 14px card corners; one spacing scale.
+- Amber means *on*; red/coral means *needs attention*; nothing else is
+  coloured. Token values are in `06-visual-design.md` §1.
+
+**Why:** a night mode is needed, and A and B already share the warm amber
+"on" language; C's whole-card fills were the loudest of the three.
+
+## V2 — Dark follows the device, with a per-person override (2026-10-15)
+
+- By default the app follows the phone's or computer's light/dark setting.
+- Each person can force light or dark (D9a).
+- A display has its own setting, which can include following the house's
+  Night Mode.
+
+## V3 — Icons: Lucide (2026-10-15)
+
+- Open source (ISC), the thin-stroke style of the mockups, about 1,500 icons,
+  with a Svelte package that ships only the icons used.
+
+## V4 — Works without the internet (2026-10-15)
+
+- Fonts, icons and every other asset are served by the UI server. Nothing is
+  fetched from a third party at run time, so the house's UI keeps working when
+  the internet is down and no third party sees who uses it.
+
+## V5 — The performance budget (2026-10-15)
+
+On a mid-range phone and a base iPad, on the home network:
+- cold load to a usable home ≤ 1.5 s; reload with the app cached ≤ 0.5 s;
+- tap to visible response ≤ 100 ms;
+- a device change on screen ≤ 250 ms after homeCore announces it;
+- JavaScript for the home ≤ 150 KB compressed;
+- ≤ 1,500 elements on this house's home (184 devices);
+- smooth 60 fps scrolling.
+
+Checked automatically on every change against a recorded copy of this
+house's devices. Settles D12's numbers.

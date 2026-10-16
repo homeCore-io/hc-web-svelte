@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Phone home</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit}a:hover{color:inherit}
+button{font:inherit;color:inherit}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: {{t.bg}}; color: {{t.ink}}; font-family: {{t.font}}">
+
+  <div style="display: flex; align-items: center; gap: 4px; padding: 18px 12px 10px 20px">
+    <h1 style="margin: 0; flex: 1; font-size: 28px; font-weight: 700; letter-spacing: -0.01em">Home</h1>
+    <button aria-label="Search" style="width: 44px; height: 44px; border: none; background: none; border-radius: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{icons.search}}"></path></svg>
+    </button>
+    <button aria-label="Alerts, 4" style="position: relative; width: 44px; height: 44px; border: none; background: none; border-radius: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{icons.bell}}"></path></svg>
+      <span style="position: absolute; top: 6px; right: 5px; min-width: 18px; height: 18px; border-radius: 9px; background: {{t.alert}}; color: {{t.alertInk}}; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center">4</span>
+    </button>
+  </div>
+
+  <div style="flex: 1; overflow-y: auto; padding: 4px 16px 20px; display: flex; flex-direction: column; gap: 22px">
+
+    <div style="display: flex; flex-wrap: wrap; gap: 8px">
+      <sc-for list="{{summaries}}" as="s" hint-placeholder-count="4">
+        <button style="display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px 0 10px; border-radius: 18px; border: 1px solid {{s.line}}; background: {{s.bg}}; color: {{s.ink}}; font-size: 13px; font-weight: 600; cursor: pointer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{s.icon}}"></path></svg>
+          {{s.text}}
+        </button>
+      </sc-for>
+    </div>
+
+    <section style="display: flex; flex-direction: column; gap: 10px">
+      <h2 style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: {{t.muted}}">Favourites</h2>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+        <sc-for list="{{cards}}" as="c" hint-placeholder-count="4">
+          <div style="position: relative; min-height: 116px; box-sizing: border-box; padding: 12px 12px 14px 14px; border-radius: {{t.radius}}; background: {{c.cardBg}}; border: 1px solid {{c.cardLine}}; box-shadow: {{t.shadow}}; display: flex; flex-direction: column; gap: 10px">
+            <sc-if value="{{c.hasDetails}}" hint-placeholder-val="{{ true }}">
+              <a href="{{detailsHref}}" aria-label="{{c.name}} — details" style="position: absolute; inset: 0; border-radius: {{t.radius}}; z-index: 1"></a>
+            </sc-if>
+            <div style="display: flex; align-items: flex-start; justify-content: space-between">
+              <span style="width: 38px; height: 38px; border-radius: {{t.chipRadius}}; background: {{c.iconBg}}; color: {{c.iconInk}}; display: flex; align-items: center; justify-content: center">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{c.icon}}"></path></svg>
+              </span>
+              <sc-if value="{{c.isSwitch}}" hint-placeholder-val="{{ true }}">
+                <button aria-pressed="{{c.pressed}}" aria-label="{{c.name}}" onClick="{{c.act}}" style="position: relative; z-index: 2; width: 54px; height: 44px; margin: -8px -6px 0 0; border: none; background: none; padding: 0; cursor: pointer; display: flex; align-items: center; justify-content: center">
+                  <span style="position: relative; display: block; width: 46px; height: 28px; border-radius: 14px; background: {{c.track}}">
+                    <span style="position: absolute; top: 3px; left: {{c.knob}}; width: 22px; height: 22px; border-radius: 11px; background: #FFFFFF; box-shadow: 0 1px 3px rgba(0,0,0,0.3)"></span>
+                  </span>
+                </button>
+              </sc-if>
+              <sc-if value="{{c.isButton}}" hint-placeholder-val="{{ false }}">
+                <button onClick="{{c.act}}" style="position: relative; z-index: 2; height: 44px; margin: -8px -4px 0 0; padding: 0 14px; border-radius: 22px; border: 1px solid {{t.line}}; background: {{t.surface2}}; font-size: 13px; font-weight: 600; cursor: pointer">{{c.buttonLabel}}</button>
+              </sc-if>
+              <sc-if value="{{c.isPlay}}" hint-placeholder-val="{{ false }}">
+                <button aria-label="{{c.buttonLabel}}" onClick="{{c.act}}" style="position: relative; z-index: 2; width: 44px; height: 44px; margin: -6px -4px 0 0; border-radius: 22px; border: none; background: {{t.accent}}; color: {{t.accentInk}}; display: flex; align-items: center; justify-content: center; cursor: pointer">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="{{c.playIcon}}"></path></svg>
+                </button>
+              </sc-if>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 2px">
+              <span style="font-size: 15px; font-weight: 600; line-height: 1.25">{{c.name}}</span>
+              <span style="font-size: 13px; color: {{c.stateInk}}">{{c.state}}</span>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 10px">
+      <h2 style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: {{t.muted}}">Scenes &amp; modes</h2>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px">
+        <sc-for list="{{modes}}" as="m" hint-placeholder-count="2">
+          <button aria-pressed="{{m.pressed}}" onClick="{{m.pick}}" style="display: flex; align-items: center; gap: 6px; height: 44px; padding: 0 14px 0 12px; border-radius: 22px; border: 1px solid {{m.line}}; background: {{m.bg}}; color: {{m.ink}}; font-size: 14px; font-weight: 600; cursor: pointer">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{m.icon}}"></path></svg>
+            {{m.name}}
+          </button>
+        </sc-for>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+        <sc-for list="{{scenes}}" as="s" hint-placeholder-count="4">
+          <button onClick="{{s.run}}" style="display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 12px; border-radius: {{t.radius}}; border: 1px solid {{s.line}}; background: {{s.bg}}; color: {{s.ink}}; font-size: 14px; font-weight: 600; text-align: left; cursor: pointer; box-shadow: {{t.shadow}}">
+            <span style="width: 30px; height: 30px; border-radius: 15px; background: {{s.orbBg}}; color: {{s.orbInk}}; display: flex; align-items: center; justify-content: center; flex: none">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{icons.scene}}"></path></svg>
+            </span>
+            {{s.name}}
+          </button>
+        </sc-for>
+      </div>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 10px">
+      <h2 style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: {{t.muted}}">Rooms</h2>
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <sc-for list="{{rooms}}" as="r" hint-placeholder-count="6">
+          <div style="position: relative; display: flex; align-items: center; gap: 12px; min-height: 64px; box-sizing: border-box; padding: 10px 10px 10px 12px; border-radius: {{t.radius}}; background: {{r.bg}}; border: 1px solid {{r.line}}; box-shadow: {{t.shadow}}">
+            <a href="#" aria-label="Open {{r.name}}" style="position: absolute; inset: 0; border-radius: {{t.radius}}; z-index: 1"></a>
+            <span style="width: 40px; height: 40px; border-radius: {{t.chipRadius}}; background: {{r.iconBg}}; color: {{r.iconInk}}; display: flex; align-items: center; justify-content: center; flex: none">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{r.icon}}"></path></svg>
+            </span>
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+              <span style="font-size: 15px; font-weight: 600">{{r.name}}</span>
+              <span style="font-size: 13px; color: {{r.summaryInk}}">{{r.summary}}</span>
+            </div>
+            <sc-if value="{{r.allOff}}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{r.off}}" style="position: relative; z-index: 2; height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid {{t.line}}; background: {{t.surface2}}; font-size: 13px; font-weight: 600; cursor: pointer">All off</button>
+            </sc-if>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{t.muted}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{icons.chevron}}"></path></svg>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+  </div>
+
+  <nav aria-label="Main" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 6px 8px 22px; background: {{t.bar}}; border-top: 1px solid {{t.line}}">
+    <sc-for list="{{tabs}}" as="b" hint-placeholder-count="4">
+      <button aria-current="{{b.current}}" style="height: 52px; border: none; background: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: {{b.ink}}; font-size: 11px; font-weight: 600; cursor: pointer">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{b.icon}}"></path></svg>
+        {{b.label}}
+      </button>
+    </sc-for>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"direction":{"editor":"enum","options":["calm","night"],"default":"calm"},"$preview":{"width":390,"height":844}}'>
+const ICONS = {
+  bulb: 'M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z',
+  lock: 'M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4',
+  tv: 'M3 6h18v12H3zM8 21h8',
+  door: 'M6 21V3h12v18M3 21h18M14 12h.01',
+  thermo: 'M14 14.76V4a2 2 0 0 0-4 0v10.76a4 4 0 1 0 4 0z',
+  scene: 'M12 3l1.8 4.6L18 9l-4.2 1.4L12 15l-1.8-4.6L6 9l4.2-1.4zM19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z',
+  home: 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
+  pages: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+  more: 'M4 7h16M4 12h16M4 17h16',
+  search: 'M11 4a7 7 0 1 1 0 14 7 7 0 0 1 0-14zM20 20l-4-4',
+  bell: 'M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4',
+  play: 'M8 5v14l11-7z',
+  pause: 'M7 5h4v14H7zM13 5h4v14h-4z',
+  moon: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+  sun: 'M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
+  chevron: 'M9 6l6 6-6 6',
+  sofa: 'M4 12V9a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3M3 12h18v5H3zM5 17v2M19 17v2',
+  garage: 'M3 21V9l9-6 9 6v12M7 21v-7h10v7M7 17h10',
+  desk: 'M3 8h18M5 8v12M19 8v12M9 12h6',
+  bed: 'M3 18V8M3 14h18v4M21 18v-4a3 3 0 0 0-3-3h-7v3',
+  pot: 'M4 10h16v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4zM2 10h2M20 10h2M9 6V4M15 6V4',
+  laundry: 'M5 3h14v18H5zM12 9a4 4 0 1 1 0 8 4 4 0 0 1 0-8zM8 6h.01'
+};
+
+const THEMES = {
+  calm: {
+    font: "'Figtree', system-ui, sans-serif",
+    bg: '#F3F0E8', surface: '#FFFFFF', surface2: '#EEEAE0', line: '#E2DCCF', bar: '#FBFAF6',
+    ink: '#1E2126', muted: '#5D6470', accent: '#9A4A07', accentInk: '#FFFFFF',
+    onBg: '#FFFFFF', offBg: '#FFFFFF', onIconBg: '#FBE3BF', onIconInk: '#8A4206', offIconBg: '#EEEAE0', offIconInk: '#5D6470',
+    track: '#C9701A', trackOff: '#CFC8BA', alert: '#B42318', alertInk: '#FFFFFF', alertBg: '#FCE9E6', alertLine: '#F2C2BB',
+    radius: '14px', chipRadius: '11px', shadow: '0 1px 2px rgba(60,45,20,0.06)', cardLine: '#E9E3D6', cardLineOn: '#E9E3D6'
+  },
+  night: {
+    font: "'Figtree', system-ui, sans-serif",
+    bg: '#0D1015', surface: '#161A21', surface2: '#202630', line: '#2A303B', bar: '#11151B',
+    ink: '#E9EDF2', muted: '#9AA4B2', accent: '#F2B544', accentInk: '#1A1306',
+    onBg: '#1C1A14', offBg: '#161A21', onIconBg: '#3D3014', onIconInk: '#F7C866', offIconBg: '#202630', offIconInk: '#9AA4B2',
+    track: '#E0A23A', trackOff: '#3A414D', alert: '#FF7A6B', alertInk: '#1A0806', alertBg: '#33191A', alertLine: '#5C2A27',
+    radius: '14px', chipRadius: '11px', shadow: 'none', cardLine: '#232934', cardLineOn: '#5A4520'
+  },
+  tiles: {
+    font: "'DM Sans', system-ui, sans-serif",
+    bg: '#E6EAF0', surface: '#FFFFFF', surface2: '#E9EDF3', line: '#D3DAE3', bar: '#F4F6F9',
+    ink: '#101419', muted: '#4D5866', accent: '#1F5FD6', accentInk: '#FFFFFF',
+    onBg: '#FFFFFF', offBg: '#D5DCE5', onIconBg: '#FFE7A3', onIconInk: '#8A5A00', offIconBg: '#C3CCD8', offIconInk: '#3E4855',
+    track: '#1F5FD6', trackOff: '#AEB8C5', alert: '#C2410C', alertInk: '#FFFFFF', alertBg: '#FFE6D5', alertLine: '#F6C3A2',
+    radius: '22px', chipRadius: '19px', shadow: '0 1px 2px rgba(16,20,25,0.06)', cardLine: 'transparent', cardLineOn: 'transparent'
+  }
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { lamp: true, overhead: false, playing: true, locked: true, scene: 'Deck On', mode: 'Night Mode', officeOff: false };
+  }
+
+  renderVals() {
+    const dir = this.props.direction ?? 'calm';
+    const t = THEMES[dir] || THEMES.calm;
+    const s = this.state;
+    const detailsHref = dir === 'night' ? 'NightDetails.dc.html' : dir === 'tiles' ? 'TilesDetails.dc.html' : 'CalmDetails.dc.html';
+
+    const look = (on, alert) => ({
+      cardBg: on ? t.onBg : t.offBg,
+      cardLine: on ? t.cardLineOn : t.cardLine,
+      iconBg: alert ? t.alertBg : on ? t.onIconBg : t.offIconBg,
+      iconInk: alert ? t.alert : on ? t.onIconInk : t.offIconInk,
+      stateInk: alert ? t.alert : t.muted
+    });
+    const sw = (on) => ({ track: on ? t.track : t.trackOff, knob: on ? '21px' : '3px', pressed: on ? 'true' : 'false' });
+
+    const lightsOn = 6 + (s.lamp ? 1 : 0) + (s.overhead ? 1 : 0);
+    const chip = (icon, text, kind) => ({
+      icon, text,
+      bg: kind === 'alert' ? t.alertBg : t.surface,
+      line: kind === 'alert' ? t.alertLine : t.line,
+      ink: kind === 'alert' ? t.alert : t.ink
+    });
+    const summaries = [
+      chip(ICONS.bulb, lightsOn + ' lights on'),
+      chip(ICONS.door, 'Garage door open', 'alert'),
+      ...(s.playing ? [chip(ICONS.tv, 'Office TV playing')] : []),
+      chip(ICONS.thermo, '69.6° inside')
+    ];
+
+    const cards = [
+      { name: 'Office Desk Lamp', icon: ICONS.bulb, state: s.lamp ? 'On · 80%' : 'Off', hasDetails: true,
+        isSwitch: true, isButton: false, isPlay: false, act: () => this.setState({ lamp: !s.lamp }),
+        ...look(s.lamp), ...sw(s.lamp) },
+      { name: 'Garage Exterior Lock', icon: ICONS.lock, state: s.locked ? 'Locked' : 'Unlocked', hasDetails: false,
+        isSwitch: false, isButton: true, isPlay: false, buttonLabel: s.locked ? 'Unlock' : 'Lock',
+        act: () => this.setState({ locked: !s.locked }), ...look(false, !s.locked) },
+      { name: 'Office TV', icon: ICONS.tv, state: (s.playing ? 'Playing' : 'Paused') + ' · HDMI 1', hasDetails: false,
+        isSwitch: false, isButton: false, isPlay: true, buttonLabel: s.playing ? 'Pause' : 'Play',
+        playIcon: s.playing ? ICONS.pause : ICONS.play, act: () => this.setState({ playing: !s.playing }),
+        ...look(s.playing) },
+      { name: 'Overhead', icon: ICONS.bulb, state: (s.overhead ? 'On' : 'Off') + ' · Laundry room', hasDetails: false,
+        isSwitch: true, isButton: false, isPlay: false, act: () => this.setState({ overhead: !s.overhead }),
+        ...look(s.overhead), ...sw(s.overhead) }
+    ];
+
+    const modes = ['Day Mode', 'Night Mode'].map((name) => {
+      const on = s.mode === name;
+      return {
+        name, icon: name === 'Day Mode' ? ICONS.sun : ICONS.moon, pressed: on ? 'true' : 'false',
+        bg: on ? t.accent : t.surface, ink: on ? t.accentInk : t.ink, line: on ? t.accent : t.line,
+        pick: () => this.setState({ mode: name })
+      };
+    });
+
+    const scenes = ['Deck On', 'Outside Off', 'Arctic aurora', 'Relax'].map((name) => {
+      const on = s.scene === name;
+      return {
+        name,
+        bg: dir === 'tiles' ? (on ? t.onBg : t.offBg) : t.surface,
+        line: on ? t.accent : t.cardLine,
+        ink: t.ink,
+        orbBg: on ? t.accent : t.surface2,
+        orbInk: on ? t.accentInk : t.muted,
+        run: () => this.setState({ scene: name })
+      };
+    });
+
+    const officeLit = s.lamp && !s.officeOff;
+    const room = (name, icon, summary, opts) => {
+      const o = opts || {};
+      return {
+        name, icon, summary, allOff: !!o.allOff, off: o.off || (() => {}),
+        bg: dir === 'tiles' ? (o.lit ? t.onBg : t.offBg) : t.surface,
+        line: o.alert ? t.alertLine : t.cardLine,
+        iconBg: o.alert ? t.alertBg : o.lit ? t.onIconBg : t.offIconBg,
+        iconInk: o.alert ? t.alert : o.lit ? t.onIconInk : t.offIconInk,
+        summaryInk: o.alert ? t.alert : t.muted
+      };
+    };
+    const rooms = [
+      room('Family room', ICONS.sofa, '3 of 4 lights on · TV playing', { lit: true, allOff: true }),
+      room('Garage', ICONS.garage, 'Door open · lights off', { alert: true }),
+      room('Office', ICONS.desk, (officeLit ? '1 of 2 lights on' : 'Lights off') + ' · 70.3°',
+        { lit: officeLit, allOff: officeLit, off: () => this.setState({ lamp: false }) }),
+      room('Living room', ICONS.sofa, '2 of 3 lights on', { lit: true, allOff: true }),
+      room('Kitchen', ICONS.pot, 'Lights off · 70.1°'),
+      room('Laundry room', ICONS.laundry, s.overhead ? '1 light on' : 'Lights off',
+        { lit: s.overhead, allOff: s.overhead, off: () => this.setState({ overhead: false }) }),
+      room('Master bedroom', ICONS.bed, 'Lights off')
+    ];
+
+    const tabs = [['Home', ICONS.home], ['Pages', ICONS.pages], ['Scenes', ICONS.scene], ['More', ICONS.more]].map(([label, icon], i) => ({
+      label, icon, current: i === 0 ? 'page' : 'false', ink: i === 0 ? t.accent : t.muted
+    }));
+
+    return { t, icons: ICONS, summaries, cards, modes, scenes, rooms, tabs, detailsHref };
+  }
+}
+</script>
+</body>
+</html>

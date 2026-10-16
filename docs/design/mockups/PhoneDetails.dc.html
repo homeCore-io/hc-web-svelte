@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Device details</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit}a:hover{color:inherit}
+button{font:inherit;color:inherit}
+.range{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: {{t.bg}}; color: {{t.ink}}; font-family: {{t.font}}">
+
+  <div aria-hidden="true" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; opacity: 0.5">
+    <div style="font-size: 28px; font-weight: 700">Home</div>
+    <div style="display: flex; gap: 8px">
+      <span style="width: 110px; height: 36px; border-radius: 18px; background: {{t.surface}}"></span>
+      <span style="width: 140px; height: 36px; border-radius: 18px; background: {{t.surface}}"></span>
+    </div>
+  </div>
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: {{t.scrim}}"></div>
+
+  <section aria-label="Office Desk Lamp" style="position: absolute; left: 0; right: 0; bottom: 0; top: 92px; box-sizing: border-box; border-radius: 24px 24px 0 0; background: {{t.sheet}}; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 -8px 30px rgba(0,0,0,0.18)">
+    <div aria-hidden="true" style="display: flex; justify-content: center; padding-top: 8px"><span style="width: 40px; height: 5px; border-radius: 3px; background: {{t.line}}"></span></div>
+
+    <div style="display: flex; align-items: center; gap: 12px; padding: 8px 8px 4px 20px">
+      <span style="width: 42px; height: 42px; border-radius: {{t.chipRadius}}; background: {{iconBg}}; color: {{iconInk}}; display: flex; align-items: center; justify-content: center; flex: none">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{icons.bulb}}"></path></svg>
+      </span>
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+        <h2 style="margin: 0; font-size: 19px; font-weight: 700">Office Desk Lamp</h2>
+        <span style="font-size: 13px; color: {{t.muted}}">Office · {{stateText}}</span>
+      </div>
+      <button aria-label="Settings" style="width: 44px; height: 44px; border: none; background: none; border-radius: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: {{t.muted}}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{icons.cog}}"></path></svg>
+      </button>
+      <a href="{{homeHref}}" aria-label="Close" style="width: 44px; height: 44px; border-radius: 22px; display: flex; align-items: center; justify-content: center; color: {{t.muted}}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+      </a>
+    </div>
+
+    <div style="flex: 1; overflow-y: auto; padding: 12px 20px 24px; display: flex; flex-direction: column; gap: 20px">
+
+      <div style="display: flex; align-items: center; gap: 12px">
+        <div style="position: relative; flex: 1; height: 72px; border-radius: {{t.radius}}; background: {{t.surface2}}; overflow: hidden">
+          <div aria-hidden="true" style="position: absolute; left: 0; top: 0; bottom: 0; width: {{fillWidth}}; background: {{fillBg}}"></div>
+          <div aria-hidden="true" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; font-weight: 600">
+            <span style="font-size: 15px; color: {{fillInk}}">Brightness</span>
+            <span style="font-size: 22px; font-family: {{t.numFont}}; color: {{fillInk}}">{{briText}}</span>
+          </div>
+          <input class="range" type="range" min="1" max="100" value="{{bri}}" aria-label="Brightness" onInput="{{setBri}}">
+        </div>
+        <button aria-pressed="{{pressed}}" aria-label="Power" onClick="{{toggle}}" style="width: 72px; height: 72px; border-radius: {{t.radius}}; border: none; background: {{powerBg}}; color: {{powerInk}}; display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0"></path></svg>
+        </button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: 600"><span>Warmth</span><span style="color: {{t.muted}}; font-weight: 500">{{warmText}}</span></div>
+        <div style="position: relative; height: 44px; display: flex; align-items: center">
+          <div aria-hidden="true" style="width: 100%; height: 14px; border-radius: 7px; background: linear-gradient(90deg, #FFB25C, #FFF1DE 55%, #DCEBFF)"></div>
+          <div aria-hidden="true" style="position: absolute; top: 9px; left: {{warmKnob}}; width: 26px; height: 26px; border-radius: 13px; background: #FFFFFF; border: 2px solid {{t.ink}}; box-sizing: border-box"></div>
+          <input class="range" type="range" min="0" max="100" value="{{warm}}" aria-label="Warmth" onInput="{{setWarm}}">
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <span style="font-size: 14px; font-weight: 600">Colour</span>
+        <div style="display: flex; gap: 10px; align-items: center">
+          <sc-for list="{{swatches}}" as="w" hint-placeholder-count="6">
+            <button aria-label="{{w.name}}" style="width: 44px; height: 44px; border-radius: 22px; border: 3px solid {{w.ring}}; background: {{w.color}}; cursor: pointer"></button>
+          </sc-for>
+          <button style="height: 44px; padding: 0 14px; border-radius: 22px; border: 1px solid {{t.line}}; background: {{t.surface}}; font-size: 13px; font-weight: 600; cursor: pointer">More…</button>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 8px">
+        <button style="height: 44px; padding: 0 16px; border-radius: 22px; border: 1px solid {{t.line}}; background: {{t.surface}}; font-size: 14px; font-weight: 600; cursor: pointer">Effects</button>
+        <button style="height: 44px; padding: 0 16px; border-radius: 22px; border: 1px solid {{t.line}}; background: {{t.surface}}; font-size: 14px; font-weight: 600; cursor: pointer">Flash</button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <div style="display: flex; justify-content: space-between; align-items: baseline"><span style="font-size: 14px; font-weight: 600">Brightness, last 24 hours</span><button style="border: none; background: none; height: 44px; padding: 0; font-size: 13px; font-weight: 600; color: {{t.accent}}; cursor: pointer">History</button></div>
+        <svg viewBox="0 0 350 70" width="350" height="70" role="img" aria-label="Brightness over the last 24 hours: off overnight, on from evening at around 80 percent" style="display: block">
+          <polyline points="0,66 60,66 70,20 120,18 130,66 210,66 220,14 280,14 290,20 350,20" fill="none" stroke="{{t.accent}}" stroke-width="2.5" stroke-linejoin="round"></polyline>
+          <line x1="0" y1="69" x2="350" y2="69" stroke="{{t.line}}" stroke-width="1"></line>
+        </svg>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <span style="font-size: 14px; font-weight: 600; margin-bottom: 4px">Activity</span>
+        <sc-for list="{{activity}}" as="a" hint-placeholder-count="3">
+          <div style="display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid {{t.line}}; font-size: 14px">
+            <span style="width: 64px; flex: none; color: {{t.muted}}; font-family: {{t.numFont}}; font-size: 13px">{{a.time}}</span>
+            <span>{{a.text}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"direction":{"editor":"enum","options":["calm","night"],"default":"calm"},"$preview":{"width":390,"height":844}}'>
+const ICONS = {
+  bulb: 'M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z',
+  cog: 'M12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z'
+};
+
+const THEMES = {
+  calm: {
+    font: "'Figtree', system-ui, sans-serif", numFont: "'IBM Plex Mono', ui-monospace, monospace",
+    bg: '#F3F0E8', surface: '#FFFFFF', surface2: '#EEEAE0', line: '#E2DCCF', sheet: '#FBFAF6', scrim: 'rgba(30,33,38,0.35)',
+    ink: '#1E2126', muted: '#5D6470', accent: '#9A4A07', accentInk: '#FFFFFF',
+    onIconBg: '#FBE3BF', onIconInk: '#8A4206', offIconBg: '#EEEAE0', offIconInk: '#5D6470',
+    fill: '#F6C987', fillInk: '#3B2205', radius: '14px', chipRadius: '11px'
+  },
+  night: {
+    font: "'Figtree', system-ui, sans-serif", numFont: "'IBM Plex Mono', ui-monospace, monospace",
+    bg: '#0D1015', surface: '#161A21', surface2: '#202630', line: '#2A303B', sheet: '#12161C', scrim: 'rgba(0,0,0,0.55)',
+    ink: '#E9EDF2', muted: '#9AA4B2', accent: '#F2B544', accentInk: '#1A1306',
+    onIconBg: '#3D3014', onIconInk: '#F7C866', offIconBg: '#202630', offIconInk: '#9AA4B2',
+    fill: '#B9862E', fillInk: '#FFF6E5', radius: '14px', chipRadius: '11px'
+  },
+  tiles: {
+    font: "'DM Sans', system-ui, sans-serif", numFont: "'DM Sans', system-ui, sans-serif",
+    bg: '#E6EAF0', surface: '#FFFFFF', surface2: '#D5DCE5', line: '#D3DAE3', sheet: '#F4F6F9', scrim: 'rgba(16,20,25,0.35)',
+    ink: '#101419', muted: '#4D5866', accent: '#1F5FD6', accentInk: '#FFFFFF',
+    onIconBg: '#FFE7A3', onIconInk: '#8A5A00', offIconBg: '#C3CCD8', offIconInk: '#3E4855',
+    fill: '#FFD45E', fillInk: '#3A2A00', radius: '22px', chipRadius: '19px'
+  }
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { on: true, bri: 80, warm: 30 };
+  }
+
+  renderVals() {
+    const dir = this.props.direction ?? 'calm';
+    const t = THEMES[dir] || THEMES.calm;
+    const s = this.state;
+    const homeHref = dir === 'night' ? 'NightPhone.dc.html' : dir === 'tiles' ? 'TilesPhone.dc.html' : 'Main.dc.html';
+    const warmWords = s.warm < 25 ? 'Warm' : s.warm < 60 ? 'Neutral' : 'Cool';
+    const swatches = [
+      ['Warm white', '#FFD9A0'], ['Soft white', '#FFF1DE'], ['Daylight', '#E4EEFF'],
+      ['Red', '#E5484D'], ['Blue', '#3E7BFA']
+    ].map(([name, color], i) => ({ name, color, ring: i === 0 ? t.ink : 'transparent' }));
+
+    return {
+      t, icons: ICONS, homeHref,
+      bri: s.bri, warm: s.warm,
+      briText: s.on ? s.bri + '%' : 'Off',
+      stateText: s.on ? 'On · ' + s.bri + '%' : 'Off',
+      fillWidth: (s.on ? s.bri : 0) + '%',
+      fillBg: t.fill,
+      fillInk: s.on && s.bri > 40 ? t.fillInk : t.ink,
+      warmText: warmWords,
+      warmKnob: 'calc(' + s.warm + '% - ' + (s.warm * 0.26).toFixed(1) + 'px)',
+      pressed: s.on ? 'true' : 'false',
+      powerBg: s.on ? t.accent : t.surface2,
+      powerInk: s.on ? t.accentInk : t.ink,
+      iconBg: s.on ? t.onIconBg : t.offIconBg,
+      iconInk: s.on ? t.onIconInk : t.offIconInk,
+      toggle: () => this.setState({ on: !s.on }),
+      setBri: (e) => this.setState({ bri: Number(e.target.value), on: true }),
+      setWarm: (e) => this.setState({ warm: Number(e.target.value) }),
+      swatches,
+      activity: [
+        { time: '7:02 pm', text: 'Turned on by a rule at dusk' },
+        { time: '11:40 am', text: 'Turned off at the switch' },
+        { time: '8:15 am', text: 'Brightness set to 80% from the app' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

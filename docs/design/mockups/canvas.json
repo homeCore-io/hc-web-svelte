@@ -1,0 +1,121 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-10-15T23:30:00Z"
+  },
+  "title": "homeCore visual design",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {
+      "x": 0,
+      "y": 260,
+      "w": 390,
+      "h": 844,
+      "title": "Light \u2014 phone home",
+      "is_interactive": true
+    },
+    "CalmDetails.dc.html": {
+      "x": 470,
+      "y": 260,
+      "w": 390,
+      "h": 844,
+      "title": "Light \u2014 device details",
+      "is_interactive": true
+    },
+    "CalmDesktop.dc.html": {
+      "x": 940,
+      "y": 260,
+      "w": 1280,
+      "h": 820,
+      "title": "Light \u2014 desktop home",
+      "is_interactive": true
+    },
+    "NightPhone.dc.html": {
+      "x": 0,
+      "y": 1484,
+      "w": 390,
+      "h": 844,
+      "title": "Dark \u2014 phone home",
+      "is_interactive": true
+    },
+    "NightDetails.dc.html": {
+      "x": 470,
+      "y": 1484,
+      "w": 390,
+      "h": 844,
+      "title": "Dark \u2014 device details",
+      "is_interactive": true
+    },
+    "NightDesktop.dc.html": {
+      "x": 940,
+      "y": 1484,
+      "w": 1280,
+      "h": 820,
+      "title": "Dark \u2014 desktop home",
+      "is_interactive": true
+    },
+    "PhoneHome.dc.html": {
+      "x": 0,
+      "y": 2708,
+      "w": 390,
+      "h": 844,
+      "title": "Component: phone home (theme tweak)",
+      "is_interactive": true
+    },
+    "PhoneDetails.dc.html": {
+      "x": 470,
+      "y": 2708,
+      "w": 390,
+      "h": 844,
+      "title": "Component: device details (theme tweak)",
+      "is_interactive": true
+    },
+    "DesktopHome.dc.html": {
+      "x": 940,
+      "y": 2708,
+      "w": 1280,
+      "h": 820,
+      "title": "Component: desktop home (theme tweak)",
+      "is_interactive": true
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "CalmDetails.dc.html",
+    "CalmDesktop.dc.html",
+    "NightPhone.dc.html",
+    "NightDetails.dc.html",
+    "NightDesktop.dc.html",
+    "PhoneHome.dc.html",
+    "PhoneDetails.dc.html",
+    "DesktopHome.dc.html"
+  ],
+  "notes": {
+    "calm": {
+      "x": 0,
+      "y": 0,
+      "text": "Light theme \u2014 Calm",
+      "kind": "title1",
+      "maxW": 2220
+    },
+    "night": {
+      "x": 0,
+      "y": 1224,
+      "text": "Dark theme \u2014 Night panel",
+      "kind": "title1",
+      "maxW": 2220
+    },
+    "parts": {
+      "x": 0,
+      "y": 2448,
+      "text": "The shared screens \u2014 switch theme in Tweaks",
+      "kind": "title1",
+      "maxW": 2220
+    }
+  },
+  "designSystems": []
+}

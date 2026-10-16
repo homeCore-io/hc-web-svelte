@@ -855,3 +855,60 @@ Settings → R6 alerts → R7 displays.
   and Lock.
 - **Not yet:** a screensaver; per-display permissions narrower than "the
   house" (H6); keys' `allowed_cidrs` are still not enforced by homeCore.
+
+---
+
+# From 08 — Round two plan
+
+All ten taken as recommended (2026-10-16).
+
+## T1 — Round two replaces the Flutter console for administration (2026-10-16)
+
+- Done when nothing an admin needs is only in `hc-web-flutter` (A7's list).
+
+## T2 — The pages designer waits for round three (2026-10-16)
+
+- `hc-web-flutter` keeps running for hand-built pages only, until round three
+  builds them properly (D4, D13).
+
+## T3 — The automation editor is designed before it is built (2026-10-16)
+
+- A design doc and mockups (09) come before A3. More broadly, round two's
+  admin components are mocked up and agreed before each is built.
+
+## T4 — The rule editor's text form is JSON (2026-10-16)
+
+- As M7. RON stays the storage format, viewable read-only.
+
+## T5 — A household-member role now; room and device scoping in round three (2026-10-16)
+
+- A homeCore role that may operate devices, run scenes and personalise, and
+  author nothing. Part of A5. The rest of H6 is round three.
+
+## T6 — One descriptor form engine (2026-10-16)
+
+- Renders homeCore's descriptors for system config, plugin config and
+  notification channels. Built in A0, proven on config and notifications
+  before plugins depend on it.
+
+## T7 — Milestones in the order written (2026-10-16)
+
+A0 admin frame → A1 house model → A2 automations, read and manage → A3
+automations, write → A4 plugins → A5 people and access → A6 running the
+system → A7 cut-over.
+
+## T8 — The skin editor, Media page and camera wall are not carried over (2026-10-16)
+
+- Themes replace skins (D9a); media and cameras return as cards with round
+  three's pages.
+
+## T9 — The app ships from A0 (2026-10-16)
+
+- CI and a container release in A0, deployed next to homeCore as milestones
+  land, on its own port until the cut-over in A7.
+
+## T10 — Admin changes are tried on a sandbox first (2026-10-16)
+
+- A standing sandbox homeCore with a copy of the house's rules and config, no
+  plugins connected, for A1–A4 and A6; the live house only for each
+  milestone's final try-out, with a backup taken first.

@@ -4,11 +4,12 @@
 <script lang="ts">
 	import Sliders from '@lucide/svelte/icons/sliders-horizontal';
 	import { customise } from '#lib/customise.svelte.js';
+	import { editing } from '#lib/edit.svelte.js';
 
 	let { page }: { page: string } = $props();
 </script>
 
-{#if !customise.on(page)}
+{#if !customise.on(page) && !editing.on(page)}
 	<button class="customise" onclick={() => (customise.page = page)}>
 		<Sliders size={16} aria-hidden="true" />
 		Customise

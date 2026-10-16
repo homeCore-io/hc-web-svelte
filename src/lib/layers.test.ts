@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
 	addChange,
+	added,
 	apply,
+	asks,
 	barOf,
+	gone,
+	layered,
+	paletteOf,
+	withAsk,
 	nudge,
 	nudgeFavourite,
 	toggleFavourite,
@@ -139,5 +145,121 @@ describe('the phone bar (N2)', () => {
 
 	it('an emptied bar falls back to the default', () => {
 		expect(barOf({ version: 1, bar: [] }, [])).toEqual(['home', 'pages', 'scenes']);
+	});
+});
+
+describe('the household’s edits under a person’s own (M3)', () => {
+	const house: Change[] = [
+		{ op: 'hide', ref: 'b' },
+		{ op: 'move', ref: 'd', before: 'a' }
+	];
+
+	it('everyone sees the household’s edits', () => {
+		expect(apply(items, id, layered(house)).shown).toEqual(['d', 'a', 'c']);
+	});
+
+	it('a person may show what the household hid, and order it their way', () => {
+		const mine: Change[] = [
+			{ op: 'show', ref: 'b' },
+			{ op: 'move', ref: 'a', before: 'd' }
+		];
+		expect(apply(items, id, layered(house, mine)).shown).toEqual(['a', 'd', 'b', 'c']);
+	});
+
+	it('a renamed card keeps its new label; an empty name puts it back', () => {
+		const l = apply(items, id, [{ op: 'rename', ref: 'a', name: ' Porch ' }]);
+		expect(l.name('a')).toBe('Porch');
+		const back = apply(items, id, [
+			{ op: 'rename', ref: 'a', name: 'Porch' },
+			{ op: 'rename', ref: 'a', name: '' }
+		]);
+		expect(back.name('a')).toBeUndefined();
+	});
+});
+
+describe('cards added to a page', () => {
+	it('are listed in the order added, and removing takes them off', () => {
+		expect(
+			added([
+				{ op: 'add', ref: 'x' },
+				{ op: 'add', ref: 'y' },
+				{ op: 'remove', ref: 'x' }
+			])
+		).toEqual(['y']);
+	});
+
+	it('add then remove leaves one change', () => {
+		let list = addChange([], { op: 'add', ref: 'x' });
+		list = addChange(list, { op: 'remove', ref: 'x' });
+		expect(list).toEqual([{ op: 'remove', ref: 'x' }]);
+	});
+});
+
+describe('changes naming something that has gone (M2)', () => {
+	it('are found, so Edit mode can say so', () => {
+		const changes: Change[] = [
+			{ op: 'hide', ref: 'a' },
+			{ op: 'hide', ref: 'gone' },
+			{ op: 'add', ref: 'elsewhere' }
+		];
+		expect(gone(changes, new Set(['a']))).toEqual([{ op: 'hide', ref: 'gone' }]);
+	});
+});
+
+describe('the household’s phone bar', () => {
+	it('is what anyone without their own sees', () => {
+		expect(barOf({ version: 1 }, [], { version: 1, bar: ['home', 'alerts'] })).toEqual([
+			'home',
+			'alerts'
+		]);
+	});
+
+	it('a person’s own still wins', () => {
+		expect(barOf({ version: 1, bar: ['search'] }, [], { version: 1, bar: ['home'] })).toEqual([
+			'search'
+		]);
+	});
+});
+
+describe('asking before a command (D2)', () => {
+	it('follows the device unless someone said otherwise', () => {
+		expect(asks(undefined, 'd', 'lock', true)).toBe(true);
+		expect(asks(undefined, 'd', 'lock', false)).toBe(false);
+	});
+
+	it('a choice for the kind applies to every device of it', () => {
+		const house = { version: 1, confirm: { kinds: { lock: 'always' as const } } };
+		expect(asks(house, 'front', 'lock', false)).toBe(true);
+	});
+
+	it('a choice for the device beats the kind’s', () => {
+		const house = {
+			version: 1,
+			confirm: { kinds: { lock: 'always' as const }, devices: { shed: 'never' as const } }
+		};
+		expect(asks(house, 'shed', 'lock', true)).toBe(false);
+		expect(asks(house, 'front', 'lock', false)).toBe(true);
+	});
+});
+
+describe('setting who is asked', () => {
+	it('sets and clears one choice, leaving the rest', () => {
+		let doc = withAsk({ version: 3 }, 'kinds', 'lock', 'always');
+		doc = withAsk(doc, 'devices', 'shed', 'never');
+		expect(doc.confirm).toEqual({ kinds: { lock: 'always' }, devices: { shed: 'never' } });
+		doc = withAsk(doc, 'kinds', 'lock', undefined);
+		expect(doc.confirm).toEqual({ kinds: {}, devices: { shed: 'never' } });
+		expect(doc.version).toBe(3);
+	});
+});
+
+describe('themes (D9a)', () => {
+	it('a person’s own, else the house’s, else Amber; unknown ones are ignored', () => {
+		expect(paletteOf()).toBe('amber');
+		expect(paletteOf({ version: 1 }, { version: 1, palette: 'sage' })).toBe('sage');
+		expect(paletteOf({ version: 1, palette: 'plum' }, { version: 1, palette: 'sage' })).toBe(
+			'plum'
+		);
+		expect(paletteOf({ version: 1, palette: 'neon' }, { version: 1 })).toBe('amber');
 	});
 });

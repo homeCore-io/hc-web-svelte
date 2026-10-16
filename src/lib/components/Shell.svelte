@@ -5,15 +5,23 @@
 	Chosen by CSS alone, so turning a tablet changes the frame without a reload.
 -->
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import { untrack, type Snippet } from 'svelte';
 	import { page } from '$app/state';
+	import { beforeNavigate, goto } from '$app/navigation';
+	import Pencil from '@lucide/svelte/icons/pencil';
 	import Search from '@lucide/svelte/icons/search';
 	import Bell from '@lucide/svelte/icons/bell';
 	import Settings from '@lucide/svelte/icons/settings';
 	import House from '@lucide/svelte/icons/house';
-	import { SIDEBAR, barFor, isAt, titleFor } from '#lib/nav.js';
-	import { barOf } from '#lib/layers.js';
+	import { SIDEBAR, barFor, isAt, pageKey, titleFor, withEdit } from '#lib/nav.js';
+	import { apply, barOf, ref } from '#lib/layers.js';
 	import { personal } from '#lib/personal.svelte.js';
+	import { household } from '#lib/household.svelte.js';
+	import { editing } from '#lib/edit.svelte.js';
+	import { customise } from '#lib/customise.svelte.js';
+	import { view } from '#lib/view.svelte.js';
+	import EditBar from './EditBar.svelte';
+	import RoomIcon from './RoomIcon.svelte';
 	import { session } from '#lib/me.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { live } from '#lib/live.svelte.js';
@@ -30,11 +38,38 @@
 		barFor(
 			barOf(
 				personal.doc,
-				rooms.list.map((r) => r.id)
+				rooms.list.map((r) => r.id),
+				household.doc
 			),
 			rooms.list
 		)
 	);
+	// The rooms in the order Home shows them: the household's, then this person's.
+	const roomsInOrder = $derived(
+		apply(rooms.list, (r) => ref.room(r.id), view.changes('home')).shown
+	);
+
+	// ---- Edit mode (N6), in the address (N5) ----
+	const key = $derived(pageKey(pathname));
+	const canEdit = $derived(session.can('content:write'));
+	const editingHere = $derived(key !== null && editing.on(key));
+	// Follows the address only: Done and Cancel leave the mode before they
+	// change the address, and must not be started again on the way out.
+	$effect(() => {
+		const want = page.url.searchParams.has('edit') && key !== null && canEdit;
+		untrack(() => {
+			if (want && !editing.on(key!)) {
+				customise.page = null;
+				editing.start(key!);
+			} else if (!want && editing.page !== null) editing.cancel();
+		});
+	});
+	beforeNavigate((nav) => {
+		if (editing.count === 0 || nav.to === null) return;
+		const staying = nav.to.url.pathname === pathname && nav.to.url.searchParams.has('edit');
+		if (staying) return;
+		if (!confirm('Leave without saving your changes to the shared page?')) nav.cancel();
+	});
 	const initial = $derived((session.me?.username ?? '?').slice(0, 1).toUpperCase());
 	const liveLabel = $derived(
 		live.state === 'live'
@@ -67,11 +102,12 @@
 		{#if rooms.list.length > 0}
 			<div class="rooms">
 				<p class="section-label">Rooms</p>
-				{#each rooms.list as r (r.id)}
+				{#each roomsInOrder as r (r.id)}
 					<a
 						class="room"
 						href={`/rooms/${r.id}`}
-						aria-current={pathname === `/rooms/${r.id}` ? 'page' : undefined}>{r.name}</a
+						aria-current={pathname === `/rooms/${r.id}` ? 'page' : undefined}
+						><RoomIcon name={household.iconOf(r.id)} size={16} />{r.name}</a
 					>
 				{/each}
 			</div>
@@ -106,6 +142,16 @@
 				aria-label={liveLabel}
 				title={liveLabel}
 			></span>
+			{#if key !== null && canEdit && !editingHere}
+				<button
+					class="icon"
+					aria-label="Edit the shared page"
+					title="Edit the shared page"
+					onclick={() => goto(withEdit(page.url, true))}
+				>
+					<Pencil size={20} strokeWidth={1.8} aria-hidden="true" />
+				</button>
+			{/if}
 			<button
 				class="icon"
 				aria-label="Search"
@@ -118,7 +164,8 @@
 				<Bell size={22} strokeWidth={1.8} aria-hidden="true" />
 			</a>
 		</header>
-		<main>
+		<main class:editing={editingHere}>
+			{#if editingHere}<EditBar key={key!} />{/if}
 			{@render children()}
 		</main>
 		<DetailsHost />
@@ -205,6 +252,16 @@
 	main {
 		flex: 1;
 		padding: var(--space-1) var(--space-4) var(--space-6);
+	}
+	/* Edit mode's frame: the household's page never looks like one's own (N6). */
+	main.editing {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+		margin: 0 var(--space-2) var(--space-2);
+		padding-top: var(--space-3);
+		border-radius: var(--radius);
+		box-shadow: inset 0 0 0 3px var(--accent);
 	}
 
 	.bar {
@@ -384,6 +441,7 @@
 	.room {
 		display: flex;
 		align-items: center;
+		gap: 10px;
 		height: 34px;
 		padding: 0 10px;
 		border-radius: 8px;

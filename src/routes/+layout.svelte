@@ -18,6 +18,8 @@
 	import { clock } from '#lib/clock.svelte.js';
 	import { personal } from '#lib/personal.svelte.js';
 	import { theme } from '#lib/theme.svelte.js';
+	import { household } from '#lib/household.svelte.js';
+	import { paletteOf } from '#lib/layers.js';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -38,12 +40,17 @@
 		void scenes.load();
 		const unhear = personal.onLoad((doc) => theme.adopt(doc.theme));
 		void personal.load();
+		void household.load();
 		clock.start();
 		live.start();
 		return () => {
 			unhear();
 			live.stop();
 		};
+	});
+	// The theme: the person's own, else the house's (D9a).
+	$effect(() => {
+		if (personal.loaded && household.loaded) theme.paint(paletteOf(personal.doc, household.doc));
 	});
 </script>
 

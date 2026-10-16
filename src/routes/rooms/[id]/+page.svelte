@@ -14,6 +14,10 @@
 	import CardGrid from '#lib/components/CardGrid.svelte';
 	import CustomiseBar from '#lib/components/CustomiseBar.svelte';
 	import CustomiseButton from '#lib/components/CustomiseButton.svelte';
+	import { added, ref } from '#lib/layers.js';
+	import type { CoreDevice } from '#lib/devices.js';
+	import { view } from '#lib/view.svelte.js';
+	import { editing } from '#lib/edit.svelte.js';
 
 	const id = $derived(page.params.id ?? '');
 	const room = $derived(rooms.list.find((r) => r.id === id));
@@ -24,24 +28,44 @@
 	$effect(() => heading.show(name ?? null));
 
 	const devicesOf = (ids: { id: string }[]) => ids.map((c) => devices.byId[c.id]!).filter(Boolean);
+
+	const key = $derived(`room:${id}`);
+	// Cards the household added from elsewhere in the house (M2 `add`).
+	const extra = $derived(
+		added(view.changes(key))
+			.filter((r) => r.startsWith('device:'))
+			.map((r) => devices.byId[r.slice(7)])
+			.filter((d): d is CoreDevice => d !== undefined && !inRoom.includes(d))
+	);
+	$effect(() => {
+		if (editing.on(key))
+			editing.present = new Set([...inRoom, ...extra].map((d) => ref.device(d.device_id)));
+	});
 </script>
 
 {#if !devices.loaded}
 	<p class="quiet">Loading the house…</p>
 {:else if name === undefined}
 	<p class="quiet">This room isn't in the house any more.</p>
-{:else if sections.length === 0}
-	<p class="quiet">Nothing in {name} yet.</p>
 {:else}
 	<div class="room">
-		<CustomiseButton page={`room:${id}`} />
-		<CustomiseBar page={`room:${id}`} />
+		<CustomiseButton page={key} />
+		<CustomiseBar page={key} />
+		{#if sections.length === 0 && extra.length === 0}
+			<p class="quiet">Nothing in {name} yet.</p>
+		{/if}
 		{#each sections as s (s.key)}
 			<section>
 				<h2 class="section-label">{s.title}</h2>
-				<CardGrid devices={devicesOf(s.cards)} large={['media_player']} page={`room:${id}`} />
+				<CardGrid devices={devicesOf(s.cards)} large={['media_player']} page={key} />
 			</section>
 		{/each}
+		{#if extra.length > 0}
+			<section>
+				<h2 class="section-label">Also here</h2>
+				<CardGrid devices={extra} page={key} added />
+			</section>
+		{/if}
 	</div>
 {/if}
 

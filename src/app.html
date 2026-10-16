@@ -13,6 +13,8 @@
 			try {
 				var t = localStorage.getItem('hc.theme');
 				if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+				var p = localStorage.getItem('hc.palette');
+				if (p && /^[a-z]+$/.test(p)) document.documentElement.dataset.palette = p;
 			} catch (e) {}
 		</script>
 		%sveltekit.head%

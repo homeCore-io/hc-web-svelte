@@ -24,6 +24,7 @@
 	import Chart from './Chart.svelte';
 	import Icon from './Icon.svelte';
 	import Toggle from './Toggle.svelte';
+	import { goAhead } from '#lib/ask.js';
 
 	let { device, onclose }: { device: CoreDevice; onclose: () => void } = $props();
 
@@ -48,7 +49,7 @@
 	let values = $state<Record<string, Record<string, unknown>>>({});
 	let ran = $state<string | null>(null);
 	async function run(a: ActionView) {
-		if (a.confirm && !confirm(a.confirm)) return;
+		if (!goAhead(id, card.kind, `${a.label} — ${card.name}?`, a.confirm)) return;
 		if (await commands.act(id, a.id, withoutAction(actionBody(a, values[a.id] ?? {})))) {
 			ran = a.id;
 			setTimeout(() => {
@@ -139,7 +140,10 @@
 				aria-pressed={sw.on}
 				aria-label="Power"
 				disabled={off}
-				onclick={() => set({ on: !sw.on })}><Power size={22} /></button
+				onclick={() => {
+					if (goAhead(id, card.kind, `Turn ${card.name} ${sw.on ? 'off' : 'on'}?`))
+						set({ on: !sw.on });
+				}}><Power size={22} /></button
 			>
 		</div>
 	{:else if card.control?.kind === 'switch'}
@@ -150,12 +154,22 @@
 				on={sw.on}
 				label={view.name}
 				disabled={off}
-				onchange={(on) => set({ [sw.attr]: on })}
+				onchange={(on) => {
+					if (goAhead(id, card.kind, `Turn ${card.name} ${on ? 'on' : 'off'}?`))
+						set({ [sw.attr]: on });
+				}}
 			/>
 		</div>
 	{:else if card.control?.kind === 'lock'}
 		{@const lk = card.control}
-		<button class="wide" disabled={off} onclick={() => set({ locked: !lk.locked })}>
+		<button
+			class="wide"
+			disabled={off}
+			onclick={() => {
+				if (lk.locked && !goAhead(id, card.kind, `Unlock ${card.name}?`)) return;
+				set({ locked: !lk.locked });
+			}}
+		>
 			<Icon name={lk.locked ? 'unlock' : 'lock'} />
 			{lk.locked ? 'Unlock' : 'Lock'}
 		</button>

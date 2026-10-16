@@ -3,20 +3,23 @@
 	person's favourites; the house's modes and the scenes that belong to no
 	room; then every room, with its summary and "All off" (C5).
 
-	The person's own layer applies on top (M2): their favourites and order,
-	what they hid. Customise (N6) arranges it, for them alone.
+	The household's changes apply, then the person's own on top (M2, M3):
+	order, what was hidden, names, and cards the household pinned. Customise
+	arranges it for one person; Edit, for everyone (N6).
 -->
 <script lang="ts">
 	import { cardFor, kindOf } from '#lib/card.js';
 	import { displayName, type CoreDevice } from '#lib/devices.js';
 	import { byRoom, houseChips } from '#lib/summary.js';
-	import { apply, ref } from '#lib/layers.js';
+	import { added, apply, ref } from '#lib/layers.js';
 	import { devices } from '#lib/devices.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { scenes } from '#lib/scenes.svelte.js';
 	import { commands } from '#lib/commands.svelte.js';
 	import { personal } from '#lib/personal.svelte.js';
-	import { customise } from '#lib/customise.svelte.js';
+	import { household } from '#lib/household.svelte.js';
+	import { editing } from '#lib/edit.svelte.js';
+	import { view } from '#lib/view.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { page } from '$app/state';
 	import { openDevice } from '#lib/popup.js';
@@ -30,7 +33,9 @@
 	import CustomiseButton from '#lib/components/CustomiseButton.svelte';
 
 	const HOME = 'home';
-	const arranging = $derived(customise.on(HOME));
+	const mode = $derived(view.mode(HOME));
+	const arranging = $derived(mode !== null);
+	const changes = $derived(view.changes(HOME));
 
 	const list = $derived(Object.values(devices.byId));
 	const cards = $derived(new Map(list.map((d) => [d.device_id, cardFor(d, clock.now)])));
@@ -63,6 +68,31 @@
 	const favLayer = $derived(apply(favourites, (f) => f.ref, personal.changes(HOME)));
 	const favForm = (r: string) => favLayer.form(r) ?? 'standard';
 
+	// ---- cards the household pinned to Home (M2 `add`) ----
+	type Pin =
+		| { ref: string; kind: 'device'; device: CoreDevice }
+		| { ref: string; kind: 'scene'; id: string; name: string };
+	const pins = $derived(
+		added(changes)
+			.map((r): Pin | undefined => {
+				if (r.startsWith('device:')) {
+					const d = devices.byId[r.slice(7)];
+					return d ? { ref: r, kind: 'device', device: d } : undefined;
+				}
+				if (r.startsWith('scene:')) {
+					const s = scenes.list.find((x) => x.id === r.slice(6));
+					return s ? { ref: r, kind: 'scene', id: s.id, name: s.name } : undefined;
+				}
+				return undefined;
+			})
+			.filter((p): p is Pin => p !== undefined)
+	);
+	const pinLayer = $derived(apply(pins, (p) => p.ref, changes));
+	const pinList = $derived(arranging ? [...pinLayer.shown, ...pinLayer.hidden] : pinLayer.shown);
+	const pinRefs = $derived(pinLayer.shown.map((p) => p.ref));
+	const pinName = (p: Pin) =>
+		pinLayer.name(p.ref) ?? (p.kind === 'device' ? displayName(p.device) : p.name);
+
 	// ---- scenes in no room, homeCore's and plugins' alike ----
 	type SceneItem = { ref: string; name: string; run: () => Promise<boolean>; details?: () => void };
 	const sceneItems = $derived(
@@ -80,7 +110,7 @@
 			}))
 		].sort((a, b) => a.name.localeCompare(b.name))
 	);
-	const sceneLayer = $derived(apply(sceneItems, (s) => s.ref, personal.changes(HOME)));
+	const sceneLayer = $derived(apply(sceneItems, (s) => s.ref, changes));
 	const sceneList = $derived(
 		arranging ? [...sceneLayer.shown, ...sceneLayer.hidden] : sceneLayer.shown
 	);
@@ -108,11 +138,20 @@
 				]
 			: [])
 	]);
-	const roomLayer = $derived(apply(roomItems, (r) => r.ref, personal.changes(HOME)));
+	const roomLayer = $derived(apply(roomItems, (r) => r.ref, changes));
 	const roomList = $derived(
 		arranging ? [...roomLayer.shown, ...roomLayer.hidden] : roomLayer.shown
 	);
 	const roomRefs = $derived(roomLayer.shown.map((r) => r.ref));
+
+	$effect(() => {
+		if (editing.on(HOME))
+			editing.present = new Set([
+				...pins.map((p) => p.ref),
+				...sceneItems.map((s) => s.ref),
+				...roomItems.map((r) => r.ref)
+			]);
+	});
 </script>
 
 {#if !devices.loaded}
@@ -133,7 +172,43 @@
 			</nav>
 		{/if}
 
-		{#if favourites.length > 0}
+		{#if pinList.length > 0}
+			<section>
+				<h2 class="section-label">Pinned</h2>
+				<div class="grid">
+					{#each pinList as p (p.ref)}
+						{@const form = pinLayer.form(p.ref) ?? 'standard'}
+						<Arrange
+							page={HOME}
+							ref={p.ref}
+							name={pinName(p)}
+							shown={pinRefs}
+							hidden={pinLayer.hidden.includes(p)}
+							form={p.kind === 'device' && !isScene(p.device) ? form : undefined}
+							wide={form === 'large'}
+							added
+							renamed={pinLayer.name(p.ref) !== undefined}
+						>
+							{#if p.kind === 'scene'}
+								<SceneCard name={pinName(p)} run={() => scenes.run(p.id)} />
+							{:else if isScene(p.device)}
+								<SceneCard
+									name={pinName(p)}
+									run={() => commands.act(p.device.device_id, 'activate')}
+									details={() => openDevice(p.device.device_id, page.url)}
+								/>
+							{:else}
+								<DeviceCard device={p.device} {form} label={pinLayer.name(p.ref)} />
+							{/if}
+						</Arrange>
+					{/each}
+				</div>
+			</section>
+		{/if}
+
+		{#if mode === 'edit'}
+			<!-- Favourites are each person's own; the shared page has none. -->
+		{:else if favourites.length > 0}
 			<section>
 				<h2 class="section-label">Favourites</h2>
 				<div class="grid">
@@ -163,7 +238,7 @@
 					{/each}
 				</div>
 			</section>
-		{:else if arranging}
+		{:else if mode === 'customise'}
 			<p class="hint">
 				Star anything — here or in a room — and it appears in Favourites at the top of Home.
 			</p>
@@ -178,11 +253,12 @@
 						<Arrange
 							page={HOME}
 							ref={s.ref}
-							name={s.name}
+							name={sceneLayer.name(s.ref) ?? s.name}
 							shown={sceneRefs}
 							hidden={sceneLayer.hidden.includes(s)}
+							renamed={sceneLayer.name(s.ref) !== undefined}
 						>
-							<SceneCard name={s.name} run={s.run} details={s.details} />
+							<SceneCard name={sceneLayer.name(s.ref) ?? s.name} run={s.run} details={s.details} />
 						</Arrange>
 					{/each}
 				</div>
@@ -196,12 +272,19 @@
 					<Arrange
 						page={HOME}
 						ref={r.ref}
-						name={r.name}
+						name={roomLayer.name(r.ref) ?? r.name}
 						shown={roomRefs}
 						hidden={roomLayer.hidden.includes(r)}
 						star={false}
+						renamed={roomLayer.name(r.ref) !== undefined}
 					>
-						<RoomRow href={r.href} name={r.name} devices={r.devices} cards={cardsOf(r.devices)} />
+						<RoomRow
+							href={r.href}
+							name={roomLayer.name(r.ref) ?? r.name}
+							icon={household.iconOf(r.ref.slice(5))}
+							devices={r.devices}
+							cards={cardsOf(r.devices)}
+						/>
 					</Arrange>
 				{/each}
 			</div>

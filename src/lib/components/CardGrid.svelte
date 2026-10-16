@@ -1,8 +1,8 @@
 <!--
 	Devices as cards on the grid (03 §6): two Standard cards across a phone,
-	more as the screen widens; a Large card spans two. With a `page`, the
-	person's own layer for it applies (M2): their order, what they hid, the
-	form they chose — and in Customise mode, the tools to change them.
+	more as the screen widens; a Large card spans two. With a `page`, its
+	layers apply (M2) — the household's, then this person's: order, what was
+	hidden, forms and names — and while arranging, the tools to change them.
 -->
 <script lang="ts">
 	import type { CoreDevice } from '#lib/devices.js';
@@ -10,8 +10,7 @@
 	import { kindOf } from '#lib/card.js';
 	import { apply, ref, type Form } from '#lib/layers.js';
 	import { commands } from '#lib/commands.svelte.js';
-	import { personal } from '#lib/personal.svelte.js';
-	import { customise } from '#lib/customise.svelte.js';
+	import { view } from '#lib/view.svelte.js';
 	import { page as here } from '$app/state';
 	import { openDevice } from '#lib/popup.js';
 	import DeviceCard from './DeviceCard.svelte';
@@ -21,13 +20,21 @@
 	let {
 		devices,
 		large = [],
-		page
-	}: { devices: CoreDevice[]; large?: string[]; page?: string } = $props();
+		page,
+		added = false
+	}: {
+		devices: CoreDevice[];
+		large?: string[];
+		page?: string;
+		/** These cards were added to the page, not generated on it. */
+		added?: boolean;
+	} = $props();
 
 	const layered = $derived(
-		apply(devices, (d) => ref.device(d.device_id), page ? personal.changes(page) : [])
+		apply(devices, (d) => ref.device(d.device_id), page ? view.changes(page) : [])
 	);
-	const arranging = $derived(page !== undefined && customise.on(page));
+	const arranging = $derived(page !== undefined && view.mode(page) !== null);
+	const nameOf = (d: CoreDevice) => layered.name(ref.device(d.device_id));
 	const list = $derived(arranging ? [...layered.shown, ...layered.hidden] : layered.shown);
 	const shownRefs = $derived(layered.shown.map((d) => ref.device(d.device_id)));
 	const hiddenSet = $derived(new Set(layered.hidden));
@@ -44,20 +51,22 @@
 		<Arrange
 			page={page ?? ''}
 			ref={ref.device(d.device_id)}
-			name={displayName(d)}
+			name={nameOf(d) ?? displayName(d)}
 			shown={shownRefs}
 			hidden={hiddenSet.has(d)}
 			form={isScene(d) ? undefined : form}
 			wide={form === 'large'}
+			{added}
+			renamed={nameOf(d) !== undefined}
 		>
 			{#if isScene(d)}
 				<SceneCard
-					name={displayName(d)}
+					name={nameOf(d) ?? displayName(d)}
 					run={() => commands.act(d.device_id, 'activate')}
 					details={() => openDevice(d.device_id, here.url)}
 				/>
 			{:else}
-				<DeviceCard device={d} {form} {page} />
+				<DeviceCard device={d} {form} {page} label={nameOf(d)} />
 			{/if}
 		</Arrange>
 	{/each}

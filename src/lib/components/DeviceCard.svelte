@@ -22,6 +22,7 @@
 	import { deviceHref, openDevice } from '#lib/popup.js';
 	import { ref, toggleFavourite } from '#lib/layers.js';
 	import { personal } from '#lib/personal.svelte.js';
+	import { goAhead } from '#lib/ask.js';
 	import Star from '@lucide/svelte/icons/star';
 	import EyeOff from '@lucide/svelte/icons/eye-off';
 	import Icon from './Icon.svelte';
@@ -31,8 +32,15 @@
 	let {
 		device,
 		form = 'standard',
-		page: layerPage
-	}: { device: CoreDevice; form?: Form; page?: string } = $props();
+		page: layerPage,
+		label
+	}: {
+		device: CoreDevice;
+		form?: Form;
+		page?: string;
+		/** The name this page gives the card, if it was renamed there (M2). */
+		label?: string;
+	} = $props();
 
 	// Long-press (or right-click): the personalise shortcut — star or hide (N6).
 	const HOLD_MS = 500;
@@ -54,6 +62,7 @@
 	const card = $derived(
 		withPending(cardFor(device, clock.now), commands.pending[device.device_id])
 	);
+	const name = $derived(label ?? card.name);
 	const note = $derived(commands.notes[device.device_id]);
 	const off = $derived(!card.available);
 
@@ -64,10 +73,16 @@
 	function run(control: Control) {
 		switch (control.kind) {
 			case 'lock':
+				// Unlocking asks where someone said it should (C4); locking never does.
+				if (control.locked && !goAhead(device.device_id, card.kind, `Unlock ${name}?`)) return;
 				return set({ locked: !control.locked });
 			case 'play':
 				return void commands.act(device.device_id, control.action);
 			case 'timer':
+				if (
+					!goAhead(device.device_id, card.kind, `${control.running ? 'Cancel' : 'Start'} ${name}?`)
+				)
+					return;
 				return void commands.timer(
 					device.device_id,
 					control.running
@@ -75,7 +90,8 @@
 						: { command: 'start', duration_secs: control.durationSecs }
 				);
 			case 'button':
-				if (control.confirm && !confirm(control.confirm)) return;
+				if (!goAhead(device.device_id, card.kind, `${control.label} — ${name}?`, control.confirm))
+					return;
 				return void commands.act(device.device_id, control.action);
 		}
 	}
@@ -95,11 +111,19 @@
 
 {#snippet control(c: Control | null)}
 	{#if c?.kind === 'switch'}
-		<Toggle on={c.on} label={card.name} disabled={off} onchange={(on) => set({ [c.attr]: on })} />
+		<Toggle
+			on={c.on}
+			label={name}
+			disabled={off}
+			onchange={(on) => {
+				if (goAhead(device.device_id, card.kind, `Turn ${name} ${on ? 'on' : 'off'}?`))
+					set({ [c.attr]: on });
+			}}
+		/>
 	{:else if c?.kind === 'play'}
 		<button
 			class="round"
-			aria-label={c.playing ? `Pause ${card.name}` : `Play ${card.name}`}
+			aria-label={c.playing ? `Pause ${name}` : `Play ${name}`}
 			disabled={off}
 			onclick={() => run(c)}
 		>
@@ -128,12 +152,12 @@
 	class:lit={card.tone === 'on'}
 	class:alert={card.tone === 'alert'}
 	class:offline={off}
-	aria-label={card.name}
+	aria-label={name}
 >
 	<a
 		class="cover"
 		href={deviceHref(device.device_id, page.url)}
-		aria-label={`${card.name} — details`}
+		aria-label={`${name} — details`}
 		onclick={(e) => {
 			if (e.metaKey || e.ctrlKey || e.shiftKey) return;
 			e.preventDefault();
@@ -158,7 +182,7 @@
 		<div
 			class="menu"
 			role="menu"
-			aria-label={`${card.name} — for me`}
+			aria-label={`${name} — for me`}
 			tabindex="-1"
 			onkeydown={(e) => e.key === 'Escape' && (menu = false)}
 		>
@@ -194,7 +218,7 @@
 		<span class="icon"><Icon name={card.icon} size={form === 'compact' ? 18 : 20} /></span>
 		{#if form === 'compact'}
 			<span class="text">
-				<span class="name">{card.name}</span>
+				<span class="name">{name}</span>
 				<span class="state">{note ?? card.stateLine}</span>
 			</span>
 		{/if}
@@ -203,7 +227,7 @@
 
 	{#if form !== 'compact'}
 		<div class="text">
-			<span class="name">{card.name}</span>
+			<span class="name">{name}</span>
 			<span class="state" class:note>
 				{#if card.waiting}<span class="working" aria-label="Waiting for the house"></span>{/if}
 				{note ?? card.stateLine}
@@ -218,7 +242,7 @@
 					<span>{ch.label}</span>
 					<Toggle
 						on={ch.on}
-						label={`${card.name} ${ch.label}`}
+						label={`${name} ${ch.label}`}
 						disabled={off}
 						onchange={(on) => set({ [ch.attr]: on })}
 					/>

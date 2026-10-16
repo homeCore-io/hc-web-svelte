@@ -9,7 +9,7 @@
 import type { RequestHandler } from './$types';
 import { json } from '#lib/server/http.js';
 import { whoIs } from '#lib/server/identity.js';
-import { docs, MAX_DOC_BYTES } from '#lib/server/docs.js';
+import { docs, incoming } from '#lib/server/docs.js';
 
 const KIND = 'person';
 
@@ -27,27 +27,14 @@ export const PUT: RequestHandler = async (event) => {
 	const who = await whoIs(event);
 	if (!who.ok) return json({ error: who.error }, who.status, who.setCookies);
 
-	const text = await event.request.text();
-	if (text.length > MAX_DOC_BYTES) return json({ error: 'Too large.' }, 413, who.setCookies);
-	let body: unknown;
-	try {
-		body = JSON.parse(text);
-	} catch {
-		return json({ error: 'Not JSON.' }, 400, who.setCookies);
-	}
-	if (!body || typeof body !== 'object' || Array.isArray(body)) {
-		return json({ error: 'Expected an object.' }, 400, who.setCookies);
-	}
-	const { version, updated_at: _ignored, ...doc } = body as Record<string, unknown>;
-	if (typeof version !== 'number' || !Number.isInteger(version) || version < 0) {
-		return json({ error: 'Say which version this change was made against.' }, 400, who.setCookies);
-	}
+	const body = await incoming(event.request);
+	if (!body.ok) return json({ error: body.error }, body.status, who.setCookies);
 
 	const written = await docs().write(
 		KIND,
 		idOf(who.person.id),
-		{ ...doc, person: who.person.id },
-		version
+		{ ...body.doc, person: who.person.id },
+		body.version
 	);
 	if (!written.ok)
 		return json(

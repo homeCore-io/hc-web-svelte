@@ -753,3 +753,43 @@ Settings → R6 alerts → R7 displays.
   saved for them rather than lost.
 - **Not yet:** the household default bar and household edits (R5), and
   undo within a Customise session.
+
+## B10 — Shared editing and Settings, as built (R5, 2026-10-16)
+
+- **The household's document** (`/ui/house`, one for the house): its changes
+  per page, room icons, the default phone bar, the house's theme and
+  confirmation overrides. Everyone signed in reads it; writing takes
+  homeCore's `content:write` — its scope for authoring how the house presents
+  itself — judged from homeCore's answer, never the role's name. Saving works
+  as for a person's document (version, 409, reapply); every open screen hears
+  of a change on `/ui/events`.
+- **What a screen shows** is the generated page, then the household's
+  changes, then the person's (M3): a person may show what the household hid.
+- **New changes:** `rename` (a card's label on that page — the device keeps
+  its own name), and `add` / `remove` (a card for something not generated
+  there: under **Pinned** on Home, **Also here** on a room).
+- **Edit** (N6) is the ✎ in the header, for people with `content:write`, and
+  is in the address (`?edit`, N5). An accent frame and bar say "Editing the
+  shared page — Everyone sees this", with Undo, Add a card, Cancel and Done.
+  Edits are kept until Done and saved as one change; leaving with unsaved
+  edits asks first. The page shows no personal changes while editing, and no
+  Favourites. Changes naming something gone are counted and can be cleared;
+  "Back to the generated page" drops the household's changes to it.
+- **Rooms' order** is the household's order on Home, so Settings orders only
+  rooms that appear there (rooms with nothing in them are listed apart). The
+  sidebar follows the same order and shows each room's icon.
+- **Settings:** Rooms (create and rename in homeCore; order and icon in the
+  UI server), Devices (name and room in homeCore), Asking first, Look.
+- **Asking first** (D2): a choice for a device beats one for its kind, which
+  beats the device's own declared prompt. Unlocking asks only where someone
+  said so (C4); locking never asks. It covers switches, locks, timers and
+  actions on cards and in details, not sliders. Only kinds that take
+  commands are listed.
+- **Themes** (D9a) are accent families — Amber (the tokens' own), Sage,
+  Harbour, Plum — each with a light and a dark set. The house picks one; a
+  person may pick another on Me. A copy is kept in the browser for the first
+  paint, as light/dark is.
+- **The household's phone bar** is used by anyone who hasn't chosen their own;
+  "Back to the household's bar" on Me clears the person's choice.
+- **Not yet:** undo inside Customise; per-size adjustments (D5) and hand-built
+  pages (later rounds).

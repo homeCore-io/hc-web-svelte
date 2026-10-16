@@ -3,35 +3,36 @@
 	import { session } from '#lib/me.svelte.js';
 	import { theme, type ThemeChoice } from '#lib/theme.svelte.js';
 	import { personal } from '#lib/personal.svelte.js';
+	import { household } from '#lib/household.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
-	import { BAR_CHOICES, BAR_SIZE, DEFAULT_BAR, barOf, nudgeFavourite } from '#lib/layers.js';
-	import ArrowUp from '@lucide/svelte/icons/arrow-up';
-	import ArrowDown from '@lucide/svelte/icons/arrow-down';
-	import X from '@lucide/svelte/icons/x';
+	import { BAR_SIZE, PALETTES, barOf, paletteOf } from '#lib/layers.js';
+	import BarChooser from '#lib/components/BarChooser.svelte';
 
-	// ---- the phone bar (N2) ----
-	const NAMES: Record<string, string> = {
-		home: 'Home',
-		pages: 'Pages',
-		scenes: 'Scenes',
-		alerts: 'Alerts',
-		search: 'Search'
-	};
+	// ---- the phone bar (N2): their own, else the household's ----
 	const bar = $derived(
 		barOf(
 			personal.doc,
-			rooms.list.map((r) => r.id)
+			rooms.list.map((r) => r.id),
+			household.doc
 		)
 	);
-	const nameOf = (d: string) =>
-		d.startsWith('room:')
-			? (rooms.list.find((r) => `room:${r.id}` === d)?.name ?? 'Room')
-			: NAMES[d]!;
-	const addable = $derived([
-		...BAR_CHOICES.filter((d) => !bar.includes(d)),
-		...rooms.list.map((r) => `room:${r.id}`).filter((d) => !bar.includes(d))
-	]);
 	const setBar = (next: string[]) => personal.change((d) => ({ ...d, bar: next }));
+	function usualBar() {
+		void personal.change((d) => {
+			const { bar: _drop, ...rest } = d;
+			return rest;
+		});
+	}
+
+	// ---- theme (D9a): the house's, unless they choose another ----
+	const houseTheme = $derived(PALETTES.find((p) => p.id === paletteOf(undefined, household.doc)));
+	const myTheme = $derived(personal.doc.palette);
+	function setTheme(id: string | undefined) {
+		void personal.change((d) => {
+			const { palette: _drop, ...rest } = d;
+			return id === undefined ? rest : { ...rest, palette: id };
+		});
+	}
 
 	const choices: { value: ThemeChoice; label: string }[] = [
 		{ value: 'system', label: 'Like this device' },
@@ -65,49 +66,27 @@
 	</section>
 
 	<section>
+		<h2 class="section-label" id="palette">Theme</h2>
+		<div class="swatches" role="radiogroup" aria-labelledby="palette">
+			<button role="radio" aria-checked={myTheme === undefined} onclick={() => setTheme(undefined)}>
+				<span class="swatch" style:background={houseTheme?.swatch}></span>
+				The house's ({houseTheme?.name})
+			</button>
+			{#each PALETTES as p (p.id)}
+				<button role="radio" aria-checked={myTheme === p.id} onclick={() => setTheme(p.id)}>
+					<span class="swatch" style:background={p.swatch}></span>
+					{p.name}
+				</button>
+			{/each}
+		</div>
+	</section>
+
+	<section>
 		<h2 class="section-label" id="bar">Phone bar</h2>
 		<p class="note">Up to {BAR_SIZE} places at the bottom of your phone, then More. Only yours.</p>
-		<ol class="bar" aria-labelledby="bar">
-			{#each bar as d, i (d)}
-				<li>
-					<span>{nameOf(d)}</span>
-					<button
-						aria-label={`Move ${nameOf(d)} left`}
-						disabled={i === 0}
-						onclick={() => setBar(nudgeFavourite(bar, d, -1))}><ArrowUp size={16} /></button
-					>
-					<button
-						aria-label={`Move ${nameOf(d)} right`}
-						disabled={i === bar.length - 1}
-						onclick={() => setBar(nudgeFavourite(bar, d, 1))}><ArrowDown size={16} /></button
-					>
-					<button
-						aria-label={`Take ${nameOf(d)} off the bar`}
-						disabled={bar.length === 1}
-						onclick={() => setBar(bar.filter((x) => x !== d))}><X size={16} /></button
-					>
-				</li>
-			{/each}
-			<li class="more"><span>More</span></li>
-		</ol>
-		{#if bar.length < BAR_SIZE}
-			<label class="add">
-				<span>Add</span>
-				<select
-					value=""
-					onchange={(e) => {
-						const v = e.currentTarget.value;
-						if (v) void setBar([...bar, v]);
-						e.currentTarget.value = '';
-					}}
-				>
-					<option value="" disabled>Choose a place…</option>
-					{#each addable as d (d)}<option value={d}>{nameOf(d)}</option>{/each}
-				</select>
-			</label>
-		{/if}
+		<BarChooser {bar} label="Your phone bar" set={setBar} />
 		{#if personal.doc.bar !== undefined}
-			<button class="link" onclick={() => setBar(DEFAULT_BAR)}>Back to the usual bar</button>
+			<button class="link" onclick={usualBar}>Back to the household's bar</button>
 		{/if}
 	</section>
 
@@ -131,60 +110,6 @@
 		margin: 0;
 		font-size: 13px;
 		color: var(--ink-muted);
-	}
-	.bar {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 6px;
-	}
-	.bar li {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-		min-height: var(--target);
-		padding: 0 6px 0 12px;
-		border-radius: 12px;
-		background: var(--surface);
-		border: 1px solid var(--card-line);
-	}
-	.bar li span {
-		flex: 1;
-		font-weight: 600;
-	}
-	.bar li button {
-		width: 36px;
-		height: 36px;
-		border: none;
-		background: none;
-		border-radius: 8px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-	.bar li button:disabled {
-		opacity: 0.3;
-	}
-	.bar .more {
-		color: var(--ink-muted);
-		background: none;
-		border-style: dashed;
-	}
-	.add {
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		font-size: 14px;
-	}
-	.add select {
-		flex: 1;
-		min-height: var(--target);
-		border-radius: 10px;
-		border: 1px solid var(--line);
-		background: var(--surface);
-		padding: 0 10px;
 	}
 	.link {
 		align-self: flex-start;
@@ -225,6 +150,31 @@
 		background: var(--surface);
 		color: var(--ink);
 		box-shadow: var(--shadow);
+	}
+	.swatches {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+	.swatches button {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		height: 40px;
+		padding: 0 14px 0 10px;
+		border-radius: 20px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		font-weight: 600;
+	}
+	.swatches button[aria-checked='true'] {
+		border-color: var(--ink);
+		box-shadow: inset 0 0 0 1px var(--ink);
+	}
+	.swatch {
+		width: 18px;
+		height: 18px;
+		border-radius: 50%;
 	}
 	.out {
 		align-self: flex-start;

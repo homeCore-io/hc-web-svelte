@@ -10,6 +10,8 @@ import { personal } from './personal.svelte.js';
 export type ThemeChoice = 'system' | 'light' | 'dark';
 
 const KEY = 'hc.theme';
+/** This browser's copy of the theme, for the first paint (`app.html`). */
+const PALETTE_KEY = 'hc.palette';
 
 function read(): ThemeChoice {
 	try {
@@ -39,6 +41,19 @@ class Theme {
 			return;
 		}
 		this.show(saved);
+	}
+
+	/** Show a theme — a set of colours (D9a); Amber is the tokens' own. */
+	paint(palette: string): void {
+		try {
+			if (palette === 'amber') localStorage.removeItem(PALETTE_KEY);
+			else localStorage.setItem(PALETTE_KEY, palette);
+		} catch {
+			// Private browsing: the copy lasts this visit.
+		}
+		const root = document.documentElement;
+		if (palette === 'amber') delete root.dataset.palette;
+		else root.dataset.palette = palette;
 	}
 
 	show(choice: ThemeChoice): void {

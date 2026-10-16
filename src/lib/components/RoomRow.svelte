@@ -10,13 +10,22 @@
 	import { commands } from '#lib/commands.svelte.js';
 	import type { CoreDevice } from '#lib/devices.js';
 	import Icon from './Icon.svelte';
+	import RoomIcon from './RoomIcon.svelte';
 
 	let {
 		href,
 		name,
+		icon,
 		cards,
 		devices
-	}: { href: string; name: string; cards: CardView[]; devices: CoreDevice[] } = $props();
+	}: {
+		href: string;
+		name: string;
+		/** The room's icon, as the household chose it (D10). */
+		icon?: string;
+		cards: CardView[];
+		devices: CoreDevice[];
+	} = $props();
 
 	const summary = $derived(roomSummary(cards));
 	const targets = $derived(allOffTargets(cards));
@@ -37,7 +46,9 @@
 
 <div class="room" class:alert>
 	<a {href} class="cover" aria-label={`Open ${name}`}></a>
-	<span class="icon"><Icon name={alert ? 'alert' : 'room'} /></span>
+	<span class="icon"
+		>{#if alert}<Icon name="alert" />{:else}<RoomIcon name={icon} />{/if}</span
+	>
 	<span class="text">
 		<span class="name">{name}</span>
 		<span class="summary">{summary}</span>

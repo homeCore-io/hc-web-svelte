@@ -119,6 +119,109 @@
 	color-scheme: dark;
 }
 
+/*
+ * Themes (D9a): the house's choice of colour, or a person's own. A theme only
+ * changes the accent family; Amber is the tokens above. Light rules exclude a
+ * chosen dark, and dark rules come after them, so each combination of theme
+ * and light/dark resolves to one set.
+ */
+
+:root[data-palette='sage']:not([data-theme='dark']) {
+	--accent: #3f6b3a;
+	--accent-ink: #ffffff;
+	--lit-bg: #dcebd3;
+	--lit-ink: #2f5a2a;
+	--lit-card-line: #c7dcbc;
+	--track-on: #4f8a47;
+	--fill: #a9cf9b;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root[data-palette='sage']:not([data-theme='light']) {
+		--accent: #9fd18f;
+		--accent-ink: #0f1a0c;
+		--lit-bg: #1f3320;
+		--lit-ink: #b5e0a6;
+		--lit-card-line: #33522f;
+		--track-on: #7fb870;
+		--fill: #5d8f52;
+	}
+}
+
+:root[data-palette='sage'][data-theme='dark'] {
+	--accent: #9fd18f;
+	--accent-ink: #0f1a0c;
+	--lit-bg: #1f3320;
+	--lit-ink: #b5e0a6;
+	--lit-card-line: #33522f;
+	--track-on: #7fb870;
+	--fill: #5d8f52;
+}
+
+:root[data-palette='harbour']:not([data-theme='dark']) {
+	--accent: #1f5f8b;
+	--accent-ink: #ffffff;
+	--lit-bg: #d6e8f5;
+	--lit-ink: #1a4f74;
+	--lit-card-line: #bcd6ea;
+	--track-on: #2f7bb0;
+	--fill: #9cc6e6;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root[data-palette='harbour']:not([data-theme='light']) {
+		--accent: #7cc0f0;
+		--accent-ink: #06131d;
+		--lit-bg: #12293b;
+		--lit-ink: #9fd2f7;
+		--lit-card-line: #21445f;
+		--track-on: #4f9fd6;
+		--fill: #3b77a3;
+	}
+}
+
+:root[data-palette='harbour'][data-theme='dark'] {
+	--accent: #7cc0f0;
+	--accent-ink: #06131d;
+	--lit-bg: #12293b;
+	--lit-ink: #9fd2f7;
+	--lit-card-line: #21445f;
+	--track-on: #4f9fd6;
+	--fill: #3b77a3;
+}
+
+:root[data-palette='plum']:not([data-theme='dark']) {
+	--accent: #7a3b74;
+	--accent-ink: #ffffff;
+	--lit-bg: #f0dcec;
+	--lit-ink: #6a2f64;
+	--lit-card-line: #e2c6dd;
+	--track-on: #9a4f92;
+	--fill: #d7a8cf;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root[data-palette='plum']:not([data-theme='light']) {
+		--accent: #e0a3d8;
+		--accent-ink: #1d0c1b;
+		--lit-bg: #33192f;
+		--lit-ink: #efbde7;
+		--lit-card-line: #57304f;
+		--track-on: #c47bba;
+		--fill: #8c4f83;
+	}
+}
+
+:root[data-palette='plum'][data-theme='dark'] {
+	--accent: #e0a3d8;
+	--accent-ink: #1d0c1b;
+	--lit-bg: #33192f;
+	--lit-ink: #efbde7;
+	--lit-card-line: #57304f;
+	--track-on: #c47bba;
+	--fill: #8c4f83;
+}
+
 *,
 *::before,
 *::after {

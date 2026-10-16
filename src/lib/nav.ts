@@ -76,7 +76,29 @@ export function titleFor(pathname: string): string {
 		'/alerts': 'Alerts',
 		'/more': 'More',
 		'/settings': 'Settings',
+		'/settings/rooms': 'Rooms',
+		'/settings/devices': 'Devices',
+		'/settings/asking': 'Asking first',
+		'/settings/look': 'Look',
 		'/me': 'Me'
 	};
 	return known[pathname] ?? 'homeCore';
+}
+
+/**
+ * The layered page at `pathname` — `home`, `room:{id}` — or null where
+ * there is nothing to arrange.
+ */
+export function pageKey(pathname: string): string | null {
+	if (pathname === '/') return 'home';
+	const room = /^\/rooms\/([^/]+)$/.exec(pathname);
+	return room ? `room:${decodeURIComponent(room[1]!)}` : null;
+}
+
+/** The same address with Edit mode on or off (N5). */
+export function withEdit(url: { href: string }, on: boolean): string {
+	const next = new URL(url.href);
+	if (on) next.searchParams.set('edit', '1');
+	else next.searchParams.delete('edit');
+	return `${next.pathname}${next.search}${next.hash}`;
 }

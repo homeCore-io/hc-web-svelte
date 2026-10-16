@@ -1,7 +1,8 @@
 /**
  * The UI server's own change stream (M1): server-sent events naming each
  * document that changed, for the screens it concerns — a person's own
- * document only to that person. The screen then reads the document.
+ * document only to that person, the household's to everyone. The screen then
+ * reads the document.
  *
  * House facts are not here; they come on homeCore's stream (H2).
  */
@@ -32,7 +33,8 @@ export const GET: RequestHandler = async (event) => {
 			send(': connected\n\n');
 			const unlisten = docs().listen((change) => {
 				const mine = change.kind === 'person' && change.id === me;
-				if (mine) send(`event: change\ndata: ${JSON.stringify(change)}\n\n`);
+				const everyone = change.kind === 'house';
+				if (mine || everyone) send(`event: change\ndata: ${JSON.stringify(change)}\n\n`);
 			});
 			const timer = setInterval(() => send(': keepalive\n\n'), KEEPALIVE_MS);
 			stop = () => {

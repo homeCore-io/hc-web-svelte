@@ -20,6 +20,8 @@
 	import { household } from '#lib/household.svelte.js';
 	import { editing } from '#lib/edit.svelte.js';
 	import { view } from '#lib/view.svelte.js';
+	import { alerts } from '#lib/alerts.svelte.js';
+	import AlertList from '#lib/components/AlertList.svelte';
 	import { clock } from '#lib/clock.svelte.js';
 	import { page } from '$app/state';
 	import { openDevice } from '#lib/popup.js';
@@ -160,6 +162,15 @@
 	<div class="home">
 		<CustomiseButton page={HOME} />
 		<CustomiseBar page={HOME} home />
+
+		{#if alerts.list.length > 0 && mode !== 'edit'}
+			<section aria-label="Needs attention">
+				<AlertList list={alerts.list.slice(0, 3)} />
+				{#if alerts.list.length > 3}
+					<a class="more" href="/alerts">All {alerts.list.length} alerts</a>
+				{/if}
+			</section>
+		{/if}
 
 		{#if chips.length > 0}
 			<nav class="chips" aria-label="What's going on">
@@ -303,6 +314,12 @@
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
+	}
+	.more {
+		align-self: flex-start;
+		color: var(--accent);
+		font-weight: 600;
+		text-decoration: none;
 	}
 	.quiet,
 	.hint {

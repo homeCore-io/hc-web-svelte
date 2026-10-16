@@ -793,3 +793,32 @@ Settings → R6 alerts → R7 displays.
   "Back to the household's bar" on Me clears the person's choice.
 - **Not yet:** undo inside Customise; per-size adjustments (D5) and hand-built
   pages (later rounds).
+
+## B11 — Alerts, as built (R6 and H4, 2026-10-16)
+
+- **homeCore decides** (M6). An alert engine in hc-core works out the whole
+  set of alerts the house calls for — from the stored devices and the time
+  rules — on every relevant device event and every 30 seconds, and
+  announces the difference: `alert_raised` (the whole alert, sent again if
+  its words change) and `alert_cleared`. Working out the whole set means a
+  missed event or a restart never leaves a stale alert. `GET /alerts` and the
+  connect snapshot carry the active ones (`devices:read`).
+- **Built in:** wet (`water_detected`, `leak`, `wet`) and smoke (`smoke`,
+  `smoke_detected`) are urgent; a jammed lock (`jammed`, or a `last_alert`
+  mentioning a jam — no plugin reports jams another way yet) is urgent; a low
+  battery (`battery_low`, or a level at or under the battery watcher's
+  threshold, cleared above its recover band) and a device offline for five
+  minutes are warnings.
+- **Time rules** (`/alert-rules`, `automations:read`/`:write`, stored in
+  redb): devices, a state (`attribute` = `value`, with the state's words),
+  optionally a window of the day (`after`/`until`, spanning midnight when
+  `until` is earlier) and a minimum duration. "Held for" uses the device's
+  stored `attributes_changed_at`, so it survives a restart; offline time is
+  counted from when the engine first saw it.
+- **On screen:** the bell carries a count; Home leads with the three most
+  serious; the Alerts page lists them all, each opening its device; a device
+  with an alert has its card in the alert colour, and a time rule's reason
+  ("Open after 22:00") replaces its state line. Settings → Alerts writes the
+  rules, offering each device's states in its own words.
+- **Not yet:** turning a built-in kind off, or snoozing an alert; alerts do
+  not notify anyone (N7 — notifications are the rules engine's).

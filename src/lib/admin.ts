@@ -5,6 +5,7 @@
  *
  * Each answers `null` when done, or what went wrong, in words for a person.
  */
+import type { AlertRule } from './alerts.js';
 
 async function send(method: string, path: string, body: unknown): Promise<string | null> {
 	let res: Response;
@@ -40,3 +41,20 @@ export const renameDevice = (id: string, name: string) => send('PATCH', device(i
 /** Put a device in a room by its name as typed, or in none. */
 export const moveDevice = (id: string, roomName: string | null) =>
 	send('PATCH', device(id), { area: roomName });
+
+// ---- alert time rules (C9, H4) ----
+
+export async function alertRules(): Promise<AlertRule[] | null> {
+	try {
+		const res = await fetch('/api/v1/alert-rules');
+		return res.ok ? ((await res.json()) as AlertRule[]) : null;
+	} catch {
+		return null;
+	}
+}
+
+export const createAlertRule = (rule: Omit<AlertRule, 'id'>) => send('POST', '/alert-rules', rule);
+export const saveAlertRule = (rule: AlertRule) =>
+	send('PUT', `/alert-rules/${encodeURIComponent(rule.id)}`, rule);
+export const deleteAlertRule = (id: string) =>
+	send('DELETE', `/alert-rules/${encodeURIComponent(id)}`, {});

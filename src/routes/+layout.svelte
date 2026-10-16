@@ -19,6 +19,7 @@
 	import { personal } from '#lib/personal.svelte.js';
 	import { theme } from '#lib/theme.svelte.js';
 	import { household } from '#lib/household.svelte.js';
+	import { alerts } from '#lib/alerts.svelte.js';
 	import { paletteOf } from '#lib/layers.js';
 
 	let { children }: { children: Snippet } = $props();
@@ -38,6 +39,7 @@
 		void rooms.load();
 		void devices.load();
 		void scenes.load();
+		void alerts.load();
 		const unhear = personal.onLoad((doc) => theme.adopt(doc.theme));
 		void personal.load();
 		void household.load();

@@ -21,6 +21,7 @@
 	import { customise } from '#lib/customise.svelte.js';
 	import { view } from '#lib/view.svelte.js';
 	import EditBar from './EditBar.svelte';
+	import { alerts } from '#lib/alerts.svelte.js';
 	import RoomIcon from './RoomIcon.svelte';
 	import { session } from '#lib/me.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
@@ -160,8 +161,15 @@
 			>
 				<Search size={22} strokeWidth={1.8} aria-hidden="true" />
 			</button>
-			<a class="icon" href="/alerts" aria-label="Alerts">
+			<a
+				class="icon bell"
+				href="/alerts"
+				aria-label={alerts.list.length > 0 ? `Alerts — ${alerts.list.length}` : 'Alerts'}
+			>
 				<Bell size={22} strokeWidth={1.8} aria-hidden="true" />
+				{#if alerts.list.length > 0}<span class="count" aria-hidden="true"
+						>{alerts.list.length > 99 ? '99+' : alerts.list.length}</span
+					>{/if}
 			</a>
 		</header>
 		<main class:editing={editingHere}>
@@ -234,6 +242,24 @@
 		align-items: center;
 		justify-content: center;
 		color: var(--ink);
+	}
+	.bell {
+		position: relative;
+	}
+	.count {
+		position: absolute;
+		top: 4px;
+		right: 2px;
+		min-width: 18px;
+		height: 18px;
+		padding: 0 5px;
+		border-radius: 9px;
+		background: var(--alert);
+		color: var(--alert-ink);
+		font-size: 11px;
+		font-weight: 700;
+		line-height: 18px;
+		text-align: center;
 	}
 	.live {
 		width: 8px;

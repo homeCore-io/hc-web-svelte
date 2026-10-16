@@ -23,6 +23,7 @@
 	import { ref, toggleFavourite } from '#lib/layers.js';
 	import { personal } from '#lib/personal.svelte.js';
 	import { goAhead } from '#lib/ask.js';
+	import { alerts } from '#lib/alerts.svelte.js';
 	import Star from '@lucide/svelte/icons/star';
 	import EyeOff from '@lucide/svelte/icons/eye-off';
 	import Icon from './Icon.svelte';
@@ -63,7 +64,11 @@
 		withPending(cardFor(device, clock.now), commands.pending[device.device_id])
 	);
 	const name = $derived(label ?? card.name);
-	const note = $derived(commands.notes[device.device_id]);
+	// An alert homeCore raised for this device (H4) — a time rule's says why.
+	const raised = $derived(alerts.byDevice.get(device.device_id));
+	const note = $derived(
+		commands.notes[device.device_id] ?? (raised?.kind === 'rule' ? raised.reason : undefined)
+	);
 	const off = $derived(!card.available);
 
 	function set(want: Record<string, unknown>) {
@@ -150,7 +155,7 @@
 <article
 	class="card {form}"
 	class:lit={card.tone === 'on'}
-	class:alert={card.tone === 'alert'}
+	class:alert={card.tone === 'alert' || raised !== undefined}
 	class:offline={off}
 	aria-label={name}
 >

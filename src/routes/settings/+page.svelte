@@ -15,6 +15,7 @@
 			label: 'Asking first',
 			detail: 'Which commands ask before they go'
 		},
+		{ href: '/settings/alerts', label: 'Alerts', detail: 'Time rules: a door open at night' },
 		{ href: '/settings/look', label: 'Look', detail: 'The house’s theme and phone bar' }
 	];
 </script>

@@ -6,6 +6,12 @@ export interface Me {
 	username: string;
 	role: string;
 	scopes: string[];
+	/** `display` for a display's own session (H3). */
+	kind?: 'display';
+	/** Whether this person can unlock a display (H5). */
+	has_pin?: boolean;
+	/** A person unlocked on a display: which, and until when (ms). */
+	unlocked_on?: { id: string; name: string; until?: number };
 }
 
 class Session {
@@ -46,6 +52,11 @@ class Session {
 	/** May this session do `scope`? Judged by homeCore's scopes, never the role (S4). */
 	can(scope: string): boolean {
 		return this.me?.scopes.includes(scope) ?? false;
+	}
+
+	/** This screen is a display, showing only its pages (D7). */
+	get isDisplay(): boolean {
+		return this.me?.kind === 'display';
 	}
 
 	get isAdmin(): boolean {

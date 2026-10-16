@@ -822,3 +822,36 @@ Settings → R6 alerts → R7 displays.
   rules, offering each device's states in its own words.
 - **Not yet:** turning a built-in kind off, or snoozing an alert; alerts do
   not notify anyone (N7 — notifications are the rules engine's).
+
+## B12 — Displays and PINs, as built (R7, H3 and H5, 2026-10-16)
+
+- **A display is an API key marked as one** (H3), made by an admin in
+  Settings → Displays, its key shown once. It may read the house, command
+  devices and run scenes — a new `scenes:run`, accepted where
+  `scenes:write` was, so a panel can run scenes without editing them — and
+  nothing else. `/auth/me` answers for it as the display.
+- **Keys are no longer admins by default.** homeCore judged every API key an
+  admin in its admin-only checks (users, backup, system config), whatever its
+  scopes; a key is now an admin only if it holds an admin-only scope
+  (`users:write`). Found while building H3: a display would otherwise have
+  been a full admin on a wall.
+- **Setting up the tablet:** `/display`, the key typed once. The UI server
+  keeps it in an httpOnly cookie and uses it whenever no person is signed in
+  in that browser; page scripts never see it.
+- **The kiosk:** no menus, Settings or Me — only the pages the admin chose
+  (Home, Scenes, Alerts, any room; Home's rooms open from Home), tabs along
+  the bottom when there are several, a swipe between them, a clock, the
+  alert count, and the lock. It keeps the screen on, can go dark while Night
+  Mode is on, and can reload daily. Its settings are a UI-server document
+  per display (M1).
+- **PINs** (H5): a person sets their own on Me, with their password; 4–8
+  digits, unique in the house since the PIN alone names the person. Only a
+  display may swap a PIN for a session: five minutes, no refresh token, held
+  in the access cookie for exactly that long, so the display returns to
+  itself on the server even if the page does nothing. Five wrong PINs in
+  fifteen minutes make that display wait. PINs use light Argon2id — a hash
+  can't make 4–8 digits slow to search; the per-display limit is the defence.
+- **While unlocked** the full app shows "{person} on {display} · 4:12 left"
+  and Lock.
+- **Not yet:** a screensaver; per-display permissions narrower than "the
+  house" (H6); keys' `allowed_cidrs` are still not enforced by homeCore.

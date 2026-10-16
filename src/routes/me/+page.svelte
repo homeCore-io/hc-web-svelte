@@ -40,6 +40,33 @@
 		{ value: 'dark', label: 'Dark' }
 	];
 
+	// ---- a PIN, for unlocking a display (H5) ----
+	let pin = $state('');
+	let password = $state('');
+	let pinNote = $state<string | null>(null);
+	let settingPin = $state(false);
+	async function savePin(e: SubmitEvent) {
+		e.preventDefault();
+		const res = await fetch('/api/v1/auth/pin', {
+			method: 'PUT',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ pin, password })
+		}).catch(() => null);
+		const said = (await res?.json().catch(() => ({}))) as { error?: string };
+		pinNote = res?.ok ? 'Your PIN is set.' : (said.error ?? 'Couldn’t set it.');
+		if (res?.ok) {
+			pin = password = '';
+			settingPin = false;
+			await session.load();
+		}
+	}
+	async function removePin() {
+		if (!confirm('Remove your PIN? You won’t be able to unlock displays.')) return;
+		await fetch('/api/v1/auth/pin', { method: 'DELETE' }).catch(() => null);
+		pinNote = 'Your PIN is removed.';
+		await session.load();
+	}
+
 	async function signOut() {
 		await session.signOut();
 		void goto('/login');
@@ -88,6 +115,43 @@
 		{#if personal.doc.bar !== undefined}
 			<button class="link" onclick={usualBar}>Back to the household's bar</button>
 		{/if}
+	</section>
+
+	<section>
+		<h2 class="section-label" id="pin">PIN for displays</h2>
+		<p class="note">
+			Unlocks the full app, as you, for a few minutes on a kitchen panel or hall tablet. 4 to 8
+			digits; nobody else in the house can have the same one.
+		</p>
+		{#if settingPin || !session.me?.has_pin}
+			<form class="pin" onsubmit={savePin}>
+				<input
+					type="password"
+					inputmode="numeric"
+					pattern="[0-9]{'{'}4,8{'}'}"
+					autocomplete="off"
+					placeholder="New PIN"
+					aria-label="New PIN"
+					bind:value={pin}
+					required
+				/>
+				<input
+					type="password"
+					autocomplete="current-password"
+					placeholder="Your password"
+					aria-label="Your password"
+					bind:value={password}
+					required
+				/>
+				<button type="submit">Set PIN</button>
+			</form>
+		{:else}
+			<div class="row">
+				<button class="link" onclick={() => (settingPin = true)}>Change your PIN</button>
+				<button class="link" onclick={removePin}>Remove it</button>
+			</div>
+		{/if}
+		{#if pinNote}<p class="note" role="status">{pinNote}</p>{/if}
 	</section>
 
 	<button class="out" onclick={signOut}>Sign out</button>
@@ -175,6 +239,32 @@
 		width: 18px;
 		height: 18px;
 		border-radius: 50%;
+	}
+	.pin {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+	.pin input {
+		flex: 1 1 140px;
+		min-height: var(--target);
+		padding: 0 12px;
+		border-radius: 10px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+	}
+	.pin button {
+		min-height: var(--target);
+		padding: 0 18px;
+		border-radius: 22px;
+		border: none;
+		background: var(--accent);
+		color: var(--accent-ink);
+		font-weight: 600;
+	}
+	.row {
+		display: flex;
+		gap: 20px;
 	}
 	.out {
 		align-self: flex-start;

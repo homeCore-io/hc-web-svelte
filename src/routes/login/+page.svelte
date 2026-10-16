@@ -31,6 +31,7 @@
 		</label>
 		{#if error !== null}<p class="error" role="alert">{error}</p>{/if}
 		<button type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+		<a class="display" href="/display">Set this screen up as a display</a>
 	</form>
 </main>
 
@@ -88,5 +89,10 @@
 	.error {
 		margin: 0;
 		color: var(--alert);
+	}
+	.display {
+		text-align: center;
+		color: var(--ink-muted);
+		font-size: 13px;
 	}
 </style>

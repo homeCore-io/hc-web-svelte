@@ -16,6 +16,15 @@
 
 export const ACCESS = 'hc_at';
 export const REFRESH = 'hc_rt';
+/**
+ * A display's key (H3), on a wall tablet: the display's own identity, used
+ * whenever no person is signed in on it. A person who unlocks the display
+ * with their PIN gets an access token on top for a few minutes (H5); when it
+ * runs out the display is itself again.
+ */
+export const DISPLAY = 'hc_dk';
+/** As long as a browser will keep a cookie: a display is set up once. */
+const DISPLAY_MAX_AGE = 400 * 86400;
 
 /** Refresh this long before the access token actually expires. */
 const SKEW_MS = 60_000;
@@ -112,9 +121,38 @@ export function grantCookies(grant, secure) {
 	return out;
 }
 
-/** @param {boolean} secure */
+/**
+ * Sign a person out. On a display, that leaves the display signed in as
+ * itself — only an admin removing it ends that.
+ * @param {boolean} secure
+ */
 export function clearCookies(secure) {
 	return [cookie(ACCESS, '', 0, secure), cookie(REFRESH, '', 0, secure)];
+}
+
+/**
+ * This browser becomes a display; any person's session on it ends.
+ * @param {string} key
+ * @param {boolean} secure
+ */
+export function displayCookies(key, secure) {
+	return [cookie(DISPLAY, key, DISPLAY_MAX_AGE, secure), ...clearCookies(secure)];
+}
+
+/**
+ * A person at a display for a few minutes: an access token that expires with
+ * its cookie, and no refresh token, so the display returns to itself.
+ * @param {string} token
+ * @param {number} seconds
+ * @param {boolean} secure
+ */
+export function unlockCookies(token, seconds, secure) {
+	return [cookie(ACCESS, token, seconds, secure), cookie(REFRESH, '', 0, secure)];
+}
+
+/** @param {boolean} secure */
+export function forgetDisplayCookie(secure) {
+	return [cookie(DISPLAY, '', 0, secure)];
 }
 
 /**
@@ -175,12 +213,14 @@ async function requestRefresh(core, refreshToken) {
  * @typedef {object} Session
  * @property {string} token        the access token to send to homeCore
  * @property {string[]} setCookies cookies to send back, when it was refreshed
+ * @property {string} [display]    this browser's display key, if it is a display
  */
 
 /**
  * The session a request carries, refreshing it if the access token has run out.
  *
- * Undefined means "not signed in": no cookies, or a refresh homeCore refused.
+ * Undefined means "not signed in": no cookies, or a refresh homeCore refused —
+ * unless this browser is a display, which is then signed in as itself.
  * @param {string | undefined | null} cookieHeader
  * @param {{ core: string, secure: boolean, now?: number }} opts
  * @returns {Promise<Session | undefined>}
@@ -188,12 +228,17 @@ async function requestRefresh(core, refreshToken) {
 export async function resolveSession(cookieHeader, opts) {
 	const jar = parseCookies(cookieHeader);
 	const now = opts.now ?? Date.now();
+	const display = jar[DISPLAY] || undefined;
 	const access = jar[ACCESS];
-	if (access !== undefined && isFresh(access, now)) return { token: access, setCookies: [] };
+	if (access !== undefined && isFresh(access, now))
+		return { token: access, setCookies: [], display };
 
 	const refresh = jar[REFRESH];
-	if (refresh === undefined || refresh === '') return undefined;
-	const grant = await refreshGrant(opts.core, refresh);
-	if (grant === undefined) return undefined;
-	return { token: grant.token, setCookies: grantCookies(grant, opts.secure) };
+	if (refresh !== undefined && refresh !== '') {
+		const grant = await refreshGrant(opts.core, refresh);
+		if (grant !== undefined)
+			return { token: grant.token, setCookies: grantCookies(grant, opts.secure), display };
+	}
+	// Nobody signed in here — on a display, it is the display.
+	return display === undefined ? undefined : { token: display, setCookies: [], display };
 }

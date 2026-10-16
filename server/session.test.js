@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
 	ACCESS,
+	DISPLAY,
 	REFRESH,
 	clearCookies,
+	displayCookies,
+	unlockCookies,
 	expiresAt,
 	grantCookies,
 	isFresh,
@@ -118,5 +121,42 @@ describe('a refresh token', () => {
 		await refreshGrant('http://c', 'old-token', NOW);
 		await refreshGrant('http://c', 'old-token', NOW + 60_000);
 		expect(fetch).toHaveBeenCalledTimes(2);
+	});
+});
+
+describe('a display (H3, H5)', () => {
+	const opts = { core: 'http://core', secure: false, now: NOW };
+
+	it('is signed in as itself when nobody else is', async () => {
+		const s = await resolveSession(`${DISPLAY}=hc_sk_kitchen`, opts);
+		expect(s).toEqual({ token: 'hc_sk_kitchen', setCookies: [], display: 'hc_sk_kitchen' });
+	});
+
+	it('a person unlocked on it goes first, and the display is still known', async () => {
+		const person = jwt({ exp: NOW / 1000 + 300 });
+		const s = await resolveSession(`${DISPLAY}=hc_sk_kitchen; ${ACCESS}=${person}`, opts);
+		expect(s?.token).toBe(person);
+		expect(s?.display).toBe('hc_sk_kitchen');
+	});
+
+	it('when their few minutes are up, it is the display again', async () => {
+		const spent = jwt({ exp: NOW / 1000 - 10 });
+		const s = await resolveSession(`${DISPLAY}=hc_sk_kitchen; ${ACCESS}=${spent}`, opts);
+		expect(s?.token).toBe('hc_sk_kitchen');
+	});
+
+	it('becoming one ends a person’s session; unlocking gives no refresh token', () => {
+		const set = displayCookies('hc_sk_k', false);
+		expect(set[0]).toMatch(/^hc_dk=hc_sk_k; Path=\/; Max-Age=34560000; HttpOnly; SameSite=Strict$/);
+		expect(set.slice(1).every((c) => /Max-Age=0/.test(c))).toBe(true);
+		const unlock = unlockCookies('tok', 300, true);
+		expect(unlock[0]).toMatch(
+			/^hc_at=tok; Path=\/; Max-Age=300; HttpOnly; SameSite=Strict; Secure$/
+		);
+		expect(unlock[1]).toMatch(/^hc_rt=; .*Max-Age=0/);
+	});
+
+	it('signing a person out there leaves the display signed in', () => {
+		expect(clearCookies(false).some((c) => c.startsWith(`${DISPLAY}=`))).toBe(false);
 	});
 });

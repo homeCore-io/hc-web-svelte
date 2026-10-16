@@ -21,6 +21,7 @@
 	import { customise } from '#lib/customise.svelte.js';
 	import { view } from '#lib/view.svelte.js';
 	import EditBar from './EditBar.svelte';
+	import UnlockedBar from './UnlockedBar.svelte';
 	import { alerts } from '#lib/alerts.svelte.js';
 	import RoomIcon from './RoomIcon.svelte';
 	import { session } from '#lib/me.svelte.js';
@@ -134,6 +135,7 @@
 	</nav>
 
 	<div class="body">
+		<UnlockedBar />
 		<header>
 			<h1>{title}</h1>
 			<span

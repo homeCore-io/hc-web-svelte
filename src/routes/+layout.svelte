@@ -10,6 +10,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import Shell from '#lib/components/Shell.svelte';
+	import Kiosk from '#lib/components/Kiosk.svelte';
 	import { session } from '#lib/me.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { live } from '#lib/live.svelte.js';
@@ -24,7 +25,8 @@
 
 	let { children }: { children: Snippet } = $props();
 
-	const onLogin = $derived(page.url.pathname === '/login');
+	// Pages that stand alone: signing in, and making this screen a display.
+	const onLogin = $derived(page.url.pathname === '/login' || page.url.pathname === '/display');
 
 	// Ask homeCore who this is once; send anyone who isn't signed in to sign in.
 	$effect(() => {
@@ -58,6 +60,8 @@
 
 {#if onLogin}
 	{@render children()}
+{:else if session.isDisplay}
+	<Kiosk>{@render children()}</Kiosk>
 {:else if session.me !== null}
 	<Shell>{@render children()}</Shell>
 {/if}

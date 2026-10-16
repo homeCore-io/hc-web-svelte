@@ -81,6 +81,7 @@ export function titleFor(pathname: string): string {
 		'/settings/asking': 'Asking first',
 		'/settings/look': 'Look',
 		'/settings/alerts': 'Alert rules',
+		'/settings/displays': 'Displays',
 		'/me': 'Me'
 	};
 	return known[pathname] ?? 'homeCore';

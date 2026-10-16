@@ -381,3 +381,93 @@ household.
   works them out for itself, two screens can disagree, and a display would
   have to be running to notice anything; evaluating them in homeCore avoids
   both. **[core?]**
+
+---
+
+# From 04 — Data model
+
+## M1 — UI data is split by purpose: house facts in homeCore, presentation in the UI's server (2026-10-15)
+
+**homeCore keeps** facts about the house and identity — small, structured,
+the same for every client, working with no UI open:
+- rooms: stable id and the name as typed (D10);
+- display and PIN **credentials** (D7, N9) — identities only;
+- alert rules and their evaluation (M6);
+- events for all of these (D11).
+
+**The UI's own server** — the container the app runs in — keeps everything
+about presentation: pages, layers (household, per-size, personal), personal
+preferences, themes, room icons and order, the phone bar, which page a display
+shows and its kiosk settings, images, icons, fonts, floorplans, and
+third-party card code (D9b). Its formats change with the UI without touching
+homeCore.
+
+**Consequences:**
+- **Sign-in stays homeCore's.** The UI server accepts a homeCore session and
+  asks homeCore who it is and what it may do.
+- **The UI server announces its own changes** to open screens; device and
+  room changes still come from homeCore's event stream. D11's "page changes"
+  events are the UI server's, not homeCore's.
+- **Backups:** the UI's data is one directory (a container volume) with an
+  export, backed up alongside homeCore's — not stored in homeCore.
+- homeCore's existing `/dashboards`, `/skins` and `/assets` stay for
+  hc-web-flutter; the new app does not use them, and they can be retired once
+  nothing does.
+
+**Why:** storing presentation in homeCore would limit what the UI can do and
+how it can be extended, and bloat homeCore with images, icons and UI
+documents. This revises the original 04 draft, which put everything in
+homeCore.
+
+## M6 — Alert rules are checked in homeCore (2026-10-15)
+
+- homeCore evaluates alert rules (C9) — whether or not any screen is open, the
+  same for every client — and announces alerts on its event stream; screens
+  only show them. homeCore's rule engine already watches states and
+  durations, so this may be a thin layer over it. **[core]**
+
+## M2 — Layers are lists of changes keyed by stable ids (2026-10-15)
+
+- Household edits, per-size adjustments and personal changes are each a list
+  of small changes — hide, move, rename, change form, add — naming what they
+  change by a stable id (`device:porch_light`, `room:kitchen`; added cards get
+  their own).
+- Never a copy of the page. The generated base keeps changing underneath; a
+  change naming something that no longer exists is kept, skipped, and shown in
+  edit mode.
+
+**Why:** it is what lets D1 work — new devices appear and changes survive.
+
+## M3 — Personal changes win, for that person (2026-10-15)
+
+- If the household hid something, a person may show it again on their own
+  view. Hiding is presentation; real restrictions come from permissions (D8).
+
+## M4 — Hand-built pages can be personalised too (2026-10-15)
+
+- Favourite, hide and reorder for yourself on any page, not only the
+  generated home and rooms.
+
+## M5 — A display's identity is an admin-made key (2026-10-15)
+
+- An admin creates a display key in Settings and enters it on the tablet once.
+  No pairing flow.
+- Built on homeCore's existing API keys with narrower permissions than their
+  owner; a display key is not a person's account and is not an admin. **[core]**:
+  a display kind of key, and whatever limits it needs until D8's permissions
+  arrive.
+- Which pages the display shows and its kiosk settings live in the UI server
+  (M1), keyed by the display's identity.
+
+## M7 — The advanced editor's text is JSON (2026-10-15)
+
+- JSON, which has no comments — so nothing can be lost moving between text
+  and visual editing (D13).
+- Any item may carry a `note` field for explanations; the visual editor shows
+  and edits it too.
+
+## M8 — Existing pages are left where they are (2026-10-15)
+
+- The new app starts from the generated home and new pages. Pages made with
+  hc-web-lit and hc-web-flutter stay for those clients.
+- An import tool can come later if they are missed.

@@ -912,3 +912,61 @@ system → A7 cut-over.
 - A standing sandbox homeCore with a copy of the house's rules and config, no
   plugins connected, for A1–A4 and A6; the live house only for each
   milestone's final try-out, with a backup taken first.
+
+---
+
+# From 09 — Automations
+
+All nine taken as recommended (2026-10-16).
+
+## E1 — The editor is sentences in three parts (2026-10-16)
+
+- When · Only if · Do, each a list of sentence rows built with pickers that
+  speak the house (room → device → its states in its own words). Not a node
+  graph, not a form per rule kind.
+
+## E2 — A rule can have several triggers (2026-10-16)
+
+- **[core]** `triggers`, with `trigger` still read as one. Turns the house's
+  23 family rules into 9.
+
+## E3 — If/otherwise takes structured checks (2026-10-16)
+
+- **[core]** `Conditional.condition` accepts a `Condition` as well as Rhai
+  text, so the visual editor can build and read branches.
+
+## E4 — The list offers to combine families (2026-10-16)
+
+- Rules that look like one intent are shown together with a previewed offer
+  to combine; never automatic; the originals are kept, turned off, unless
+  the person chooses to delete them.
+
+## E5 — Four patterns to start from (2026-10-16)
+
+- Keep in step, A button toggles, Off after a while, At a time of day — from
+  the house's own rules. More only when the house shows a need.
+
+## E6 — Edits are drafts; tests replay real moments (2026-10-16)
+
+- Editing makes a draft; the rule keeps running as it was until Save. Test
+  replays a real recent event (from history, or a chosen time) as a dry run.
+  **[core]** the test endpoint takes an event.
+
+## E7 — Advanced options under More (2026-10-16)
+
+- Run mode, cooldown, priority, logging, Rhai expressions, variables —
+  collapsed, opened automatically when a rule uses any.
+
+## E8 — Rules that are alerts are offered as alerts (2026-10-16)
+
+- A rule that only notifies that a state lasted gets a suggestion to become
+  an alert time rule (H4).
+
+## E9 — The list is grouped by tag (2026-10-16)
+
+- Tags are edited as chips and group the list; a rule may sit in two rooms.
+  Rule groups remain for switching a set on and off.
+
+Also from 09: **[core]** a step aimed at a device homeCore doesn't know is
+reported as such, stale references cover every action target, and rule
+changes are announced (`rule_changed`, `rule_removed`).

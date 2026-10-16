@@ -12,6 +12,7 @@
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { roomOf } from '#lib/summary.js';
 	import { session } from '#lib/me.svelte.js';
+	import { ask } from '#lib/confirm.svelte.js';
 	import { describeRule, stateChoices, type AlertRule } from '#lib/alerts.js';
 	import { alertRules, createAlertRule, deleteAlertRule, saveAlertRule } from '#lib/admin.js';
 
@@ -90,7 +91,7 @@
 		await reload();
 	}
 	async function remove(r: AlertRule) {
-		if (!confirm(`Delete “${r.name}”?`)) return;
+		if (!(await ask({ title: `Delete “${r.name}”?`, go: 'Delete', danger: true }))) return;
 		trouble = await deleteAlertRule(r.id);
 		await reload();
 	}

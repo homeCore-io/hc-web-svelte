@@ -1,0 +1,90 @@
+name: Release
+
+# Publishes ghcr.io/homecore-io/hc-web-svelte: the web app and its UI server,
+# one container, run beside homeCore on its own port (T9). Not `hc-web` —
+# that name is hc-web-flutter's image until this app replaces it (A7).
+#
+#   git tag v0.2.0  ->  ghcr.io/homecore-io/hc-web-svelte:0.2.0   (bare version)
+#                       ghcr.io/homecore-io/hc-web-svelte:latest
+#   run by hand     ->  ghcr.io/homecore-io/hc-web-svelte:dev-<sha7>
+#                       ghcr.io/homecore-io/hc-web-svelte:dev
+#
+# Conventions match hc-web-flutter's release.yml and rust-release.yml. Like
+# them, a :dev image is built when asked for (Actions tab, or
+# `gh workflow run release.yml --ref redesign`), not on every push; ci.yml is
+# the per-push check.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch: {}
+
+# packages:write to push to GHCR; issues:write because the ci job calls
+# node-ci.yml, whose job requests it (see ci.yml).
+permissions:
+  contents: read
+  packages: write
+  issues: write
+
+jobs:
+  # Never publish an image that would not have passed CI: the Docker build
+  # builds, but doesn't typecheck or test.
+  ci:
+    uses: homeCore-io/hc-scripts/.github/workflows/node-ci.yml@main
+
+  publish:
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Resolve image name + tag(s)
+        id: resolve
+        run: |
+          set -eux
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          BASE="ghcr.io/${OWNER}/hc-web-svelte"
+          if [ "${{ github.event_name }}" = "push" ] && [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+              TAG="${GITHUB_REF_NAME#v}"
+              TAGS=$(printf '%s\n%s' "${BASE}:${TAG}" "${BASE}:latest")
+          else
+              TAG="dev-${GITHUB_SHA::7}"
+              TAGS=$(printf '%s\n%s' "${BASE}:${TAG}" "${BASE}:dev")
+          fi
+          {
+              echo "image=${BASE}:${TAG}"
+              echo "tags<<EOTAGS"
+              echo "${TAGS}"
+              echo "EOTAGS"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          # amd64 only, as hc-web-flutter and rust-release.yml.
+          platforms: linux/amd64
+          tags: ${{ steps.resolve.outputs.tags }}
+          push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Image summary
+        run: |
+          {
+            echo "Pushed:"
+            echo '```'
+            echo "${{ steps.resolve.outputs.tags }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

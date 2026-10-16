@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import { session } from '#lib/me.svelte.js';
+	import { ask } from '#lib/confirm.svelte.js';
 
 	let key = $state('');
 	let error = $state<string | null>(null);
@@ -13,8 +14,12 @@
 	async function submit(e: SubmitEvent) {
 		e.preventDefault();
 		if (session.me !== null && !session.isDisplay) {
-			if (!confirm(`This signs ${session.me.username} out here and makes this screen a display.`))
-				return;
+			const yes = await ask({
+				title: 'Make this screen a display?',
+				body: `This signs ${session.me.username} out here. The screen then shows only what the display is set to show.`,
+				go: 'Make it a display'
+			});
+			if (!yes) return;
 		}
 		busy = true;
 		const res = await fetch('/ui/display/enroll', {

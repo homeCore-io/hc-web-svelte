@@ -8,7 +8,8 @@
 	import { page } from '$app/state';
 	import Undo from '@lucide/svelte/icons/undo-2';
 	import Plus from '@lucide/svelte/icons/plus';
-	import { editing } from '#lib/edit.svelte.js';
+	import { editing, LEAVE } from '#lib/edit.svelte.js';
+	import { ask } from '#lib/confirm.svelte.js';
 	import { household } from '#lib/household.svelte.js';
 	import { gone } from '#lib/layers.js';
 	import { withEdit } from '#lib/nav.js';
@@ -26,9 +27,8 @@
 		await leave();
 		await saving;
 	}
-	function cancel() {
-		if (editing.count > 0 && !confirm('Leave without saving your changes to the shared page?'))
-			return;
+	async function cancel() {
+		if (editing.count > 0 && !(await ask(LEAVE))) return;
 		editing.cancel();
 		void leave();
 	}
@@ -60,8 +60,14 @@
 	<p class="note">
 		<button
 			class="link"
-			onclick={() => {
-				if (confirm('Put this page back to how it is generated, for everyone?')) editing.reset(key);
+			onclick={async () => {
+				const yes = await ask({
+					title: 'Put this page back to how it is generated?',
+					body: 'Everyone’s shared page loses its arrangement. People’s own changes stay.',
+					go: 'Put it back',
+					danger: true
+				});
+				if (yes) editing.reset(key);
 			}}>Back to the generated page</button
 		>
 	</p>

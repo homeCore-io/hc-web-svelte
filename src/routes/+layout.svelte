@@ -11,6 +11,7 @@
 	import { page } from '$app/state';
 	import Shell from '#lib/components/Shell.svelte';
 	import Kiosk from '#lib/components/Kiosk.svelte';
+	import Confirm from '#lib/components/Confirm.svelte';
 	import { session } from '#lib/me.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { live } from '#lib/live.svelte.js';
@@ -65,3 +66,4 @@
 {:else if session.me !== null}
 	<Shell>{@render children()}</Shell>
 {/if}
+<Confirm />

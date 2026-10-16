@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, redesign]
+  # The branch a PR merges into, not the one it comes from.
+  pull_request:
+    branches: [main, develop]
+
+# A called workflow can never hold more than its caller, and node-ci.yml asks
+# for issues:write (it opens a tracking issue when develop goes red). Without
+# it here the run dies at startup with no jobs and no annotation.
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  ci:
+    # No node_version override: node-ci.yml's pin (24) is the Node the
+    # Dockerfile ships (node:24-alpine). Bump them together.
+    uses: homeCore-io/hc-scripts/.github/workflows/node-ci.yml@main

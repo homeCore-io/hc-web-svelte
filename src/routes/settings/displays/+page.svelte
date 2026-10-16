@@ -9,6 +9,7 @@
 	import ArrowDown from '@lucide/svelte/icons/arrow-down';
 	import X from '@lucide/svelte/icons/x';
 	import { session } from '#lib/me.svelte.js';
+	import { ask } from '#lib/confirm.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { nudgeFavourite } from '#lib/layers.js';
 	import { tabsFor, type DisplayDoc } from '#lib/display.js';
@@ -51,7 +52,13 @@
 	}
 
 	async function remove(d: Display) {
-		if (!confirm(`Remove ${d.name}? The tablet stops working until it is set up again.`)) return;
+		const yes = await ask({
+			title: `Remove ${d.name}?`,
+			body: 'The tablet stops working until it is set up again with a new key.',
+			go: 'Remove',
+			danger: true
+		});
+		if (!yes) return;
 		await fetch(`/api/v1/displays/${d.id}`, { method: 'DELETE' }).catch(() => null);
 		if (open === d.id) open = null;
 		await reload();

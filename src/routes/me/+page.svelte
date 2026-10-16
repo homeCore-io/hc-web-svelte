@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { session } from '#lib/me.svelte.js';
+	import { ask } from '#lib/confirm.svelte.js';
 	import { theme, type ThemeChoice } from '#lib/theme.svelte.js';
 	import { personal } from '#lib/personal.svelte.js';
 	import { household } from '#lib/household.svelte.js';
@@ -61,7 +62,13 @@
 		}
 	}
 	async function removePin() {
-		if (!confirm('Remove your PIN? You won’t be able to unlock displays.')) return;
+		const yes = await ask({
+			title: 'Remove your PIN?',
+			body: 'You won’t be able to unlock displays until you set one again.',
+			go: 'Remove PIN',
+			danger: true
+		});
+		if (!yes) return;
 		await fetch('/api/v1/auth/pin', { method: 'DELETE' }).catch(() => null);
 		pinNote = 'Your PIN is removed.';
 		await session.load();

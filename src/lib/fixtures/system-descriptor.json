@@ -1,0 +1,1051 @@
+{
+	"descriptor_version": 1,
+	"plugin_id": "homecore",
+	"sections": [
+		{
+			"fields": [
+				{
+					"default": "0.0.0.0",
+					"help": "Bind address. 0.0.0.0 = all interfaces.",
+					"key": "server.host",
+					"kind": "host",
+					"label": "Host"
+				},
+				{
+					"default": 8080,
+					"help": "TCP port for the API. Default 8080.",
+					"key": "server.port",
+					"kind": "port",
+					"label": "Port"
+				}
+			],
+			"help": "Where the API and this UI answer.",
+			"id": "server",
+			"title": "Server"
+		},
+		{
+			"fields": [
+				{
+					"default": "127.0.0.1",
+					"help": "127.0.0.1 = single-host. 0.0.0.0 = LAN-reachable, which multi-host plugins need.",
+					"key": "broker.host",
+					"kind": "host",
+					"label": "Host"
+				},
+				{
+					"default": 1883,
+					"help": "Default 1883.",
+					"key": "broker.port",
+					"kind": "port",
+					"label": "Port"
+				},
+				{
+					"help": "Optional second listener speaking MQTT 5. Empty = off.",
+					"key": "broker.v5_port",
+					"kind": "port",
+					"label": "MQTT v5 port"
+				},
+				{
+					"help": "Optional TLS listener. Requires a certificate and key below.",
+					"key": "broker.tls_port",
+					"kind": "port",
+					"label": "TLS port"
+				},
+				{
+					"help": "PEM certificate for the TLS listener.",
+					"key": "broker.cert_path",
+					"kind": "text",
+					"label": "Certificate path",
+					"render": "path",
+					"visible_when": {
+						"field": "broker.tls_port",
+						"truthy": true
+					}
+				},
+				{
+					"help": "PEM private key for the TLS listener.",
+					"key": "broker.key_path",
+					"kind": "text",
+					"label": "Key path",
+					"render": "path",
+					"visible_when": {
+						"field": "broker.tls_port",
+						"truthy": true
+					}
+				},
+				{
+					"help": "One row per MQTT client. The embedded broker enforces the password on CONNECT; the topic patterns are enforced only when you run against an external Mosquitto.",
+					"item": [
+						{
+							"key": "id",
+							"kind": "text",
+							"label": "Client ID"
+						},
+						{
+							"key": "password",
+							"kind": "secret",
+							"label": "Password",
+							"secret": true
+						},
+						{
+							"item": "text",
+							"key": "allow_pub",
+							"kind": "list",
+							"label": "Publish"
+						},
+						{
+							"item": "text",
+							"key": "allow_sub",
+							"kind": "list",
+							"label": "Subscribe"
+						}
+					],
+					"key": "broker.clients",
+					"key_by": "id",
+					"kind": "table",
+					"label": "Client credentials"
+				}
+			],
+			"help": "The embedded broker every plugin connects to. It ships with core; an external Mosquitto is only needed for enforced topic ACLs.",
+			"id": "broker",
+			"title": "MQTT broker"
+		},
+		{
+			"fields": [
+				{
+					"help": "Decimal degrees. Positive = north.",
+					"key": "location.latitude",
+					"kind": "number",
+					"label": "Latitude",
+					"max": 90.0,
+					"min": -90.0
+				},
+				{
+					"help": "Decimal degrees. Positive = east.",
+					"key": "location.longitude",
+					"kind": "number",
+					"label": "Longitude",
+					"max": 180.0,
+					"min": -180.0
+				},
+				{
+					"help": "IANA name, e.g. America/New_York.",
+					"key": "location.timezone",
+					"kind": "text",
+					"label": "Timezone",
+					"placeholder": "America/New_York"
+				}
+			],
+			"help": "Sunrise and sunset are computed here, offline. No cloud call.",
+			"id": "location",
+			"title": "Location"
+		},
+		{
+			"fields": [
+				{
+					"default": 24,
+					"help": "Default 24.",
+					"key": "auth.token_expiry_hours",
+					"kind": "int",
+					"label": "Access-token expiry",
+					"min": 1,
+					"unit": "hours"
+				},
+				{
+					"default": 30,
+					"help": "How long a session survives without signing in again. Default 30.",
+					"key": "auth.refresh_token_expiry_days",
+					"kind": "int",
+					"label": "Refresh-token expiry",
+					"min": 1,
+					"unit": "days"
+				},
+				{
+					"default": 365,
+					"help": "How far back the audit trail is kept. Default 365.",
+					"key": "auth.audit_retention_days",
+					"kind": "int",
+					"label": "Audit retention",
+					"min": 1,
+					"unit": "days"
+				},
+				{
+					"help": "Default <base_dir>/jwt_secret. The file is generated on first boot; the secret itself is never editable here.",
+					"key": "auth.jwt_secret_file",
+					"kind": "text",
+					"label": "JWT secret file",
+					"render": "path"
+				},
+				{
+					"help": "First boot only. Default <base_dir>/INITIAL_ADMIN_PASSWORD. Empty disables the file.",
+					"key": "auth.initial_admin_password_file",
+					"kind": "text",
+					"label": "Initial admin password file",
+					"render": "path"
+				},
+				{
+					"help": "DEPRECATED \u2014 prefer the admin socket below. Every address listed bypasses sign-in entirely and is treated as Admin.",
+					"item": "text",
+					"key": "auth.whitelist",
+					"kind": "list",
+					"label": "IP whitelist (CIDR)"
+				}
+			],
+			"id": "auth",
+			"title": "Authentication"
+		},
+		{
+			"fields": [
+				{
+					"default": false,
+					"help": "Listen on a Unix socket for admin operations from this host.",
+					"key": "auth.admin_uds.enabled",
+					"kind": "toggle",
+					"label": "Enabled"
+				},
+				{
+					"help": "Default /run/homecore/admin.sock.",
+					"key": "auth.admin_uds.path",
+					"kind": "text",
+					"label": "Socket path",
+					"render": "path",
+					"visible_when": {
+						"field": "auth.admin_uds.enabled",
+						"truthy": true
+					}
+				},
+				{
+					"help": "Group that owns the socket. Its members can connect.",
+					"key": "auth.admin_uds.group",
+					"kind": "text",
+					"label": "POSIX group",
+					"visible_when": {
+						"field": "auth.admin_uds.enabled",
+						"truthy": true
+					}
+				},
+				{
+					"help": "Octal, e.g. 0660.",
+					"key": "auth.admin_uds.mode",
+					"kind": "text",
+					"label": "Mode",
+					"placeholder": "0660",
+					"visible_when": {
+						"field": "auth.admin_uds.enabled",
+						"truthy": true
+					}
+				},
+				{
+					"help": "The process UID is always allowed; these are in addition.",
+					"item": "int",
+					"key": "auth.admin_uds.allowed_uids",
+					"kind": "list",
+					"label": "Extra allowed UIDs",
+					"visible_when": {
+						"field": "auth.admin_uds.enabled",
+						"truthy": true
+					}
+				}
+			],
+			"help": "Local admin access over a Unix socket, for hc-cli and scripts on this host.",
+			"id": "auth.admin_uds",
+			"title": "Admin socket"
+		},
+		{
+			"fields": [
+				{
+					"help": "redb file holding devices, areas and rules. Default <base_dir>/data/state.redb.",
+					"key": "storage.state_db_path",
+					"kind": "text",
+					"label": "State database",
+					"render": "path"
+				},
+				{
+					"help": "SQLite file holding device history. This is the one that grows. Default <base_dir>/data/history.db.",
+					"key": "storage.history_db_path",
+					"kind": "text",
+					"label": "History database",
+					"render": "path"
+				}
+			],
+			"help": "Both files live under the home directory unless you give an absolute path.",
+			"id": "storage",
+			"title": "Storage"
+		},
+		{
+			"fields": [
+				{
+					"help": "Default <base_dir>/rules. Hot-reloaded on change.",
+					"key": "rules.dir",
+					"kind": "text",
+					"label": "Rules",
+					"render": "path"
+				},
+				{
+					"help": "Default <base_dir>/config/profiles.",
+					"key": "profiles.dir",
+					"kind": "text",
+					"label": "Ecosystem profiles",
+					"render": "path"
+				},
+				{
+					"help": "Default <base_dir>/config/calendars.",
+					"key": "calendars.dir",
+					"kind": "text",
+					"label": "Calendars",
+					"render": "path"
+				},
+				{
+					"default": 400,
+					"help": "How far forward to expand an RRULE. Default 400.",
+					"key": "calendars.expansion_days",
+					"kind": "int",
+					"label": "Recurring-event expansion",
+					"min": 1,
+					"unit": "days"
+				}
+			],
+			"help": "Each is watched: change a file and core reloads it without a restart.",
+			"id": "directories",
+			"title": "Directories"
+		},
+		{
+			"fields": [
+				{
+					"help": "At or below this, a device is flagged low.",
+					"key": "battery.threshold_pct",
+					"kind": "number",
+					"label": "Low threshold",
+					"max": 100.0,
+					"min": 0.0,
+					"unit": "%"
+				},
+				{
+					"help": "Recovery needs battery above threshold + this, so a device sitting on the line does not flap.",
+					"key": "battery.recover_band_pct",
+					"kind": "number",
+					"label": "Recovery band",
+					"max": 100.0,
+					"min": 0.0,
+					"unit": "%"
+				},
+				{
+					"help": "A channel name from Notifications. Empty = rule-driven only.",
+					"key": "battery.notify_channel",
+					"kind": "text",
+					"label": "Notify channel"
+				},
+				{
+					"help": "Also send when a device climbs back above the threshold.",
+					"key": "battery.notify_on_recovered",
+					"kind": "toggle",
+					"label": "Notify on recovery"
+				}
+			],
+			"help": "When a battery-powered device counts as low, and who hears about it.",
+			"id": "battery",
+			"title": "Battery alerts"
+		},
+		{
+			"fields": [
+				{
+					"default": false,
+					"help": "Master switch.",
+					"key": "influx.enabled",
+					"kind": "toggle",
+					"label": "Enabled"
+				},
+				{
+					"help": "InfluxDB v2 base URL, e.g. http://10.0.10.20:8086",
+					"key": "influx.url",
+					"kind": "url",
+					"label": "URL",
+					"visible_when": {
+						"field": "influx.enabled",
+						"truthy": true
+					}
+				},
+				{
+					"help": "Token with write permission to the bucket.",
+					"key": "influx.token",
+					"kind": "secret",
+					"label": "API token",
+					"secret": true,
+					"visible_when": {
+						"field": "influx.enabled",
+						"truthy": true
+					}
+				},
+				{
+					"help": "Organization name.",
+					"key": "influx.org",
+					"kind": "text",
+					"label": "Org",
+					"visible_when": {
+						"field": "influx.enabled",
+						"truthy": true
+					}
+				},
+				{
+					"help": "Target bucket.",
+					"key": "influx.bucket",
+					"kind": "text",
+					"label": "Bucket",
+					"visible_when": {
+						"field": "influx.enabled",
+						"truthy": true
+					}
+				},
+				{
+					"help": "Longest a point waits before being written. Default 10.",
+					"key": "influx.flush_interval_secs",
+					"kind": "duration",
+					"label": "Flush interval",
+					"unit": "secs",
+					"visible_when": {
+						"field": "influx.enabled",
+						"truthy": true
+					}
+				},
+				{
+					"help": "Points per write. Default 1000.",
+					"key": "influx.batch_size",
+					"kind": "int",
+					"label": "Batch size",
+					"visible_when": {
+						"field": "influx.enabled",
+						"truthy": true
+					}
+				},
+				{
+					"help": "Backlog before the oldest points are dropped. Default 10000.",
+					"key": "influx.channel_capacity",
+					"kind": "int",
+					"label": "Channel capacity",
+					"visible_when": {
+						"field": "influx.enabled",
+						"truthy": true
+					}
+				},
+				{
+					"help": "Glob per line. Empty exports nothing; use * for everything.",
+					"item": "text",
+					"key": "influx.include_devices",
+					"kind": "list",
+					"label": "Include devices",
+					"visible_when": {
+						"field": "influx.enabled",
+						"truthy": true
+					}
+				},
+				{
+					"help": "Drop noisy attributes such as last_seen or uptime.",
+					"item": "text",
+					"key": "influx.exclude_attributes",
+					"kind": "list",
+					"label": "Exclude attributes",
+					"visible_when": {
+						"field": "influx.enabled",
+						"truthy": true
+					}
+				},
+				{
+					"help": "Emit true/false attributes as 0/1 numeric fields.",
+					"key": "influx.export_bools",
+					"kind": "toggle",
+					"label": "Export booleans",
+					"visible_when": {
+						"field": "influx.enabled",
+						"truthy": true
+					}
+				}
+			],
+			"help": "Optional. Streams device state to InfluxDB v2 for long-term graphing.",
+			"id": "influx",
+			"title": "InfluxDB export"
+		},
+		{
+			"fields": [
+				{
+					"help": "Who may scrape /metrics without signing in. Empty = the endpoint is open, which is the historical behaviour.",
+					"item": "text",
+					"key": "metrics.whitelist",
+					"kind": "list",
+					"label": "Allowed addresses (CIDR)"
+				}
+			],
+			"id": "metrics",
+			"title": "Prometheus metrics"
+		},
+		{
+			"fields": [
+				{
+					"help": "URL, path or file:// of the signed index.json.",
+					"key": "registry.url",
+					"kind": "text",
+					"label": "Index URL"
+				},
+				{
+					"help": "Base64 ed25519 public key the index is verified against.",
+					"key": "registry.public_key",
+					"kind": "text",
+					"label": "Signing key"
+				}
+			],
+			"help": "Where the Plugins screen looks for installable plugins. Both fields or neither.",
+			"id": "registry",
+			"title": "Plugin registry"
+		},
+		{
+			"fields": [
+				{
+					"default": true,
+					"key": "plugin_runtimes.enabled",
+					"kind": "toggle",
+					"label": "Allow plugin runtimes"
+				},
+				{
+					"default": "open",
+					"help": "Open: a runtime may ask to join and you approve it by matching a code shown in its logs. Token: you issue a token first and nothing is ever left pending.",
+					"key": "plugin_runtimes.mode",
+					"kind": "enum",
+					"label": "Enrollment",
+					"options": [
+						{
+							"label": "Open",
+							"value": "open"
+						},
+						{
+							"label": "Token only",
+							"value": "token"
+						}
+					],
+					"render": "segmented",
+					"visible_when": {
+						"field": "plugin_runtimes.enabled",
+						"truthy": true
+					}
+				},
+				{
+					"default": true,
+					"help": "Only allow enrollment from the addresses in Security -> whitelist.",
+					"key": "plugin_runtimes.whitelist_only",
+					"kind": "toggle",
+					"label": "Local network only",
+					"visible_when": {
+						"field": "plugin_runtimes.enabled",
+						"truthy": true
+					}
+				},
+				{
+					"default": 15,
+					"key": "plugin_runtimes.pending_ttl_mins",
+					"kind": "duration",
+					"label": "Pending expires after",
+					"min": 1,
+					"unit": "mins",
+					"visible_when": {
+						"all": [
+							{
+								"field": "plugin_runtimes.enabled",
+								"truthy": true
+							},
+							{
+								"eq": "open",
+								"field": "plugin_runtimes.mode"
+							}
+						]
+					}
+				},
+				{
+					"default": 5,
+					"help": "Bounds how many requests can queue for your attention.",
+					"key": "plugin_runtimes.max_pending",
+					"kind": "int",
+					"label": "Max pending at once",
+					"min": 1,
+					"visible_when": {
+						"all": [
+							{
+								"field": "plugin_runtimes.enabled",
+								"truthy": true
+							},
+							{
+								"eq": "open",
+								"field": "plugin_runtimes.mode"
+							}
+						]
+					}
+				},
+				{
+					"default": 3,
+					"key": "plugin_runtimes.max_denials",
+					"kind": "int",
+					"label": "Denials before cooldown",
+					"min": 1,
+					"visible_when": {
+						"all": [
+							{
+								"field": "plugin_runtimes.enabled",
+								"truthy": true
+							},
+							{
+								"eq": "open",
+								"field": "plugin_runtimes.mode"
+							}
+						]
+					}
+				},
+				{
+					"default": 60,
+					"key": "plugin_runtimes.denial_cooldown_mins",
+					"kind": "duration",
+					"label": "Cooldown",
+					"min": 1,
+					"unit": "mins",
+					"visible_when": {
+						"all": [
+							{
+								"field": "plugin_runtimes.enabled",
+								"truthy": true
+							},
+							{
+								"eq": "open",
+								"field": "plugin_runtimes.mode"
+							}
+						]
+					}
+				}
+			],
+			"help": "Containers you run yourself that host plugins written in other languages. homeCore does not manage the container \u2014 only whether one is allowed to join.",
+			"id": "plugin_runtimes",
+			"title": "Plugin runtimes"
+		},
+		{
+			"fields": [
+				{
+					"help": "Wait after boot before publishing state, so plugins have subscribed.",
+					"key": "startup.plugin_ready_delay_secs",
+					"kind": "duration",
+					"label": "Plugin ready delay",
+					"unit": "secs"
+				},
+				{
+					"help": "How long plugins get to flush before they are killed.",
+					"key": "shutdown.drain_timeout_secs",
+					"kind": "duration",
+					"label": "Shutdown drain timeout",
+					"unit": "secs"
+				},
+				{
+					"help": "After a restart, fire time and solar triggers missed within this window. 0 = never catch up.",
+					"key": "scheduler.catchup_window_minutes",
+					"kind": "int",
+					"label": "Scheduler catch-up window",
+					"unit": "mins"
+				}
+			],
+			"id": "lifecycle",
+			"title": "Startup & shutdown"
+		},
+		{
+			"fields": [
+				{
+					"default": "info",
+					"help": "The default for every target below.",
+					"key": "logging.level",
+					"kind": "enum",
+					"label": "Level",
+					"options": [
+						{
+							"label": "error",
+							"value": "error"
+						},
+						{
+							"label": "warn",
+							"value": "warn"
+						},
+						{
+							"label": "info",
+							"value": "info"
+						},
+						{
+							"label": "debug",
+							"value": "debug"
+						},
+						{
+							"label": "trace",
+							"value": "trace"
+						}
+					]
+				},
+				{
+					"default": "local",
+					"key": "logging.time_display",
+					"kind": "enum",
+					"label": "Timestamps",
+					"options": [
+						{
+							"label": "Local time",
+							"value": "local"
+						},
+						{
+							"label": "UTC",
+							"value": "utc"
+						}
+					]
+				}
+			],
+			"id": "logging",
+			"title": "Logging"
+		},
+		{
+			"fields": [
+				{
+					"key": "logging.stderr.enabled",
+					"kind": "toggle",
+					"label": "Enabled"
+				},
+				{
+					"key": "logging.stderr.format",
+					"kind": "enum",
+					"label": "Format",
+					"options": [
+						{
+							"label": "Pretty",
+							"value": "pretty"
+						},
+						{
+							"label": "Compact",
+							"value": "compact"
+						},
+						{
+							"label": "JSON",
+							"value": "json"
+						}
+					]
+				},
+				{
+					"help": "Turn off when the output is captured by a service manager.",
+					"key": "logging.stderr.ansi",
+					"kind": "toggle",
+					"label": "Colour"
+				}
+			],
+			"id": "logging.stderr",
+			"title": "Logging \u2014 console"
+		},
+		{
+			"fields": [
+				{
+					"key": "logging.file.enabled",
+					"kind": "toggle",
+					"label": "Enabled"
+				},
+				{
+					"help": "Default <base_dir>/logs.",
+					"key": "logging.file.dir",
+					"kind": "text",
+					"label": "Directory",
+					"render": "path"
+				},
+				{
+					"help": "homecore \u2192 homecore.2026-07-28.log",
+					"key": "logging.file.prefix",
+					"kind": "text",
+					"label": "Filename prefix"
+				},
+				{
+					"key": "logging.file.rotation",
+					"kind": "enum",
+					"label": "Rotation",
+					"options": [
+						{
+							"label": "Every minute",
+							"value": "minutely"
+						},
+						{
+							"label": "Hourly",
+							"value": "hourly"
+						},
+						{
+							"label": "Daily",
+							"value": "daily"
+						},
+						{
+							"label": "Weekly",
+							"value": "weekly"
+						},
+						{
+							"label": "Never",
+							"value": "never"
+						}
+					]
+				},
+				{
+					"help": "Also roll over once a file reaches this size. 0 = size is not a trigger.",
+					"key": "logging.file.max_size_mb",
+					"kind": "int",
+					"label": "Rotate at",
+					"unit": "MB"
+				},
+				{
+					"help": "gzip each file once it rolls over.",
+					"key": "logging.file.compress",
+					"kind": "toggle",
+					"label": "Compress rotated files"
+				},
+				{
+					"help": "Delete rotated files older than this. 0 = keep forever.",
+					"key": "logging.file.prune_after_days",
+					"kind": "int",
+					"label": "Delete after",
+					"unit": "days"
+				},
+				{
+					"key": "logging.file.format",
+					"kind": "enum",
+					"label": "Format",
+					"options": [
+						{
+							"label": "Pretty",
+							"value": "pretty"
+						},
+						{
+							"label": "Compact",
+							"value": "compact"
+						},
+						{
+							"label": "JSON",
+							"value": "json"
+						}
+					]
+				}
+			],
+			"id": "logging.file",
+			"title": "Logging \u2014 file"
+		},
+		{
+			"fields": [
+				{
+					"key": "logging.rules_file.enabled",
+					"kind": "toggle",
+					"label": "Enabled"
+				},
+				{
+					"key": "logging.rules_file.dir",
+					"kind": "text",
+					"label": "Directory",
+					"render": "path"
+				},
+				{
+					"key": "logging.rules_file.prefix",
+					"kind": "text",
+					"label": "Filename prefix"
+				},
+				{
+					"key": "logging.rules_file.rotation",
+					"kind": "enum",
+					"label": "Rotation",
+					"options": [
+						{
+							"label": "Every minute",
+							"value": "minutely"
+						},
+						{
+							"label": "Hourly",
+							"value": "hourly"
+						},
+						{
+							"label": "Daily",
+							"value": "daily"
+						},
+						{
+							"label": "Weekly",
+							"value": "weekly"
+						},
+						{
+							"label": "Never",
+							"value": "never"
+						}
+					]
+				},
+				{
+					"key": "logging.rules_file.max_size_mb",
+					"kind": "int",
+					"label": "Rotate at",
+					"unit": "MB"
+				},
+				{
+					"key": "logging.rules_file.compress",
+					"kind": "toggle",
+					"label": "Compress rotated files"
+				},
+				{
+					"key": "logging.rules_file.prune_after_days",
+					"kind": "int",
+					"label": "Delete after",
+					"unit": "days"
+				},
+				{
+					"key": "logging.rules_file.format",
+					"kind": "enum",
+					"label": "Format",
+					"options": [
+						{
+							"label": "Pretty",
+							"value": "pretty"
+						},
+						{
+							"label": "Compact",
+							"value": "compact"
+						},
+						{
+							"label": "JSON",
+							"value": "json"
+						}
+					]
+				}
+			],
+			"help": "A separate file carrying only rule-engine lines, so automations are readable on their own.",
+			"id": "logging.rules_file",
+			"title": "Logging \u2014 rules file"
+		},
+		{
+			"fields": [
+				{
+					"key": "logging.syslog.enabled",
+					"kind": "toggle",
+					"label": "Enabled"
+				},
+				{
+					"key": "logging.syslog.host",
+					"kind": "host",
+					"label": "Host",
+					"visible_when": {
+						"field": "logging.syslog.enabled",
+						"truthy": true
+					}
+				},
+				{
+					"key": "logging.syslog.port",
+					"kind": "port",
+					"label": "Port",
+					"visible_when": {
+						"field": "logging.syslog.enabled",
+						"truthy": true
+					}
+				},
+				{
+					"key": "logging.syslog.transport",
+					"kind": "enum",
+					"label": "Transport",
+					"options": [
+						{
+							"label": "UDP",
+							"value": "udp"
+						},
+						{
+							"label": "TCP",
+							"value": "tcp"
+						},
+						{
+							"label": "Unix socket",
+							"value": "unix"
+						}
+					],
+					"visible_when": {
+						"field": "logging.syslog.enabled",
+						"truthy": true
+					}
+				},
+				{
+					"help": "RFC 5424 is the modern one; 3164 is BSD syslog.",
+					"key": "logging.syslog.protocol",
+					"kind": "enum",
+					"label": "Protocol",
+					"options": [
+						{
+							"label": "RFC 5424",
+							"value": "rfc5424"
+						},
+						{
+							"label": "RFC 3164",
+							"value": "rfc3164"
+						}
+					],
+					"visible_when": {
+						"field": "logging.syslog.enabled",
+						"truthy": true
+					}
+				},
+				{
+					"help": "user, or local0 \u2026 local7.",
+					"key": "logging.syslog.facility",
+					"kind": "text",
+					"label": "Facility",
+					"visible_when": {
+						"field": "logging.syslog.enabled",
+						"truthy": true
+					}
+				},
+				{
+					"help": "The process name reported to syslog.",
+					"key": "logging.syslog.app_name",
+					"kind": "text",
+					"label": "App name",
+					"visible_when": {
+						"field": "logging.syslog.enabled",
+						"truthy": true
+					}
+				},
+				{
+					"help": "Overrides the global level for syslog only. Empty = follow it.",
+					"key": "logging.syslog.level",
+					"kind": "text",
+					"label": "Level",
+					"visible_when": {
+						"field": "logging.syslog.enabled",
+						"truthy": true
+					}
+				}
+			],
+			"id": "logging.syslog",
+			"title": "Logging \u2014 syslog"
+		},
+		{
+			"fields": [
+				{
+					"key": "logging.stream.enabled",
+					"kind": "toggle",
+					"label": "Enabled"
+				},
+				{
+					"help": "How many recent lines a client sees when it connects.",
+					"key": "logging.stream.ring_buffer_size",
+					"kind": "int",
+					"label": "Backlog",
+					"unit": "lines"
+				}
+			],
+			"help": "The feed behind Administration \u2192 Logs.",
+			"id": "logging.stream",
+			"title": "Logging \u2014 live stream"
+		},
+		{
+			"fields": [
+				{
+					"default": false,
+					"help": "Serve a UI from core at /.",
+					"key": "web_admin.enabled",
+					"kind": "toggle",
+					"label": "Serve the bundled UI"
+				}
+			],
+			"help": "The UI core used to serve itself. hc-web is its own container now, so this stays off unless you are running the retired layout.",
+			"id": "web_admin",
+			"title": "Bundled web UI"
+		}
+	],
+	"title": "Configuration"
+}

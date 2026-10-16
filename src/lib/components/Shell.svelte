@@ -13,11 +13,13 @@
 	import Bell from '@lucide/svelte/icons/bell';
 	import Settings from '@lucide/svelte/icons/settings';
 	import House from '@lucide/svelte/icons/house';
-	import { SIDEBAR, barFor, isAt, pageKey, titleFor, withEdit } from '#lib/nav.js';
+	import { SIDEBAR, backFor, barFor, isAt, pageKey, titleFor, withEdit } from '#lib/nav.js';
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import { apply, barOf, ref } from '#lib/layers.js';
 	import { personal } from '#lib/personal.svelte.js';
 	import { household } from '#lib/household.svelte.js';
-	import { editing } from '#lib/edit.svelte.js';
+	import { editing, LEAVE } from '#lib/edit.svelte.js';
+	import { ask } from '#lib/confirm.svelte.js';
 	import { customise } from '#lib/customise.svelte.js';
 	import { view } from '#lib/view.svelte.js';
 	import EditBar from './EditBar.svelte';
@@ -36,6 +38,7 @@
 
 	const pathname = $derived(page.url.pathname);
 	const title = $derived(heading.text ?? titleFor(pathname));
+	const back = $derived(heading.back ?? backFor(pathname));
 	const bar = $derived(
 		barFor(
 			barOf(
@@ -70,7 +73,15 @@
 		if (editing.count === 0 || nav.to === null) return;
 		const staying = nav.to.url.pathname === pathname && nav.to.url.searchParams.has('edit');
 		if (staying) return;
-		if (!confirm('Leave without saving your changes to the shared page?')) nav.cancel();
+		nav.cancel();
+		// Closing the tab: the browser asks; a page can't.
+		if (nav.type === 'leave') return;
+		const to = nav.to.url;
+		void ask(LEAVE).then((yes) => {
+			if (!yes) return;
+			editing.cancel();
+			void goto(`${to.pathname}${to.search}${to.hash}`);
+		});
 	});
 	const initial = $derived((session.me?.username ?? '?').slice(0, 1).toUpperCase());
 	const liveLabel = $derived(
@@ -137,7 +148,12 @@
 	<div class="body">
 		<UnlockedBar />
 		<header>
-			<h1>{title}</h1>
+			<div class="titles">
+				{#if back}<a class="back" href={back.href}
+						><ChevronLeft size={16} strokeWidth={2} aria-hidden="true" />{back.label}</a
+					>{/if}
+				<h1>{title}</h1>
+			</div>
 			<span
 				class="live"
 				data-state={live.state}
@@ -227,9 +243,26 @@
 		padding: calc(env(safe-area-inset-top) + 14px) var(--space-3) var(--space-2) var(--space-5);
 		background: var(--bg);
 	}
+	.titles {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+	.back {
+		align-self: flex-start;
+		display: flex;
+		align-items: center;
+		gap: 2px;
+		margin-left: -4px;
+		color: var(--ink-muted);
+		font-size: 14px;
+		font-weight: 600;
+		text-decoration: none;
+	}
 	h1 {
 		margin: 0;
-		flex: 1;
 		font-size: 28px;
 		font-weight: 700;
 		letter-spacing: -0.01em;

@@ -89,3 +89,12 @@ class Editing {
 }
 
 export const editing = new Editing();
+
+/** The question before edits to the shared page are dropped by leaving. */
+export const LEAVE = {
+	title: 'Leave without saving?',
+	body: 'Your changes to the shared page haven’t been saved.',
+	go: 'Leave',
+	stay: 'Keep editing',
+	danger: true
+};

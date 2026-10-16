@@ -11,9 +11,11 @@
 		"start": "node server/index.js",
 		"preview": "npm run build && npm start",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"test": "vitest run",
 		"format": "prettier --write .",
-		"lint": "prettier --check .",
+		"lint": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+		"format:check": "prettier --check .",
 		"budget": "node scripts/budget.js"
 	},
 	"devDependencies": {

@@ -49,7 +49,7 @@
 	let values = $state<Record<string, Record<string, unknown>>>({});
 	let ran = $state<string | null>(null);
 	async function run(a: ActionView) {
-		if (!goAhead(id, card.kind, `${a.label} — ${card.name}?`, a.confirm)) return;
+		if (!(await goAhead(id, card.kind, `${a.label} — ${card.name}?`, a.confirm))) return;
 		if (await commands.act(id, a.id, withoutAction(actionBody(a, values[a.id] ?? {})))) {
 			ran = a.id;
 			setTimeout(() => {
@@ -140,8 +140,8 @@
 				aria-pressed={sw.on}
 				aria-label="Power"
 				disabled={off}
-				onclick={() => {
-					if (goAhead(id, card.kind, `Turn ${card.name} ${sw.on ? 'off' : 'on'}?`))
+				onclick={async () => {
+					if (await goAhead(id, card.kind, `Turn ${card.name} ${sw.on ? 'off' : 'on'}?`))
 						set({ on: !sw.on });
 				}}><Power size={22} /></button
 			>
@@ -154,8 +154,8 @@
 				on={sw.on}
 				label={view.name}
 				disabled={off}
-				onchange={(on) => {
-					if (goAhead(id, card.kind, `Turn ${card.name} ${on ? 'on' : 'off'}?`))
+				onchange={async (on) => {
+					if (await goAhead(id, card.kind, `Turn ${card.name} ${on ? 'on' : 'off'}?`))
 						set({ [sw.attr]: on });
 				}}
 			/>
@@ -165,8 +165,8 @@
 		<button
 			class="wide"
 			disabled={off}
-			onclick={() => {
-				if (lk.locked && !goAhead(id, card.kind, `Unlock ${card.name}?`)) return;
+			onclick={async () => {
+				if (lk.locked && !(await goAhead(id, card.kind, `Unlock ${card.name}?`))) return;
 				set({ locked: !lk.locked });
 			}}
 		>

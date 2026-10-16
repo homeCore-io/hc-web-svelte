@@ -10,6 +10,7 @@ import House from '@lucide/svelte/icons/house';
 import LayoutGrid from '@lucide/svelte/icons/layout-grid';
 import Sparkles from '@lucide/svelte/icons/sparkles';
 import Bell from '@lucide/svelte/icons/bell';
+import { settingsItem } from './settings.js';
 import Menu from '@lucide/svelte/icons/menu';
 import Search from '@lucide/svelte/icons/search';
 import DoorOpen from '@lucide/svelte/icons/door-open';
@@ -76,15 +77,16 @@ export function titleFor(pathname: string): string {
 		'/alerts': 'Alerts',
 		'/more': 'More',
 		'/settings': 'Settings',
-		'/settings/rooms': 'Rooms',
-		'/settings/devices': 'Devices',
-		'/settings/asking': 'Asking first',
-		'/settings/look': 'Look',
 		'/settings/alerts': 'Alert rules',
-		'/settings/displays': 'Displays',
 		'/me': 'Me'
 	};
-	return known[pathname] ?? 'homeCore';
+	const setting = /^\/settings\/([^/]+)$/.exec(pathname);
+	return known[pathname] ?? (setting ? settingsItem(setting[1]!)?.label : undefined) ?? 'homeCore';
+}
+
+/** Where the header's back link goes: a setting goes back to Settings. */
+export function backFor(pathname: string): { href: string; label: string } | null {
+	return /^\/settings\/[^/]+$/.test(pathname) ? { href: '/settings', label: 'Settings' } : null;
 }
 
 /**

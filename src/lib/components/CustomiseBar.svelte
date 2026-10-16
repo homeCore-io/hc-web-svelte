@@ -5,6 +5,7 @@
 <script lang="ts">
 	import { customise } from '#lib/customise.svelte.js';
 	import { personal } from '#lib/personal.svelte.js';
+	import { ask } from '#lib/confirm.svelte.js';
 
 	let { page, home = false }: { page: string; home?: boolean } = $props();
 	const changed = $derived(
@@ -21,8 +22,13 @@
 		<button
 			class="reset"
 			disabled={!changed}
-			onclick={() => {
-				if (!confirm('Put this page back to how everyone else sees it?')) return;
+			onclick={async () => {
+				const yes = await ask({
+					title: 'Put this page back to how everyone else sees it?',
+					body: 'Your own changes to it are dropped.',
+					go: 'Reset to shared'
+				});
+				if (!yes) return;
 				void personal.resetPage(page);
 				if (home) void personal.change((d) => ({ ...d, favourites: [] }));
 			}}>Reset to shared</button

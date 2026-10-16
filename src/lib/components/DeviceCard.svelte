@@ -75,17 +75,22 @@
 		void commands.set(device.device_id, card.kind, want, device.attributes);
 	}
 
-	function run(control: Control) {
+	async function run(control: Control) {
 		switch (control.kind) {
 			case 'lock':
 				// Unlocking asks where someone said it should (C4); locking never does.
-				if (control.locked && !goAhead(device.device_id, card.kind, `Unlock ${name}?`)) return;
+				if (control.locked && !(await goAhead(device.device_id, card.kind, `Unlock ${name}?`)))
+					return;
 				return set({ locked: !control.locked });
 			case 'play':
 				return void commands.act(device.device_id, control.action);
 			case 'timer':
 				if (
-					!goAhead(device.device_id, card.kind, `${control.running ? 'Cancel' : 'Start'} ${name}?`)
+					!(await goAhead(
+						device.device_id,
+						card.kind,
+						`${control.running ? 'Cancel' : 'Start'} ${name}?`
+					))
 				)
 					return;
 				return void commands.timer(
@@ -95,7 +100,14 @@
 						: { command: 'start', duration_secs: control.durationSecs }
 				);
 			case 'button':
-				if (!goAhead(device.device_id, card.kind, `${control.label} — ${name}?`, control.confirm))
+				if (
+					!(await goAhead(
+						device.device_id,
+						card.kind,
+						`${control.label} — ${name}?`,
+						control.confirm
+					))
+				)
 					return;
 				return void commands.act(device.device_id, control.action);
 		}
@@ -120,8 +132,8 @@
 			on={c.on}
 			label={name}
 			disabled={off}
-			onchange={(on) => {
-				if (goAhead(device.device_id, card.kind, `Turn ${name} ${on ? 'on' : 'off'}?`))
+			onchange={async (on) => {
+				if (await goAhead(device.device_id, card.kind, `Turn ${name} ${on ? 'on' : 'off'}?`))
 					set({ [c.attr]: on });
 			}}
 		/>

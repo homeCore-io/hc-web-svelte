@@ -232,3 +232,87 @@ visual editor; the cost is that both editors must agree on everything.
 
 **Why:** the user's choice. Svelte 5 is compiler-based with a large community,
 and ha-fusion — the community dashboard built for speed — uses it.
+
+---
+
+# From 02 — Navigation and structure
+
+## N1 — One app, household side first (2026-10-15)
+
+- This app becomes the only homeCore web UI. A **Settings** area will
+  eventually hold everything `hc-web-flutter` does — devices, rooms, scenes,
+  modes, helpers, automations, plugins, users, displays, themes, alerts,
+  system.
+- **Round one** builds the household side plus the admin parts it depends on:
+  rooms (D10), device names and rooms, displays (D7).
+- `hc-web-flutter` stays in use for every other admin task until its
+  replacement is built.
+
+**Why:** one design system and one place to learn; effort goes first where the
+whole household is.
+
+## N2 — Phone bar: Home · Pages · Scenes · More, configurable (2026-10-15)
+
+- **Default:** Home · Pages · Scenes · More. Rooms are reached from Home;
+  search and alerts are in the header; More holds Me and, for admins,
+  Settings.
+- **Configurable.** Which destinations sit in the bar, and in what order, can
+  be changed. Assumed until said otherwise: the household default is set by an
+  admin, and each person may change their own (the D6 personal layer).
+
+## N3 — Laptop and desktop: a collapsible sidebar (2026-10-15)
+
+- A left sidebar: Home, Pages, Scenes, Alerts, the household's rooms in order,
+  then Settings (admins) and Me. It collapses to an icon rail.
+- Tablet landscape uses the rail; tablet portrait behaves like the phone.
+
+## N4 — Rooms are reached from Home (2026-10-15)
+
+- On phones, Home's main body is the room list; a room opens from there. No
+  Rooms destination by default — though a person can add one to their bar
+  (N2).
+- On larger screens, rooms are also listed in the sidebar (N3).
+
+## N5 — An open device popup is part of the address (2026-10-15)
+
+- The address carries the open device (for example `?device={id}` over
+  whatever page it opened on).
+- So the phone's back gesture closes the popup rather than leaving the page, a
+  popup can be linked to directly, and a reload keeps it open. Edit mode is in
+  the address the same way.
+
+## N6 — Personalise and Edit are different modes (2026-10-15)
+
+- **Personalise** (everyone): a "Customise" item in the page's menu enters it.
+  It is labelled "Only you see these changes" and offers "Reset to shared".
+  **Long-press on a card** is a shortcut to star or hide it for yourself.
+- **Edit** (people with edit rights): the ✎ in the header. Visibly different —
+  frame and toolbar — and labelled "Editing the shared page — everyone sees
+  this", with Done and Cancel.
+
+**Why:** a person hiding a card for themselves must never hide it for the
+household.
+
+## N7 — Alerts are the house's own state (2026-10-15)
+
+- Alerts are what the house's state implies: doors or windows open, devices
+  offline, low batteries, plugin problems.
+- A summary on Home and a bell with a count in the header, opening the list.
+- Notifications that automations send to people are **not** alerts here; they
+  go to their own channels (phone push and so on).
+
+## N8 — One search for everything (2026-10-15)
+
+- One search, from the header or ⌘K / Ctrl-K, finds devices, rooms, scenes,
+  pages and — for admins — settings, limited to what the person may see.
+- Choosing a device opens its popup (N5); a room or page goes there.
+
+## N9 — Displays: tabs and swipe; a PIN unlocks the full app for a while (2026-10-15)
+
+- A display with several pages shows a small row of tabs, and swiping moves
+  between pages.
+- A person can **unlock the full app on a display with their own PIN** for a
+  short time; it then locks back to the display's pages.
+- **[core]:** needs per-user PINs and a short-lived session on a display's
+  device — the PIN identifies the person, and while unlocked the display acts
+  with that person's rights, not its own.

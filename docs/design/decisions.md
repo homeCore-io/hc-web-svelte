@@ -613,3 +613,32 @@ Settings → R6 alerts → R7 displays.
 
 - Work continues from one milestone to the next; each is tried and reviewed
   when convenient rather than blocking the next.
+
+---
+
+# Made while building
+
+## B1 — The session lives in httpOnly cookies, not in the app (R0, 2026-10-15)
+
+- Refines S4. Signing in goes through the UI server (`/ui/auth/login`), which
+  passes the password to homeCore and keeps homeCore's access and refresh
+  tokens in `HttpOnly`, `SameSite=Strict` cookies. Everything passed through to
+  homeCore gets the access token added by the UI server, including the event
+  stream (as its `token` parameter).
+- The app's code never holds a credential, so a script injected into the page
+  has nothing to steal, and no URL the page builds carries a token.
+- Refresh tokens are single-use in homeCore (reuse revokes the chain), so the
+  UI server makes at most one refresh per refresh token and shares the result.
+
+## B2 — The UI server never forwards an anonymous request (R0, 2026-10-15)
+
+- Found while testing R0 against the house: homeCore treats whitelisted
+  addresses as admin with no token, the UI server's own address (fractal,
+  10.0.10.200) is whitelisted on the house's homeCore, and every request
+  through the UI server comes from that address.
+- So the UI server refuses (401) any request to homeCore that carries no
+  session and no `Authorization` header, except signing in and refreshing. A
+  credential always wins over the whitelist in homeCore.
+- **Open for the house:** anything else on fractal that passes requests to
+  homeCore (the old hc-web-lit dev server) has the same exposure; and the
+  whitelist itself is described in homeCore as deprecated.

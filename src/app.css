@@ -1,0 +1,182 @@
+/*
+ * The design system's ground (06 — V1).
+ *
+ * One set of shapes, type and space; two sets of colour. A theme is only the
+ * colour tokens, so anything drawn with them — including a third-party card
+ * later (D9b) — follows the theme without knowing which one it is in.
+ *
+ * Light is the default. Dark applies when the device prefers it, unless the
+ * person chose light; or when the person chose dark (V2). `app.html` sets
+ * `data-theme` before the first paint.
+ */
+
+:root {
+	/* Colour — light (Calm) */
+	--bg: #f3f0e8;
+	--surface: #ffffff;
+	--surface-2: #eeeae0;
+	--sheet: #fbfaf6;
+	--side: #eeeae0;
+	--line: #e2dccf;
+	--card-line: #e9e3d6;
+	--ink: #1e2126;
+	--ink-muted: #5d6470;
+	--accent: #9a4a07;
+	--accent-ink: #ffffff;
+	--lit-bg: #fbe3bf;
+	--lit-ink: #8a4206;
+	--lit-card-line: #e9e3d6;
+	--track-on: #c9701a;
+	--track-off: #cfc8ba;
+	--fill: #f6c987;
+	--alert: #b42318;
+	--alert-ink: #ffffff;
+	--alert-bg: #fce9e6;
+	--alert-line: #f2c2bb;
+	--scrim: rgba(30, 33, 38, 0.35);
+	--shadow: 0 1px 2px rgba(60, 45, 20, 0.06);
+	--nav-on: #e4ddcd;
+
+	/* Type */
+	--font: 'Figtree', system-ui, sans-serif;
+	--font-num: 'IBM Plex Mono', ui-monospace, monospace;
+
+	/* Shape and space */
+	--radius: 14px;
+	--radius-chip: 11px;
+	--radius-sheet: 24px;
+	--space-1: 4px;
+	--space-2: 8px;
+	--space-3: 12px;
+	--space-4: 16px;
+	--space-5: 20px;
+	--space-6: 24px;
+	--space-8: 32px;
+	--target: 44px;
+
+	/* Motion */
+	--quick: 150ms;
+	--sheet-in: 250ms;
+
+	color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light']) {
+		--bg: #0d1015;
+		--surface: #161a21;
+		--surface-2: #202630;
+		--sheet: #12161c;
+		--side: #0a0d11;
+		--line: #2a303b;
+		--card-line: #232934;
+		--ink: #e9edf2;
+		--ink-muted: #9aa4b2;
+		--accent: #f2b544;
+		--accent-ink: #1a1306;
+		--lit-bg: #3d3014;
+		--lit-ink: #f7c866;
+		--lit-card-line: #5a4520;
+		--track-on: #e0a23a;
+		--track-off: #3a414d;
+		--fill: #b9862e;
+		--alert: #ff7a6b;
+		--alert-ink: #1a0806;
+		--alert-bg: #33191a;
+		--alert-line: #5c2a27;
+		--scrim: rgba(0, 0, 0, 0.55);
+		--shadow: none;
+		--nav-on: #1e232c;
+		color-scheme: dark;
+	}
+}
+
+:root[data-theme='dark'] {
+	--bg: #0d1015;
+	--surface: #161a21;
+	--surface-2: #202630;
+	--sheet: #12161c;
+	--side: #0a0d11;
+	--line: #2a303b;
+	--card-line: #232934;
+	--ink: #e9edf2;
+	--ink-muted: #9aa4b2;
+	--accent: #f2b544;
+	--accent-ink: #1a1306;
+	--lit-bg: #3d3014;
+	--lit-ink: #f7c866;
+	--lit-card-line: #5a4520;
+	--track-on: #e0a23a;
+	--track-off: #3a414d;
+	--fill: #b9862e;
+	--alert: #ff7a6b;
+	--alert-ink: #1a0806;
+	--alert-bg: #33191a;
+	--alert-line: #5c2a27;
+	--scrim: rgba(0, 0, 0, 0.55);
+	--shadow: none;
+	--nav-on: #1e232c;
+	color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+	height: 100%;
+	background: var(--bg);
+	color: var(--ink);
+	font-family: var(--font);
+	font-size: 14px;
+	-webkit-font-smoothing: antialiased;
+	-webkit-text-size-adjust: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+	font: inherit;
+	color: inherit;
+}
+
+button {
+	cursor: pointer;
+}
+
+a {
+	color: inherit;
+}
+
+:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+.num {
+	font-family: var(--font-num);
+	font-variant-numeric: tabular-nums;
+}
+
+.section-label {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--ink-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		transition-duration: 0ms !important;
+		animation-duration: 0ms !important;
+	}
+}

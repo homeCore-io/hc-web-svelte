@@ -1,0 +1,13 @@
+{
+	"extends": "$app/tsconfig",
+	"include": ["src", "server", "scripts", "*"],
+	"exclude": ["src/service-worker", "build", ".svelte-kit/output"],
+	"compilerOptions": {
+		"allowJs": true,
+		"checkJs": true,
+		"strict": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"noUncheckedIndexedAccess": true
+	}
+}

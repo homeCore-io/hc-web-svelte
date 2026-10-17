@@ -8,6 +8,8 @@
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { BAR_SIZE, PALETTES, barOf, paletteOf } from '#lib/layers.js';
 	import BarChooser from '#lib/components/BarChooser.svelte';
+	import { roleName } from '#lib/people.js';
+	import { changeMyPassword } from '#lib/peopleAdmin.js';
 
 	// ---- the phone bar (N2): their own, else the household's ----
 	const bar = $derived(
@@ -74,6 +76,20 @@
 		await session.load();
 	}
 
+	// ---- their password (A5): every session ends, this one too ----
+	let changingPassword = $state(false);
+	let current = $state('');
+	let next = $state('');
+	let passwordNote = $state<string | null>(null);
+	async function savePassword(e: SubmitEvent) {
+		e.preventDefault();
+		if (next.length < 8) return void (passwordNote = 'The new one needs at least 8 characters.');
+		const r = await changeMyPassword(current, next);
+		if (!r.ok) return void (passwordNote = r.error);
+		await session.signOut();
+		void goto('/login?changed=1');
+	}
+
 	async function signOut() {
 		await session.signOut();
 		void goto('/login');
@@ -83,7 +99,7 @@
 <div class="stack">
 	<section>
 		<p class="who">{session.me?.username}</p>
-		<p class="role">{session.me?.role}</p>
+		<p class="role">{session.me ? roleName(session.me.role) : ''}</p>
 	</section>
 
 	<section>
@@ -161,6 +177,39 @@
 		{#if pinNote}<p class="note" role="status">{pinNote}</p>{/if}
 	</section>
 
+	{#if !session.isDisplay && !session.me?.unlocked_on}
+		<section>
+			<h2 class="section-label" id="password">Password</h2>
+			{#if changingPassword}
+				<form class="pin" onsubmit={savePassword}>
+					<input
+						type="password"
+						autocomplete="current-password"
+						placeholder="Your password now"
+						aria-label="Your password now"
+						bind:value={current}
+						required
+					/>
+					<input
+						type="password"
+						autocomplete="new-password"
+						placeholder="New password"
+						aria-label="New password"
+						bind:value={next}
+						required
+					/>
+					<button type="submit">Change</button>
+				</form>
+				<p class="note">
+					You’re signed out everywhere, this screen too, and sign in with the new one.
+				</p>
+			{:else}
+				<button class="link" onclick={() => (changingPassword = true)}>Change your password</button>
+			{/if}
+			{#if passwordNote}<p class="note" role="status">{passwordNote}</p>{/if}
+		</section>
+	{/if}
+
 	<button class="out" onclick={signOut}>Sign out</button>
 </div>
 
@@ -199,7 +248,6 @@
 	.role {
 		margin: 0;
 		color: var(--ink-muted);
-		text-transform: capitalize;
 	}
 	.segmented {
 		display: grid;

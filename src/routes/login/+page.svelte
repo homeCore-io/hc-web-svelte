@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { session } from '#lib/me.svelte.js';
 
 	let username = $state('');
@@ -21,6 +22,9 @@
 <main>
 	<form onsubmit={submit}>
 		<h1>homeCore</h1>
+		{#if page.url.searchParams.get('changed')}
+			<p class="said" role="status">Your password is changed. Sign in with the new one.</p>
+		{/if}
 		<label>
 			<span>Username</span>
 			<input bind:value={username} autocomplete="username" autocapitalize="none" required />
@@ -36,6 +40,11 @@
 </main>
 
 <style>
+	.said {
+		margin: 0;
+		color: var(--ink-muted);
+		font-size: 14px;
+	}
 	main {
 		min-height: 100dvh;
 		display: flex;

@@ -100,11 +100,7 @@ export const SETTINGS: SettingsItem[] = [
 		label: 'People & access',
 		group: 'system',
 		words: 'users people roles passwords api keys pin access',
-		detail: 'Accounts, roles and API keys',
-		coming: {
-			what: 'Accounts for everyone in the house, roles, and API keys.',
-			when: 'A5, people and access'
-		}
+		detail: 'Accounts, roles and API keys'
 	},
 	{
 		slug: 'configuration',

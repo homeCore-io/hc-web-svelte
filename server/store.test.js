@@ -37,6 +37,16 @@ describe('the document store', () => {
 		expect((await store.read('person', 'abc'))?.version).toBe(1);
 	});
 
+	it('removes a document, after any write already on its way', async () => {
+		const store = await fresh();
+		const writing = store.write('person', 'abc', { n: 1 }, 0);
+		const removed = store.remove('person', 'abc');
+		await writing;
+		expect(await removed).toBe(true);
+		expect(await store.read('person', 'abc')).toBeUndefined();
+		expect(await store.remove('person', 'abc')).toBe(false);
+	});
+
 	it('leaves no temporary files behind', async () => {
 		const store = await fresh();
 		await store.write('person', 'abc', { n: 1 }, 0);

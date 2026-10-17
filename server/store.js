@@ -14,7 +14,7 @@
  * Writes to one document are queued, so two arriving together are judged one
  * after the other against what the first actually left.
  */
-import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
@@ -108,6 +108,38 @@ export class DocStore {
 			}
 		}
 		return { ok: true, doc };
+	}
+
+	/**
+	 * Remove a document — a person who no longer lives here. Queued behind any
+	 * write to it, so a write in flight can't bring it back. Reports whether
+	 * there was one.
+	 * @param {string} kind
+	 * @param {string} id
+	 * @returns {Promise<boolean>}
+	 */
+	remove(kind, id) {
+		const key = `${kind}/${id}`;
+		const before = this.queues.get(key) ?? Promise.resolve();
+		const run = before.then(async () => {
+			const file = this.file(kind, id);
+			if ((await this.read(kind, id)) === undefined) return false;
+			await rm(file, { force: true });
+			for (const listener of this.listeners) {
+				try {
+					listener({ kind, id, version: 0 });
+				} catch {
+					// As for writes.
+				}
+			}
+			return true;
+		});
+		const settled = run.catch(() => {});
+		this.queues.set(key, settled);
+		void settled.then(() => {
+			if (this.queues.get(key) === settled) this.queues.delete(key);
+		});
+		return run;
 	}
 
 	/**

@@ -173,7 +173,9 @@
 		if (people && people.length > 1 && people.every((p) => p.role === 'admin'))
 			out.push({
 				title: `All ${people.length} people are admins`,
-				detail: 'Family members can have accounts that can’t change settings (A5).',
+				detail: 'Give family members “Household member”: they use the house, and can’t change it.',
+				href: '/settings/people/add',
+				action: 'Add a person',
 				bad: false
 			});
 		return out;

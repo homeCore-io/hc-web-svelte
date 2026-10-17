@@ -255,7 +255,10 @@
 				<h2>Where it’s used</h2>
 				{#if uses && uses.rules.length + uses.scenes.length + uses.alertRules.length > 0}
 					<ul class="uses">
-						{#each uses.rules as r (r.id)}<li>{r.name} <span class="muted">rule</span></li>{/each}
+						{#each uses.rules as r (r.id)}<li>
+								<a href={`/settings/automations/${encodeURIComponent(r.id)}`}>{r.name}</a>
+								<span class="muted">rule</span>
+							</li>{/each}
 						{#each uses.scenes as s (s.id)}<li>{s.name} <span class="muted">scene</span></li>{/each}
 						{#each uses.alertRules as a (a.id)}<li>
 								<a href="/settings/alerts">{a.name}</a> <span class="muted">alert rule</span>

@@ -57,11 +57,7 @@ export const SETTINGS: SettingsItem[] = [
 		label: 'Automations',
 		group: 'house',
 		words: 'automations rules triggers conditions actions',
-		detail: 'Rules',
-		coming: {
-			what: 'The house’s rules, shown in words, and an editor for them.',
-			when: 'A2 and A3, automations'
-		}
+		detail: 'Rules, in words: what each does and when it last ran'
 	},
 	{
 		slug: 'alerts',

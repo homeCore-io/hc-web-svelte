@@ -429,7 +429,9 @@
 								<p class="quiet">None yet. Rules call it <code>{helper.device_id}</code>.</p>
 							{:else}
 								<ul>
-									{#each using as r (r.id)}<li>{r.name}</li>{/each}
+									{#each using as r (r.id)}<li>
+											<a href={`/settings/automations/${encodeURIComponent(r.id)}`}>{r.name}</a>
+										</li>{/each}
 								</ul>
 							{/if}
 						</div>

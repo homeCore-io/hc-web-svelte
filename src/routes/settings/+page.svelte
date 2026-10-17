@@ -71,7 +71,8 @@
 	const allowed = (item: SettingsItem) => {
 		if (session.isAdmin) return true;
 		if (item.group === 'system' || item.coming) return false;
-		if (item.slug === 'alerts') return session.can('automations:write');
+		if (item.slug === 'alerts' || item.slug === 'automations')
+			return session.can('automations:write');
 		if (item.slug === 'displays') return false;
 		return session.can('content:write');
 	};

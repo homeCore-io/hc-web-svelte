@@ -57,13 +57,13 @@ true`. A visual editor cannot build or read that without parsing Rhai.
 (disabled) waits for a timer, re-checks the door and sends a Telegram
 message — what an alert time rule (H4) now does without a rule.
 
-**Two rules command a device that doesn't exist.** Both "Play Music on Close"
-rules send their "play a favourite" step to `bathroom`; the speaker is
-`sonos_bathroom`, which their first step uses correctly. homeCore has no device by that name, yet
-history records those steps as succeeded and `/automations/stale-refs`
-reports nothing. Whether a plugin answers to `bathroom` anyway is invisible
-from homeCore. A rule's references must be checked against the house, and a
-step sent to an unknown device must say so.
+**Rules name devices three ways.** By id, by name in rules
+(`canonical_name`), or by plain name — homeCore resolves all three when it
+loads a rule (`rule_resolver.rs`), and keeps the rule as written. Both "Play
+Music on Close" rules send their "play a favourite" step to `bathroom`: not a
+missing device, as this doc first said, but the Bathroom speaker's name in
+rules (`sonos_bathroom` is its id). A screen that reads a rule must resolve
+names the same way, or it reports working rules as broken.
 
 **Fire history is good.** Each firing records the triggering event (device,
 attribute, old and new value), every condition's result and every action's
@@ -146,7 +146,6 @@ as a block that opens the text form at that place.
 | **Structured checks in if/otherwise** (`Conditional.condition` takes a `Condition` as well as Rhai text) | A visual if/otherwise (E3) |
 | **"Also when homeCore starts, if already true"** on a device trigger | Replaces the start-up copies |
 | **Rule change events** (`rule_changed`, `rule_removed`) | Two admins never overwrite each other unseen |
-| **A step aimed at an unknown device is reported as such**, and stale references include every action target | The `bathroom` case: it reports success today |
 | **Test against a given event** (the test endpoint takes an event, e.g. one from history) | Replay a real firing safely (E6) |
 
 All are additive: existing rule files keep loading unchanged.

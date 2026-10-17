@@ -3,8 +3,8 @@
  * actions name a device, a helper or a mode. Rules nest (conditions inside
  * actions, parallel steps), so the whole rule is searched for the id.
  *
- * Until A2 reads rules properly this finds mentions, not meanings: it says a
- * rule names the device, not whether it starts or checks it.
+ * It finds mentions, not meanings — a rule names the device, not whether it
+ * starts or checks it; the rule's own page (A2) says that, in words.
  */
 export interface RuleRef {
 	id: string;
@@ -37,7 +37,7 @@ export function rulesNaming(rules: RuleRef[], ...ids: (string | undefined)[]): R
 /** All rules, or null when homeCore wouldn't say. */
 export async function loadRules(): Promise<RuleRef[] | null> {
 	try {
-		const res = await fetch('/api/v1/rules');
+		const res = await fetch('/api/v1/automations');
 		return res.ok ? ((await res.json()) as RuleRef[]) : null;
 	} catch {
 		return null;

@@ -4,7 +4,8 @@
 	offer by name.
 -->
 <script lang="ts">
-	import { newOf, vocabFields, type VariantSpec } from '#lib/ruleEdit.js';
+	import { newOf, vocabFields, withPickers, type VariantSpec } from '#lib/ruleEdit.js';
+	import { editor } from './context.js';
 	import { tagOf } from '#lib/ruleWords.js';
 	import FieldInput from './FieldInput.svelte';
 
@@ -20,7 +21,8 @@
 	const tag = $derived(tagOf(value)[0]);
 	const body = $derived(tagOf(value)[1]);
 	const spec = $derived(specs.find((s) => s.tag === tag));
-	const fields = $derived(spec ? vocabFields(spec) : []);
+	const ctx = editor();
+	const fields = $derived(spec ? vocabFields(spec).map((f) => withPickers(tag, f, ctx.lists)) : []);
 	const words = (t: string) => t.replace(/([a-z])([A-Z])/g, '$1 $2');
 
 	function set(name: string, v: unknown) {

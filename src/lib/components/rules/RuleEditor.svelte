@@ -6,29 +6,12 @@
 	without doing anything.
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { devices } from '#lib/devices.svelte.js';
-	import { rooms } from '#lib/rooms.svelte.js';
-	import { scenes } from '#lib/scenes.svelte.js';
-	import { session } from '#lib/me.svelte.js';
-	import { roomOf } from '#lib/summary.js';
-	import { loadConfig } from '#lib/config.js';
-	import { channelsOf } from '#lib/notify.js';
 	import { moreOf, sentence, tagOf, type Rule } from '#lib/ruleWords.js';
-	import { houseOf } from '#lib/ruleList.js';
 	import { tested, type Tested } from '#lib/ruleRuns.js';
-	import {
-		featuresOf,
-		newCheck,
-		newWhen,
-		problemsOf,
-		whensOf,
-		withWhens,
-		type Vocabulary
-	} from '#lib/ruleEdit.js';
-	import { loadVocabulary, testDraft, testRule } from '#lib/ruleAdmin.js';
+	import { newCheck, newWhen, problemsOf, whensOf, withWhens } from '#lib/ruleEdit.js';
+	import { testDraft, testRule } from '#lib/ruleAdmin.js';
 	import { same } from '#lib/ruleDraft.js';
-	import { provideEditor } from './context.js';
+	import { provideHouse } from './house.svelte.js';
 	import Words from './Words.svelte';
 	import WhenEdit from './WhenEdit.svelte';
 	import CheckEdit from './CheckEdit.svelte';
@@ -60,49 +43,9 @@
 	} = $props();
 
 	// ---- what the parts read ----
-	let vocab = $state<Vocabulary | null>(null);
-	let configChannels = $state<string[]>([]);
-	onMount(async () => {
-		vocab = await loadVocabulary();
-		// Channel names live in homecore.toml, which only an admin reads.
-		if (session.isAdmin) {
-			const got = await loadConfig();
-			if (typeof got !== 'string')
-				configChannels = channelsOf(got.config.parsed).map((c) => c.name);
-		}
-	});
-	const all = $derived(Object.values(devices.byId));
-	const house = $derived(houseOf(devices.byId, scenes.list, rules));
-	const features = $derived(featuresOf(vocab));
-	const usedChannels = $derived(
-		[...JSON.stringify(rules.map((r) => r.actions)).matchAll(/"channel":"([^"]+)"/g)].map(
-			(m) => m[1]!
-		)
-	);
-	provideEditor({
-		get house() {
-			return house;
-		},
-		get devices() {
-			return all;
-		},
-		roomOf: (d) => roomOf(d, rooms.list)?.name,
-		get scenes() {
-			return scenes.list;
-		},
-		get modes() {
-			return all.filter((d) => d.plugin_id === 'core.mode');
-		},
-		get vocab() {
-			return vocab;
-		},
-		get features() {
-			return features;
-		},
-		get channels() {
-			return [...new Set([...configChannels, ...usedChannels])];
-		}
-	});
+	const ctx = provideHouse(() => rules);
+	const house = $derived(ctx.house);
+	const features = $derived(ctx.features);
 
 	// ---- the draft ----
 	const changed = $derived(!saved || !same($state.snapshot(draft), saved));

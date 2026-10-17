@@ -32,6 +32,8 @@
 	import { deviceCall } from '#lib/deviceAdmin.js';
 	import ListDetail from '#lib/components/admin/ListDetail.svelte';
 	import Toggle from '#lib/components/Toggle.svelte';
+	import ModeCriteria from '#lib/components/rules/ModeCriteria.svelte';
+	import type { Rule } from '#lib/ruleWords.js';
 
 	let modes = $state<CoreMode[] | null>(null);
 	let rules = $state<RuleRef[]>([]);
@@ -82,7 +84,14 @@
 	const onAt = $derived(at(mode?.config.on_event, offsetOf('on_offset_minutes')));
 	const offAt = $derived(at(mode?.config.off_event, offsetOf('off_offset_minutes')));
 	const today = $derived(onAt !== null && offAt !== null ? spans(onAt, offAt) : []);
-	const using = $derived(mode ? rulesNaming(rules, mode.config.id) : []);
+	// The rules homeCore makes from a mode's definition switch it, not check it.
+	const using = $derived(
+		mode
+			? rulesNaming(rules, mode.config.id).filter(
+					(r) => !mode.definition?.generated_rule_ids.includes(r.id)
+				)
+			: []
+	);
 
 	const command = async (body: Record<string, unknown>) => {
 		if (!mode) return;
@@ -203,7 +212,8 @@
 						<div class="kind">
 							<strong>On while something is true</strong>
 							<span>Everyone’s away, it’s raining — checked as it changes.</span>
-							<span class="gap">Arrives with the rule editor (A3), which writes the condition.</span
+							<span class="gap"
+								>Make it here as “by hand and by rules”, then choose what turns it on and off.</span
 							>
 						</div>
 					</div>
@@ -266,11 +276,19 @@
 							Which sun event it follows is set in modes.toml; homeCore can’t change it from here
 							yet.
 						</p>
-					{:else if c.kind === 'manual' && mode.definition}
-						<p class="sub">
-							homeCore turns it on and off by a condition. Reading and changing that condition
-							arrives with the rule editor (A3).
-						</p>
+					{:else if c.kind === 'manual' && session.can('automations:write')}
+						{#key c.id}
+							<ModeCriteria
+								modeId={c.id}
+								modeName={c.name}
+								definition={mode.definition}
+								rules={rules as unknown as Rule[]}
+								onsaved={async () => {
+									await load();
+									rules = (await loadRules()) ?? [];
+								}}
+							/>
+						{/key}
 					{/if}
 
 					<div class="uses">

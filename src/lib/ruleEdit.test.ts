@@ -19,7 +19,10 @@ import {
 	whenKindOf,
 	whensOf,
 	withWhens,
-	blankRule
+	blankRule,
+	withPickers,
+	variablesIn,
+	type Lists
 } from './ruleEdit.js';
 
 const d = (id: string) => DEVICES.find((x) => x.device_id === id)!;
@@ -212,4 +215,70 @@ test('the rest of the vocabulary, as fields', () => {
 	expect(newOf(spec)).toEqual({ RepeatCount: { count: 0, actions: [] } });
 	expect(newOf({ tag: 'ExitRule', fields: [] })).toBe('ExitRule');
 	expect(after).toEqual({ triggers: true, ifChecks: true, testDraft: true, ruleEvents: true });
+});
+
+describe('pickers for what a field names', () => {
+	const lists: Lists = {
+		rules: [
+			{ id: 'r2', name: 'Porch at sunset' },
+			{ id: 'r1', name: 'Garage close' }
+		],
+		calendars: ['bins', 'holidays'],
+		modes: [{ id: 'mode_night', name: 'Night Mode' }],
+		variables: { hub: ['guests'], private: ['armed'], rule: ['count'] }
+	};
+	const text = (name: string) => ({ kind: 'text' as const, name, label: name });
+
+	test('chooses a rule, a calendar, a mode by name', () => {
+		const r = withPickers('PauseRule', text('rule_id'), lists);
+		expect(r).toMatchObject({ kind: 'choice', label: 'Rule' });
+		expect(r.kind === 'choice' && r.options.map((o) => o.label)).toEqual([
+			'Garage close',
+			'Porch at sunset'
+		]);
+		expect(withPickers('CalendarActive', text('calendar_id'), lists)).toMatchObject({
+			kind: 'choice',
+			options: [
+				{ value: 'bins', label: 'bins' },
+				{ value: 'holidays', label: 'holidays' }
+			]
+		});
+		expect(withPickers('X', text('mode_id'), lists)).toMatchObject({ kind: 'choice' });
+		expect(withPickers('CaptureDeviceState', text('device_ids'), lists)).toMatchObject({
+			kind: 'devices'
+		});
+	});
+
+	test('suggests variable names of the right sort, and leaves other fields alone', () => {
+		expect(withPickers('SetHubVariable', text('name'), lists)).toMatchObject({
+			suggest: ['guests']
+		});
+		expect(withPickers('PrivateBooleanIs', text('name'), lists)).toMatchObject({
+			suggest: ['armed']
+		});
+		expect(withPickers('Notify', text('name'), lists)).toEqual(text('name'));
+		// No calendars known: still words, so a rule can name one not loaded yet.
+		expect(
+			withPickers('CalendarEvent', text('calendar_id'), { ...lists, calendars: [] })
+		).toMatchObject({ kind: 'text' });
+	});
+
+	test('finds the variable names the house’s rules use', () => {
+		const rules = [
+			{
+				trigger: { HubVariableChanged: { name: 'guests' } },
+				actions: [
+					{
+						action: {
+							Conditional: {
+								condition: { PrivateBooleanIs: { name: 'armed', value: true } },
+								then_actions: [{ SetVariable: { name: 'count', op: 'Set', value: 1 } }]
+							}
+						}
+					}
+				]
+			}
+		];
+		expect(variablesIn(rules)).toEqual({ hub: ['guests'], private: ['armed'], rule: ['count'] });
+	});
 });

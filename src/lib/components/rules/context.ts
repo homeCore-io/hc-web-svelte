@@ -5,7 +5,7 @@
 import { getContext, setContext } from 'svelte';
 import type { CoreDevice } from '../../devices.js';
 import type { House } from '../../ruleWords.js';
-import type { Features, Vocabulary } from '../../ruleEdit.js';
+import type { Features, Lists, Vocabulary } from '../../ruleEdit.js';
 
 export interface EditorContext {
 	readonly house: House;
@@ -17,6 +17,8 @@ export interface EditorContext {
 	readonly features: Features;
 	/** Notification channels known: from settings when readable, and from rules. */
 	readonly channels: string[];
+	/** What a field naming a rule, calendar, mode or variable chooses from. */
+	readonly lists: Lists;
 }
 
 const KEY = Symbol('rule-editor');

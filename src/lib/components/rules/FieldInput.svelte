@@ -24,6 +24,8 @@
 	let jsonText = $state<string | null>(null);
 	let jsonError = $state<string | null>(null);
 	const id = `f-${Math.random().toString(36).slice(2, 8)}`;
+	/** Nothing chosen yet — homeCore starts a required name as empty words. */
+	const unset = (v: unknown) => v === undefined || v === null || v === '';
 </script>
 
 {#if field.kind === 'device'}
@@ -33,6 +35,27 @@
 		optional={field.optional}
 		onchange={(v) => onchange(v === '' && field.optional ? undefined : v)}
 	/>
+{:else if field.kind === 'devices'}
+	{@const ids = Array.isArray(value) ? (value as string[]) : []}
+	<div class="devices" role="group" aria-label={field.label}>
+		<span class="lbl">{field.label}</span>
+		{#each ids as d, i (i)}
+			<span class="one">
+				<Pick
+					value={d}
+					label={`${field.label} ${i + 1}`}
+					onchange={(v) => onchange(ids.map((x, j) => (j === i ? v : x)))}
+				/>
+				<button
+					type="button"
+					class="x"
+					aria-label="Remove"
+					onclick={() => onchange(ids.filter((_, j) => j !== i))}>×</button
+				>
+			</span>
+		{/each}
+		<button type="button" class="more" onclick={() => onchange([...ids, ''])}>+ A device</button>
+	</div>
 {:else if field.kind === 'bool'}
 	<label class="check"
 		><input
@@ -94,15 +117,13 @@
 			</span>
 		{:else if field.kind === 'choice'}
 			<select
-				value={value === undefined || value === null ? '' : String(value)}
+				value={unset(value) ? '' : String(value)}
 				onchange={(e) =>
 					onchange(field.numeric ? Number(e.currentTarget.value) : e.currentTarget.value)}
 			>
-				{#if value === undefined || value === null || !field.options.some((o) => o.value === String(value))}
-					<option
-						value={value === undefined || value === null ? '' : String(value)}
-						disabled={value === undefined || value === null}
-						>{value === undefined || value === null ? 'Choose…' : String(value)}</option
+				{#if unset(value) || !field.options.some((o) => o.value === String(value))}
+					<option value={unset(value) ? '' : String(value)} disabled={unset(value)}
+						>{unset(value) ? 'Choose…' : String(value)}</option
 					>
 				{/if}
 				{#each field.options as o (o.value)}<option value={o.value}>{o.label}</option>{/each}
@@ -176,6 +197,38 @@
 {/if}
 
 <style>
+	.devices {
+		flex-basis: 100%;
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+	.lbl {
+		font-size: 12px;
+		font-weight: 600;
+		color: var(--ink-muted);
+	}
+	.one {
+		display: flex;
+		align-items: flex-end;
+		gap: 6px;
+	}
+	.x {
+		height: 40px;
+		width: 40px;
+		border: 1px solid var(--line);
+		border-radius: 10px;
+		background: var(--surface);
+		font-size: 18px;
+	}
+	.more {
+		align-self: flex-start;
+		border: none;
+		background: none;
+		padding: 2px 0;
+		color: var(--accent);
+		font-weight: 600;
+	}
 	.field {
 		display: flex;
 		flex-direction: column;

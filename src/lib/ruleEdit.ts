@@ -88,6 +88,7 @@ export type Field =
 	| { kind: 'time'; name: string; label: string }
 	| { kind: 'days'; name: string; label: string }
 	| { kind: 'device'; name: string; label: string; optional?: boolean }
+	| { kind: 'devices'; name: string; label: string }
 	| { kind: 'json'; name: string; label: string; optional?: boolean };
 
 // ---- a device's attributes, as a rule sees them ----
@@ -952,4 +953,92 @@ export function byRoomName(
 			room,
 			devices: devices.sort((a, b) => displayName(a).localeCompare(displayName(b)))
 		}));
+}
+
+// ---- pickers for what a field names (A7 coverage pass) ----
+
+/** What the house has for a field to choose from. */
+export interface Lists {
+	rules: { id: string; name: string }[];
+	calendars: string[];
+	modes: { id: string; name: string }[];
+	/** Variable names the house's rules already use, by sort. */
+	variables: { hub: string[]; private: string[]; rule: string[] };
+}
+
+const VARIABLE_SORT: Record<string, keyof Lists['variables']> = {
+	HubVariableChanged: 'hub',
+	HubVariable: 'hub',
+	SetHubVariable: 'hub',
+	PrivateBooleanIs: 'private',
+	SetPrivateBoolean: 'private',
+	SetVariable: 'rule'
+};
+
+/** Every variable name the rules use, by sort — homeCore can't list them. */
+export function variablesIn(rules: unknown[]): Lists['variables'] {
+	const out = { hub: new Set<string>(), private: new Set<string>(), rule: new Set<string>() };
+	const visit = (v: unknown) => {
+		if (Array.isArray(v)) return v.forEach(visit);
+		if (!v || typeof v !== 'object') return;
+		for (const [k, inner] of Object.entries(v as Record<string, unknown>)) {
+			const sort = VARIABLE_SORT[k];
+			const name = (inner as { name?: unknown } | null)?.name;
+			if (sort && typeof name === 'string' && name.trim()) out[sort].add(name);
+			visit(inner);
+		}
+	};
+	visit(rules);
+	const sorted = (x: Set<string>) => [...x].sort((a, b) => a.localeCompare(b));
+	return { hub: sorted(out.hub), private: sorted(out.private), rule: sorted(out.rule) };
+}
+
+const LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error'];
+
+/**
+ * A vocabulary field, given a picker where it names something the house
+ * has: a rule, a calendar, a mode, devices; variable names as suggestions.
+ */
+export function withPickers(tag: string, f: Field, lists: Lists): Field {
+	const base = { name: f.name, label: f.label };
+	if (f.name === 'rule_id' && lists.rules.length)
+		return {
+			kind: 'choice',
+			...base,
+			label: 'Rule',
+			options: [...lists.rules]
+				.sort((a, b) => a.name.localeCompare(b.name))
+				.map((r) => ({ value: r.id, label: r.name }))
+		};
+	if (f.name === 'calendar_id')
+		return lists.calendars.length
+			? {
+					kind: 'choice',
+					...base,
+					label: 'Calendar',
+					options: lists.calendars.map((c) => ({ value: c, label: c }))
+				}
+			: { kind: 'text', ...base, label: 'Calendar', suggest: [] };
+	if (f.name === 'mode_id' && lists.modes.length)
+		return {
+			kind: 'choice',
+			...base,
+			label: 'Mode',
+			options: lists.modes.map((m) => ({ value: m.id, label: m.name }))
+		};
+	if (f.name === 'device_ids') return { kind: 'devices', ...base, label: 'Devices' };
+	if (f.name === 'name' && VARIABLE_SORT[tag])
+		return {
+			kind: 'text',
+			...base,
+			label: 'Variable',
+			suggest: lists.variables[VARIABLE_SORT[tag]!]
+		};
+	if (tag === 'LogMessage' && f.name === 'level')
+		return {
+			kind: 'choice',
+			...base,
+			options: LOG_LEVELS.map((l) => ({ value: l, label: l }))
+		};
+	return f;
 }

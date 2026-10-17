@@ -31,6 +31,8 @@ export interface Record_ {
 		change_kind?: string;
 		change_actor_name?: string;
 		trigger_label?: string;
+		/** Which of the rule's moments matched, when it has several. */
+		trigger_index?: number;
 	};
 	outcome: { type: string; at_index?: number; reason?: string; remaining_secs?: number };
 	conditions: {
@@ -110,10 +112,22 @@ export function cause(h: House, rule: Rule, r: Record_): Phrase {
 	}
 	if (c.device_id) return [deviceBit(h, c.device_id)];
 	// A moment with no device: the rule's own words for it.
-	const when = whenPhrase(h, rule.trigger);
-	return tagOf(rule.trigger)[0] === r.trigger_type
+	const moment = [rule.trigger, ...(rule.triggers ?? [])][c.trigger_index ?? 0] ?? rule.trigger;
+	const when = whenPhrase(h, moment);
+	return tagOf(moment)[0] === r.trigger_type
 		? when
 		: [{ t: r.trigger_type.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase() }];
+}
+
+/**
+ * The records for the rule's own steps. homeCore records a step inside an
+ * if/otherwise under its parent's index, before the parent's own record.
+ */
+function topLevel(rule: Rule, actions: Record_['actions']): Record_['actions'] {
+	return actions.filter((a) => {
+		const step = rule.actions?.[a.index];
+		return !step || tagOf(step.action)[0] === a.action_type;
+	});
 }
 
 /** A record as a run: outcome, and each check and step in words. */
@@ -135,7 +149,7 @@ export function runOf(h: House, rule: Rule, r: Record_): Run {
 		lines.push({ label: '', words: [{ t: notRun(r) }], mark: '', tone: 'quiet' });
 	} else if (!ran)
 		lines.push({ label: '', words: [{ t: 'Nothing done.' }], mark: '', tone: 'muted' });
-	for (const a of r.actions) {
+	for (const a of topLevel(rule, r.actions)) {
 		const step = rule.actions?.[a.index];
 		const words = step ? stepOf(h, step.action).words : [{ t: a.description }];
 		const gone = words.some((b) => b.missing);

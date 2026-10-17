@@ -69,8 +69,15 @@
 	onMount(() => {
 		void modeMade().then((m) => (byMode = m));
 		const stop = live.listen((frame) => {
-			const f = frame as { type: string; rule_id?: string };
+			const f = frame as { type: string; rule_id?: string; rule?: Rule };
 			if (f.type === 'rule_fired' && f.rule_id === id) void loadHistory();
+			if (f.type === 'rule_changed' && f.rule && all) {
+				const changed = f.rule;
+				all = all.some((r) => r.id === changed.id)
+					? all.map((r) => (r.id === changed.id ? changed : r))
+					: [...all, changed];
+			}
+			if (f.type === 'rule_removed' && all) all = all.filter((r) => r.id !== f.rule_id);
 		});
 		const back = () => {
 			if (document.visibilityState === 'visible') {
@@ -299,6 +306,10 @@
 					{/if}
 				</ul>
 				<span class="spacer"></span>
+				{#if !madeBy}<a
+						class="plain change"
+						href={`/settings/automations/${encodeURIComponent(id)}/edit`}>Change</a
+					>{/if}
 				<button type="button" class="plain" disabled={busy} onclick={copy}>Make a copy</button>
 				<button
 					type="button"
@@ -560,6 +571,14 @@
 		font: inherit;
 		font-weight: 700;
 		font-size: 14px;
+	}
+	.change {
+		display: inline-flex;
+		align-items: center;
+		text-decoration: none;
+		background: var(--accent);
+		border-color: var(--accent);
+		color: var(--accent-ink);
 	}
 	.plain.danger {
 		color: var(--alert);

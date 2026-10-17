@@ -42,6 +42,8 @@ export interface Rule {
 	priority?: number;
 	tags?: string[];
 	trigger: Json;
+	/** More moments, any of which starts it (E2). */
+	triggers?: Json[];
 	conditions?: Json[];
 	actions?: { enabled?: boolean; action: Json }[];
 	error?: string;
@@ -399,7 +401,11 @@ export function readScript(h: House, script: string): Phrase | undefined {
 	return isNow(h, [id!], attr!, RHAI_OP[op!]!, value);
 }
 
-const check = (h: House, script: string): Phrase => readScript(h, script) ?? [code(script)];
+/** What an if/otherwise asks: a check (E3), or a script read where it's simple. */
+const check = (h: House, c: Json): Phrase =>
+	c !== null && typeof c === 'object'
+		? checkPhrase(h, c)
+		: (readScript(h, String(c)) ?? [code(String(c))]);
 
 // ---- triggers ----
 
@@ -714,11 +720,11 @@ export function stepOf(h: House, a: Json): Step {
 			return s([t('at the same time')], [{ label: '', steps: steps(f.actions) }]);
 		case 'Conditional':
 			return s(
-				[t('if '), ...check(h, String(f.condition))],
+				[t('if '), ...check(h, f.condition)],
 				[
 					{ label: 'then', steps: steps(f.then_actions) },
 					...(f.else_if ?? []).map((b: Json) => ({
-						label: `or if ${plain(check(h, String(b.condition)))}`,
+						label: `or if ${plain(check(h, b.condition))}`,
 						steps: steps(b.actions)
 					})),
 					...((f.else_actions ?? []).length
@@ -781,6 +787,8 @@ export function stepOf(h: House, a: Json): Step {
 				t(f.command === 'On' ? ' on' : f.command === 'Off' ? ' off' : ' over')
 			]);
 		case 'ActivateScenePerMode':
+			if ((f.modes ?? []).length === 0 && f.default_scene_id)
+				return s([t('run '), sceneBit(h, f.default_scene_id)]);
 			return s(
 				[t('run a scene by mode')],
 				[
@@ -881,7 +889,9 @@ function ruleBit(h: House, id: string): Bit {
 // ---- the whole rule ----
 
 export interface Reading {
+	/** The first moment; `whens` has them all. */
 	when: Phrase;
+	whens: Phrase[];
 	checks: Phrase[];
 	steps: Step[];
 	/** Advanced options the rule uses (E7), in words. */
@@ -891,6 +901,7 @@ export interface Reading {
 export function readRule(h: House, r: Rule): Reading {
 	return {
 		when: whenPhrase(h, r.trigger),
+		whens: [r.trigger, ...(r.triggers ?? [])].map((x) => whenPhrase(h, x)),
 		checks: (r.conditions ?? []).map((c) => checkPhrase(h, c)),
 		steps: (r.actions ?? []).map((a) => ({ ...stepOf(h, a.action), off: a.enabled === false })),
 		more: moreOf(r)
@@ -922,6 +933,7 @@ export function moreOf(r: Rule): string[] {
  */
 export function sentence(h: House, r: Rule): Phrase {
 	const out: Phrase = [...opening(whenPhrase(h, r.trigger))];
+	for (const more of r.triggers ?? []) out.push(t(', or '), ...lowerWhen(whenPhrase(h, more)));
 	const checks = merged(r.conditions ?? [], h, 'check');
 	if (checks.length) out.push(t(', only if '), ...list(checks));
 	const steps = merged(
@@ -938,6 +950,13 @@ export function capitalised(p: Phrase): Phrase {
 	const first = p[0];
 	if (!first || first.device || first.code) return p;
 	return [{ ...first, t: cap(first.t) }, ...p.slice(1)];
+}
+
+/** A further moment after "or": "when the door opens", "at sunset". */
+function lowerWhen(when: Phrase): Phrase {
+	const first = when[0];
+	if (first && !first.device && /^(at |every |on the |\d)/.test(first.t)) return when;
+	return [t('when '), ...when];
 }
 
 /** "When the door opens", but "At sunset", "Every 5 minutes". */
@@ -981,6 +1000,8 @@ function merged(items: Json[], h: House, as: 'check' | 'step'): Phrase[] {
 }
 
 /** A step with what's inside it, on one line: "if X: a, b; otherwise c". */
+export const stepLine = (h: House, action: Json): Phrase => inline(stepOf(h, action));
+
 function inline(s: Step): Phrase {
 	if (!s.branches) return s.words;
 	const out: Phrase = [...s.words];
@@ -1018,7 +1039,7 @@ export function refsOf(h: House, r: Rule): Ref[] {
 		else if (v !== null && typeof v === 'object')
 			for (const [k, x] of Object.entries(v)) walk(x, k);
 	};
-	walk({ trigger: r.trigger, conditions: r.conditions, actions: r.actions });
+	walk({ trigger: r.trigger, triggers: r.triggers, conditions: r.conditions, actions: r.actions });
 	return [...ids].map((id) => ({
 		id,
 		missing: id.startsWith('DELETED:') || h.device(id) === undefined

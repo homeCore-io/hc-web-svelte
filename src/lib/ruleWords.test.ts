@@ -200,3 +200,65 @@ test('advanced options in words', () => {
 		moreOf({ ...rule('r-door'), run_mode: { Queued: { max_queue: 3 } }, log_actions: true })
 	).toEqual(['Queues up to 3 runs', 'Writes what it does to the log']);
 });
+
+describe('several moments and checked ifs (E2, E3)', () => {
+	test('every moment is said', () => {
+		const r = {
+			...rule('r-door'),
+			triggers: [{ SunEvent: { event: 'Sunset', offset_minutes: 0 } }, 'SystemStarted']
+		};
+		expect(say2(r)).toBe(
+			'When Pantry Door opens, or at sunset, or when homeCore starts → turn Reading Lamp on and start Den Fan Timer for 5 min'
+		);
+		expect(readRule(h, r).whens.map(plain)).toEqual([
+			'Pantry Door opens',
+			'at sunset',
+			'homeCore starts'
+		]);
+	});
+
+	test('an if that asks a check, and running a scene', () => {
+		expect(
+			plain(
+				stepOf(h, {
+					Conditional: {
+						condition: {
+							Or: {
+								conditions: [
+									{ ModeIs: { mode_id: 'mode_night', on: true } },
+									{ TimeWindow: { start: '22:00:00', end: '06:00:00' } }
+								]
+							}
+						},
+						then_actions: [],
+						else_actions: []
+					}
+				}).words
+			)
+		).toBe('if any of: Night is on or it’s between 22:00 and 06:00');
+		expect(
+			plain(stepOf(h, { ActivateScenePerMode: { modes: [], default_scene_id: 's1' } }).words)
+		).toBe('run Movie');
+		expect(
+			refsOf(h, {
+				...rule('r-door'),
+				actions: [
+					{
+						enabled: true,
+						action: {
+							Conditional: {
+								condition: {
+									DeviceState: { device_id: 'gone', attribute: 'on', op: 'Eq', value: true }
+								},
+								then_actions: [],
+								else_actions: []
+							}
+						}
+					}
+				]
+			})
+		).toContainEqual({ id: 'gone', missing: true });
+	});
+});
+
+const say2 = (r: Rule) => plain(sentence(h, r));

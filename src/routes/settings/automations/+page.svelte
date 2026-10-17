@@ -36,6 +36,7 @@
 		type Show
 	} from '#lib/ruleList.js';
 	import { lastRuns } from '#lib/ruleRuns.js';
+	import { featuresOf } from '#lib/ruleEdit.js';
 	import {
 		deleteRules,
 		download,
@@ -44,6 +45,7 @@
 		importRules,
 		loadGroups,
 		loadRules,
+		loadVocabulary,
 		modeMade,
 		retag,
 		setEnabled,
@@ -96,18 +98,33 @@
 		runs = next;
 	}
 
+	// Combining needs several moments per rule and checks in if/otherwise (E2, E3).
+	let canCombine = $state(false);
+
 	onMount(() => {
 		void load();
+		void loadVocabulary().then((v) => {
+			const f = featuresOf(v);
+			canCombine = f.triggers && f.ifChecks;
+		});
 		void modeMade().then((m) => (byMode = m));
 		void loadGroups().then((g) => (groups = g.ok ? g.data : []));
 		// homeCore says when a rule fires, not when one changes.
 		const stop = live.listen((frame) => {
-			const f = frame as { type: string; rule_id?: string; timestamp?: string };
+			const f = frame as { type: string; rule_id?: string; timestamp?: string; rule?: Rule };
 			if (f.type === 'rule_fired' && f.rule_id)
 				runs = {
 					...runs,
 					[f.rule_id]: { ...runs[f.rule_id], ran: f.timestamp, tried: f.timestamp }
 				};
+			// A homeCore with rule events says when one changes, by anyone.
+			if (f.type === 'rule_changed' && f.rule && rules) {
+				const changed = f.rule;
+				rules = rules.some((r) => r.id === changed.id)
+					? rules.map((r) => (r.id === changed.id ? changed : r))
+					: [...rules, changed];
+			}
+			if (f.type === 'rule_removed' && rules) rules = rules.filter((r) => r.id !== f.rule_id);
 		});
 		const back = () => document.visibilityState === 'visible' && void load();
 		document.addEventListener('visibilitychange', back);
@@ -366,6 +383,13 @@
 				{#if item.rows.some((r) => r.trouble.length)}<span class="chip bad">needs attention</span
 					>{/if}
 			</button>
+			{#if canCombine}
+				<a
+					class="link"
+					href={`/settings/automations/new?combine=${item.rows.map((r) => r.rule.id).join(',')}`}
+					>Combine…</a
+				>
+			{/if}
 		</div>
 		{#if open}
 			{#each item.rows as row (row.rule.id)}{@render rowOf(row, true)}{/each}
@@ -400,6 +424,7 @@
 				{/each}
 			</div>
 			<span class="spacer"></span>
+			<a class="new" href="/settings/automations/new">+ New automation</a>
 			<button type="button" class="plain" onclick={() => file?.click()}>Import…</button>
 			<button type="button" class="plain" onclick={exportEvery}>Export all</button>
 			<input
@@ -596,6 +621,18 @@
 		font: inherit;
 		font-weight: 600;
 		font-size: 13px;
+	}
+	.new {
+		height: 34px;
+		padding: 0 14px;
+		border-radius: 17px;
+		display: inline-flex;
+		align-items: center;
+		background: var(--accent);
+		color: var(--accent-ink);
+		font-weight: 700;
+		font-size: 13px;
+		text-decoration: none;
 	}
 	.link {
 		border: none;

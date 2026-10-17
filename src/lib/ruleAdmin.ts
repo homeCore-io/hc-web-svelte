@@ -7,6 +7,7 @@
  */
 import type { Rule } from './ruleWords.js';
 import type { Record_, TestResult } from './ruleRuns.js';
+import type { Vocabulary } from './ruleEdit.js';
 
 export type Answer<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -190,3 +191,26 @@ export const setGroupEnabled = (id: string, on: boolean) =>
 		'POST',
 		`/automations/groups/${encodeURIComponent(id)}/${on ? 'enable' : 'disable'}`
 	);
+
+// ---- writing (A3) ----
+
+/** A new rule; homeCore gives it its id. */
+export function createRule(rule: Rule): Promise<Answer<Rule>> {
+	const { id: _id, error: _error, ...body } = rule;
+	return call<Rule>('POST', '/automations', body);
+}
+
+/** A dry run of a draft that isn't saved (homeCore with `test_draft`). */
+export function testDraft(rule: Rule): Promise<Answer<TestResult>> {
+	const { id: _id, error: _error, ...body } = rule;
+	return call<TestResult>('POST', '/automations/test', body);
+}
+
+let vocabulary: Promise<Vocabulary | null> | null = null;
+/** What this homeCore's rules can say — read once. */
+export function loadVocabulary(): Promise<Vocabulary | null> {
+	vocabulary ??= call<Vocabulary>('GET', '/automations/vocabulary').then((r) =>
+		r.ok ? r.data : null
+	);
+	return vocabulary;
+}

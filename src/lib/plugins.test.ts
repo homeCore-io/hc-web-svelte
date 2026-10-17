@@ -1,0 +1,178 @@
+import { describe, expect, test } from 'vitest';
+import {
+	buttonOf,
+	compareVersions,
+	latestOf,
+	notInstalled,
+	paramDefaults,
+	paramFields,
+	rowsOf,
+	runAfter,
+	startRun,
+	stateOf,
+	updateOf,
+	type PluginRecord,
+	type RegistryPlugin,
+	type Run
+} from './plugins.js';
+
+const NOW = Date.parse('2026-10-16T15:00:00Z');
+const rec = (p: Partial<PluginRecord>): PluginRecord => ({
+	plugin_id: 'plugin.hue',
+	status: 'active',
+	enabled: true,
+	managed: true,
+	restart_count: 0,
+	device_count: 49,
+	supports_management: true,
+	...p
+});
+const reg = (id: string, name: string, versions: string[]): RegistryPlugin => ({
+	id,
+	name,
+	description: `${name} things`,
+	versions: versions.map((version) => ({
+		version,
+		artifacts: [{ os: 'linux', arch: 'x86_64', size: 4_194_304 }]
+	}))
+});
+const REGISTRY = [
+	reg('plugin.hue', 'Hue', ['0.1.9', '0.1.17', '0.1.16']),
+	reg('plugin.isy', 'Isy', ['0.1.11'])
+];
+
+describe('versions', () => {
+	test('by number, not by letter', () => {
+		expect(compareVersions('0.1.10', '0.1.9')).toBeGreaterThan(0);
+		expect(compareVersions('v1.2.0', '1.2')).toBe(0);
+		expect(latestOf(REGISTRY[0])).toBe('0.1.17');
+	});
+	test('an update is a newer version in the registry', () => {
+		expect(updateOf(rec({ version: '0.1.16' }), REGISTRY[0])).toBe('0.1.17');
+		expect(updateOf(rec({ version: '0.1.17' }), REGISTRY[0])).toBeUndefined();
+		expect(updateOf(rec({ installed_version: '0.1.9' }), REGISTRY[0])).toBe('0.1.17');
+		expect(updateOf(rec({}), REGISTRY[0])).toBeUndefined();
+	});
+});
+
+describe('how it is, in words', () => {
+	test('running, off, not answering', () => {
+		expect(stateOf(rec({ uptime_started: '2026-10-16T13:07:00Z' }), NOW).word).toBe('Running');
+		expect(stateOf(rec({ enabled: false }), NOW)).toEqual({
+			word: 'Turned off',
+			detail: '',
+			tone: 'quiet'
+		});
+		expect(
+			stateOf(rec({ status: 'offline', last_heartbeat: '2026-10-16T12:00:00Z' }), NOW)
+		).toEqual({
+			word: 'Not answering',
+			detail: 'last heard 3 h ago',
+			tone: 'bad'
+		});
+	});
+
+	test('the list: names from the registry, worst notice, updates', () => {
+		const rows = rowsOf(
+			[
+				rec({
+					version: '0.1.16',
+					notices: [
+						{ level: 'info', code: 'a', message: 'fine' },
+						{ level: 'error', code: 'b', message: 'Bridge unreachable' }
+					]
+				}),
+				rec({ plugin_id: 'plugin.yolink', device_count: 28 })
+			],
+			REGISTRY,
+			NOW
+		);
+		expect(rows.map((r) => [r.name, r.update, r.notice?.message])).toEqual([
+			['Hue', '0.1.17', 'Bridge unreachable'],
+			['YoLink', undefined, undefined]
+		]);
+		expect(notInstalled(REGISTRY, [rec({})]).map((r) => r.name)).toEqual(['Isy']);
+	});
+});
+
+describe('actions', () => {
+	const pair = {
+		id: 'pair_bridge',
+		label: 'Pair Hue bridge',
+		stream: true,
+		params: {
+			host: { type: 'string', title: 'Address' },
+			timeout: { type: 'integer', default: 30, minimum: 5 },
+			mode: { type: 'string', enum: ['auto', 'manual'], default: 'auto' }
+		}
+	};
+	test('parameters as fields, with their defaults', () => {
+		expect(paramFields(pair).map((f) => [f.kind, f.label])).toEqual([
+			['text', 'Address'],
+			['number', 'Timeout'],
+			['choice', 'Mode']
+		]);
+		expect(paramDefaults(pair)).toEqual({ timeout: 30, mode: 'auto' });
+		expect(buttonOf(pair)).toBe('Start…');
+		expect(buttonOf({ id: 'remove_bridge', label: 'Remove bridge' })).toBe('Remove…');
+		expect(buttonOf({ id: 'refresh', label: 'Refresh' })).toBe('Run');
+	});
+});
+
+describe('an action talking back', () => {
+	const after = (...events: Parameters<typeof runAfter>[1][]) =>
+		events.reduce((r: Run, e) => runAfter(r, e), startRun());
+
+	test('progress, findings, and the end', () => {
+		const r = after(
+			{ stage: 'progress', percent: 10, message: 'Listening' },
+			{ stage: 'progress', percent: 20, message: 'Listening' },
+			{ stage: 'item', op: 'add', data: { id: 'n12', name: 'Door sensor' } },
+			{ stage: 'item', op: 'update', data: { id: 'n12', status: 'secure' } },
+			{ stage: 'complete', data: { added: 1 } }
+		);
+		expect(r.state).toBe('done');
+		expect(r.lines.map((l) => l.text)).toEqual(['Listening', 'Found Door sensor.', 'Done.']);
+		expect(r.items).toEqual({ n12: { id: 'n12', name: 'Door sensor', status: 'secure' } });
+	});
+
+	test('a question, in either shape homeCore’s plugins send', () => {
+		const flat = after({
+			stage: 'awaiting_user',
+			prompt: 'Proceed?',
+			response_schema: { proceed: { type: 'boolean', required: true } }
+		});
+		expect(flat.state).toBe('waiting');
+		expect(flat.prompt?.fields.map((f) => f.kind)).toEqual(['bool']);
+		expect(flat.prompt?.required).toEqual(['proceed']);
+		const schema = after({
+			stage: 'awaiting_user',
+			prompt: 'Which bridge?',
+			response_schema: {
+				properties: { bridge: { type: 'string', enum: ['a', 'b'] } },
+				required: ['bridge']
+			}
+		});
+		expect(schema.prompt?.required).toEqual(['bridge']);
+		const advisory = after({ stage: 'awaiting_user', prompt: 'Press the link button.' });
+		expect(advisory.state).toBe('running');
+		expect(advisory.prompt).toBeUndefined();
+	});
+
+	test('how it can end badly', () => {
+		expect(
+			after(
+				{ stage: 'warning', message: 'retrying' },
+				{ stage: 'error', message: 'gave up' }
+			).lines.map((l) => [l.text, l.tone])
+		).toEqual([
+			['retrying', 'warn'],
+			['gave up', 'bad']
+		]);
+		expect(
+			after({ stage: 'error', message: 'x', data: { reason: 'plugin_offline' } }).lines[0]!.text
+		).toBe('The plugin stopped answering.');
+		expect(after({ stage: 'timeout' }).state).toBe('timed out');
+		expect(after({ stage: 'canceled' }).state).toBe('canceled');
+	});
+});

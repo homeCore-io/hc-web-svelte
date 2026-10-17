@@ -10,6 +10,9 @@
 	import Toggle from '../Toggle.svelte';
 	import Self from './Control.svelte';
 	import { entry, numeric, parse, problem, same, unitName, type Field } from '#lib/descriptor.js';
+	import { devices } from '#lib/devices.svelte.js';
+	import { rooms } from '#lib/rooms.svelte.js';
+	import { sourceOptions } from '#lib/formSources.js';
 
 	let {
 		field,
@@ -30,6 +33,11 @@
 	} = $props();
 
 	const disabled = $derived(!!field.read_only);
+	// What it chooses from: its own options, or the house's devices or rooms.
+	const opts = $derived(
+		field.options ?? sourceOptions(field.source, Object.values(devices.byId), rooms.list)
+	);
+	const fromHouse = $derived(!field.options && opts !== undefined);
 	const isSecret = $derived(field.kind === 'secret' || !!field.secret);
 
 	// ---- typed text (text, numbers, secrets) ----
@@ -98,7 +106,7 @@
 		onchange([...items, p.value]);
 	}
 
-	const labelOf = (x: unknown) => field.options?.find((o) => same(o.value, x))?.label ?? entry(x);
+	const labelOf = (x: unknown) => opts?.find((o) => same(o.value, x))?.label ?? entry(x);
 
 	// ---- tables ----
 	const columns = $derived(Array.isArray(field.item) ? field.item : []);
@@ -125,7 +133,7 @@
 			>
 		{/each}
 	</div>
-{:else if field.kind === 'enum' || (field.kind === 'select' && field.options && !field.allow_create)}
+{:else if field.kind === 'enum' || (field.kind === 'select' && field.options && !field.allow_create) || (fromHouse && field.kind !== 'list' && field.kind !== 'table')}
 	<select
 		{id}
 		{disabled}
@@ -135,8 +143,12 @@
 	>
 		{#if value === undefined && field.default === undefined}
 			<option value="null" disabled>Choose…</option>
+		{:else if value !== undefined && !(opts ?? []).some((o) => same(o.value, value))}
+			<option value={JSON.stringify(value)}
+				>{entry(value)}{fromHouse ? ' — not in the house' : ''}</option
+			>
 		{/if}
-		{#each field.options ?? [] as o (String(o.value))}
+		{#each opts ?? [] as o (String(o.value))}
 			<option value={JSON.stringify(o.value)}>{o.label}</option>
 		{/each}
 	</select>
@@ -175,7 +187,7 @@
 					>{/if}</span
 			>
 		{/each}
-		{#if !disabled && field.options}
+		{#if !disabled && opts}
 			<select
 				class="pick"
 				aria-label={`Add to ${label}`}
@@ -187,7 +199,7 @@
 				}}
 			>
 				<option value="">Add…</option>
-				{#each field.options.filter((o) => !items.some( (x) => same(x, o.value) )) as o (String(o.value))}
+				{#each opts.filter((o) => !items.some((x) => same(x, o.value))) as o (String(o.value))}
 					<option value={JSON.stringify(o.value)}>{o.label}</option>
 				{/each}
 			</select>

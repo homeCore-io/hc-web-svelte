@@ -93,11 +93,7 @@ export const SETTINGS: SettingsItem[] = [
 		label: 'Plugins',
 		group: 'system',
 		words: 'plugins integrations hue lutron sonos yolink zwave restart install registry',
-		detail: 'What connects homeCore to devices',
-		coming: {
-			what: 'Plugins: status, restarts, their settings and installing new ones.',
-			when: 'A4, plugins'
-		}
+		detail: 'What connects homeCore to devices'
 	},
 	{
 		slug: 'people',

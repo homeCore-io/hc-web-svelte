@@ -14,7 +14,7 @@ describe('settings', () => {
 	it('every item has a unique address', () => {
 		expect(new Set(SETTINGS.map((s) => s.slug)).size).toBe(SETTINGS.length);
 		expect(settingsItem('configuration')?.coming).toBeUndefined();
-		expect(settingsItem('plugins')?.coming?.when).toMatch(/A4/);
+		expect(settingsItem('people')?.coming?.when).toMatch(/A5/);
 	});
 
 	it('search matches word starts, every word', () => {

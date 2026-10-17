@@ -89,6 +89,12 @@ export type Field =
 	| { kind: 'days'; name: string; label: string }
 	| { kind: 'device'; name: string; label: string; optional?: boolean }
 	| { kind: 'devices'; name: string; label: string }
+	/** Steps inside a step: repeat, ping's two outcomes. */
+	| { kind: 'steps'; name: string; label: string }
+	/** Checks inside a check: all of, exactly one of. */
+	| { kind: 'checks'; name: string; label: string }
+	/** One check inside a check: not. */
+	| { kind: 'check'; name: string; label: string }
 	| { kind: 'json'; name: string; label: string; optional?: boolean };
 
 // ---- a device's attributes, as a rule sees them ----
@@ -1034,6 +1040,21 @@ export function withPickers(tag: string, f: Field, lists: Lists): Field {
 			label: 'Variable',
 			suggest: lists.variables[VARIABLE_SORT[tag]!]
 		};
+	const STEP_LABELS: Record<string, string> = {
+		actions: 'Steps',
+		then_actions: 'If it answers',
+		else_actions: 'If it doesn’t answer'
+	};
+	if (f.kind === 'json' && STEP_LABELS[f.name])
+		return { kind: 'steps', ...base, label: STEP_LABELS[f.name]! };
+	if (f.kind === 'json' && f.name === 'conditions')
+		return {
+			kind: 'checks',
+			...base,
+			label: tag === 'Xor' ? 'Exactly one of these' : tag === 'Or' ? 'Any of these' : 'All of these'
+		};
+	if (f.kind === 'json' && f.name === 'condition' && tag === 'Not')
+		return { kind: 'check', ...base, label: 'This isn’t so' };
 	if (tag === 'LogMessage' && f.name === 'level')
 		return {
 			kind: 'choice',
@@ -1042,3 +1063,6 @@ export function withPickers(tag: string, f: Field, lists: Lists): Field {
 		};
 	return f;
 }
+
+/** Steps homeCore chooses by mode — each has its own table, not fields. */
+export const PER_MODE = new Set(['DelayPerMode', 'SetDeviceStatePerMode', 'ActivateScenePerMode']);

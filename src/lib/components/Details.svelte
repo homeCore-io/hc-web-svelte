@@ -23,6 +23,7 @@
 	import BigBar from './BigBar.svelte';
 	import Chart from './Chart.svelte';
 	import Icon from './Icon.svelte';
+	import Art from './Art.svelte';
 	import Toggle from './Toggle.svelte';
 	import { goAhead } from '#lib/ask.js';
 
@@ -107,8 +108,13 @@
 </script>
 
 <header>
-	<span class="icon" class:lit={card.tone === 'on'} class:alert={card.tone === 'alert'}>
-		<Icon name={card.icon} size={22} />
+	<span
+		class="icon"
+		class:lit={card.tone === 'on' && !card.art}
+		class:alert={card.tone === 'alert'}
+		class:art={!!card.art}
+	>
+		<Art src={card.art} logo={card.artLogo} icon={card.icon} size={22} />
 	</span>
 	<div class="title">
 		<h2 id="details-title">{view.name}</h2>
@@ -121,6 +127,18 @@
 </header>
 
 <div class="body">
+	{#if card.art}
+		<!-- Made afresh per track, so one that wouldn't load doesn't hide the next. -->
+		{#key card.art}
+			<img
+				class="cover"
+				class:logo={card.artLogo}
+				src={card.art}
+				alt=""
+				onerror={(e) => ((e.currentTarget as HTMLImageElement).hidden = true)}
+			/>
+		{/key}
+	{/if}
 	<!-- The main control, large. -->
 	{#if brightness && brightness.kind === 'slider' && card.control?.kind === 'switch'}
 		{@const sw = card.control}
@@ -500,6 +518,25 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+	}
+	.icon.art {
+		overflow: hidden;
+	}
+	.cover {
+		display: block;
+		width: min(240px, 70%);
+		aspect-ratio: 1;
+		object-fit: cover;
+		margin: 0 auto 4px;
+		border-radius: var(--radius);
+		box-shadow: var(--shadow);
+	}
+	.cover.logo {
+		object-fit: contain;
+		padding: 16px;
+		box-sizing: border-box;
+		background: var(--surface);
+		border: 1px solid var(--card-line);
 	}
 	.icon.lit {
 		background: var(--lit-bg);

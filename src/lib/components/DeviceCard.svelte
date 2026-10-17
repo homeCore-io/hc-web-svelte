@@ -27,6 +27,7 @@
 	import Star from '@lucide/svelte/icons/star';
 	import EyeOff from '@lucide/svelte/icons/eye-off';
 	import Icon from './Icon.svelte';
+	import Art from './Art.svelte';
 	import Toggle from './Toggle.svelte';
 
 	type Form = 'compact' | 'standard' | 'large';
@@ -232,7 +233,14 @@
 		</div>
 	{/if}
 	<div class="top">
-		<span class="icon"><Icon name={card.icon} size={form === 'compact' ? 18 : 20} /></span>
+		<span class="icon" class:art={!!card.art}
+			><Art
+				src={card.art}
+				logo={card.artLogo}
+				icon={card.icon}
+				size={form === 'compact' ? 18 : 20}
+			/></span
+		>
 		{#if form === 'compact'}
 			<span class="text">
 				<span class="name">{name}</span>
@@ -419,6 +427,9 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+	}
+	.icon.art {
+		overflow: hidden;
 	}
 	.compact .icon {
 		width: 34px;

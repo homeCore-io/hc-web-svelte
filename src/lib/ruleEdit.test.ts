@@ -21,6 +21,7 @@ import {
 	withWhens,
 	blankRule,
 	withPickers,
+	PER_MODE,
 	variablesIn,
 	type Lists
 } from './ruleEdit.js';
@@ -261,6 +262,26 @@ describe('pickers for what a field names', () => {
 		expect(
 			withPickers('CalendarEvent', text('calendar_id'), { ...lists, calendars: [] })
 		).toMatchObject({ kind: 'text' });
+	});
+
+	test('steps and checks inside a part get the editor’s own forms', () => {
+		const json = (name: string) => ({ kind: 'json' as const, name, label: name });
+		expect(withPickers('RepeatCount', json('actions'), lists)).toMatchObject({
+			kind: 'steps',
+			label: 'Steps'
+		});
+		expect(withPickers('PingHost', json('else_actions'), lists)).toMatchObject({
+			kind: 'steps',
+			label: 'If it doesn’t answer'
+		});
+		expect(withPickers('Xor', json('conditions'), lists)).toMatchObject({
+			kind: 'checks',
+			label: 'Exactly one of these'
+		});
+		expect(withPickers('Not', json('condition'), lists)).toMatchObject({ kind: 'check' });
+		// A script's condition stays words.
+		expect(withPickers('RepeatUntil', text('condition'), lists)).toEqual(text('condition'));
+		expect(PER_MODE.has('DelayPerMode')).toBe(true);
 	});
 
 	test('finds the variable names the house’s rules use', () => {

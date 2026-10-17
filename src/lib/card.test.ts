@@ -72,6 +72,47 @@ describe('cards for the kinds in this house (03 §3)', () => {
 		expect(c.extras.map((e) => e.kind)).toEqual(['transport', 'slider']);
 	});
 
+	it('a speaker shows its artwork, from homeCore, changing with the track', () => {
+		const sonos = byId('sonos_kitchen');
+		const playing = (attrs: Record<string, unknown>) =>
+			cardFor(
+				{ ...sonos, attributes: { ...sonos.attributes, state: 'playing', ...attrs } },
+				FIXTURE_NOW
+			);
+		const a = playing({
+			media_image_url: 'http://10.0.10.28:1400/getaa?u=one',
+			media_artist: 'Nils'
+		});
+		expect(a.art).toMatch(/^\/api\/v1\/devices\/sonos_kitchen\/media\/art\?t=/);
+		expect(a.artLogo).toBeUndefined();
+		const b = playing({
+			media_image_url: 'http://10.0.10.28:1400/getaa?u=two',
+			media_artist: 'Nils'
+		});
+		expect(b.art).not.toBe(a.art);
+		expect(playing({ media_image_url: '' }).art).toBeUndefined();
+	});
+
+	it('a radio station: its logo whole, never its stream’s address as the title', () => {
+		const sonos = byId('sonos_kitchen');
+		const radio = cardFor(
+			{
+				...sonos,
+				attributes: {
+					on: true,
+					state: 'playing',
+					media_title: 'hls.m3u8?rj-ttl=5&rj-tok=AAAB',
+					title: 'hls.m3u8?rj-ttl=5&rj-tok=AAAB',
+					media_image_url: 'http://10.0.10.28:1400/getaa?s=1&u=x-sonosapi-hls'
+				}
+			},
+			FIXTURE_NOW
+		);
+		expect(radio.stateLine).toBe('Playing');
+		expect(radio.art).toBeDefined();
+		expect(radio.artLogo).toBe(true);
+	});
+
 	it('a timer counts down, and homeCore timers can be started and cancelled', () => {
 		const c = card('timer_laundry');
 		expect(c.stateLine).toBe('Running · 4:32 left');

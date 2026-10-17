@@ -4,10 +4,20 @@
 	offer by name.
 -->
 <script lang="ts">
-	import { newOf, vocabFields, withPickers, type VariantSpec } from '#lib/ruleEdit.js';
+	import {
+		PER_MODE,
+		newCheck,
+		newOf,
+		vocabFields,
+		withPickers,
+		type VariantSpec
+	} from '#lib/ruleEdit.js';
 	import { editor } from './context.js';
 	import { tagOf } from '#lib/ruleWords.js';
 	import FieldInput from './FieldInput.svelte';
+	import StepList from './StepList.svelte';
+	import CheckEdit from './CheckEdit.svelte';
+	import PerMode from './PerMode.svelte';
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	type Json = any;
@@ -22,7 +32,15 @@
 	const body = $derived(tagOf(value)[1]);
 	const spec = $derived(specs.find((s) => s.tag === tag));
 	const ctx = editor();
-	const fields = $derived(spec ? vocabFields(spec).map((f) => withPickers(tag, f, ctx.lists)) : []);
+	const perMode = $derived(PER_MODE.has(tag));
+	// A per-mode step's table covers its modes and its "any other mode".
+	const fields = $derived(
+		spec
+			? vocabFields(spec)
+					.map((f) => withPickers(tag, f, ctx.lists))
+					.filter((f) => !perMode || !(f.name === 'modes' || f.name.startsWith('default_')))
+			: []
+	);
 	const words = (t: string) => t.replace(/([a-z])([A-Z])/g, '$1 $2');
 
 	function set(name: string, v: unknown) {
@@ -44,10 +62,70 @@
 	</select>
 </label>
 {#each fields as f (f.name)}
-	<FieldInput field={f} value={body[f.name]} onchange={(v) => set(f.name, v)} />
+	{#if f.kind === 'steps'}
+		{@const steps = Array.isArray(body[f.name]) ? body[f.name] : []}
+		<div class="nested">
+			<span class="lbl">{f.label}</span>
+			<StepList {steps} onchange={(l) => set(f.name, l)} />
+		</div>
+	{:else if f.kind === 'checks'}
+		{@const list: Json[] = Array.isArray(body[f.name]) ? body[f.name] : []}
+		<div class="nested">
+			<span class="lbl">{f.label}</span>
+			{#each list as c, i (i)}
+				<CheckEdit
+					value={c}
+					onchange={(v) =>
+						set(
+							f.name,
+							list.map((x, j) => (j === i ? v : x))
+						)}
+					onremove={() =>
+						set(
+							f.name,
+							list.filter((_, j) => j !== i)
+						)}
+				/>
+			{/each}
+			<button type="button" class="add" onclick={() => set(f.name, [...list, newCheck('device')])}
+				>+ A check</button
+			>
+		</div>
+	{:else if f.kind === 'check'}
+		<div class="nested">
+			<span class="lbl">{f.label}</span>
+			<CheckEdit value={body[f.name] ?? newCheck('device')} onchange={(v) => set(f.name, v)} />
+		</div>
+	{:else}
+		<FieldInput field={f} value={body[f.name]} onchange={(v) => set(f.name, v)} />
+	{/if}
 {/each}
+{#if perMode}
+	<PerMode tag={tag as 'DelayPerMode'} {body} onchange={(b) => onchange({ [tag]: b })} />
+{/if}
 
 <style>
+	.nested {
+		flex-basis: 100%;
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		padding: 8px 0 8px 12px;
+		border-left: 2px solid var(--line);
+	}
+	.lbl {
+		font-size: 12px;
+		font-weight: 600;
+		color: var(--ink-muted);
+	}
+	.add {
+		align-self: flex-start;
+		border: none;
+		background: none;
+		padding: 2px 0;
+		color: var(--accent);
+		font-weight: 600;
+	}
 	.kind {
 		display: flex;
 		flex-direction: column;

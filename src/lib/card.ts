@@ -78,6 +78,16 @@ export interface CardView {
 	tone: Tone;
 	control: Control | null;
 	extras: Extra[];
+	/**
+	 * What's playing, as a picture: homeCore fetches the player's artwork
+	 * and hands it back same-origin. Changes with the track.
+	 */
+	art?: string;
+	/**
+	 * The artwork is a radio station's logo rather than a cover — no artist,
+	 * no album — so it is shown whole, not cropped to fill.
+	 */
+	artLogo?: boolean;
 	/** Multi-channel devices: a switch per channel, and no single control (C7). */
 	channels: Channel[];
 	available: boolean;
@@ -332,7 +342,11 @@ function describe(
 function media(d: CoreDevice, a: Record<string, unknown>, s: Schema, v: CardView): CardView {
 	const state = typeof a.state === 'string' ? a.state : undefined;
 	const on = a.on !== false;
-	const title = str(a.media_title) ?? str(a.title) ?? str(a.track);
+	const raw = str(a.media_title) ?? str(a.title) ?? str(a.track);
+	// On a radio stream the "track" is the stream's own file, and its title
+	// can be its address (`hls.m3u8?rj-ttl=5&…`). Never say that; the station
+	// shows in its logo, and the line just says it's playing.
+	const title = raw && !streamAddress(raw) ? raw : undefined;
 	const app = str(a.app_name) ?? (a.source !== 'Home' ? str(a.source) : undefined);
 	const isSpeaker = (d.plugin_id ?? '').includes('sonos') || d.ui_hint === 'speaker';
 	v.icon = isSpeaker ? 'speaker' : 'tv';
@@ -359,7 +373,25 @@ function media(d: CoreDevice, a: Record<string, unknown>, s: Schema, v: CardView
 		});
 	}
 	pushSlider(v, s, a, 'volume', 'Volume');
+	const art = str(a.art_url) ?? str(a.media_image_url);
+	if (on && art) {
+		v.art = artUrl(d.device_id, art);
+		// A station has a logo and nothing else; a track has an artist or album.
+		const credited = [a.artist, a.media_artist, a.album, a.media_album].some((x) => !!str(x));
+		if (!credited) v.artLogo = true;
+	}
 	return v;
+}
+
+/** A "title" that is really a stream's address (as hc-web-flutter judged it too). */
+export const streamAddress = (t: string) =>
+	t.includes('://') || t.includes('.m3u8') || (t.includes('?') && t.includes('&')) || t.length > 60;
+
+/** homeCore's artwork for a player, keyed by the track's own art address. */
+export function artUrl(deviceId: string, published: string): string {
+	let h = 5381;
+	for (let i = 0; i < published.length; i++) h = ((h << 5) + h + published.charCodeAt(i)) | 0;
+	return `/api/v1/devices/${encodeURIComponent(deviceId)}/media/art?t=${(h >>> 0).toString(36)}`;
 }
 
 /** 03 §4: a device of a kind nobody has tuned. */

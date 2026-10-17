@@ -11,6 +11,7 @@
 	import { backupDue, daysAgo, size } from '#lib/settings.js';
 	import {
 		addCalendar,
+		calendarEvents,
 		backUp,
 		backUpApp,
 		checkRestore,
@@ -237,6 +238,32 @@
 		await load();
 	}
 	const ago = (iso: string | null) => (iso ? daysAgo(iso, clock.now) : 'never');
+
+	// What's coming up in a calendar, read when asked.
+	type Coming = { uid: string; summary: string; start: string; is_all_day: boolean }[];
+	let coming = $state<Record<string, Coming | string>>({});
+	let showing = $state<string | null>(null);
+	async function toggleComing(id: string) {
+		if (showing === id) return void (showing = null);
+		showing = id;
+		if (coming[id] && typeof coming[id] !== 'string') return;
+		const r = await calendarEvents(id, 8);
+		coming = { ...coming, [id]: r.ok ? r.data.events : r.error };
+	}
+	const when = (e: Coming[number]) => {
+		const d = new Date(e.start);
+		// An all-day event is a date, sent as midnight UTC: show that date, not
+		// the evening before in a time zone west of Greenwich.
+		const day = d.toLocaleDateString(undefined, {
+			weekday: 'short',
+			day: 'numeric',
+			month: 'short',
+			...(e.is_all_day ? { timeZone: 'UTC' } : {})
+		});
+		return e.is_all_day
+			? day
+			: `${day}, ${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
+	};
 </script>
 
 {#if !session.isAdmin}
@@ -344,8 +371,31 @@
 										: 'uploaded'}</span
 								></span
 							>
+							<button
+								class="plain"
+								aria-expanded={showing === c.id}
+								onclick={() => toggleComing(c.id)}>{showing === c.id ? 'Hide' : 'What’s coming'}</button
+							>
 							<button class="plain bad" onclick={() => remove(c)}>Remove</button>
 						</li>
+						{#if showing === c.id}
+							{@const list = coming[c.id]}
+							<li class="coming">
+								{#if list === undefined}
+									<span class="sub">Reading it…</span>
+								{:else if typeof list === 'string'}
+									<span class="sub bad">{list}</span>
+								{:else if list.length === 0}
+									<span class="sub">Nothing coming up.</span>
+								{:else}
+									<ol>
+										{#each list as e (e.uid + e.start)}
+											<li><span class="day">{when(e)}</span> {e.summary || '(no title)'}</li>
+										{/each}
+									</ol>
+								{/if}
+							</li>
+						{/if}
 					{/each}
 				</ul>
 			{:else if calendars}
@@ -497,6 +547,27 @@
 	}
 	.cals li + li {
 		border-top: 1px solid var(--line);
+	}
+	.coming ol {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		font-size: 14px;
+	}
+	.cals li.coming {
+		display: block;
+		padding: 4px 0 10px 12px;
+		border-top: none;
+		border-left: 2px solid var(--line);
+	}
+	.day {
+		display: inline-block;
+		min-width: 150px;
+		color: var(--ink-muted);
+		font-size: 13px;
 	}
 	.text {
 		flex: 1;

@@ -1,0 +1,540 @@
+<!--
+	Data & backups (A6): back up the house — homeCore's file, and this app's
+	own pages and Homes — and put a backup back, told first exactly what it
+	brings; rules and scenes on their own; the calendars rules check.
+-->
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { session } from '#lib/me.svelte.js';
+	import { clock } from '#lib/clock.svelte.js';
+	import { ask } from '#lib/confirm.svelte.js';
+	import { backupDue, daysAgo, size } from '#lib/settings.js';
+	import {
+		addCalendar,
+		backUp,
+		backUpApp,
+		checkRestore,
+		exportScenes,
+		importScenes,
+		loadCalendars,
+		loadStatus,
+		removeCalendar,
+		restartAndWait,
+		restoreApp,
+		stageRestore,
+		uploadCalendar,
+		type Calendar,
+		type RestorePlan,
+		type Status
+	} from '#lib/systemAdmin.js';
+
+	let status = $state<Status | null>(null);
+	let calendars = $state<Calendar[] | null>(null);
+	async function load() {
+		const [s, c] = await Promise.all([loadStatus(), loadCalendars()]);
+		if (s.ok) status = s.data;
+		if (c.ok) calendars = c.data;
+	}
+	onMount(load);
+
+	const due = $derived(status ? backupDue(status.last_backup_at, clock.now) : false);
+	const lastSaid = $derived(
+		!status
+			? ''
+			: status.last_backup_at
+				? `Last backup: ${new Date(status.last_backup_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })} — ${daysAgo(status.last_backup_at, clock.now)}`
+				: 'No backup is recorded.'
+	);
+
+	// ---- back up ----
+	let backing = $state<string | null>(null);
+	async function backupNow() {
+		backing = 'Making the backup — this can take a minute with a lot of history…';
+		const r = await backUp();
+		backing = r.ok
+			? `Saved ${r.data.filename} (${size(r.data.bytes)}) to your downloads. Keep it somewhere other than this machine.`
+			: r.error;
+		await load();
+	}
+	let appBacking = $state<string | null>(null);
+	async function backupApp() {
+		const r = await backUpApp();
+		appBacking = r.ok ? `Saved ${r.data.filename}.` : r.error;
+	}
+
+	// ---- restore ----
+	let file = $state<File | null>(null);
+	let plan = $state<RestorePlan | null>(null);
+	let restoreNote = $state<string | null>(null);
+	let restoring = $state(false);
+	async function chose(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const f = input.files?.[0] ?? null;
+		input.value = '';
+		plan = null;
+		restoreNote = null;
+		file = f;
+		if (!f) return;
+		restoreNote = 'Reading the backup…';
+		const r = await checkRestore(f);
+		if (!r.ok) {
+			file = null;
+			return void (restoreNote = r.error);
+		}
+		plan = r.data;
+		restoreNote = null;
+	}
+	const counts = $derived.by(() => {
+		if (!plan) return [];
+		const n = (pre: string) => plan!.restored.filter((x) => x.startsWith(pre)).length;
+		return [
+			'The house’s state: devices, rooms, scenes, people',
+			plan.restored.includes('history.db') ? 'Its history' : '',
+			n('rules/') ? `${n('rules/')} rules` : '',
+			n('config/') ? 'homeCore’s settings and modes' : '',
+			n('plugins/') ? `Settings for ${n('plugins/')} plugins` : '',
+			n('calendars/') ? 'Its calendars' : ''
+		].filter(Boolean);
+	});
+	async function putBack() {
+		if (!file || !plan) return;
+		const ok = await ask({
+			title: 'Put the house back as this backup has it?',
+			body: `Everything changed since ${plan.taken_at ? new Date(plan.taken_at).toLocaleString() : 'the backup was taken'} is lost. homeCore restarts to do it.`,
+			lost: [
+				'Devices, rooms, scenes, rules and people as they are now',
+				'History since the backup',
+				'Back up now first if you might want any of it'
+			],
+			go: 'Put it back and restart',
+			danger: true,
+			typed: 'restore'
+		});
+		if (!ok) return;
+		restoring = true;
+		restoreNote = 'Handing the backup to homeCore…';
+		const staged = await stageRestore(file);
+		if (!staged.ok) {
+			restoring = false;
+			return void (restoreNote = staged.error);
+		}
+		restoreNote = 'Restarting homeCore to put it in place…';
+		const r = await restartAndWait((secs) => (restoreNote = `Waiting for homeCore… ${secs} s`));
+		restoring = false;
+		restoreNote = r.ok
+			? `Done — homeCore is back after ${r.data.secs} seconds, as the backup has it.`
+			: `${r.error} The backup is waiting and goes in place when homeCore next starts.`;
+		file = null;
+		plan = null;
+		await load();
+	}
+
+	let appNote = $state<string | null>(null);
+	async function choseApp(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const f = input.files?.[0];
+		input.value = '';
+		if (!f) return;
+		let doc: unknown;
+		try {
+			doc = JSON.parse(await f.text());
+		} catch {
+			return void (appNote = 'That isn’t a backup of this app.');
+		}
+		const ok = await ask({
+			title: 'Put this app’s pages and Homes back?',
+			body: 'Each page, display and person’s Home in the backup replaces the one here now. Others are left alone.',
+			go: 'Put them back',
+			danger: true
+		});
+		if (!ok) return;
+		const r = await restoreApp(doc);
+		appNote = r.ok ? `Put back ${r.data.restored} documents.` : r.error;
+	}
+
+	// ---- scenes ----
+	async function scenesOut() {
+		const r = await exportScenes();
+		if (!r.ok) return;
+		const blob = new Blob([JSON.stringify(r.data, null, '\t')], { type: 'application/json' });
+		const a = document.createElement('a');
+		a.href = URL.createObjectURL(blob);
+		a.download = `homecore-scenes-${new Date().toISOString().slice(0, 10)}.json`;
+		a.click();
+	}
+
+	// homeCore adds every imported scene as a new one, so one already here by
+	// name would be doubled: those start unticked.
+	let incoming = $state<{ scene: { name?: string }; take: boolean; here: boolean }[] | null>(null);
+	let scenesNote = $state<string | null>(null);
+	async function scenesIn(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const f = input.files?.[0];
+		input.value = '';
+		if (!f) return;
+		let list: unknown;
+		try {
+			list = JSON.parse(await f.text());
+		} catch {
+			return void (scenesNote = 'That isn’t a scenes file.');
+		}
+		if (!Array.isArray(list) || !list.every((x) => x && typeof x === 'object' && 'name' in x))
+			return void (scenesNote = 'That isn’t a scenes file.');
+		const here = await exportScenes();
+		const names = new Set(
+			here.ok ? (here.data as { name: string }[]).map((x) => x.name.trim().toLowerCase()) : []
+		);
+		incoming = (list as { name: string }[]).map((scene) => {
+			const dup = names.has(String(scene.name).trim().toLowerCase());
+			return { scene, take: !dup, here: dup };
+		});
+		scenesNote = null;
+	}
+	async function bringScenes() {
+		if (!incoming) return;
+		const chosen = incoming.filter((x) => x.take).map((x) => x.scene);
+		const r = await importScenes(chosen);
+		scenesNote = r.ok ? `Added ${r.data.imported} scenes.` : r.error;
+		if (r.ok) incoming = null;
+	}
+
+	// ---- calendars ----
+	let url = $state('');
+	let calName = $state('');
+	let refresh = $state(24);
+	let calNote = $state<string | null>(null);
+	async function add(e: SubmitEvent) {
+		e.preventDefault();
+		calNote = 'Fetching it…';
+		const r = await addCalendar(url.trim(), calName.trim() || undefined, refresh || undefined);
+		calNote = r.ok ? `Added “${r.data.calendar_id}” — ${r.data.event_count} events.` : r.error;
+		if (r.ok) url = calName = '';
+		await load();
+	}
+	async function uploadIcs(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const f = input.files?.[0];
+		input.value = '';
+		if (!f) return;
+		const r = await uploadCalendar(await f.text(), f.name.replace(/\.ics$/i, '').replace(/[^A-Za-z0-9_-]/g, '_'));
+		calNote = r.ok ? `Added “${r.data.calendar_id}” — ${r.data.event_count} events.` : r.error;
+		await load();
+	}
+	async function remove(c: Calendar) {
+		const ok = await ask({
+			title: `Remove the calendar “${c.id}”?`,
+			body: 'Rules that check it find nothing in it from now on.',
+			go: 'Remove',
+			danger: true
+		});
+		if (!ok) return;
+		const r = await removeCalendar(c.id);
+		calNote = r.ok
+			? r.data.referencing_rules.length
+				? `Removed. These rules still check it: ${r.data.referencing_rules.map((x) => x.rule_name).join(', ')}.`
+				: 'Removed.'
+			: r.error;
+		await load();
+	}
+	const ago = (iso: string | null) => (iso ? daysAgo(iso, clock.now) : 'never');
+</script>
+
+{#if !session.isAdmin}
+	<p class="quiet">Backups are for the house’s admins.</p>
+{:else}
+	<div class="grid">
+		<section class="card" class:due>
+			<h2>Back up</h2>
+			<p class:bad={due}><strong>{lastSaid}</strong></p>
+			<p class="sub">
+				One file with the house’s state{status ? ` (${size(status.state_db_bytes)})` : ''}, history{status
+					? ` (${size(status.history_db_bytes)})`
+					: ''}, rules, settings and calendars.
+			</p>
+			<button class="go" onclick={backupNow} disabled={backing?.startsWith('Making')}>Back up now</button>
+			{#if backing}<p class="sub" role="status">{backing}</p>{/if}
+			<p class="sub">
+				This app’s own pages, displays and everyone’s Home are kept apart from homeCore —
+				<button class="link" onclick={backupApp}>save them too</button>.
+			</p>
+			{#if appBacking}<p class="sub" role="status">{appBacking}</p>{/if}
+			<p class="sub">homeCore doesn’t back itself up on a schedule.</p>
+		</section>
+
+		<section class="card">
+			<h2>Restore</h2>
+			<p class="sub">
+				Put the house back as a backup has it. You’re told what it brings before anything happens.
+			</p>
+			{#if !plan}
+				<label class="plain bad file"
+					>Choose a backup file…<input type="file" accept=".zip,application/zip" onchange={chose} /></label
+				>
+			{:else}
+				<div class="plan">
+					<strong
+						>A backup from {plan.taken_at
+							? new Date(plan.taken_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+							: 'an unknown time'}</strong
+					>
+					<ul>
+						{#each counts as c (c)}<li>{c}</li>{/each}
+					</ul>
+					{#if plan.skipped.length}<span class="sub"
+							>Left out: {plan.skipped.join(', ')} — not for this homeCore.</span
+						>{/if}
+				</div>
+				<div class="acts">
+					<button class="plain" onclick={backupNow}>Back up now first</button>
+					<button class="danger" onclick={putBack} disabled={restoring}>Put it back…</button>
+					<button class="plain" onclick={() => ((plan = null), (file = null))} disabled={restoring}>Cancel</button>
+				</div>
+			{/if}
+			{#if restoreNote}<p class="sub" role="status">{restoreNote}</p>{/if}
+			<p class="sub">
+				This app’s pages and Homes: <label class="link file"
+					>put a saved copy back<input type="file" accept=".json,application/json" onchange={choseApp} /></label
+				>
+			</p>
+			{#if appNote}<p class="sub" role="status">{appNote}</p>{/if}
+		</section>
+
+		<section class="card">
+			<h2>Rules and scenes, on their own</h2>
+			<p class="sub">As JSON — to keep a copy, move them to another homeCore, or look through them.</p>
+			<div class="acts">
+				<a class="plain" href="/settings/automations">Export or import rules</a>
+				<button class="plain" onclick={scenesOut}>Export scenes</button>
+				<label class="plain file"
+					>Import scenes…<input type="file" accept=".json,application/json" onchange={scenesIn} /></label
+				>
+			</div>
+			{#if incoming}
+				<div class="plan">
+					<strong>{incoming.length} scenes in the file</strong>
+					{#each incoming as x, i (i)}
+						<label class="pick"
+							><input type="checkbox" bind:checked={x.take} />
+							{x.scene.name}{#if x.here}<span class="sub"> — one by this name is here already</span>{/if}</label
+						>
+					{/each}
+				</div>
+				<div class="acts">
+					<button class="go" onclick={bringScenes} disabled={!incoming.some((x) => x.take)}
+						>Add {incoming.filter((x) => x.take).length}</button
+					>
+					<button class="plain" onclick={() => (incoming = null)}>Cancel</button>
+				</div>
+			{/if}
+			{#if scenesNote}<p class="sub" role="status">{scenesNote}</p>{/if}
+		</section>
+
+		<section class="card">
+			<h2>Calendars</h2>
+			<p class="sub">Holidays, bin days, school terms — rules can check whether there’s an event now.</p>
+			{#if calendars?.length}
+				<ul class="cals">
+					{#each calendars as c (c.id)}
+						<li>
+							<span class="text"
+								><strong>{c.id}</strong>
+								<span class="sub"
+									>{c.upcoming_count} coming up of {c.event_count} · {c.source_url
+										? `fetched ${ago(c.fetched_at)}`
+										: 'uploaded'}</span
+								></span
+							>
+							<button class="plain bad" onclick={() => remove(c)}>Remove</button>
+						</li>
+					{/each}
+				</ul>
+			{:else if calendars}
+				<p class="sub">None yet.</p>
+			{/if}
+			<form class="add" onsubmit={add}>
+				<input type="url" bind:value={url} placeholder="A calendar’s web address (.ics)" aria-label="Calendar address" required />
+				<input bind:value={calName} placeholder="Name (optional)" aria-label="Calendar name" />
+				<label class="sub refresh"
+					>Fetch again every <input type="number" min="0" bind:value={refresh} aria-label="Hours" /> hours</label
+				>
+				<button class="go" type="submit">Add</button>
+			</form>
+			<label class="link file">or upload an .ics file<input type="file" accept=".ics,text/calendar" onchange={uploadIcs} /></label>
+			{#if calNote}<p class="sub" role="status">{calNote}</p>{/if}
+		</section>
+	</div>
+{/if}
+
+<style>
+	.grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+		gap: var(--space-4);
+		align-items: start;
+	}
+	.card {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: var(--space-2);
+		padding: var(--space-4);
+		border-radius: var(--radius);
+		background: var(--surface);
+		border: 1px solid var(--card-line);
+	}
+	.card.due {
+		background: var(--alert-bg);
+		border-color: var(--alert-line);
+	}
+	h2 {
+		margin: 0;
+		font-size: 18px;
+	}
+	p {
+		margin: 0;
+		line-height: 1.5;
+	}
+	.sub {
+		color: var(--ink-muted);
+		font-size: 13.5px;
+		line-height: 1.5;
+		margin: 0;
+	}
+	.bad {
+		color: var(--alert);
+	}
+	.go,
+	.plain,
+	.danger {
+		min-height: 40px;
+		padding: 0 16px;
+		border-radius: 20px;
+		display: inline-flex;
+		align-items: center;
+		font-weight: 700;
+		text-decoration: none;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--ink);
+	}
+	.go {
+		border: none;
+		background: var(--accent);
+		color: var(--accent-ink);
+	}
+	.danger {
+		border: none;
+		background: var(--alert);
+		color: var(--alert-ink);
+	}
+	.plain.bad {
+		border-color: var(--alert-line);
+		background: none;
+		color: var(--alert);
+	}
+	.go:disabled,
+	.danger:disabled {
+		opacity: 0.5;
+	}
+	.link {
+		border: none;
+		background: none;
+		padding: 0;
+		color: var(--accent);
+		font-weight: 600;
+		font-size: inherit;
+		cursor: pointer;
+	}
+	.file {
+		position: relative;
+		cursor: pointer;
+	}
+	.file input {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		opacity: 0;
+	}
+	.file:focus-within {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+	.plan {
+		align-self: stretch;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		padding: 12px 14px;
+		border-radius: 12px;
+		background: var(--surface-2);
+	}
+	.plan ul {
+		margin: 0;
+		padding-left: 20px;
+	}
+	.pick {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		min-height: 32px;
+	}
+	.acts {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+	.cals {
+		align-self: stretch;
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.cals li {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 8px 0;
+	}
+	.cals li + li {
+		border-top: 1px solid var(--line);
+	}
+	.text {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+	}
+	.add {
+		align-self: stretch;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		align-items: center;
+	}
+	.add input:not([type='number']) {
+		flex: 1 1 200px;
+		min-height: 40px;
+		box-sizing: border-box;
+		padding: 0 12px;
+		border-radius: 10px;
+		border: 1px solid var(--line);
+		background: var(--sheet);
+	}
+	.refresh {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+	.refresh input {
+		width: 56px;
+		min-height: 34px;
+		border-radius: 8px;
+		border: 1px solid var(--line);
+		background: var(--sheet);
+		padding: 0 6px;
+	}
+	.quiet {
+		margin: 0;
+		color: var(--ink-muted);
+		font-size: 13px;
+	}
+</style>

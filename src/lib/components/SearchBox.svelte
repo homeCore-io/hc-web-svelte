@@ -15,6 +15,8 @@
 	import { session } from '#lib/me.svelte.js';
 	import { finder } from '#lib/finder.svelte.js';
 	import { openDevice } from '#lib/popup.js';
+	import { loadRules } from '#lib/uses.js';
+	import { SETTINGS } from '#lib/settings.js';
 
 	let dialog = $state<HTMLDialogElement>();
 	let input = $state<HTMLInputElement>();
@@ -26,12 +28,22 @@
 		{ href: '/me', title: 'Me' },
 		...(session.isAdmin ? [{ href: '/settings', title: 'Settings' }] : [])
 	]);
+	// Rules are read once, when someone who may see them first searches.
+	let rules = $state<{ id: string; name: string }[]>([]);
+	let rulesAsked = false;
+	$effect(() => {
+		if (!finder.open || rulesAsked || !session.can('automations:write')) return;
+		rulesAsked = true;
+		void loadRules().then((r) => (rules = r ?? []));
+	});
 	const hits = $derived(
 		search(query, {
 			devices: Object.values(devices.byId),
 			rooms: rooms.list,
 			scenes: scenes.list,
-			pages
+			pages,
+			rules,
+			settings: session.isAdmin ? SETTINGS : []
 		})
 	);
 	$effect(() => {

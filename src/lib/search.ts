@@ -1,6 +1,7 @@
 /**
  * One search for everything (N8): devices, rooms, scenes and the app's own
- * pages — later, hand-built pages and, for admins, settings.
+ * pages — and, for those who may change the house, its rules and every
+ * Settings page (A7, as the Flutter console's palette did).
  *
  * Ranked so typing the start of a name wins: "kit" finds the Kitchen before
  * anything that merely contains "kit". Every word typed must match somewhere
@@ -22,6 +23,10 @@ export interface Corpus {
 	rooms: Room[];
 	scenes: { id: string; name: string }[];
 	pages: { href: string; title: string }[];
+	/** Rules, by name — for those who may see them. */
+	rules?: { id: string; name: string }[];
+	/** Settings pages — for admins. */
+	settings?: { slug: string; label: string; words: string }[];
 }
 
 interface Entry {
@@ -81,6 +86,25 @@ function entries(c: Corpus): Entry[] {
 			hit: { type: 'page', href: p.href, title: p.title, detail: 'Page' },
 			name: p.title.toLowerCase(),
 			extra: 'page'
+		});
+	}
+	for (const r of c.rules ?? []) {
+		out.push({
+			hit: {
+				type: 'page',
+				href: `/settings/automations/${encodeURIComponent(r.id)}`,
+				title: r.name,
+				detail: 'Rule'
+			},
+			name: r.name.toLowerCase(),
+			extra: 'rule automation'
+		});
+	}
+	for (const st of c.settings ?? []) {
+		out.push({
+			hit: { type: 'page', href: `/settings/${st.slug}`, title: st.label, detail: 'Settings' },
+			name: st.label.toLowerCase(),
+			extra: `settings ${st.words}`.toLowerCase()
 		});
 	}
 	return out;

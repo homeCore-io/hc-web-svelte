@@ -24,6 +24,15 @@
 	let failed = $state<string | null>(null);
 	let noise = $state(false);
 	let room = $state('');
+	let kind = $state('');
+	const KINDS = [
+		{ id: '', label: 'everything' },
+		{ id: 'device', label: 'devices' },
+		{ id: 'rule', label: 'rules' },
+		{ id: 'command', label: 'commands' },
+		{ id: 'scene', label: 'scenes' },
+		{ id: 'warn', label: 'worth a look' }
+	];
 	let paused = $state(false);
 	let held = $state<Json[]>([]);
 
@@ -60,7 +69,7 @@
 		const noisy = new Set<EventRow>();
 		for (const e of events) {
 			const r = eventRow(e, house);
-			if (!r || (room && r.room !== room)) continue;
+			if (!r || (room && r.room !== room) || (kind && r.kind !== kind)) continue;
 			if (onlyNoise(e)) {
 				if (!noise) noisy.add(r);
 			}
@@ -93,6 +102,12 @@
 				<select bind:value={room}>
 					<option value="">any</option>
 					{#each roomNames as r (r)}<option value={r}>{r}</option>{/each}
+				</select>
+			</label>
+			<label
+				>What
+				<select bind:value={kind}>
+					{#each KINDS as k (k.id)}<option value={k.id}>{k.label}</option>{/each}
 				</select>
 			</label>
 			<label class="check"

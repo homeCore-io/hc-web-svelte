@@ -27,6 +27,7 @@
 	let busy = $state(false);
 	let who = $state('');
 	let what = $state<AuditFilter>('all');
+	let query = $state('');
 	let open = $state<string | null>(null);
 
 	async function load(older = false) {
@@ -43,9 +44,18 @@
 	onMount(() => void load());
 
 	const people = $derived([...new Set(entries.map(whoOf))].sort());
-	const rows = $derived(
-		auditRows(entries.filter((e) => (!who || whoOf(e) === who) && auditMatches(e, what)))
-	);
+	const said = (e: AuditEntry) =>
+		`${auditWords(e)
+			.map((w) => w.t)
+			.join('')} ${e.event_type} ${e.target_id ?? ''} ${e.ip ?? ''}`.toLowerCase();
+	const rows = $derived.by(() => {
+		const q = query.trim().toLowerCase();
+		return auditRows(
+			entries.filter(
+				(e) => (!who || whoOf(e) === who) && auditMatches(e, what) && (!q || said(e).includes(q))
+			)
+		);
+	});
 	const changesRecorded = $derived(
 		entries.some((e) => /^(automation|device|area|scene|helper|mode|plugin)\./.test(e.event_type))
 	);
@@ -97,6 +107,12 @@
 					<option value="refused">refused</option>
 				</select>
 			</label>
+			<input
+				type="search"
+				placeholder="Search — a name, a room, an address"
+				aria-label="Search the audit"
+				bind:value={query}
+			/>
 		</div>
 		{#if entries.length && !changesRecorded}
 			<p class="lit">
@@ -160,6 +176,14 @@
 		gap: 6px;
 		color: var(--ink-muted);
 		font-size: 13px;
+	}
+	input[type='search'] {
+		flex: 1 1 220px;
+		height: 34px;
+		padding: 0 12px;
+		border-radius: 17px;
+		border: 1px solid var(--line);
+		background: var(--surface);
 	}
 	select {
 		height: 34px;

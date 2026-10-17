@@ -4,9 +4,9 @@
  */
 import path from 'node:path';
 
-/** homeCore's address, without a trailing slash. */
+/** homeCore's address, without a trailing slash. Set HC_CORE_URL; homeCore on this machine otherwise. */
 export function coreUrl() {
-	return (process.env.HC_CORE_URL ?? 'http://10.0.10.150:8080').replace(/\/+$/, '');
+	return (process.env.HC_CORE_URL || 'http://127.0.0.1:8080').replace(/\/+$/, '');
 }
 
 /** Where the UI server keeps its own data (S2, M1): one directory, a volume. */

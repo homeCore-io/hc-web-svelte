@@ -82,6 +82,60 @@
 		if (!trouble) renamingRules = false;
 	}
 
+	// ---- how it shows: its kind, and its buttons' names ----
+	const KINDS = [
+		'light',
+		'switch',
+		'outlet',
+		'fan',
+		'lock',
+		'speaker',
+		'tv',
+		'contact_sensor',
+		'door',
+		'window',
+		'garage',
+		'gate',
+		'motion_sensor',
+		'occupancy_sensor',
+		'temperature_sensor',
+		'water_sensor',
+		'keypad',
+		'pico_remote',
+		'bridge'
+	];
+	let hintNote = $state<string | null>(null);
+	async function setHint(v: string) {
+		hintNote = null;
+		const err = await patchDevice(id, { ui_hint: v || null });
+		hintNote = err ?? (v ? `Shown as ${kindLabel(v).toLowerCase()}.` : 'Shown as its plugin says.');
+	}
+	const buttons = $derived.by(() => {
+		if (!device) return [];
+		const nums = new Set<string>(Object.keys(device.button_names ?? {}));
+		const keys = [
+			...Object.keys(device.attributes ?? {}),
+			...Object.keys(device.schema?.attributes ?? {})
+		];
+		for (const k of keys) {
+			const m = /^button_(\d+)$/.exec(k);
+			if (m) nums.add(m[1]!);
+		}
+		return [...nums].sort((a, b) => Number(a) - Number(b));
+	});
+	let buttonDraft = $state<Record<string, string>>({});
+	let buttonNote = $state<string | null>(null);
+	async function saveButtons() {
+		buttonNote = null;
+		const err = await patchDevice(id, { button_names: buttonDraft });
+		if (err) return void (buttonNote = err);
+		buttonDraft = {};
+		buttonNote = 'Saved.';
+	}
+	const parent = $derived(
+		device?.parent_device_id ? devices.byId[device.parent_device_id] : undefined
+	);
+
 	// ---- history ----
 	const PERIODS = [
 		{ label: '24 h', ms: 24 * 3600_000 },
@@ -206,6 +260,69 @@
 					</div>
 				</div>
 			</section>
+
+			<section>
+				<h2>How it shows</h2>
+				<div class="rows">
+					<label class="row">
+						<span class="k">Shown as</span>
+						<select value={device.ui_hint ?? ''} onchange={(e) => setHint(e.currentTarget.value)}>
+							<option value=""
+								>As {pluginLabel(device.plugin_id)} says{device.device_type
+									? ` (${kindLabel(device.device_type).toLowerCase()})`
+									: ''}</option
+							>
+							{#each KINDS as k (k)}<option value={k}>{kindLabel(k)}</option>{/each}
+						</select>
+					</label>
+					{#if hintNote}<p class="hint" role="status">{hintNote}</p>{/if}
+					{#if buttons.length}
+						<p class="hint">
+							Its buttons, by number — a name here wins over what the bridge calls it.
+						</p>
+						{#each buttons as b (b)}
+							<label class="row">
+								<span class="k">Button {b}</span>
+								<input
+									value={buttonDraft[b] ?? device.button_names?.[b] ?? ''}
+									placeholder="As the bridge says"
+									oninput={(e) => (buttonDraft = { ...buttonDraft, [b]: e.currentTarget.value })}
+								/>
+							</label>
+						{/each}
+						{#if Object.keys(buttonDraft).length}
+							<button type="button" class="small go" onclick={saveButtons}>Save button names</button
+							>
+						{/if}
+						{#if buttonNote}<p class="hint" role="status">{buttonNote}</p>{/if}
+					{/if}
+				</div>
+			</section>
+
+			{#if device.manufacturer || device.model || device.sw_version || device.parent_device_id}
+				<section>
+					<h2>Hardware</h2>
+					<div class="rows">
+						{#if device.manufacturer}<div class="row">
+								<span class="k">Made by</span><span>{device.manufacturer}</span>
+							</div>{/if}
+						{#if device.model}<div class="row">
+								<span class="k">Model</span><span>{device.model}</span>
+							</div>{/if}
+						{#if device.sw_version}<div class="row">
+								<span class="k">Firmware</span><code>{device.sw_version}</code>
+							</div>{/if}
+						{#if device.parent_device_id}
+							<div class="row">
+								<span class="k">Behind</span>
+								{#if parent}<a href={`/settings/devices/${encodeURIComponent(parent.device_id)}`}
+										>{displayName(parent)}</a
+									>{:else}<code>{device.parent_device_id}</code>{/if}
+							</div>
+						{/if}
+					</div>
+				</section>
+			{/if}
 
 			<section>
 				<h2>What it reports</h2>

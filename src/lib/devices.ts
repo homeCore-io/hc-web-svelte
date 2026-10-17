@@ -92,6 +92,13 @@ export interface CoreDevice {
 	last_change?: Change;
 	attributes_changed_at?: Record<string, string>;
 	button_names?: Record<string, string>;
+	/** What the thing is, as its own system reports it — for the operator. */
+	manufacturer?: string;
+	model?: string;
+	/** Firmware, as the device reports it. */
+	sw_version?: string;
+	/** The device this one sits behind (a bulb's bridge), when known. */
+	parent_device_id?: string;
 	/** Inline in a snapshot and in `GET /devices?include_schema=true`. */
 	schema?: Schema | null;
 }

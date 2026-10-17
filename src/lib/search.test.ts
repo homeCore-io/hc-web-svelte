@@ -46,3 +46,22 @@ describe('search (N8)', () => {
 		expect(titles('zzz')).toEqual([]);
 	});
 });
+
+describe('rules and settings', () => {
+	it('finds a rule by name, and a settings page by its words, when given them', () => {
+		const corpus = {
+			devices: [],
+			rooms: [],
+			scenes: [],
+			pages: [],
+			rules: [{ id: 'r1', name: 'Porch at sunset' }],
+			settings: [{ slug: 'data', label: 'Data & backups', words: 'backup restore calendars' }]
+		};
+		expect(search('porch', corpus)[0]).toMatchObject({
+			href: '/settings/automations/r1',
+			detail: 'Rule'
+		});
+		expect(search('restore', corpus)[0]).toMatchObject({ href: '/settings/data' });
+		expect(search('porch', { ...corpus, rules: undefined })).toEqual([]);
+	});
+});

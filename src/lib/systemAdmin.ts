@@ -238,3 +238,6 @@ export const calendarEvents = (id: string, limit = 5) =>
 // ---- rules and scenes on their own ----
 
 export const exportScenes = () => call<unknown>('GET', '/scenes/export');
+/** homeCore adds each as a new scene, whatever its id — so choose what to bring. */
+export const importScenes = (scenes: unknown[]) =>
+	call<{ imported: number }>('POST', '/scenes/import', scenes);

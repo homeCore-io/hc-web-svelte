@@ -27,5 +27,7 @@ RUN mkdir -p /data && chown node:node /data
 USER node
 VOLUME /data
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://127.0.0.1:3000/ui/health || exit 1
+# Asks whichever port the server was told to use: on host networking PORT
+# moves it off 3000, and a fixed 3000 would ask somebody else.
+HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- "http://127.0.0.1:${PORT:-3000}/ui/health" || exit 1
 CMD ["node", "server/index.js"]

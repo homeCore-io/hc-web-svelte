@@ -450,7 +450,7 @@
 		<section>
 			<h3 class="section-label">Readings</h3>
 			<dl>
-				{#each view.readings as r (r.label)}
+				{#each view.readings as r (r.attr)}
 					<div>
 						<dt>{r.label}</dt>
 						<dd>{r.value}</dd>
@@ -490,7 +490,7 @@
 		<details>
 			<summary>More</summary>
 			<dl>
-				{#each view.more as r (r.label)}
+				{#each view.more as r (r.attr)}
 					<div>
 						<dt>{r.label}</dt>
 						<dd>{r.value}</dd>

@@ -10,13 +10,18 @@ export interface Reading {
 	attr: string;
 	label: string;
 	value: string;
+	/** For a list or a block of values: all of it, laid out, behind a toggle. */
+	detail?: string;
 	diagnostic: boolean;
 }
 
 const EMPTY: Schema = { attributes: {} };
 
 /** Everything it reports, primary readings first, diagnostics last. */
-export function readingsOf(d: CoreDevice): Reading[] {
+export function readingsOf(
+	d: CoreDevice,
+	nameOf: (id: string) => string | undefined = () => undefined
+): Reading[] {
 	const schema = d.schema ?? EMPTY;
 	const primary = schema.primary ?? [];
 	const rank = (a: string) => {
@@ -29,17 +34,68 @@ export function readingsOf(d: CoreDevice): Reading[] {
 		.map((attr) => {
 			const spec = schema.attributes[attr];
 			const raw = d.attributes[attr];
+			const said = sayValue(raw, nameOf);
 			const value =
+				said?.value ??
 				reading(d.attributes, schema, attr) ??
 				(raw === null || raw === undefined ? '—' : JSON.stringify(raw));
 			return {
 				attr,
 				label: spec?.display_name ?? cap(words(attr)),
 				value,
+				...(said?.detail ? { detail: said.detail } : {}),
 				diagnostic: spec?.category === 'diagnostic'
 			};
 		})
 		.sort((a, b) => rank(a.attr) - rank(b.attr) || a.label.localeCompare(b.label));
+}
+
+/** What an item in a list is called, if it says. */
+const titleOf = (x: unknown): string | undefined => {
+	if (!x || typeof x !== 'object') return undefined;
+	const o = x as Record<string, unknown>;
+	const t = o.title ?? o.name ?? o.label ?? o.id;
+	return typeof t === 'string' ? t : undefined;
+};
+
+/**
+ * A value that isn't a plain reading, said for a person: a list of names
+ * as names, a list of things by their titles, a block by what it holds — the
+ * whole of it laid out behind a toggle — and a device's id as its name.
+ * Undefined leaves it to the ordinary reading.
+ */
+export function sayValue(
+	raw: unknown,
+	nameOf: (id: string) => string | undefined = () => undefined
+): { value: string; detail?: string } | undefined {
+	if (typeof raw === 'string') {
+		const name = nameOf(raw);
+		if (name) return { value: name };
+		// An address is said as it is, never capitalised or split into words.
+		if (/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) return { value: raw };
+		return undefined;
+	}
+	if (Array.isArray(raw)) {
+		if (raw.length === 0) return { value: 'None' };
+		if (raw.every((x) => typeof x === 'string' || typeof x === 'number')) {
+			const names = raw.map((x) => nameOf(String(x)) ?? String(x));
+			return { value: names.join(', ') };
+		}
+		const titles = raw.map(titleOf).filter((t): t is string => !!t);
+		const count = `${raw.length} ${raw.length === 1 ? 'item' : 'items'}`;
+		return {
+			value: titles.length === raw.length ? titles.join(', ') : count,
+			detail: JSON.stringify(raw, null, 2)
+		};
+	}
+	if (raw && typeof raw === 'object') {
+		const keys = Object.keys(raw);
+		return {
+			value: keys.length ? keys.map((k) => words(k)).join(', ') : 'Nothing',
+			detail: JSON.stringify(raw, null, 2)
+		};
+	}
+	return undefined;
 }
 
 export interface Charted {
@@ -49,19 +105,40 @@ export interface Charted {
 	bool: boolean;
 }
 
-/** Up to `max` readings worth a history chart: numbers and on/offs, not diagnostics. */
+/**
+ * Readings no chart helps with: how far through a track it is and how long
+ * the track is (they measure what's playing, not the device), and tone
+ * settings someone sets once (bass, treble, loudness, shuffle, repeat).
+ */
+const UNCHARTED =
+	/battery|rssi|linkquality|signal|(^|_)(duration|position|elapsed|remaining)(_|$)|_secs$|^(bass|treble|loudness|balance|crossfade|night_mode|speech_enhancement|shuffle|repeat)$/;
+
+/**
+ * Up to `max` readings worth a history chart: numbers and on/offs, not
+ * diagnostics or settings — what the plugin calls its main readings first,
+ * then those that have changed most recently, so a reading that sits still
+ * doesn't take a chart from one that moves.
+ */
 export function chartable(d: CoreDevice, max = 3): Charted[] {
 	const schema = d.schema ?? EMPTY;
 	const primary = schema.primary ?? [];
-	const rank = (a: string) => (primary.includes(a) ? primary.indexOf(a) : 100);
+	const changed = (a: string) => {
+		const at = d.attributes_changed_at?.[a];
+		return at ? Date.parse(at) : 0;
+	};
 	return Object.entries(d.attributes)
 		.filter(([attr, v]) => {
 			const spec = schema.attributes[attr];
 			if (spec?.category === 'diagnostic' || spec?.category === 'config') return false;
-			if (/battery|rssi|linkquality|signal/.test(attr)) return false;
+			if (UNCHARTED.test(attr)) return false;
 			return typeof v === 'number' || typeof v === 'boolean';
 		})
-		.sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
+		.sort(([a], [b]) => {
+			const pa = primary.indexOf(a);
+			const pb = primary.indexOf(b);
+			if (pa >= 0 || pb >= 0) return (pa < 0 ? 1e3 : pa) - (pb < 0 ? 1e3 : pb);
+			return changed(b) - changed(a) || a.localeCompare(b);
+		})
 		.slice(0, max)
 		.map(([attr, v]) => {
 			const spec = schema.attributes[attr];

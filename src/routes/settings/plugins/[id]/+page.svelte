@@ -16,8 +16,10 @@
 	import { ask } from '#lib/confirm.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
 	import { displayName } from '#lib/devices.js';
-	import { ago } from '#lib/card.js';
-	import { pluginLabel } from '#lib/inventory.js';
+	import { ago, kindOf } from '#lib/card.js';
+	import { kindLabel, pluginLabel } from '#lib/inventory.js';
+	import { rooms } from '#lib/rooms.svelte.js';
+	import { roomOf } from '#lib/summary.js';
 	import {
 		LEVELS,
 		buttonOf,
@@ -322,8 +324,12 @@
 					<ul class="devices">
 						{#each mine as d (d.device_id)}
 							<li>
-								<a href={`/settings/devices/${encodeURIComponent(d.device_id)}`}
-									><span>{displayName(d)}</span><span class="muted">{d.device_type ?? ''}</span
+								<a
+									href={`/settings/devices/${encodeURIComponent(d.device_id)}?from=${encodeURIComponent(`plugin:${id}`)}`}
+									><span>{displayName(d)}</span><span class="muted"
+										>{[kindLabel(kindOf(d)), roomOf(d, rooms.list)?.name]
+											.filter(Boolean)
+											.join(' · ')}</span
 									><ChevronRight size={16} aria-hidden="true" /></a
 								>
 							</li>

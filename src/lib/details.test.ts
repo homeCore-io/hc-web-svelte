@@ -84,7 +84,7 @@ describe('device details, generated from the schema (D3)', () => {
 	it('a sensor: its readings, and a chart of the first number', () => {
 		const d = details('hue_motion');
 		expect(d.controls).toEqual([]);
-		expect(d.readings).toEqual([
+		expect(d.readings.map(({ label, value }) => ({ label, value }))).toEqual([
 			{ label: 'Motion', value: 'Clear' },
 			{ label: 'Temperature', value: '22.1°C' },
 			{ label: 'Illuminance', value: '26 lux' }
@@ -104,7 +104,32 @@ describe('device details, generated from the schema (D3)', () => {
 	});
 
 	it('battery and other housekeeping go under More', () => {
-		expect(details('yolink_front_lock').more).toEqual([{ label: 'Battery', value: '90%' }]);
+		expect(details('yolink_front_lock').more).toEqual([
+			{ attr: 'battery', label: 'Battery', value: '90%' }
+		]);
+	});
+
+	it('one thing published under two names is said once, and never breaks the list', () => {
+		// The Sonos plugin sends a track's length as `duration` and `media_duration`;
+		// both read "Duration", which as a list key crashed the popup.
+		const sonos = byId('sonos_kitchen');
+		const twice = {
+			...sonos,
+			attributes: { ...sonos.attributes, duration: 245, media_duration: 245 },
+			schema: {
+				...sonos.schema!,
+				attributes: {
+					...sonos.schema!.attributes,
+					duration: { kind: 'integer' as const, label: 'Duration', unit: 's' },
+					media_duration: { kind: 'integer' as const, label: 'Duration', unit: 's' }
+				}
+			}
+		};
+		const d = detailsFor(twice, HOUSE, FIXTURE_NOW);
+		const lines = [...d.readings, ...d.more];
+		expect(lines.filter((l) => l.label === 'Duration')).toHaveLength(1);
+		const keys = lines.map((l) => l.attr);
+		expect(new Set(keys).size).toBe(keys.length);
 	});
 });
 

@@ -1,5 +1,5 @@
-import { expect, it } from 'vitest';
-import { chartable, readingsOf, usesOf } from './deviceView.js';
+import { describe, expect, it } from 'vitest';
+import { chartable, readingsOf, sayValue, usesOf } from './deviceView.js';
 import type { CoreDevice } from './devices.js';
 
 const sensor: CoreDevice = {
@@ -53,4 +53,51 @@ it('finds rules by id or name in rules, scenes and alert rules', () => {
 	expect(u.rules.map((r) => r.name)).toEqual(['By canonical']);
 	expect(u.scenes.map((s) => s.name)).toEqual(['Cosy']);
 	expect(u.alertRules.map((s) => s.name)).toEqual(['Hot']);
+});
+
+it('charts what moves, not a track’s progress or a speaker’s tone settings', () => {
+	const speaker: CoreDevice = {
+		device_id: 'sonos_bathroom',
+		name: 'Bathroom',
+		available: true,
+		attributes: {
+			bass: 0,
+			treble: 0,
+			loudness: true,
+			duration_secs: 0,
+			media_duration: 0,
+			position_secs: 0,
+			volume: 15,
+			muted: false
+		},
+		attributes_changed_at: {
+			volume: '2026-10-17T12:00:00Z',
+			muted: '2026-10-10T12:00:00Z'
+		}
+	};
+	expect(chartable(speaker).map((c) => c.attr)).toEqual(['volume', 'muted']);
+});
+
+describe('values said for a person, not as JSON', () => {
+	const names: Record<string, string> = { sonos_bathroom: 'Bathroom' };
+	const nameOf = (id: string) => names[id];
+
+	it('lists of names, lists of things, blocks, ids and addresses', () => {
+		expect(sayValue(['ALT Radio', 'Piano for Sleeping'])).toEqual({
+			value: 'ALT Radio, Piano for Sleeping'
+		});
+		expect(sayValue([])).toEqual({ value: 'None' });
+		expect(sayValue(['sonos_bathroom'], nameOf)).toEqual({ value: 'Bathroom' });
+		const items = sayValue([{ title: 'ALT Radio', image_url: 'https://x' }, { title: 'Piano' }]);
+		expect(items?.value).toBe('ALT Radio, Piano');
+		expect(items?.detail).toContain('"image_url": "https://x"');
+		expect(sayValue([{ a: 1 }, { b: 2 }])?.value).toBe('2 items');
+		expect(sayValue({ favorites: [], group_members: [] })?.value).toBe('favorites, group members');
+		expect(sayValue('sonos_bathroom', nameOf)).toEqual({ value: 'Bathroom' });
+		expect(sayValue('https://i.iheart.com/v3/re/assets')).toEqual({
+			value: 'https://i.iheart.com/v3/re/assets'
+		});
+		expect(sayValue('paused')).toBeUndefined();
+		expect(sayValue(15)).toBeUndefined();
+	});
 });

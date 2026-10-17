@@ -80,6 +80,8 @@ export interface ActionGroup {
 }
 
 export interface Line {
+	/** The attribute it reads — unique, unlike its label. */
+	attr: string;
 	label: string;
 	value: string;
 }
@@ -133,7 +135,7 @@ export function detailsFor(d: CoreDevice, all: CoreDevice[] = [], now = Date.now
 		const value = a[name];
 		if (spec.category !== undefined) {
 			const text = lineFor(a, s, name);
-			if (text !== undefined) more.push({ label: labelOf(name, spec), value: text });
+			if (text !== undefined) more.push({ attr: name, label: labelOf(name, spec), value: text });
 			continue;
 		}
 		if (spec.writable && !covered.has(name) && !claimed.has(name)) {
@@ -151,6 +153,7 @@ export function detailsFor(d: CoreDevice, all: CoreDevice[] = [], now = Date.now
 		// whatever else its bridge reports (Hue's mirek, its effect state) is
 		// housekeeping to everyone but the curious.
 		(QUIET_READINGS.has(card.kind) ? more : readings).push({
+			attr: name,
 			label: labelOf(name, spec),
 			value: text
 		});
@@ -161,8 +164,8 @@ export function detailsFor(d: CoreDevice, all: CoreDevice[] = [], now = Date.now
 		name: displayName(d),
 		controls,
 		groups: groupsOf(d, s, all),
-		readings,
-		more,
+		readings: once(readings),
+		more: once(more),
 		chart: chartFor(d, s)
 	};
 }
@@ -402,4 +405,19 @@ function words(s: string): string {
 
 function isXy(v: unknown): v is { x: number; y: number } {
 	return !!v && typeof v === 'object' && typeof (v as { x?: unknown }).x === 'number';
+}
+
+/**
+ * A reading said once. A bridge can publish one thing under two names — the
+ * Sonos plugin sends a track's length as `duration` and `media_duration` —
+ * and the same label with the same value twice is noise.
+ */
+function once(lines: Line[]): Line[] {
+	const seen = new Set<string>();
+	return lines.filter((l) => {
+		const k = `${l.label}\u0000${l.value}`;
+		if (seen.has(k)) return false;
+		seen.add(k);
+		return true;
+	});
 }

@@ -564,7 +564,9 @@ export function reading(a: Record<string, unknown>, s: Schema, name: string): st
 		if (unit === '%') return `${fmt(value)}%`;
 		return unit ? `${fmt(value)} ${unit}` : fmt(value);
 	}
-	if (typeof value === 'string') return cap(words(value));
+	if (typeof value === 'string')
+		// An address is said as it is, never capitalised or split into words.
+		return /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : cap(words(value));
 	return undefined;
 }
 

@@ -32,7 +32,29 @@
 	const name = $derived(device ? displayName(device) : id);
 	const fromPlugin = $derived(!!device && !device.plugin_id?.startsWith('core.'));
 
-	$effect(() => heading.show(name, { href: '/settings/devices', label: 'Devices' }));
+	// Back to where it was opened from: a plugin's devices, a room, or Devices.
+	const back = $derived.by(() => {
+		const from = page.url.searchParams.get('from') ?? '';
+		if (from.startsWith('plugin:')) {
+			const pid = from.slice(7);
+			return {
+				href: `/settings/plugins/${encodeURIComponent(pid)}?tab=devices`,
+				label: pluginLabel(pid)
+			};
+		}
+		if (from.startsWith('room:')) {
+			const rid = from.slice(5);
+			const r = rooms.list.find((x) => x.id === rid);
+			if (r) return { href: `/settings/rooms?r=${encodeURIComponent(rid)}`, label: r.name };
+		}
+		return { href: '/settings/devices', label: 'Devices' };
+	});
+	$effect(() => heading.show(name, back));
+	// A reading that names a device — a speaker's group leader — says its name.
+	const nameOf = (x: string) => {
+		const d = devices.byId[x];
+		return d ? displayName(d) : undefined;
+	};
 
 	let rules = $state<RuleRef[]>([]);
 	let alertRules = $state<AlertRule[]>([]);
@@ -166,7 +188,7 @@
 		if (!yes) return;
 		const done = await deleteDevices([id]);
 		if (done.error) return void (trouble = done.error);
-		void goto('/settings/devices');
+		void goto(back.href);
 	}
 </script>
 
@@ -327,11 +349,17 @@
 			<section>
 				<h2>What it reports</h2>
 				<ul class="readings">
-					{#each readingsOf(device) as r (r.attr)}
+					{#each readingsOf(device, nameOf) as r (r.attr)}
 						<li class:diag={r.diagnostic}>
-							<span>{r.label}</span>
-							<span class="v">{r.value}</span>
-							<code>{r.attr}</code>
+							<span class="k">{r.label}<code>{r.attr}</code></span>
+							{#if r.detail}
+								<details class="v">
+									<summary>{r.value}</summary>
+									<pre>{r.detail}</pre>
+								</details>
+							{:else}
+								<span class="v">{r.value}</span>
+							{/if}
 						</li>
 					{/each}
 				</ul>
@@ -562,11 +590,17 @@
 	}
 	.readings li {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) auto minmax(0, 0.8fr);
-		gap: var(--space-3);
+		grid-template-columns: minmax(8em, 0.8fr) minmax(0, 2fr);
+		gap: 4px var(--space-3);
 		align-items: baseline;
 		padding: 8px 0;
 		border-top: 1px solid var(--line);
+	}
+	.readings .k {
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+		min-width: 0;
 	}
 	.readings li:first-child {
 		border-top: none;
@@ -576,12 +610,29 @@
 	}
 	.readings .v {
 		font-weight: 600;
-		text-align: right;
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+	.readings summary {
+		cursor: pointer;
+	}
+	.readings pre {
+		margin: 6px 0 0;
+		padding: 8px 10px;
+		border-radius: 8px;
+		background: var(--surface-2);
+		font-family: var(--font-num);
+		font-size: 12px;
+		font-weight: 400;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+		max-height: 320px;
+		overflow: auto;
 	}
 	.readings code {
 		color: var(--ink-muted);
 		font-size: 11px;
-		text-align: right;
+		overflow-wrap: anywhere;
 	}
 	.uses li {
 		padding: 6px 0;

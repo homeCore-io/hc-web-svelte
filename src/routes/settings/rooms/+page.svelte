@@ -302,7 +302,9 @@
 					<ul class="devices">
 						{#each (members.get(room.id) ?? []).toSorted( (a, b) => displayName(a).localeCompare(displayName(b)) ) as d (d.device_id)}
 							<li>
-								<a href={`/settings/devices/${encodeURIComponent(d.device_id)}`}>{displayName(d)}</a
+								<a
+									href={`/settings/devices/${encodeURIComponent(d.device_id)}?from=${encodeURIComponent(`room:${room.id}`)}`}
+									>{displayName(d)}</a
 								>
 								<span class="muted">{kindLabel(kindOf(d))}</span>
 							</li>

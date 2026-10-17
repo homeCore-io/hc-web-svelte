@@ -252,13 +252,15 @@
 	}
 	const when = (e: Coming[number]) => {
 		const d = new Date(e.start);
-		// An all-day event is a date, sent as midnight UTC: show that date, not
-		// the evening before in a time zone west of Greenwich.
+		// An all-day event is a date. homeCore 0.1.79 and later send the house's
+		// midnight; earlier ones sent midnight UTC — read that one in UTC, or a
+		// house west of Greenwich would see the evening before.
+		const utcMidnight = e.is_all_day && /T00:00:00(\.0+)?Z$/.test(e.start);
 		const day = d.toLocaleDateString(undefined, {
 			weekday: 'short',
 			day: 'numeric',
 			month: 'short',
-			...(e.is_all_day ? { timeZone: 'UTC' } : {})
+			...(utcMidnight ? { timeZone: 'UTC' } : {})
 		});
 		return e.is_all_day
 			? day

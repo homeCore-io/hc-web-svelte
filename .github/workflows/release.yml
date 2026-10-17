@@ -53,6 +53,7 @@ jobs:
           fi
           {
               echo "image=${BASE}:${TAG}"
+              echo "version=${TAG}"
               echo "tags<<EOTAGS"
               echo "${TAGS}"
               echo "EOTAGS"
@@ -75,6 +76,7 @@ jobs:
           file: ./Dockerfile
           # amd64 only, as hc-web-flutter and rust-release.yml.
           platforms: linux/amd64
+          build-args: APP_VERSION=${{ steps.resolve.outputs.version }}
           tags: ${{ steps.resolve.outputs.tags }}
           push: true
           cache-from: type=gha

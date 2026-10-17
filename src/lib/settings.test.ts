@@ -15,7 +15,7 @@ describe('settings', () => {
 		expect(new Set(SETTINGS.map((s) => s.slug)).size).toBe(SETTINGS.length);
 		expect(settingsItem('configuration')?.coming).toBeUndefined();
 		expect(settingsItem('people')?.coming).toBeUndefined();
-		expect(settingsItem('logs')?.coming?.when).toMatch(/A6/);
+		expect(SETTINGS.filter((x) => x.coming)).toEqual([]);
 	});
 
 	it('search matches word starts, every word', () => {

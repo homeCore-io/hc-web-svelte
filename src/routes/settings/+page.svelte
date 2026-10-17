@@ -22,7 +22,6 @@
 	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 	import Send from '@lucide/svelte/icons/send';
 	import Archive from '@lucide/svelte/icons/archive';
-	import Wrench from '@lucide/svelte/icons/wrench';
 	import ScrollText from '@lucide/svelte/icons/scroll-text';
 	import Activity from '@lucide/svelte/icons/activity';
 	import ClipboardList from '@lucide/svelte/icons/clipboard-list';
@@ -60,7 +59,6 @@
 		configuration: SlidersHorizontal,
 		notifications: Send,
 		data: Archive,
-		maintenance: Wrench,
 		logs: ScrollText,
 		events: Activity,
 		audit: ClipboardList,
@@ -165,9 +163,11 @@
 			out.push({
 				title: status.last_backup_at
 					? `The last backup was ${daysAgo(status.last_backup_at)}`
-					: 'homeCore has never been backed up',
+					: 'No backup is recorded',
 				detail:
-					'Backing up from this app arrives with Data & backups (A6). Until then, use the admin console.',
+					'One file with the house’s state, rules, settings and calendars. Keep it somewhere else.',
+				href: '/settings/data',
+				action: 'Back up now',
 				bad: true
 			});
 		if (people && people.length > 1 && people.every((p) => p.role === 'admin'))

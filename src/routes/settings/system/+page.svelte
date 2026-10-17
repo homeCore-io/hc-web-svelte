@@ -1,0 +1,467 @@
+<!--
+	System (A6): how homeCore is — running since when, its plugins, devices,
+	alerts, the last backup and storage — how much it writes to its log, its
+	versions, and restarting it.
+-->
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { session } from '#lib/me.svelte.js';
+	import { clock } from '#lib/clock.svelte.js';
+	import { devices } from '#lib/devices.svelte.js';
+	import { alerts } from '#lib/alerts.svelte.js';
+	import { ask } from '#lib/confirm.svelte.js';
+	import { backupDue, daysAgo, size, uptime } from '#lib/settings.js';
+	import { PRESETS, directiveOf, readLevel, type Preset } from '#lib/system.js';
+	import {
+		keepLevel,
+		loadLevel,
+		loadStatus,
+		loadVersions,
+		restartAndWait,
+		setLevel,
+		type Status
+	} from '#lib/systemAdmin.js';
+	import { loadStatus as loadPlugins } from '#lib/pluginAdmin.js';
+
+	let status = $state<Status | null>(null);
+	let failed = $state<string | null>(null);
+	let versions = $state<Record<string, unknown>>({});
+	let level = $state<string | null>(null);
+	let levelMissing = $state(false);
+	let plugins = $state<{ running: number; all: number } | null>(null);
+
+	async function load() {
+		const [st, v, l, p] = await Promise.all([
+			loadStatus(),
+			loadVersions(),
+			loadLevel(),
+			loadPlugins()
+		]);
+		if (!st.ok) return void (failed = st.error);
+		failed = null;
+		status = st.data;
+		if (v.ok) versions = v.data;
+		if (l.ok) level = l.data.level;
+		else levelMissing = true;
+		if (p.ok)
+			plugins = {
+				running: p.data.filter((x) => x.status === 'active').length,
+				all: p.data.length
+			};
+	}
+	onMount(() => {
+		void load();
+		const every = setInterval(load, 30_000);
+		return () => clearInterval(every);
+	});
+
+	const deviceList = $derived(Object.values(devices.byId));
+	const offline = $derived(deviceList.filter((d) => !d.available).length);
+	const since = (iso: string) => {
+		const d = new Date(iso);
+		const today = d.toDateString() === new Date(clock.now).toDateString();
+		return today
+			? `since ${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })} today`
+			: `since ${d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`;
+	};
+
+	interface Tile {
+		label: string;
+		value: string;
+		detail: string;
+		href?: string;
+		bad?: boolean;
+	}
+	const tiles = $derived.by((): Tile[] => {
+		if (!status) return [];
+		const due = backupDue(status.last_backup_at, clock.now);
+		return [
+			{
+				label: 'homeCore',
+				value: 'Running',
+				detail: `${since(status.started_at)} · up ${uptime(status.uptime_seconds)}`
+			},
+			{
+				label: 'Plugins',
+				value: plugins
+					? `${plugins.running} of ${plugins.all} running`
+					: `${status.plugins_active} running`,
+				detail: plugins && plugins.running < plugins.all ? 'Some aren’t running' : 'All well',
+				href: '/settings/plugins',
+				bad: !!plugins && plugins.running < plugins.all
+			},
+			{
+				label: 'Devices',
+				value: String(status.devices_total),
+				detail: offline ? `${offline} offline` : 'none offline',
+				href: '/settings/devices'
+			},
+			{
+				label: 'Alerts',
+				value: String(alerts.list.length),
+				detail: alerts.list.length ? 'need a look' : 'none now',
+				href: '/alerts',
+				bad: alerts.list.length > 0
+			},
+			{
+				label: 'Last backup',
+				value: status.last_backup_at ? daysAgo(status.last_backup_at, clock.now) : 'None recorded',
+				detail: due ? 'Back up now' : new Date(status.last_backup_at!).toLocaleDateString(),
+				href: '/settings/data',
+				bad: due
+			},
+			{
+				label: 'Storage',
+				value: size(status.history_db_bytes + status.state_db_bytes),
+				detail: `history ${size(status.history_db_bytes)} · everything else ${size(status.state_db_bytes)}`
+			}
+		];
+	});
+
+	// ---- the log level ----
+	const reading = $derived(level === null ? null : readLevel(level));
+	let editing = $state(false);
+	let text = $state('');
+	let keep = $state(false);
+	let levelNote = $state<string | null>(null);
+	async function choose(directive: string, bare: string | null) {
+		levelNote = null;
+		const r = await setLevel(directive);
+		if (!r.ok) return void (levelNote = r.error);
+		level = r.data.level;
+		editing = false;
+		if (keep && bare) {
+			const err = await keepLevel(bare);
+			levelNote = err ?? 'Set, and kept for after a restart.';
+		} else levelNote = 'Set until homeCore restarts.';
+	}
+	const pick = (p: Preset) => choose(directiveOf(p), PRESETS.find((x) => x.id === p)!.level);
+
+	// ---- versions ----
+	const appVersion = __APP_VERSION__;
+	const extra = $derived(
+		Object.entries(versions).filter(([k, v]) => k !== 'core' && typeof v === 'string') as [
+			string,
+			string
+		][]
+	);
+
+	// ---- restart ----
+	let restarting = $state<string | null>(null);
+	async function restartNow() {
+		const ok = await ask({
+			title: 'Restart homeCore?',
+			lost: [
+				'Every screen in the house disconnects until it’s back.',
+				`${plugins ? `Its ${plugins.all} plugins restart` : 'Its plugins restart'}; devices reappear as they reconnect.`,
+				'Rules don’t run until it’s back.'
+			],
+			go: 'Restart'
+		});
+		if (!ok) return;
+		restarting = 'Restarting…';
+		const r = await restartAndWait((secs) => (restarting = `Waiting for homeCore… ${secs} s`));
+		restarting = r.ok ? `Back after ${r.data.secs} seconds.` : r.error;
+		await load();
+	}
+</script>
+
+{#if !session.isAdmin}
+	<p class="quiet">The system is for the house’s admins.</p>
+{:else if failed}
+	<p class="note bad" role="alert">{failed}</p>
+{:else if !status}
+	<p class="quiet">Loading…</p>
+{:else}
+	<div class="page">
+		<div class="tools">
+			<a class="plain" href="/settings/logs">Logs</a>
+			<a class="plain" href="/settings/events">Events</a>
+			<a class="plain" href="/settings/audit">Audit</a>
+			<span class="grow"></span>
+			<button class="plain" onclick={restartNow} disabled={restarting === 'Restarting…'}
+				>Restart homeCore…</button
+			>
+		</div>
+		{#if restarting}<p class="lit" role="status">{restarting}</p>{/if}
+
+		<div class="tiles">
+			{#each tiles as t (t.label)}
+				<svelte:element this={t.href ? 'a' : 'div'} href={t.href} class="tile" class:bad={t.bad}>
+					<span class="label">{t.label}</span>
+					<span class="value">{t.value}</span>
+					<span class="detail">{t.detail}</span>
+				</svelte:element>
+			{/each}
+		</div>
+
+		<section class="card">
+			<div class="head">
+				<h2>How much homeCore writes to its log</h2>
+				<a href="/settings/logs">Open the live log</a>
+			</div>
+			{#if levelMissing}
+				<p class="sub">This homeCore can’t change its log level while running.</p>
+			{:else if reading}
+				<div class="seg" role="radiogroup" aria-label="Log detail">
+					{#each PRESETS as p (p.id)}
+						<button role="radio" aria-checked={reading.preset === p.id} onclick={() => pick(p.id)}
+							>{p.label}</button
+						>
+					{/each}
+					<button
+						role="radio"
+						aria-checked={reading.preset === null}
+						onclick={() => ((editing = true), (text = level ?? ''))}>Custom</button
+					>
+				</div>
+				<p class="sub">
+					{reading.preset
+						? PRESETS.find((p) => p.id === reading.preset)!.what
+						: `Set by hand${reading.level ? `, at ${reading.level} for everything else` : ''}.`}
+					{reading.note ?? ''}
+				</p>
+				<label class="keep"
+					><input type="checkbox" bind:checked={keep} /> Keep it after a restart</label
+				>
+				<p class="sub">
+					Exactly: <code>{level}</code>
+					{#if !editing}· <button
+							class="link"
+							onclick={() => ((editing = true), (text = level ?? ''))}>edit as text</button
+						>{/if}
+				</p>
+				{#if editing}
+					<form
+						class="inline"
+						onsubmit={(e) => {
+							e.preventDefault();
+							void choose(text.trim(), readLevel(text).preset ? readLevel(text).level : null);
+						}}
+					>
+						<input
+							bind:value={text}
+							aria-label="Log filter"
+							spellcheck="false"
+							autocomplete="off"
+						/>
+						<button class="go" type="submit">Set</button>
+						<button type="button" class="plain" onclick={() => (editing = false)}>Cancel</button>
+					</form>
+					<p class="sub">
+						A filter like <code>info,hc_core=debug</code>. Keep
+						<code>rumqttc::state=info,rumqttd=info</code> in it, or the broker says a lot.
+					</p>
+				{/if}
+				{#if levelNote}<p class="sub" role="status">{levelNote}</p>{/if}
+			{/if}
+		</section>
+
+		<section class="card row">
+			<span>homeCore <strong class="mono">{status.version}</strong></span>
+			<span>this app <strong class="mono">{appVersion}</strong></span>
+			{#each extra as [k, v] (k)}<span>{k} <strong class="mono">{v}</strong></span>{/each}
+			<span>time zone <strong>{status.timezone}</strong></span>
+			<span class="grow"></span>
+			<a href="https://homecore-io.github.io/docs/release-notes" target="_blank" rel="noreferrer"
+				>Release notes</a
+			>
+		</section>
+	</div>
+{/if}
+
+<style>
+	.page {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+	}
+	.tools {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+		align-items: center;
+	}
+	.grow {
+		flex: 1;
+	}
+	.tiles {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+		gap: var(--space-3);
+	}
+	@media (min-width: 900px) {
+		.tiles {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+	}
+	.tile {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		padding: 16px 18px;
+		border-radius: var(--radius);
+		background: var(--surface);
+		border: 1px solid var(--card-line);
+		color: var(--ink);
+		text-decoration: none;
+	}
+	.tile.bad {
+		background: var(--alert-bg);
+		border-color: var(--alert-line);
+	}
+	.tile.bad .value {
+		color: var(--alert);
+	}
+	.label {
+		font-size: 12px;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--ink-muted);
+	}
+	.value {
+		font-size: 22px;
+		font-weight: 700;
+	}
+	.detail,
+	.sub {
+		font-size: 13px;
+		color: var(--ink-muted);
+		margin: 0;
+		line-height: 1.45;
+	}
+	.card {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		padding: var(--space-4);
+		border-radius: var(--radius);
+		background: var(--surface);
+		border: 1px solid var(--card-line);
+	}
+	.card.row {
+		flex-direction: row;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-2) var(--space-5);
+		color: var(--ink-muted);
+	}
+	.card.row strong {
+		color: var(--ink);
+	}
+	.head {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+	}
+	.head h2 {
+		flex: 1;
+		margin: 0;
+		font-size: 16px;
+	}
+	a {
+		color: var(--accent);
+		font-weight: 600;
+	}
+	.seg {
+		align-self: flex-start;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px;
+		padding: 4px;
+		border-radius: 22px;
+		background: var(--surface-2);
+	}
+	.seg button {
+		height: 36px;
+		padding: 0 16px;
+		border: none;
+		border-radius: 18px;
+		background: none;
+		font-weight: 600;
+		color: var(--ink-muted);
+	}
+	.seg button[aria-checked='true'] {
+		background: var(--surface);
+		color: var(--ink);
+		box-shadow: var(--shadow);
+	}
+	.keep {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		font-size: 14px;
+	}
+	code,
+	.mono {
+		font-family: var(--font-num);
+		font-size: 13px;
+		color: var(--ink);
+		overflow-wrap: anywhere;
+	}
+	.link {
+		border: none;
+		background: none;
+		padding: 0;
+		color: var(--accent);
+		font-weight: 600;
+		font-size: 13px;
+	}
+	.inline {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+	.inline input {
+		flex: 1 1 260px;
+		min-height: 40px;
+		padding: 0 12px;
+		border-radius: 10px;
+		border: 1px solid var(--line);
+		background: var(--sheet);
+		font-family: var(--font-num);
+		font-size: 13px;
+	}
+	.plain,
+	.go {
+		min-height: 38px;
+		padding: 0 14px;
+		border-radius: 19px;
+		display: inline-flex;
+		align-items: center;
+		font-weight: 700;
+		font-size: 13px;
+		text-decoration: none;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--ink);
+	}
+	.go {
+		border: none;
+		background: var(--accent);
+		color: var(--accent-ink);
+	}
+	.lit {
+		margin: 0;
+		padding: 10px 14px;
+		border-radius: var(--radius);
+		background: var(--lit-bg);
+		color: var(--lit-ink);
+	}
+	.note {
+		margin: 0;
+		padding: var(--space-2) var(--space-3);
+		border-radius: 10px;
+		background: var(--alert-bg);
+		font-weight: 600;
+	}
+	.bad {
+		color: var(--alert);
+	}
+	.quiet {
+		margin: 0;
+		color: var(--ink-muted);
+		font-size: 13px;
+	}
+</style>

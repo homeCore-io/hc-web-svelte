@@ -122,57 +122,35 @@ export const SETTINGS: SettingsItem[] = [
 		label: 'Data & backups',
 		group: 'system',
 		words: 'backup restore import export calendars data',
-		detail: 'Backups, restore, calendars',
-		coming: {
-			what: 'Backing up and restoring the house, and its calendars.',
-			when: 'A6, running the system'
-		}
-	},
-	{
-		slug: 'maintenance',
-		label: 'Maintenance',
-		group: 'system',
-		words: 'maintenance orphaned restart cleanup',
-		detail: 'Orphaned devices, restart',
-		coming: {
-			what: 'Tidying up after removed plugins, and restarting homeCore.',
-			when: 'A6, running the system'
-		}
+		detail: 'Backups, restore, calendars'
 	},
 	{
 		slug: 'logs',
 		label: 'Logs',
 		group: 'system',
 		words: 'logs log level debug',
-		detail: 'Live, from homeCore and its plugins',
-		coming: {
-			what: 'homeCore’s and its plugins’ logs, live, and their levels.',
-			when: 'A6, running the system'
-		}
+		detail: 'Live, from homeCore and its plugins'
 	},
 	{
 		slug: 'events',
 		label: 'Events',
 		group: 'system',
 		words: 'events stream mqtt',
-		detail: 'Everything the house reports, live',
-		coming: { what: 'Everything the house reports, as it happens.', when: 'A6, running the system' }
+		detail: 'Everything the house reports, live'
 	},
 	{
 		slug: 'audit',
 		label: 'Audit',
 		group: 'system',
 		words: 'audit sign in who changed',
-		detail: 'Who changed what, and when',
-		coming: { what: 'Who changed what, and when, in words.', when: 'A6, running the system' }
+		detail: 'Who changed what, and when'
 	},
 	{
 		slug: 'system',
 		label: 'System',
 		group: 'system',
-		words: 'system version health status uptime storage',
-		detail: 'Version, health, storage',
-		coming: { what: 'homeCore’s version, health and storage.', when: 'A6, running the system' }
+		words: 'system version health status uptime storage restart log level maintenance',
+		detail: 'Version, health, storage'
 	}
 ];
 

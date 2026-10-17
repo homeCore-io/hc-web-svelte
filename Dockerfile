@@ -8,6 +8,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+# Shown on System; the release passes its tag (release.yml).
+ARG APP_VERSION
+ENV APP_VERSION=${APP_VERSION}
 RUN npm run build && npm run budget
 
 FROM node:24-alpine

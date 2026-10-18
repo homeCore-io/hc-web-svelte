@@ -262,3 +262,15 @@ describe('several moments and checked ifs (E2, E3)', () => {
 });
 
 const say2 = (r: Rule) => plain(sentence(h, r));
+
+describe('helpers told what to do', () => {
+	test('a choice list set, stepped on; words cleared', () => {
+		expect(plain(setPhrase(h, ['select_house'], { command: 'select', option: 'Away' }))).toMatch(
+			/^set .+ to Away$/
+		);
+		expect(plain(setPhrase(h, ['select_house'], { command: 'next' }))).toMatch(
+			/^move .+ to its next choice$/
+		);
+		expect(plain(setPhrase(h, ['text_note'], { command: 'clear' }))).toMatch(/^clear /);
+	});
+});

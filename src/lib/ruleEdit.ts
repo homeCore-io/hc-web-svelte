@@ -82,7 +82,17 @@ export type Field =
 			optional?: boolean;
 			suggest?: string[];
 	  }
-	| { kind: 'choice'; name: string; label: string; options: Choice[]; numeric?: boolean }
+	| {
+			kind: 'choice';
+			name: string;
+			label: string;
+			options: Choice[];
+			numeric?: boolean;
+			/** "—" leaves it out: homeCore's default. */
+			optional?: boolean;
+	  }
+	/** One value of any type, typed plainly: words, 42, true. Objects stay JSON. */
+	| { kind: 'value'; name: string; label: string; optional?: boolean }
 	| { kind: 'bool'; name: string; label: string }
 	| { kind: 'duration'; name: string; label: string; optional?: boolean }
 	| { kind: 'time'; name: string; label: string }
@@ -476,11 +486,13 @@ export function commandsOf(d: CoreDevice): Command[] {
 			});
 	}
 	if (helper && (type === 'counter' || type === 'number')) {
-		for (const [c, label] of [
+		// Only a counter resets (glue/counter.rs); a number drops it (glue/number.rs).
+		const cmds = [
 			['increment', 'add one to'],
 			['decrement', 'take one from'],
-			['reset', 'reset']
-		] as const)
+			...(type === 'counter' ? [['reset', 'reset'] as const] : [])
+		] as const;
+		for (const [c, label] of cmds)
 			out.push({
 				key: `cmd:${c}`,
 				label,
@@ -494,6 +506,60 @@ export function commandsOf(d: CoreDevice): Command[] {
 			fields: [{ kind: 'number', name: 'value', label: 'Value' }],
 			build: (v) => ({ command: 'set', value: Number(v.value ?? 0) }),
 			read: (s) => (plainState(s) && s.command === 'set' ? { value: s.value } : undefined)
+		});
+	}
+	if (helper && type === 'select') {
+		const options = Array.isArray(d.attributes?.options)
+			? (d.attributes.options as unknown[]).map(String)
+			: [];
+		out.push({
+			key: 'cmd:select',
+			label: 'set to',
+			fields: [
+				options.length
+					? {
+							kind: 'choice',
+							name: 'option',
+							label: 'Choice',
+							options: options.map((o) => ({ value: o, label: o }))
+						}
+					: { kind: 'text', name: 'option', label: 'Choice' }
+			],
+			build: (v) => ({ command: 'select', option: String(v.option ?? options[0] ?? '') }),
+			read: (s) => (plainState(s) && s.command === 'select' ? { option: s.option } : undefined)
+		});
+		for (const [c, label] of [
+			['next', 'move on to the next choice of'],
+			['previous', 'move back to the previous choice of']
+		] as const)
+			out.push({
+				key: `cmd:${c}`,
+				label,
+				fields: [],
+				build: () => ({ command: c }),
+				read: (s) => (plainState(s) && s.command === c ? {} : undefined)
+			});
+	}
+	if (helper && (type === 'text' || type === 'datetime')) {
+		out.push({
+			key: 'cmd:set',
+			label: 'set to',
+			fields: [
+				{
+					kind: 'text',
+					name: 'value',
+					label: type === 'datetime' ? 'Date, time or both — 2026-04-04, 08:00:00' : 'Words'
+				}
+			],
+			build: (v) => ({ command: 'set', value: String(v.value ?? '') }),
+			read: (s) => (plainState(s) && s.command === 'set' ? { value: s.value } : undefined)
+		});
+		out.push({
+			key: 'cmd:clear',
+			label: 'clear',
+			fields: [],
+			build: () => ({ command: 'clear' }),
+			read: (s) => (plainState(s) && s.command === 'clear' ? {} : undefined)
 		});
 	}
 	if (helper && type === 'button')
@@ -970,6 +1036,16 @@ export interface Lists {
 	modes: { id: string; name: string }[];
 	/** Variable names the house's rules already use, by sort. */
 	variables: { hub: string[]; private: string[]; rule: string[] };
+	/** The readings of the device this part names, when it names one. */
+	attributes?: string[];
+}
+
+/** A device's readings by name, for a field that names one: its schema's, then what it reports. */
+export function readingsOf(d: CoreDevice | undefined): string[] {
+	if (!d) return [];
+	const named = Object.keys(d.schema?.attributes ?? {});
+	const seen = Object.keys(d.attributes ?? {}).filter((k) => !named.includes(k));
+	return [...named, ...seen].sort((a, b) => a.localeCompare(b));
 }
 
 const VARIABLE_SORT: Record<string, keyof Lists['variables']> = {
@@ -999,7 +1075,101 @@ export function variablesIn(rules: unknown[]): Lists['variables'] {
 	return { hub: sorted(out.hub), private: sorted(out.private), rule: sorted(out.rule) };
 }
 
-const LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error'];
+/**
+ * homeCore's fixed lists, by kind and field (hc-types rule.rs): what a
+ * "something else" field may hold, in words. Core spells them as its enums do.
+ */
+const SAME: Choice[] = [
+	{ value: 'Eq', label: 'is' },
+	{ value: 'Ne', label: 'isn’t' },
+	{ value: 'Gt', label: 'is above' },
+	{ value: 'Gte', label: 'is at least' },
+	{ value: 'Lt', label: 'is below' },
+	{ value: 'Lte', label: 'is at most' }
+];
+const CHANGE_KIND: Choice[] = [
+	{ value: 'homecore', label: 'homeCore (a rule, the app)' },
+	{ value: 'physical', label: 'by hand, at the device' },
+	{ value: 'external', label: 'another app or hub' },
+	{ value: 'unknown', label: 'nobody knows' }
+];
+const VARIABLE_OP: Choice[] = [
+	{ value: 'Set', label: 'set it to' },
+	{ value: 'Add', label: 'add' },
+	{ value: 'Subtract', label: 'subtract' },
+	{ value: 'Multiply', label: 'multiply by' },
+	{ value: 'Divide', label: 'divide by' },
+	{ value: 'Toggle', label: 'flip it' }
+];
+export const CHOICES: Record<string, { options: Choice[]; optional?: boolean; label?: string }> = {
+	'ButtonEvent.event': {
+		label: 'Button is',
+		options: [
+			{ value: 'Pushed', label: 'pushed' },
+			{ value: 'Held', label: 'held' },
+			{ value: 'DoubleTapped', label: 'double-tapped' },
+			{ value: 'Released', label: 'released' }
+		]
+	},
+	'NumericThreshold.op': {
+		label: 'When it',
+		options: [
+			{ value: 'CrossesAbove', label: 'rises above' },
+			{ value: 'CrossesBelow', label: 'falls below' },
+			{ value: 'Above', label: 'is above (each reading)' },
+			{ value: 'Below', label: 'is below (each reading)' }
+		]
+	},
+	'SunEvent.event': {
+		label: 'Sun',
+		options: [
+			{ value: 'Sunrise', label: 'sunrise' },
+			{ value: 'Sunset', label: 'sunset' },
+			{ value: 'SolarNoon', label: 'solar noon' },
+			{ value: 'CivilDawn', label: 'dawn' },
+			{ value: 'CivilDusk', label: 'dusk' }
+		]
+	},
+	'Periodic.unit': {
+		label: 'Unit',
+		options: [
+			{ value: 'Minutes', label: 'minutes' },
+			{ value: 'Hours', label: 'hours' },
+			{ value: 'Days', label: 'days' },
+			{ value: 'Weeks', label: 'weeks' }
+		]
+	},
+	'DeviceStateChanged.change_kind': { options: CHANGE_KIND, optional: true, label: 'Changed by' },
+	'DeviceLastChange.kind': { options: CHANGE_KIND, optional: true, label: 'Last changed by' },
+	'MqttMessage.value_op': { options: SAME, optional: true, label: 'Compare' },
+	'DeviceState.op': { options: SAME, label: 'Compare' },
+	'HubVariable.op': { options: SAME, label: 'Compare' },
+	'SetVariable.op': { options: VARIABLE_OP, optional: true, label: 'How' },
+	'SetHubVariable.op': { options: VARIABLE_OP, optional: true, label: 'How' },
+	'SetMode.command': {
+		label: 'Do',
+		options: [
+			{ value: 'On', label: 'turn on' },
+			{ value: 'Off', label: 'turn off' },
+			{ value: 'Toggle', label: 'switch over' }
+		]
+	},
+	'LogMessage.level': {
+		label: 'Level',
+		optional: true,
+		options: ['Trace', 'Debug', 'Info', 'Warn', 'Error'].map((l) => ({
+			value: l,
+			label: l.toLowerCase()
+		}))
+	},
+	'CallService.method': {
+		label: 'Method',
+		options: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((m) => ({ value: m, label: m }))
+	}
+};
+
+/** Fields holding one value of any type: words, a number, yes or no. */
+const VALUE_FIELDS = new Set(['to', 'from', 'not_to', 'not_from', 'value', 'value_cmp']);
 
 /**
  * A vocabulary field, given a picker where it names something the house
@@ -1055,12 +1225,19 @@ export function withPickers(tag: string, f: Field, lists: Lists): Field {
 		};
 	if (f.kind === 'json' && f.name === 'condition' && tag === 'Not')
 		return { kind: 'check', ...base, label: 'This isn’t so' };
-	if (tag === 'LogMessage' && f.name === 'level')
+	const fixed = CHOICES[`${tag}.${f.name}`];
+	if (fixed)
 		return {
 			kind: 'choice',
 			...base,
-			options: LOG_LEVELS.map((l) => ({ value: l, label: l }))
+			label: fixed.label ?? base.label,
+			options: fixed.options,
+			optional: fixed.optional
 		};
+	if (f.kind === 'json' && VALUE_FIELDS.has(f.name))
+		return { kind: 'value', ...base, optional: 'optional' in f ? f.optional : undefined };
+	if (f.name === 'attribute' && lists.attributes)
+		return { kind: 'text', ...base, label: 'Reading', suggest: lists.attributes };
 	return f;
 }
 

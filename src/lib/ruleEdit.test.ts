@@ -303,3 +303,98 @@ describe('pickers for what a field names', () => {
 		expect(variablesIn(rules)).toEqual({ hub: ['guests'], private: ['armed'], rule: ['count'] });
 	});
 });
+
+describe('helpers, told what homeCore understands', () => {
+	const helper = (id: string, device_type: string, attributes: Record<string, unknown> = {}) =>
+		({ device_id: id, plugin_id: 'core.glue', device_type, name: id, attributes }) as never;
+
+	test('a counter resets; a number has no reset to give (glue/number.rs drops it)', () => {
+		expect(labels(commandsOf(helper('counter_x', 'counter')))).toContain('reset');
+		expect(labels(commandsOf(helper('number_x', 'number')))).toEqual([
+			'add one to',
+			'take one from',
+			'set to'
+		]);
+	});
+
+	test('a choice list is set to one of its choices, or stepped on and back', () => {
+		const cs = commandsOf(helper('select_house', 'select', { options: ['Home', 'Away'] }));
+		expect(labels(cs)).toEqual([
+			'set to',
+			'move on to the next choice of',
+			'move back to the previous choice of'
+		]);
+		const set = cs[0]!;
+		expect(set.fields[0]).toMatchObject({
+			kind: 'choice',
+			options: [{ value: 'Home' }, { value: 'Away' }]
+		});
+		expect(set.build({ option: 'Away' })).toEqual({ command: 'select', option: 'Away' });
+		expect(commandOf(cs, { command: 'select', option: 'Away' })?.values).toEqual({
+			option: 'Away'
+		});
+		expect(commandOf(cs, { command: 'next' })?.cmd.key).toBe('cmd:next');
+	});
+
+	test('words and dates are set or cleared', () => {
+		for (const type of ['text', 'datetime']) {
+			const cs = commandsOf(helper(`${type}_x`, type));
+			expect(labels(cs)).toEqual(['set to', 'clear']);
+			expect(cs[0]!.build({ value: '08:00:00' })).toEqual({ command: 'set', value: '08:00:00' });
+			expect(cs[1]!.build({})).toEqual({ command: 'clear' });
+		}
+	});
+});
+
+describe('homeCore’s fixed lists, as choices', () => {
+	const lists: Lists = {
+		rules: [],
+		calendars: [],
+		modes: [],
+		variables: { hub: [], private: [], rule: [] }
+	};
+	const text = (name: string) => ({ kind: 'text' as const, name, label: name });
+	const json = (name: string) => ({ kind: 'json' as const, name, label: name });
+	const values = (f: unknown) =>
+		(f as { options: { value: string }[] }).options.map((o) => o.value);
+
+	test('a log message’s level is spelled as homeCore’s LogLevel — Info, not info', () => {
+		const f = withPickers('LogMessage', text('level'), lists);
+		expect(f).toMatchObject({ kind: 'choice', optional: true });
+		expect(values(f)).toEqual(['Trace', 'Debug', 'Info', 'Warn', 'Error']);
+	});
+
+	test('what had to be typed exactly is chosen', () => {
+		expect(values(withPickers('ButtonEvent', text('event'), lists))).toEqual([
+			'Pushed',
+			'Held',
+			'DoubleTapped',
+			'Released'
+		]);
+		expect(values(withPickers('NumericThreshold', text('op'), lists))).toContain('CrossesAbove');
+		expect(values(withPickers('DeviceState', text('op'), lists))).toEqual([
+			'Eq',
+			'Ne',
+			'Gt',
+			'Gte',
+			'Lt',
+			'Lte'
+		]);
+		expect(values(withPickers('DeviceLastChange', text('kind'), lists))).toContain('physical');
+		expect(values(withPickers('SetVariable', json('op'), lists))).toContain('Toggle');
+		expect(values(withPickers('CallService', text('method'), lists))).toContain('POST');
+		// Another kind's `op` is its own business.
+		expect(withPickers('Comment', text('op'), lists)).toEqual(text('op'));
+	});
+
+	test('one value is typed plainly; a reading is suggested from the device', () => {
+		expect(withPickers('DeviceState', json('value'), lists)).toMatchObject({ kind: 'value' });
+		expect(withPickers('DeviceStateChanged', json('not_from'), lists)).toMatchObject({
+			kind: 'value'
+		});
+		expect(withPickers('FadeDevice', json('target'), lists)).toEqual(json('target'));
+		expect(
+			withPickers('TimeElapsed', text('attribute'), { ...lists, attributes: ['battery', 'on'] })
+		).toMatchObject({ kind: 'text', label: 'Reading', suggest: ['battery', 'on'] });
+	});
+});

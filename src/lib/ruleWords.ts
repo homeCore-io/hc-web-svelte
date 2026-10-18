@@ -297,7 +297,12 @@ const COMMAND: Record<string, string> = {
 	decrement: 'take one from',
 	toggle: 'toggle',
 	trigger: 'trigger',
-	press: 'press'
+	press: 'press',
+	select: 'set',
+	set: 'set',
+	clear: 'clear',
+	next: 'move on',
+	previous: 'move back'
 };
 
 /** A command in words: "turn A, B and C on", "start Exhaust for 5 min". */
@@ -341,6 +346,9 @@ export function setPhrase(h: House, ids: string[], state: Json): Phrase {
 		const secs = state.duration_secs ?? state.duration;
 		if (typeof secs === 'number') out.push(t(` for ${duration(secs)}`));
 		if (state.value !== undefined) out.push(t(` to ${valueText(undefined, state.value)}`));
+		if (typeof state.option === 'string') out.push(t(` to ${state.option}`));
+		if (state.command === 'next' || state.command === 'previous')
+			return [t(`move `), ...who, t(` to its ${state.command} choice`)];
 		return out;
 	}
 	if (state.activate === true && keys.length === 1) return [t('run '), ...who];

@@ -26,6 +26,19 @@
 	const id = `f-${Math.random().toString(36).slice(2, 8)}`;
 	/** Nothing chosen yet — homeCore starts a required name as empty words. */
 	const unset = (v: unknown) => v === undefined || v === null || v === '';
+	const isObject = (v: unknown) => v !== null && typeof v === 'object';
+	/** A value as typed: true and false as yes and no, numbers as numbers. */
+	const plain = (v: unknown) =>
+		v === true ? 'yes' : v === false ? 'no' : v === undefined || v === null ? '' : String(v);
+	/** What was typed, as homeCore's value: yes/no and true/false, numbers, else the words. */
+	function typed(text: string, optional?: boolean): unknown {
+		const t = text.trim();
+		if (t === '') return optional ? undefined : '';
+		if (/^(yes|true)$/i.test(t)) return true;
+		if (/^(no|false)$/i.test(t)) return false;
+		if (/^-?\d+(\.\d+)?$/.test(t)) return Number(t);
+		return text;
+	}
 </script>
 
 {#if field.kind === 'device'}
@@ -66,7 +79,12 @@
 		{field.label}</label
 	>
 {:else}
-	<label class="field" class:wide={field.kind === 'json' || (field.kind === 'text' && field.long)}>
+	<label
+		class="field"
+		class:wide={field.kind === 'json' ||
+			(field.kind === 'value' && isObject(value)) ||
+			(field.kind === 'text' && field.long)}
+	>
 		<span>{field.label}{'optional' in field && field.optional ? ' (optional)' : ''}</span>
 		{#if field.kind === 'number'}
 			<span class="row">
@@ -119,12 +137,21 @@
 			<select
 				value={unset(value) ? '' : String(value)}
 				onchange={(e) =>
-					onchange(field.numeric ? Number(e.currentTarget.value) : e.currentTarget.value)}
+					onchange(
+						e.currentTarget.value === '' && field.optional
+							? undefined
+							: field.numeric
+								? Number(e.currentTarget.value)
+								: e.currentTarget.value
+					)}
 			>
-				{#if unset(value) || !field.options.some((o) => o.value === String(value))}
-					<option value={unset(value) ? '' : String(value)} disabled={unset(value)}
-						>{unset(value) ? 'Choose…' : String(value)}</option
-					>
+				{#if field.optional}
+					<option value="">—</option>
+				{:else if unset(value)}
+					<option value="" disabled>Choose…</option>
+				{/if}
+				{#if !unset(value) && !field.options.some((o) => o.value === String(value))}
+					<option value={String(value)}>{String(value)}</option>
 				{/if}
 				{#each field.options as o (o.value)}<option value={o.value}>{o.label}</option>{/each}
 			</select>
@@ -151,7 +178,13 @@
 				{/each}
 				<em>{days.length === 0 ? 'every day' : ''}</em>
 			</span>
-		{:else if field.kind === 'json'}
+		{:else if field.kind === 'value' && !isObject(value)}
+			<input
+				value={plain(value)}
+				placeholder="words, a number, or yes / no"
+				oninput={(e) => onchange(typed(e.currentTarget.value, field.optional))}
+			/>
+		{:else if field.kind === 'json' || field.kind === 'value'}
 			<textarea
 				rows="3"
 				class="mono"

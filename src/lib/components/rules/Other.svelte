@@ -8,6 +8,7 @@
 		PER_MODE,
 		newCheck,
 		newOf,
+		readingsOf,
 		vocabFields,
 		withPickers,
 		type VariantSpec
@@ -33,15 +34,23 @@
 	const spec = $derived(specs.find((s) => s.tag === tag));
 	const ctx = editor();
 	const perMode = $derived(PER_MODE.has(tag));
+	// A part naming a device offers that device's readings for its attribute.
+	const lists = $derived(
+		typeof body?.device_id === 'string' && body.device_id
+			? { ...ctx.lists, attributes: readingsOf(ctx.house.device(body.device_id)) }
+			: ctx.lists
+	);
 	// A per-mode step's table covers its modes and its "any other mode".
 	const fields = $derived(
 		spec
 			? vocabFields(spec)
-					.map((f) => withPickers(tag, f, ctx.lists))
+					.map((f) => withPickers(tag, f, lists))
 					.filter((f) => !perMode || !(f.name === 'modes' || f.name.startsWith('default_')))
 			: []
 	);
 	const words = (t: string) => t.replace(/([a-z])([A-Z])/g, '$1 $2');
+	// Kinds in A–Z order, as people look for them.
+	const sorted = $derived([...specs].sort((a, b) => words(a.tag).localeCompare(words(b.tag))));
 
 	function set(name: string, v: unknown) {
 		const next = { ...body };
@@ -58,7 +67,7 @@
 		onchange={(e) => onchange(newOf(specs.find((s) => s.tag === e.currentTarget.value)!))}
 	>
 		{#if !spec}<option value={tag}>{words(tag)}</option>{/if}
-		{#each specs as s (s.tag)}<option value={s.tag}>{words(s.tag)}</option>{/each}
+		{#each sorted as s (s.tag)}<option value={s.tag}>{words(s.tag)}</option>{/each}
 	</select>
 </label>
 {#each fields as f (f.name)}

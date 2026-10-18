@@ -53,9 +53,11 @@ moves.
 | Studio: start/stop/restart, enable, update, uninstall (keep config) | ✓ Plugin page (A4) |
 | Actions with parameters, streamed progress, prompts, cancel, re-attach | ✓ (A4) |
 | Settings form from the descriptor, raw TOML, secrets | ✓ (A4), saved as a patch so comments stay |
+| Settings form for a plugin with only a JSON Schema | ✓ A plain form made from the schema (coverage pass); top-level keys and rows holding more than plain values are shown read-only, changed in the file |
 | Log level per plugin; its live log | ✓ (A4) |
 | Plugin runtimes: approve, deny, join token | ✓ Settings → Plugins → Runtimes (A4) |
-| Install "where should it run?" on a remote runtime | — Not yet: no house uses a remote runtime |
+| Install "where should it run?" on a remote runtime | ✓ Asked only when homeCore says more than one runtime fits; updates stay on the runtime it's on (coverage pass) |
+| What each runtime runs; where a plugin runs | ✓ Runtimes page and the plugin's Runs on (coverage pass) |
 | Matter: commission, re-interview, remove | ✓ Matter panel (A4) |
 | `/dev/config` Sonos preview | — A developer page |
 

@@ -72,14 +72,36 @@ export const uninstall = (id: string, keepConfig: boolean) =>
 export const removeDevices = (id: string) =>
 	call<{ deleted: number; affected_rules: string[] }>('DELETE', `${one(id)}/devices`);
 
-export const install = (id: string, version?: string) =>
-	call<{
-		installed: string;
-		version: string;
-		reinstall: boolean;
-		activated: boolean;
-		note?: string;
-	}>('POST', '/plugins/install', { id, ...(version ? { version } : {}) });
+export interface Installed {
+	installed: string;
+	version: string;
+	reinstall: boolean;
+	activated: boolean;
+	note?: string;
+}
+/** Sent to a plugin runtime instead (202): it installs it on its next check-in. */
+export interface Placed {
+	placed_on: string;
+	plugin_id: string;
+	version: string;
+	note?: string;
+}
+export const install = (id: string, version?: string, runtimeId?: string) =>
+	call<Installed | Placed>('POST', '/plugins/install', {
+		id,
+		...(version ? { version } : {}),
+		...(runtimeId ? { runtime_id: runtimeId } : {})
+	});
+export const wasPlaced = (r: Installed | Placed): r is Placed => 'placed_on' in r;
+/**
+ * homeCore's 409 when more than one runtime could run it: the runtimes to
+ * choose from, or nothing when the refusal was something else.
+ */
+export function runtimesToChoose(r: Answer<unknown>): string[] {
+	if (r.ok || r.status !== 409) return [];
+	const ids = (r.body as { runtimes?: unknown } | null)?.runtimes;
+	return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : [];
+}
 
 // ---- settings ----
 
@@ -92,6 +114,9 @@ export interface PluginConfig {
 export const loadConfig = (id: string) => call<PluginConfig>('GET', `${one(id)}/config`);
 export const loadDescriptor = (id: string) =>
 	call<{ descriptor: Descriptor }>('GET', `${one(id)}/config/descriptor`);
+
+export const loadSchema = (id: string) =>
+	call<{ schema: Record<string, unknown> }>('GET', `${one(id)}/config/schema`);
 
 export type ConfigWrite =
 	| { patch: Record<string, Record<string, unknown>> }
@@ -210,6 +235,19 @@ export const approveRuntime = (id: string) =>
 	call<Runtime>('POST', `/plugin-runtimes/${encodeURIComponent(id)}/approve`);
 export const denyRuntime = (id: string) =>
 	call<Runtime>('POST', `/plugin-runtimes/${encodeURIComponent(id)}/deny`);
+/** Which plugins run on which runtime. homeCore without runtimes answers 404: none. */
+export interface Placement {
+	runtime_id: string;
+	plugin_id: string;
+	version: string;
+	placed_at: string;
+}
+export async function loadPlacements(): Promise<Answer<Placement[]>> {
+	const r = await call<{ placements: Placement[] }>('GET', '/plugin-runtimes/placements');
+	if (r.ok) return { ok: true, data: r.data.placements ?? [] };
+	return r.status === 404 ? { ok: true, data: [] } : r;
+}
+export const runtimeName = (r: Runtime | undefined, id: string) => r?.hostname ?? id;
 export const runtimeToken = () =>
 	call<{ token: string; expires_at: string }>('POST', '/plugin-runtimes/tokens');
 

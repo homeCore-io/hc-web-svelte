@@ -37,12 +37,16 @@
 		install,
 		lifecycle,
 		loadLogs,
+		loadPlacements,
 		loadPlugin,
+		loadRuntimes,
 		loadRegistry,
 		removeDevices,
 		setEnabled,
 		setLogLevel,
-		uninstall
+		runtimeName,
+		uninstall,
+		wasPlaced
 	} from '#lib/pluginAdmin.js';
 	import ActionRun from '#lib/components/plugins/ActionRun.svelte';
 	import PluginSettings from '#lib/components/plugins/PluginSettings.svelte';
@@ -73,6 +77,7 @@
 	onMount(() => {
 		void load();
 		void loadRegistry().then((r) => r.ok && (reg = r.data.plugins.find((p) => p.id === id)));
+		void findRuntime();
 		const stop = live.listen((f) => {
 			const e = f as { type: string; plugin_id?: string };
 			if (
@@ -87,6 +92,16 @@
 			clearInterval(every);
 		};
 	});
+
+	// Where it runs: homeCore itself, or a plugin runtime it was placed on.
+	let runsOn = $state<{ id: string; name: string } | null>(null);
+	async function findRuntime() {
+		const [p, r] = await Promise.all([loadPlacements(), loadRuntimes()]);
+		const here = p.ok ? p.data.find((x) => x.plugin_id === id) : undefined;
+		const rt =
+			here && r.ok ? r.data.runtimes.find((x) => x.runtime_id === here.runtime_id) : undefined;
+		runsOn = here ? { id: here.runtime_id, name: runtimeName(rt, here.runtime_id) } : null;
+	}
 
 	const name = $derived(reg?.name ?? pluginLabel(id));
 	$effect(() => heading.show(name, { href: '/settings/plugins', label: 'Plugins' }));
@@ -129,11 +144,14 @@
 		if (!yes) return;
 		busy = true;
 		note = `Updating ${name}…`;
-		const r = await install(id, update);
+		// On a runtime it stays on that runtime, even where another could run it.
+		const r = await install(id, update, runsOn?.id);
 		busy = false;
-		note = r.ok
-			? `${name} ${r.data.version} is installed${r.data.activated ? ' and starting' : ' (it’s turned off, so it isn’t running)'}.`
-			: r.error;
+		note = !r.ok
+			? r.error
+			: wasPlaced(r.data)
+				? `${name} ${r.data.version} is going to ${runsOn?.name ?? r.data.placed_on}, which updates it the next time it checks in.`
+				: `${name} ${r.data.version} is installed${r.data.activated ? ' and starting' : ' (it’s turned off, so it isn’t running)'}.`;
 		await load();
 	}
 
@@ -397,6 +415,10 @@
 					<dt>Version</dt>
 					<dd>
 						{`${versionOf(plugin) ?? '—'}${reg && latestOf(reg) && !update ? ' · the latest' : ''}`}
+					</dd>
+					<dt>Runs on</dt>
+					<dd>
+						{#if runsOn}<a href="/settings/plugins/runtimes">{runsOn.name}</a>, a plugin runtime{:else}homeCore{/if}
 					</dd>
 					<dt>Devices</dt>
 					<dd>{plugin.device_count}</dd>

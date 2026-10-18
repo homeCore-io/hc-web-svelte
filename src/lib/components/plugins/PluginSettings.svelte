@@ -14,10 +14,12 @@
 	import { FormState } from '#lib/form.svelte.js';
 	import { describe, valuesOf, writes } from '#lib/descriptor.js';
 	import { maskSecrets } from '#lib/config.js';
+	import { descriptorFromSchema } from '#lib/configSchema.js';
 	import {
 		lifecycle,
 		loadConfig,
 		loadDescriptor,
+		loadSchema,
 		saveConfig,
 		type PluginConfig
 	} from '#lib/pluginAdmin.js';
@@ -31,6 +33,7 @@
 	const form = new FormState();
 	let config = $state<PluginConfig | null>(null);
 	let hasForm = $state(false);
+	let fromSchema = $state(false);
 	let trouble = $state<string | null>(null);
 	let saving = $state(false);
 	let saved = $state(false);
@@ -39,10 +42,18 @@
 		const [c, d] = await Promise.all([loadConfig(pluginId), loadDescriptor(pluginId)]);
 		if (!c.ok) return void (trouble = c.error);
 		config = c.data;
-		hasForm = d.ok && !!d.data.descriptor?.sections?.length && !!c.data.config;
-		if (hasForm && d.ok) {
-			form.descriptor = d.data.descriptor;
-			form.load(valuesOf(d.data.descriptor, c.data.config));
+		// Its own descriptor; failing that, a form made from its schema.
+		let described = d.ok && d.data.descriptor?.sections?.length ? d.data.descriptor : null;
+		fromSchema = false;
+		if (!described) {
+			const s = await loadSchema(pluginId);
+			described = s.ok ? descriptorFromSchema(s.data.schema, pluginId) : null;
+			fromSchema = !!described;
+		}
+		hasForm = !!described && !!c.data.config;
+		if (hasForm && described) {
+			form.descriptor = described;
+			form.load(valuesOf(described, c.data.config));
 		}
 		trouble = c.data.config_error ? `The file doesn’t read as TOML: ${c.data.config_error}` : null;
 	}
@@ -182,6 +193,10 @@
 	{:else}
 		<ListDetail chosen={section !== undefined && asked !== null} label="Sections">
 			{#snippet list()}
+				{#if fromSchema}<p class="quiet basic">
+						{name} describes its settings only roughly, so this form is a plain one made from that. Anything
+						it can’t show is in the file.
+					</p>{/if}
 				<ul class="sections">
 					{#each form.sections as s (s.id)}
 						<li>
@@ -227,6 +242,10 @@
 {/if}
 
 <style>
+	.basic {
+		margin: 0 0 var(--space-2);
+		font-size: 13px;
+	}
 	.tabs {
 		display: inline-flex;
 		padding: 3px;

@@ -1,0 +1,175 @@
+{
+	"$defs": {
+		"HomecoreSection": {
+			"properties": {
+				"broker_host": {
+					"default": "127.0.0.1",
+					"type": "string"
+				},
+				"broker_port": {
+					"default": 1883,
+					"format": "uint16",
+					"maximum": 65535,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"heartbeat_secs": {
+					"default": 60,
+					"format": "uint64",
+					"minimum": 0,
+					"type": "integer"
+				},
+				"password": {
+					"default": "",
+					"description": "MQTT credential. Empty = anonymous (dev broker default).\nThe broker uses `plugin_id` as the username; this is just the password.",
+					"type": "string"
+				},
+				"plugin_id": {
+					"default": "plugin.thermostat",
+					"type": "string"
+				}
+			},
+			"type": "object"
+		},
+		"LoggingConfig": {
+			"description": "`[logging]` section in `config/config.toml`.",
+			"properties": {
+				"compress": {
+					"default": true,
+					"description": "Gzip-compress rotated files in a background thread.",
+					"type": "boolean"
+				},
+				"level": {
+					"default": "info",
+					"description": "Stderr log level when `RUST_LOG` is not set.\nAccepts any `tracing` filter directive, e.g. `\"debug\"` or `\"hc_hue=debug,rumqttc=warn\"`.",
+					"type": "string"
+				},
+				"log_forward_level": {
+					"default": "info",
+					"description": "Minimum log level forwarded to the HomeCore broker over MQTT.\nLogs below this level are only written to the local file / stderr.\n\"info\" (default) | \"warn\" | \"debug\" | \"error\" | \"off\"",
+					"type": "string"
+				},
+				"max_size_mb": {
+					"default": 100,
+					"description": "Rotate the active log file when it exceeds this many megabytes.\nCombined with `rotation` as \"whichever comes first\".\nSet to `0` to disable size-based rotation.",
+					"format": "uint64",
+					"minimum": 0,
+					"type": "integer"
+				},
+				"prune_after_days": {
+					"default": 0,
+					"description": "Delete rotated log files older than this many days.  0 = never prune.",
+					"format": "uint32",
+					"minimum": 0,
+					"type": "integer"
+				},
+				"rotation": {
+					"$ref": "#/$defs/RotationStrategy",
+					"default": "daily",
+					"description": "Time-based rotation strategy: `daily` (default), `hourly`, `weekly`, or `never`."
+				}
+			},
+			"type": "object"
+		},
+		"RotationStrategy": {
+			"description": "Rotation strategy for the log file.",
+			"enum": ["daily", "hourly", "weekly", "never"],
+			"type": "string"
+		},
+		"ThermostatEntry": {
+			"properties": {
+				"actuator_device_id": {
+					"default": "",
+					"type": "string"
+				},
+				"actuator_off_cmd": {
+					"default": null
+				},
+				"actuator_on_cmd": {
+					"default": null
+				},
+				"aggregation": {
+					"default": "average",
+					"type": "string"
+				},
+				"hysteresis": {
+					"default": 1.0,
+					"format": "double",
+					"type": "number"
+				},
+				"id": {
+					"type": "string"
+				},
+				"min_off_secs": {
+					"default": 0,
+					"format": "uint64",
+					"minimum": 0,
+					"type": "integer"
+				},
+				"min_on_secs": {
+					"default": 0,
+					"format": "uint64",
+					"minimum": 0,
+					"type": "integer"
+				},
+				"mode": {
+					"default": "off",
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"sensor_attribute": {
+					"default": "temperature",
+					"type": "string"
+				},
+				"sensor_device_ids": {
+					"items": {
+						"type": "string"
+					},
+					"type": "array"
+				},
+				"setpoint": {
+					"format": "double",
+					"type": "number"
+				}
+			},
+			"required": ["id", "name", "sensor_device_ids", "setpoint"],
+			"type": "object"
+		}
+	},
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"properties": {
+		"homecore": {
+			"$ref": "#/$defs/HomecoreSection",
+			"default": {
+				"broker_host": "127.0.0.1",
+				"broker_port": 1883,
+				"heartbeat_secs": 60,
+				"password": "",
+				"plugin_id": "plugin.thermostat"
+			},
+			"description": "Optional, like every field inside it now is.\n\nIt was mandatory, and its identity and broker fields had no defaults, so\na config missing the section — or merely missing `plugin_id` — killed\nthe plugin outright: \"missing field\", exit 1, before it could log or\nattempt anything. That took hc-zwave down on a real house for the better\npart of an hour after an editor wrote a config holding only the fields\nits form covered.\n\nThe defaults are the ones every other plugin already uses, and the ones\nthis plugin's own shipped config states."
+		},
+		"logging": {
+			"$ref": "#/$defs/LoggingConfig",
+			"default": {
+				"compress": true,
+				"level": "info",
+				"log_forward_level": "info",
+				"max_size_mb": 100,
+				"prune_after_days": 0,
+				"rotation": "daily"
+			}
+		},
+		"thermostat": {
+			"default": [],
+			"items": {
+				"$ref": "#/$defs/ThermostatEntry"
+			},
+			"type": "array"
+		}
+	},
+	"title": "Config",
+	"type": "object"
+}

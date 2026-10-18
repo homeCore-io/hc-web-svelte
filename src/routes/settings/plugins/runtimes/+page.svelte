@@ -9,11 +9,14 @@
 	import { heading } from '#lib/heading.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { ago } from '#lib/card.js';
+	import { pluginLabel } from '#lib/inventory.js';
 	import {
 		approveRuntime,
 		denyRuntime,
+		loadPlacements,
 		loadRuntimes,
 		runtimeToken,
+		type Placement,
 		type Runtime
 	} from '#lib/pluginAdmin.js';
 
@@ -22,11 +25,14 @@
 	let runtimes = $state<Runtime[] | null>(null);
 	let note = $state<string | null>(null);
 	let token = $state<{ token: string; expires_at: string } | null>(null);
+	let placements = $state<Placement[]>([]);
 	async function load() {
-		const r = await loadRuntimes();
+		const [r, p] = await Promise.all([loadRuntimes(), loadPlacements()]);
 		if (!r.ok) return void (note = r.error);
 		runtimes = r.data.runtimes;
+		if (p.ok) placements = p.data;
 	}
+	const hosted = (id: string) => placements.filter((p) => p.runtime_id === id);
 	onMount(() => {
 		void load();
 		const t = setInterval(load, 10_000);
@@ -71,8 +77,20 @@
 								>{r.capabilities?.kind ?? ''}
 								{r.capabilities?.arch ?? ''} · {r.source_ip ?? ''} · last seen {when(
 									r.last_seen_at
-								)}{r.plugin_id ? ` · runs ${r.plugin_id}` : ''}</span
+								)}{r.plugin_id ? ` · joins as ${r.plugin_id}` : ''}</span
 							>
+							{#if r.status === 'approved'}
+								{@const mine = hosted(r.runtime_id)}
+								<span class="runs">
+									{#if mine.length}Runs
+										{#each mine as p, i (p.plugin_id)}{i > 0 ? ', ' : ''}<a
+												href={`/settings/plugins/${encodeURIComponent(p.plugin_id)}`}
+												>{pluginLabel(p.plugin_id)}</a
+											>
+											{p.version}{/each}{:else}Runs nothing yet — add a plugin written for it from
+										<a href="/settings/plugins/add">the registry</a>.{/if}
+								</span>
+							{/if}
 						</span>
 						{#if r.status === 'pending'}
 							<span class="code">Code <b>{r.code}</b></span>
@@ -135,6 +153,10 @@
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
+	}
+	.who .runs {
+		color: var(--ink);
+		font-size: 13px;
 	}
 	.who span {
 		color: var(--ink-muted);

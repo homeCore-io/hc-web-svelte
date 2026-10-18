@@ -17,15 +17,26 @@
 		type PluginRecord,
 		type RegistryPlugin
 	} from '#lib/plugins.js';
-	import { install, loadRegistry, loadStatus } from '#lib/pluginAdmin.js';
+	import {
+		install,
+		loadRegistry,
+		loadRuntimes,
+		loadStatus,
+		runtimeName,
+		runtimesToChoose,
+		wasPlaced,
+		type Runtime
+	} from '#lib/pluginAdmin.js';
 
 	$effect(() => heading.show('Add a plugin', { href: '/settings/plugins', label: 'Plugins' }));
 
 	let registry = $state<RegistryPlugin[] | null>(null);
+	let runtimes = $state<Runtime[]>([]);
 	let have = $state<PluginRecord[]>([]);
 	let failed = $state<string | null>(null);
 	onMount(async () => {
-		const [r, s] = await Promise.all([loadRegistry(), loadStatus()]);
+		const [r, s, rt] = await Promise.all([loadRegistry(), loadStatus(), loadRuntimes()]);
+		if (rt.ok) runtimes = rt.data.runtimes;
 		if (!r.ok) return void (failed = r.error);
 		registry = [...r.data.plugins].sort((a, b) => a.name.localeCompare(b.name));
 		if (s.ok) have = s.data;
@@ -54,13 +65,44 @@
 
 	let busy = $state(false);
 	let note = $state<string | null>(null);
+	// More than one runtime could run it: homeCore asks which, and so do we.
+	let choices = $state<string[]>([]);
+	let runOn = $state('');
+	$effect(() => {
+		void chosen;
+		void version;
+		choices = [];
+		runOn = '';
+	});
+	let placed = $state<{ name: string; on: string } | null>(null);
 	async function go() {
 		if (!chosen) return;
 		busy = true;
+		placed = null;
 		note = `Downloading ${chosen.name} and checking its signature…`;
-		const r = await install(chosen.id, version);
+		const r = await install(chosen.id, version, runOn || undefined);
 		busy = false;
-		if (!r.ok) return void (note = r.error);
+		if (!r.ok) {
+			const ids = runtimesToChoose(r);
+			if (!ids.length) return void (note = r.error);
+			choices = ids;
+			runOn = ids[0] ?? '';
+			note = null;
+			return;
+		}
+		if (wasPlaced(r.data)) {
+			const id = r.data.placed_on;
+			placed = {
+				name: chosen.name,
+				on: runtimeName(
+					runtimes.find((x) => x.runtime_id === id),
+					id
+				)
+			};
+			choices = [];
+			note = null;
+			return;
+		}
 		void goto(`/settings/plugins/${encodeURIComponent(r.data.installed)}?tab=settings`);
 	}
 </script>
@@ -122,9 +164,43 @@
 						its settings.
 					</p>
 				{/if}
+				{#if choices.length}
+					<fieldset class="choose">
+						<legend>More than one runtime can run it. Which one?</legend>
+						{#each choices as c (c)}
+							{@const rt = runtimes.find((x) => x.runtime_id === c)}
+							<label class="radio"
+								><input type="radio" name="runtime" value={c} bind:group={runOn} />
+								<span
+									><strong>{runtimeName(rt, c)}</strong>{#if rt?.capabilities?.kind}<em
+											>{[rt.capabilities.kind, rt.capabilities.arch]
+												.filter(Boolean)
+												.join(' · ')}</em
+										>{/if}</span
+								></label
+							>
+						{/each}
+					</fieldset>
+				{/if}
 				<button type="button" class="go" disabled={busy || !version} onclick={go}>
-					{busy ? 'Installing…' : installed ? `Install ${version}` : `Install ${chosen.name}`}
+					{busy
+						? 'Installing…'
+						: choices.length
+							? `Run it on ${runtimeName(
+									runtimes.find((x) => x.runtime_id === runOn),
+									runOn
+								)}`
+							: installed
+								? `Install ${version}`
+								: `Install ${chosen.name}`}
 				</button>
+				{#if placed}
+					<p class="note" role="status">
+						{placed.name} is going to <strong>{placed.on}</strong>, which installs and starts it the
+						next time it checks in. It shows in <a href="/settings/plugins">Plugins</a> once it’s
+						running; <a href="/settings/plugins/runtimes">Plugin runtimes</a> shows what each one runs.
+					</p>
+				{/if}
 				{#if note}<p class="note" role="status">{note}</p>{/if}
 			</section>
 		{/if}
@@ -239,6 +315,33 @@
 		color: var(--accent-ink);
 		font: inherit;
 		font-weight: 700;
+	}
+	.choose {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		margin: 0;
+		padding: 10px 12px;
+		border: 1px solid var(--line);
+		border-radius: 12px;
+	}
+	.choose legend {
+		padding: 0 4px;
+		font-weight: 600;
+	}
+	.radio {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.radio span {
+		display: flex;
+		flex-direction: column;
+	}
+	.radio em {
+		font-style: normal;
+		font-size: 13px;
+		color: var(--ink-muted);
 	}
 	.go:disabled {
 		opacity: 0.5;

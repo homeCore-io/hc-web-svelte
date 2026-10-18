@@ -25,7 +25,11 @@ export const POST: RequestHandler = async (event) => {
 	try {
 		res = await fetch(`${coreUrl()}/api/v1/auth/login`, {
 			method: 'POST',
-			headers: { 'content-type': 'application/json' },
+			headers: {
+				'content-type': 'application/json',
+				// What signed in, for the person's list of sessions in homeCore.
+				'user-agent': event.request.headers.get('user-agent') ?? 'homeCore app'
+			},
 			body: JSON.stringify({ username: body.username, password: body.password })
 		});
 	} catch {

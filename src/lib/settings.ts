@@ -157,6 +157,36 @@ export const SETTINGS: SettingsItem[] = [
 export const settingsItem = (slug: string) => SETTINGS.find((s) => s.slug === slug);
 
 /**
+ * What someone who isn't an admin needs to open each: the scope its page's
+ * changes take (reading, for automations — they can look); missing is
+ * admins only.
+ */
+const NEEDS: Record<string, string> = {
+	devices: 'devices:write',
+	rooms: 'areas:write',
+	scenes: 'scenes:write',
+	modes: 'devices:write',
+	helpers: 'devices:write',
+	automations: 'automations:read',
+	alerts: 'automations:write',
+	asking: 'content:write',
+	look: 'content:write',
+	events: 'devices:read'
+};
+
+/** Whether this person may open a settings item. */
+export function mayOpen(item: SettingsItem, can: (scope: string) => boolean, admin: boolean) {
+	if (admin) return true;
+	if (item.coming) return false;
+	const need = NEEDS[item.slug];
+	return need !== undefined && can(need);
+}
+
+/** Whether Settings has anything for this person at all. */
+export const hasSettings = (can: (scope: string) => boolean, admin: boolean) =>
+	SETTINGS.some((i) => mayOpen(i, can, admin));
+
+/**
  * Whether every typed word starts a word in `text` — "port" finds a port,
  * not "export" or "reports".
  */

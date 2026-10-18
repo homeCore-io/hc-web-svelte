@@ -53,6 +53,8 @@
 	import { featuresOf, type Features } from '#lib/ruleEdit.js';
 
 	const id = $derived(page.params.id ?? '');
+	// Someone who may read rules but not change them sees it, and nothing to press.
+	const canWrite = $derived(session.can('automations:write'));
 
 	let all = $state<Rule[] | null>(null);
 	let records = $state<Record_[]>([]);
@@ -78,7 +80,14 @@
 		void loadVocabulary().then((v) => (features = featuresOf(v)));
 		const stop = live.listen((frame) => {
 			const f = frame as { type: string; rule_id?: string; rule?: Rule };
-			if (f.type === 'rule_fired' && f.rule_id === id) void loadHistory();
+			// A run, one its checks couldn't settle, or a step that failed: all history.
+			if (
+				(f.type === 'rule_fired' ||
+					f.type === 'rule_evaluation_failed' ||
+					f.type === 'action_failed') &&
+				f.rule_id === id
+			)
+				void loadHistory();
 			if (f.type === 'rule_changed' && f.rule && all) {
 				const changed = f.rule;
 				all = all.some((r) => r.id === changed.id)
@@ -330,7 +339,7 @@
 	</ol>
 {/snippet}
 
-{#if !session.can('automations:write')}
+{#if !session.can('automations:read')}
 	<p class="quiet">Settings are for people who may change the house.</p>
 {:else if failed}
 	<p class="note bad" role="alert">{failed}</p>
@@ -346,13 +355,18 @@
 	<div class="page">
 		<header class="top">
 			<div class="bar">
-				<Toggle on={rule.enabled} label="On" disabled={!!madeBy} onchange={(on) => void turn(on)} />
+				<Toggle
+					on={rule.enabled}
+					label="On"
+					disabled={!!madeBy || !canWrite}
+					onchange={(on) => void turn(on)}
+				/>
 				<span class="state">{rule.enabled ? 'On' : 'Off'}</span>
 				<ul class="tags" aria-label="Tags">
 					{#each rule.tags ?? [] as t (t)}
 						<li>
 							{t}
-							{#if !madeBy}<button
+							{#if !madeBy && canWrite}<button
 									type="button"
 									aria-label={`Remove the tag ${t}`}
 									disabled={busy}
@@ -360,7 +374,7 @@
 								>{/if}
 						</li>
 					{/each}
-					{#if !madeBy}
+					{#if !madeBy && canWrite}
 						<li class="add">
 							<input
 								bind:value={newTag}
@@ -377,17 +391,20 @@
 					{/if}
 				</ul>
 				<span class="spacer"></span>
-				{#if !madeBy}<a
+				{#if !madeBy && canWrite}<a
 						class="plain change"
 						href={`/settings/automations/${encodeURIComponent(id)}/edit`}>Change</a
 					>{/if}
-				<button type="button" class="plain" disabled={busy} onclick={copy}>Make a copy</button>
+				{#if canWrite}<button type="button" class="plain" disabled={busy} onclick={copy}
+						>Make a copy</button
+					>{/if}
 				<button
 					type="button"
 					class="plain"
 					onclick={() => download([$state.snapshot(rule) as Rule], fileName(rule))}>Export</button
 				>
-				{#if !madeBy}<button type="button" class="plain danger" onclick={remove}>Delete…</button
+				{#if !madeBy && canWrite}<button type="button" class="plain danger" onclick={remove}
+						>Delete…</button
 					>{/if}
 			</div>
 			<p class="sentence"><Words {words} /></p>
@@ -408,7 +425,7 @@
 						>It names “{f.id.replace(/^DELETED:/, '')}”, which homeCore has no device for. homeCore
 						reports its steps as done, but nothing receives them.</strong
 					>
-					{#if f.to && !madeBy}
+					{#if f.to && !madeBy && canWrite}
 						<button type="button" disabled={busy} onclick={() => sendTo(f.id, f.to!.device_id)}
 							>Send it to {displayName(f.to)} ({f.to.device_id})</button
 						>
@@ -560,7 +577,7 @@
 					{/if}
 				</section>
 
-				{#if features?.runNow}
+				{#if features?.runNow && canWrite}
 					<section class="card side">
 						<strong>Run it now</strong>
 						<span class="quiet"

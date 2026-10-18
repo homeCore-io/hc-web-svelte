@@ -3,6 +3,7 @@
 -->
 <script lang="ts">
 	import { kindOf } from '#lib/card.js';
+	import { session } from '#lib/me.svelte.js';
 	import { displayName } from '#lib/devices.js';
 	import { devices } from '#lib/devices.svelte.js';
 	import { commands } from '#lib/commands.svelte.js';
@@ -22,7 +23,7 @@
 			<button
 				class="mode"
 				aria-pressed={on}
-				disabled={!m.available || !m.schema?.attributes.on?.writable}
+				disabled={!m.available || !m.schema?.attributes.on?.writable || !session.mayUse}
 				onclick={() => commands.set(m.device_id, 'mode', { on: !on }, m.attributes)}
 			>
 				<Icon name="mode" size={16} />

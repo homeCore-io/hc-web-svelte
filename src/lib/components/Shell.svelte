@@ -6,6 +6,7 @@
 -->
 <script lang="ts">
 	import { untrack, type Snippet } from 'svelte';
+	import { hasSettings } from '#lib/settings.js';
 	import { page } from '$app/state';
 	import { beforeNavigate, goto } from '$app/navigation';
 	import Pencil from '@lucide/svelte/icons/pencil';
@@ -128,7 +129,7 @@
 
 		<div class="spacer"></div>
 
-		{#if session.isAdmin}
+		{#if hasSettings((s) => session.can(s), session.isAdmin)}
 			<a
 				class="dest"
 				href="/settings"

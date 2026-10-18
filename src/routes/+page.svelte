@@ -96,7 +96,12 @@
 		pinLayer.name(p.ref) ?? (p.kind === 'device' ? displayName(p.device) : p.name);
 
 	// ---- scenes in no room, homeCore's and plugins' alike ----
-	type SceneItem = { ref: string; name: string; run: () => Promise<boolean>; details?: () => void };
+	type SceneItem = {
+		ref: string;
+		name: string;
+		run: () => Promise<boolean | string>;
+		details?: () => void;
+	};
 	const sceneItems = $derived(
 		[
 			...scenes.list.map((s): SceneItem => ({

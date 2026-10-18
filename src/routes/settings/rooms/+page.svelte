@@ -147,7 +147,7 @@
 	}
 </script>
 
-{#if !session.can('content:write')}
+{#if !session.can('areas:write') && !session.can('content:write')}
 	<p class="quiet">Settings are for people who may change the house.</p>
 {:else}
 	<ListDetail chosen={asked !== null && room !== undefined} label="Rooms">

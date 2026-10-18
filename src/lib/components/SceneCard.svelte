@@ -5,10 +5,14 @@
 -->
 <script lang="ts">
 	import Check from '@lucide/svelte/icons/check';
+	import { session } from '#lib/me.svelte.js';
 	import Icon from './Icon.svelte';
 
-	let { name, run, details }: { name: string; run: () => Promise<boolean>; details?: () => void } =
-		$props();
+	let {
+		name,
+		run,
+		details
+	}: { name: string; run: () => Promise<boolean | string>; details?: () => void } = $props();
 
 	// Long-press: held this long without moving away, it's details, not a run.
 	const HOLD_MS = 500;
@@ -24,6 +28,7 @@
 	}
 	const release = () => clearTimeout(hold);
 	let status = $state<'idle' | 'running' | 'done' | 'failed'>('idle');
+	let why = $state('');
 	let timer: ReturnType<typeof setTimeout> | undefined;
 
 	async function go() {
@@ -33,13 +38,17 @@
 		}
 		if (status === 'running') return;
 		status = 'running';
-		status = (await run()) ? 'done' : 'failed';
+		const r = await run();
+		status = r === true ? 'done' : 'failed';
+		why = typeof r === 'string' ? r : '';
 		clearTimeout(timer);
 		timer = setTimeout(() => (status = 'idle'), 1800);
 	}
 </script>
 
 <button
+	disabled={!session.mayRunScenes}
+	title={session.mayRunScenes ? undefined : 'You may look, not run scenes'}
 	class="scene"
 	class:done={status === 'done'}
 	class:failed={status === 'failed'}
@@ -58,7 +67,9 @@
 	<span class="orb">
 		{#if status === 'done'}<Check size={16} />{:else}<Icon name="scene" size={16} />{/if}
 	</span>
-	<span class="name">{status === 'failed' ? `${name} — didn't run` : name}</span>
+	<span class="name"
+		>{status === 'failed' ? `${name} — didn't run${why ? `: ${why}` : ''}` : name}</span
+	>
 </button>
 
 <style>

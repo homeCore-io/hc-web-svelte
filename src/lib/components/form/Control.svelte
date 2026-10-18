@@ -143,6 +143,36 @@
 
 	// ---- tables ----
 	const columns = $derived(Array.isArray(field.item) ? field.item : []);
+	// A generated column is made when its row is, and never shown.
+	const shownColumns = $derived(columns.filter((c) => c.key !== undefined && !c.generated));
+	const newRow = () => {
+		const row: Record<string, unknown> = {};
+		for (const c of columns)
+			if (c.generated && c.key) row[c.key] = Math.random().toString(36).slice(2, 8);
+		return row;
+	};
+	/** Row indexes by the `group_by` column's value — empty ones under "Unassigned". */
+	const groups = $derived.by(() => {
+		const by = field.group_by;
+		const all = rows.map((_, i) => i);
+		if (!by) return [{ title: '', at: all }];
+		const map = new Map<string, number[]>();
+		for (const i of all) {
+			const v = rows[i]?.[by];
+			const t = v === undefined || v === null || v === '' ? '' : String(v);
+			map.set(t, [...(map.get(t) ?? []), i]);
+		}
+		const col = columns.find((c) => c.key === by);
+		const colOpts =
+			col?.options ?? sourceOptions(col?.source, Object.values(devices.byId), rooms.list);
+		const named = (t: string) => colOpts?.find((o) => String(o.value) === t)?.label ?? t;
+		return [...map.entries()]
+			.sort(([a], [b]) => (a === '' ? 1 : b === '' ? -1 : named(a).localeCompare(named(b))))
+			.map(([t, at]) => ({ title: t === '' ? 'Unassigned' : named(t), at }));
+	});
+	const wants = (row: Record<string, unknown>, c: Field) =>
+		!!c.prompt_when_empty &&
+		(row[c.key!] === undefined || row[c.key!] === null || row[c.key!] === '');
 	const rows = $derived(Array.isArray(value) ? (value as Record<string, unknown>[]) : []);
 	const setCell = (i: number, key: string, v: unknown) => {
 		const next = rows.map((r) => ({ ...r }));
@@ -166,6 +196,34 @@
 			>
 		{/each}
 	</div>
+{:else if fromHouse && field.allow_create && field.kind !== 'list' && field.kind !== 'table'}
+	<!-- A choice from the house that may also name something new: a room not made yet. -->
+	<input
+		{id}
+		{disabled}
+		class:invalid
+		list={`${id}-opts`}
+		placeholder={placeholder || 'Choose or type a new one'}
+		value={opts?.find((o) => same(o.value, value))?.label ??
+			(value === undefined || value === null ? '' : entry(value))}
+		onchange={(e) => {
+			const t = e.currentTarget.value.trim();
+			const known = opts?.find((o) => o.label === t || String(o.value) === t);
+			onchange(
+				known
+					? known.value
+					: t === ''
+						? undefined
+						: t
+								.toLowerCase()
+								.replace(/[^a-z0-9]+/g, '_')
+								.replace(/^_|_$/g, '')
+			);
+		}}
+	/>
+	<datalist id={`${id}-opts`}>
+		{#each opts ?? [] as o (String(o.value))}<option value={o.label}></option>{/each}
+	</datalist>
 {:else if field.kind === 'enum' || (field.kind === 'select' && field.options && !field.allow_create) || (fromHouse && field.kind !== 'list' && field.kind !== 'table')}
 	<select
 		{id}
@@ -326,32 +384,41 @@
 	</div>
 {:else if field.kind === 'table'}
 	<div class="table">
-		{#each rows as row, i (i)}
-			<fieldset class="row">
-				<legend>{entry(row[field.key_by ?? columns[0]?.key ?? ''] ?? '') || `Row ${i + 1}`}</legend>
-				{#each columns.filter((c) => c.key !== undefined) as c (c.key)}
-					<label class="cell">
-						<span>{c.label ?? c.key}</span>
-						<Self
-							field={c}
-							value={row[c.key!]}
-							id={`${id}-${i}-${c.key}`}
-							label={c.label ?? c.key}
-							onchange={(v) => setCell(i, c.key!, v)}
-						/>
-					</label>
-				{/each}
-				{#if !disabled}
-					<button
-						type="button"
-						class="small remove"
-						onclick={() => onchange(rows.filter((_, j) => j !== i))}>Remove</button
+		{#each groups as g (g.title)}
+			{#if g.title}<h4 class="group">{g.title} <span class="n">{g.at.length}</span></h4>{/if}
+			{#each g.at as i (i)}
+				{@const row = rows[i]!}
+				<fieldset class="row" class:wants={shownColumns.some((c) => wants(row, c))}>
+					<legend
+						>{entry(row[field.key_by ?? shownColumns[0]?.key ?? ''] ?? '') ||
+							`Row ${i + 1}`}</legend
 					>
-				{/if}
-			</fieldset>
+					{#each shownColumns as c (c.key)}
+						<label class="cell">
+							<span
+								>{c.label ?? c.key}{#if wants(row, c)}<em class="ask"> — wants one</em>{/if}</span
+							>
+							<Self
+								field={c}
+								value={row[c.key!]}
+								id={`${id}-${i}-${c.key}`}
+								label={c.label ?? c.key}
+								onchange={(v) => setCell(i, c.key!, v)}
+							/>
+						</label>
+					{/each}
+					{#if !disabled}
+						<button
+							type="button"
+							class="small remove"
+							onclick={() => onchange(rows.filter((_, j) => j !== i))}>Remove</button
+						>
+					{/if}
+				</fieldset>
+			{/each}
 		{/each}
 		{#if !disabled}
-			<button type="button" class="small" onclick={() => onchange([...rows, {}])}
+			<button type="button" class="small" onclick={() => onchange([...rows, newRow()])}
 				><Plus size={14} aria-hidden="true" />Add</button
 			>
 		{/if}
@@ -577,5 +644,23 @@
 		justify-self: start;
 		align-self: end;
 		color: var(--alert);
+	}
+	.group {
+		margin: 8px 0 2px;
+		font-size: 12px;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--ink-muted);
+	}
+	.group .n {
+		font-weight: 400;
+	}
+	.row.wants {
+		border-color: var(--lit-card-line);
+	}
+	.ask {
+		font-style: normal;
+		color: var(--lit-ink);
 	}
 </style>

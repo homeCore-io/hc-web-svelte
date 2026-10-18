@@ -5,6 +5,8 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { onReturn } from '#lib/refresh.js';
+	import { live } from '#lib/live.svelte.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import Search from '@lucide/svelte/icons/search';
@@ -70,10 +72,25 @@
 		const res = await fetch('/api/v1/devices/removed').catch(() => null);
 		removed = res?.ok ? ((await res.json()) as Removed[]) : null;
 	};
-	onMount(async () => {
-		void loadRemoved();
+	async function loadOrphans() {
 		const res = await fetch('/api/v1/devices/orphaned').catch(() => null);
 		if (res?.ok) orphans = (await res.json()) as Orphans;
+	}
+	onMount(() => {
+		void loadRemoved();
+		void loadOrphans();
+		// A device removed now joins Removed; one removed elsewhere, too.
+		const stop = live.listen((frame) => {
+			if ((frame as { type: string }).type === 'device_removed') void loadRemoved();
+		});
+		const away = onReturn(() => {
+			void loadRemoved();
+			void loadOrphans();
+		});
+		return () => {
+			stop();
+			away();
+		};
 	});
 	async function bringBack(r: Removed) {
 		const res = await fetch(`/api/v1/devices/removed/${encodeURIComponent(r.device_id)}`, {

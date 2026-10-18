@@ -74,6 +74,33 @@ describe('events, in words', () => {
 		expect(eventRow({ type: 'plugin_heartbeat' }, house)).toBeUndefined();
 	});
 
+	it('says what was added, renamed, removed or put right — and anything new by its name', () => {
+		const say = (e: Record<string, unknown>) => text(eventRow(e, house)!.words);
+		expect(
+			say({
+				type: 'device_name_changed',
+				device_id: 'fan',
+				previous_name: 'Fan',
+				current_name: 'Exhaust'
+			})
+		).toBe('Fan is now called Exhaust');
+		expect(say({ type: 'device_removed', device_id: 'gone_one' })).toBe('gone_one was removed');
+		expect(say({ type: 'alert_cleared', alert_id: 'wet:fan', device_id: 'fan' })).toBe(
+			'Exhaust Fan no longer needs attention'
+		);
+		expect(say({ type: 'plugin_offline', plugin_id: 'plugin.sonos' })).toMatch(/went offline$/);
+		expect(
+			say({
+				type: 'rule_evaluation_failed',
+				rule_id: 'r',
+				rule_name: 'Night',
+				reason: 'script error'
+			})
+		).toBe('Rule Night couldn’t check whether to run: script error');
+		expect(say({ type: 'something_new' })).toBe('something new');
+		expect(eventRow({ type: 'custom', event_type: 'scheduler_tick' }, house)).toBeUndefined();
+	});
+
 	it('folds readings that change all the time, and repeated re-declarations', () => {
 		const power = {
 			type: 'device_state_changed',

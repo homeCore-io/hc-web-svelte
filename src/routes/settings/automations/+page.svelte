@@ -59,6 +59,9 @@
 		type RuleGroup
 	} from '#lib/ruleAdmin.js';
 
+	// Someone who may read rules but not change them sees them, and nothing to press.
+	const canWrite = $derived(session.can('automations:write'));
+
 	// The filter lives in the address, so Back returns to the same list.
 	const show = $derived((page.url.searchParams.get('show') as Show | null) ?? 'all');
 	let query = $state(page.url.searchParams.get('q') ?? '');
@@ -121,6 +124,9 @@
 					...runs,
 					[f.rule_id]: { ...runs[f.rule_id], ran: f.timestamp, tried: f.timestamp }
 				};
+			// Its moment came, but it couldn't settle its checks: tried, not ran.
+			if (f.type === 'rule_evaluation_failed' && f.rule_id)
+				runs = { ...runs, [f.rule_id]: { ...runs[f.rule_id], tried: f.timestamp } };
 			// A homeCore with rule events says when one changes, by anyone.
 			if (f.type === 'rule_changed' && f.rule && rules) {
 				const changed = f.rule;
@@ -421,7 +427,7 @@
 	{@const last = runs[r.id]}
 	{@const href = `/settings/automations/${encodeURIComponent(r.id)}`}
 	<div class="row" class:off={!r.enabled} class:kin={inFamily} class:picked={picked[r.id]}>
-		{#if wide.current}
+		{#if wide.current && canWrite}
 			<input
 				type="checkbox"
 				aria-label={`Select ${r.name}`}
@@ -504,7 +510,7 @@
 		{@const open = isOpen(item.family.key)}
 		{@const on = item.rows.filter((r) => r.rule.enabled).length}
 		<div class="family" class:open>
-			{#if wide.current}
+			{#if wide.current && canWrite}
 				<input
 					type="checkbox"
 					aria-label={`Select the ${item.rows.length} rules of ${item.family.label}`}
@@ -544,7 +550,7 @@
 	{/if}
 {/snippet}
 
-{#if !session.can('automations:write')}
+{#if !session.can('automations:read')}
 	<p class="quiet">Settings are for people who may change the house.</p>
 {:else}
 	<div class="page">
@@ -571,8 +577,10 @@
 				{/each}
 			</div>
 			<span class="spacer"></span>
-			<a class="new" href="/settings/automations/new">+ New automation</a>
-			<button type="button" class="plain" onclick={() => file?.click()}>Import…</button>
+			{#if canWrite}
+				<a class="new" href="/settings/automations/new">+ New automation</a>
+				<button type="button" class="plain" onclick={() => file?.click()}>Import…</button>
+			{/if}
 			<button type="button" class="plain" onclick={exportEvery}>Export all</button>
 			<input
 				bind:this={file}
@@ -607,7 +615,7 @@
 			<section class="sets" aria-label="Sets of rules">
 				<header>
 					<h2>Sets</h2>
-					{#if editing !== 'new'}
+					{#if editing !== 'new' && canWrite}
 						<button type="button" class="link" onclick={() => editSet(null)}
 							>{selected.length
 								? `New set of the ${selected.length} selected…`
@@ -639,24 +647,26 @@
 							onclick={() => set('set', setId === g.id ? null : g.id)}
 							>{setId === g.id ? 'Show all' : 'Show'}</button
 						>
-						<button
-							type="button"
-							class="plain"
-							disabled={inSet.length === 0}
-							onclick={() => turnGroup(g, true)}>All on</button
-						>
-						<button
-							type="button"
-							class="plain"
-							disabled={inSet.length === 0}
-							onclick={() => turnGroup(g, false)}>All off</button
-						>
-						<button
-							type="button"
-							class="plain"
-							aria-expanded={editing === g.id}
-							onclick={() => (editing === g.id ? (editing = null) : editSet(g))}>Change…</button
-						>
+						{#if canWrite}
+							<button
+								type="button"
+								class="plain"
+								disabled={inSet.length === 0}
+								onclick={() => turnGroup(g, true)}>All on</button
+							>
+							<button
+								type="button"
+								class="plain"
+								disabled={inSet.length === 0}
+								onclick={() => turnGroup(g, false)}>All off</button
+							>
+							<button
+								type="button"
+								class="plain"
+								aria-expanded={editing === g.id}
+								onclick={() => (editing === g.id ? (editing = null) : editSet(g))}>Change…</button
+							>
+						{/if}
 					</div>
 					{#if editing === g.id}{@render setForm(g)}{/if}
 				{/each}
@@ -682,7 +692,7 @@
 				<section class="group">
 					<header>
 						<h2>{g.title} <span class="n">{g.count}</span></h2>
-						{#if g.tag !== '' && wide.current}
+						{#if g.tag !== '' && wide.current && canWrite}
 							<button type="button" class="link" onclick={() => turnTag(g.tag, g.title, true)}
 								>All on</button
 							>

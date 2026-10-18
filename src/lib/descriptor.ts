@@ -170,9 +170,16 @@ export function getter(d: Descriptor, draft: Record<string, unknown>) {
 	};
 }
 
-/** Whether a section is shown at all. */
+/** Whether a section is shown in the list of sections. */
 export const sectionShown = (s: Section, get: (key: string) => unknown) =>
 	!s.hidden && holds(s.visible_when, get);
+
+/**
+ * A section kept out of the list but still editable — a plugin's connection
+ * to homeCore, say ("hidden": editable, not in the rail).
+ */
+export const sectionTucked = (s: Section, get: (key: string) => unknown) =>
+	!!s.hidden && holds(s.visible_when, get);
 
 /** Whether a field is shown within its (shown) section. */
 export const fieldShown = (f: Field, get: (key: string) => unknown) => holds(f.visible_when, get);

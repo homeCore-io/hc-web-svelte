@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { onReturn } from '#lib/refresh.js';
 	import ScenesTransfer from '#lib/components/admin/ScenesTransfer.svelte';
 	import { session } from '#lib/me.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
@@ -16,6 +17,9 @@
 		backUp,
 		backUpApp,
 		checkRestore,
+		downloadKept,
+		everySaid,
+		loadKept,
 		loadCalendars,
 		loadStatus,
 		removeCalendar,
@@ -24,18 +28,34 @@
 		stageRestore,
 		uploadCalendar,
 		type Calendar,
+		type KeptBackups,
 		type RestorePlan,
 		type Status
 	} from '#lib/systemAdmin.js';
 
 	let status = $state<Status | null>(null);
 	let calendars = $state<Calendar[] | null>(null);
+	let kept = $state.raw<KeptBackups | null>(null);
 	async function load() {
-		const [s, c] = await Promise.all([loadStatus(), loadCalendars()]);
+		const [s, c, k] = await Promise.all([
+			loadStatus(),
+			loadCalendars(),
+			// An older homeCore hasn't this, and says 404: the card says what it used to.
+			loadKept()
+		]);
 		if (s.ok) status = s.data;
 		if (c.ok) calendars = c.data;
+		if (k.ok) kept = k.data;
 	}
-	onMount(load);
+	let keptNote = $state<string | null>(null);
+	async function fetchKept(name: string) {
+		const r = await downloadKept(name);
+		keptNote = r.ok ? `Saved ${name} to your downloads.` : r.error;
+	}
+	onMount(() => {
+		void load();
+		return onReturn(load);
+	});
 
 	const due = $derived(status ? backupDue(status.last_backup_at, clock.now) : false);
 	const lastSaid = $derived(
@@ -302,7 +322,38 @@
 				<button class="link" onclick={backupApp}>save them too</button>.
 			</p>
 			{#if appBacking}<p class="sub" role="status">{appBacking}</p>{/if}
-			<p class="sub">homeCore doesn’t back itself up on a schedule.</p>
+			{#if kept?.every_hours}
+				<p class="sub">
+					homeCore also makes one {everySaid(kept.every_hours)}, keeping the newest {kept.keep}
+					on the house<span class="path">{kept.dir ? ` in ${kept.dir}` : ''}</span> —
+					<a href="/settings/configuration?s=backup">change</a>.
+				</p>
+			{:else if kept}
+				<p class="sub">
+					homeCore doesn’t back itself up on a schedule.
+					<a href="/settings/configuration?s=backup">Set one under Backups</a>.
+				</p>
+			{:else}
+				<p class="sub">homeCore doesn’t back itself up on a schedule.</p>
+			{/if}
+			{#if kept?.backups.length}
+				<ul class="kept">
+					{#each kept.backups as b (b.name)}
+						<li>
+							<button class="link" onclick={() => fetchKept(b.name)}
+								>{new Date(b.created_at).toLocaleString(undefined, {
+									day: 'numeric',
+									month: 'short',
+									hour: '2-digit',
+									minute: '2-digit'
+								})}</button
+							>
+							<span class="sub">{size(b.bytes)}</span>
+						</li>
+					{/each}
+				</ul>
+				{#if keptNote}<p class="sub" role="status">{keptNote}</p>{/if}
+			{/if}
 		</section>
 
 		<section class="card">
@@ -667,5 +718,21 @@
 		margin: 0;
 		color: var(--ink-muted);
 		font-size: 13px;
+	}
+	.kept {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+	.kept li {
+		display: flex;
+		gap: var(--space-2);
+		align-items: baseline;
+	}
+	.path {
+		overflow-wrap: anywhere;
 	}
 </style>

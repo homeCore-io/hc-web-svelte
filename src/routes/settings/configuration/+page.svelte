@@ -6,6 +6,9 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import LocationHelp from '#lib/components/admin/LocationHelp.svelte';
+	import WhitelistHint from '#lib/components/admin/WhitelistHint.svelte';
+	import { onReturn } from '#lib/refresh.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -34,12 +37,17 @@
 		config = got.config;
 		trouble = null;
 	}
-	onMount(load);
+	onMount(() => {
+		void load();
+		// Coming back reads the file again — unless there are edits here not saved.
+		return onReturn(() => !form.dirty && load());
+	});
 
 	// ---- which section ----
 	const asked = $derived(page.url.searchParams.get('s'));
 	const section = $derived(
-		form.sections.find((s) => s.id === asked) ?? (wide.current ? form.sections[0] : undefined)
+		[...form.sections, ...form.tucked].find((s) => s.id === asked) ??
+			(wide.current ? form.sections[0] : undefined)
 	);
 	const choose = (id: string) =>
 		goto(`?s=${encodeURIComponent(id)}`, {
@@ -206,6 +214,28 @@
 						</li>
 					{/each}
 				</ul>
+				{#if form.tucked.length}
+					<p class="also">Also</p>
+					<ul class="sections tucked">
+						{#each form.tucked as s (s.id)}
+							<li>
+								<a
+									href={`?s=${encodeURIComponent(s.id)}`}
+									aria-current={section?.id === s.id ? 'page' : undefined}
+									onclick={(e) => {
+										e.preventDefault();
+										void choose(s.id);
+									}}
+								>
+									<span class="title">{s.title}</span>
+									{#if form.wrongIn(s)}<span class="dot bad" aria-label="has a problem"></span>
+									{:else if form.changedIn(s)}<span class="dot" aria-label="changed"></span>{/if}
+									<ChevronRight size={16} aria-hidden="true" />
+								</a>
+							</li>
+						{/each}
+					</ul>
+				{/if}
 			{/snippet}
 			{#snippet detail()}
 				{#if section}
@@ -213,6 +243,8 @@
 						{#if wide.current}<h2>{section.title}</h2>{/if}
 						{#if section.help}<p class="quiet">{section.help}</p>{/if}
 						<SectionForm {form} {section} />
+						{#if section.id === 'location'}<LocationHelp {form} />{/if}
+						{#if section.id === 'auth'}<WhitelistHint />{/if}
 					</section>
 				{/if}
 			{/snippet}
@@ -404,5 +436,13 @@
 	}
 	.saved span {
 		flex: 1 1 260px;
+	}
+	.also {
+		margin: var(--space-4) 0 var(--space-1);
+		font-size: 12px;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--ink-muted);
 	}
 </style>

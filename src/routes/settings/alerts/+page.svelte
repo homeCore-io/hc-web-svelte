@@ -13,6 +13,7 @@
 -->
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
+	import { onReturn } from '#lib/refresh.js';
 	import Trash from '@lucide/svelte/icons/trash-2';
 	import { devices } from '#lib/devices.svelte.js';
 	import { displayName } from '#lib/devices.js';
@@ -59,10 +60,12 @@
 	let channels = $state<string[]>([]);
 	onMount(() => {
 		void reload();
+		const stop = onReturn(reload);
 		if (session.isAdmin)
 			void loadConfig().then((got) => {
 				if (typeof got !== 'string') channels = channelsOf(got.config.parsed).map((c) => c.name);
 			});
+		return stop;
 	});
 
 	const all = $derived(

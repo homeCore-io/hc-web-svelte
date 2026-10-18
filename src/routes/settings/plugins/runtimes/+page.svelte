@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { loadConfig } from '#lib/config.js';
 	import { session } from '#lib/me.svelte.js';
 	import { heading } from '#lib/heading.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
@@ -33,8 +34,19 @@
 		if (p.ok) placements = p.data;
 	}
 	const hosted = (id: string) => placements.filter((p) => p.runtime_id === id);
+	// Joining is turned off, or allowed only from listed addresses, in the settings file.
+	let joining = $state<{ enabled: boolean; whitelistOnly: boolean } | null>(null);
 	onMount(() => {
 		void load();
+		void loadConfig().then((got) => {
+			if (typeof got === 'string') return;
+			const pr = (got.config.parsed as { plugin_runtimes?: Record<string, unknown> } | null)
+				?.plugin_runtimes;
+			joining = {
+				enabled: pr?.enabled !== false,
+				whitelistOnly: pr?.whitelist_only === true
+			};
+		});
 		const t = setInterval(load, 10_000);
 		return () => clearInterval(t);
 	});
@@ -62,6 +74,18 @@
 			A runtime is a container you run that hosts plugins written in other languages. It asks to
 			join; you let it in by matching the code it shows.
 		</p>
+		{#if joining && !joining.enabled}
+			<p class="banner">
+				Joining is turned off, so no runtime can ask. Turn it on in
+				<a href="/settings/configuration?s=plugin_runtimes">Configuration › Plugin runtimes</a>.
+			</p>
+		{:else if joining?.whitelistOnly}
+			<p class="banner">
+				Only runtimes at the addresses listed in
+				<a href="/settings/configuration?s=plugin_runtimes">Configuration › Plugin runtimes</a> can ask
+				to join.
+			</p>
+		{/if}
 		{#if note}<p class="note" role="status">{note}</p>{/if}
 		{#if runtimes === null}
 			<p class="quiet">Loading…</p>
@@ -214,5 +238,12 @@
 		margin: 0;
 		color: var(--ink-muted);
 		font-size: 13px;
+	}
+	.banner {
+		margin: 0;
+		padding: 10px 14px;
+		border-radius: 12px;
+		background: var(--lit-bg);
+		color: var(--lit-ink);
 	}
 </style>

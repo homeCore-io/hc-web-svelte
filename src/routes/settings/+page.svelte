@@ -32,6 +32,7 @@
 	import { scenes } from '#lib/scenes.svelte.js';
 	import { alerts } from '#lib/alerts.svelte.js';
 	import {
+		mayOpen,
 		SETTINGS,
 		backupDue,
 		daysAgo,
@@ -66,14 +67,7 @@
 	};
 
 	// ---- what each can see ----
-	const allowed = (item: SettingsItem) => {
-		if (session.isAdmin) return true;
-		if (item.group === 'system' || item.coming) return false;
-		if (item.slug === 'alerts' || item.slug === 'automations')
-			return session.can('automations:write');
-		if (item.slug === 'displays') return false;
-		return session.can('content:write');
-	};
+	const allowed = (item: SettingsItem) => mayOpen(item, (s) => session.can(s), session.isAdmin);
 
 	// ---- how things stand (admin only: these read homeCore's system API) ----
 	interface Status {

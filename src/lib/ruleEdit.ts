@@ -414,7 +414,7 @@ export interface Command {
 /** A schema action's parameter as a field. */
 export function paramField(p: ParamSpec, d: CoreDevice): Field {
 	const label = p.label ?? cap(words(p.name));
-	const from = p.options_from?.attribute;
+	const from = typeof p.options_from === 'object' ? p.options_from.attribute : undefined;
 	if (from) {
 		const list = d.attributes[from.attribute];
 		if (Array.isArray(list)) {

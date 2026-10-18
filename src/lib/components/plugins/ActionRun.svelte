@@ -7,6 +7,7 @@
 	import { onMount, untrack } from 'svelte';
 	import { ask } from '#lib/confirm.svelte.js';
 	import {
+		resultLines,
 		dangerous,
 		finished,
 		paramDefaults,
@@ -226,6 +227,12 @@
 				</ul>
 			</div>
 		{/if}
+		{#if finished(run) && resultLines(run.result).length}
+			<dl class="result">
+				{#each resultLines(run.result) as l (l.label)}<dt>{l.label}</dt>
+					<dd>{l.value}</dd>{/each}
+			</dl>
+		{/if}
 		{#if !finished(run)}<p class="quiet">
 				You can leave this page: it keeps going, and comes back here when you do.
 			</p>{/if}
@@ -374,5 +381,22 @@
 		margin: 0;
 		color: var(--alert);
 		font-weight: 600;
+	}
+	.result {
+		display: grid;
+		grid-template-columns: max-content minmax(0, 1fr);
+		gap: 4px 12px;
+		margin: 0;
+		padding: 10px 12px;
+		border-radius: 10px;
+		background: var(--surface-2);
+		font-size: 13px;
+	}
+	.result dt {
+		color: var(--ink-muted);
+	}
+	.result dd {
+		margin: 0;
+		overflow-wrap: anywhere;
 	}
 </style>

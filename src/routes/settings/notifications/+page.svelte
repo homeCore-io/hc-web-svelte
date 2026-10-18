@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
+	import { liveRules } from '#lib/rules.svelte.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -30,7 +31,6 @@
 		type Provider
 	} from '#lib/notify.js';
 	import ListDetail from '#lib/components/admin/ListDetail.svelte';
-	import { loadRules } from '#lib/ruleAdmin.js';
 	import { alertRules } from '#lib/admin.js';
 	import type { AlertRule } from '#lib/alerts.js';
 	import SaveBar from '#lib/components/admin/SaveBar.svelte';
@@ -41,7 +41,7 @@
 	/** `[alerts] notify_channel`: where wet, smoke, jammed and offline alerts go. */
 	let alertsChannel = $state<string | null>(null);
 	let alertRuleList = $state<AlertRule[]>([]);
-	let rules = $state<{ id: string; name: string; actions?: unknown }[]>([]);
+	const rules = $derived(liveRules.list as { id: string; name: string; actions?: unknown }[]);
 	let trouble = $state<string | null>(null);
 	let saving = $state(false);
 	let saved = $state(false);
@@ -58,8 +58,8 @@
 	}
 	onMount(async () => {
 		await load();
-		const [res, alerting] = await Promise.all([loadRules(), alertRules()]);
-		if (res.ok) rules = res.data;
+		liveRules.start();
+		const alerting = await alertRules();
 		alertRuleList = alerting ?? [];
 	});
 

@@ -10,6 +10,7 @@
 -->
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
+	import { onReturn } from '#lib/refresh.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { core } from '#lib/core.svelte.js';
@@ -83,6 +84,8 @@
 	}
 	onMount(() => {
 		void loadPeople().then((p) => p.ok && (accounts = p.data));
+		// Back to the page: the newest again, unless older pages were asked for.
+		return onReturn(() => entries.length <= PAGE && load());
 	});
 	// What homeCore filters changes the page: ask again from the newest.
 	const refused = $derived(what === 'refused');

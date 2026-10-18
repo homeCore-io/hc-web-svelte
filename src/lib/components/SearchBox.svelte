@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { liveRules } from '#lib/rules.svelte.js';
 	import { page } from '$app/state';
 	import SearchIcon from '@lucide/svelte/icons/search';
 	import { search, type Hit } from '#lib/search.js';
@@ -15,8 +16,7 @@
 	import { session } from '#lib/me.svelte.js';
 	import { finder } from '#lib/finder.svelte.js';
 	import { openDevice } from '#lib/popup.js';
-	import { loadRules } from '#lib/uses.js';
-	import { SETTINGS } from '#lib/settings.js';
+	import { mayOpen, hasSettings, SETTINGS } from '#lib/settings.js';
 
 	let dialog = $state<HTMLDialogElement>();
 	let input = $state<HTMLInputElement>();
@@ -26,15 +26,14 @@
 	const pages = $derived([
 		...SIDEBAR.map((d) => ({ href: d.href, title: d.label })),
 		{ href: '/me', title: 'Me' },
-		...(session.isAdmin ? [{ href: '/settings', title: 'Settings' }] : [])
+		...(hasSettings((s) => session.can(s), session.isAdmin)
+			? [{ href: '/settings', title: 'Settings' }]
+			: [])
 	]);
-	// Rules are read once, when someone who may see them first searches.
-	let rules = $state<{ id: string; name: string }[]>([]);
-	let rulesAsked = false;
+	// Rules are read when someone who may see them first searches, and kept current.
+	const rules = $derived(session.can('automations:write') ? liveRules.list : []);
 	$effect(() => {
-		if (!finder.open || rulesAsked || !session.can('automations:write')) return;
-		rulesAsked = true;
-		void loadRules().then((r) => (rules = r ?? []));
+		if (finder.open && session.can('automations:write')) liveRules.start();
 	});
 	const hits = $derived(
 		search(query, {
@@ -43,7 +42,7 @@
 			scenes: scenes.list,
 			pages,
 			rules,
-			settings: session.isAdmin ? SETTINGS : []
+			settings: SETTINGS.filter((i) => mayOpen(i, (s) => session.can(s), session.isAdmin))
 		})
 	);
 	$effect(() => {

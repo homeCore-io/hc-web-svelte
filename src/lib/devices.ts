@@ -44,10 +44,19 @@ export interface ParamSpec {
 	min?: number;
 	max?: number;
 	options?: { value: string; label?: string }[];
-	options_from?: {
-		attribute?: { attribute: string; label_key?: string; value_key?: string };
-		devices?: { device_type?: string; facet?: string; plugin_id?: string; exclude_self?: boolean };
-	};
+	/** Where its options come from; homeCore's own lists are just their names. */
+	options_from?:
+		| {
+				attribute?: { attribute: string; label_key?: string; value_key?: string };
+				devices?: {
+					device_type?: string;
+					facet?: string;
+					plugin_id?: string;
+					exclude_self?: boolean;
+				};
+		  }
+		| 'modes'
+		| 'scenes';
 }
 
 export interface DeviceAction {
@@ -55,6 +64,9 @@ export interface DeviceAction {
 	label: string;
 	category?: string;
 	confirm?: string;
+	/** What to know before running it, in the plugin's words. */
+	description?: string;
+	icon?: string;
 	/** The attribute this action stands in for (a Roku's `select_source` for `source`). */
 	writes?: string;
 	params?: ParamSpec[];

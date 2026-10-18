@@ -10,6 +10,7 @@
 -->
 <script lang="ts">
 	import Play from '@lucide/svelte/icons/play';
+	import { session } from '#lib/me.svelte.js';
 	import Pause from '@lucide/svelte/icons/pause';
 	import SkipBack from '@lucide/svelte/icons/skip-back';
 	import SkipForward from '@lucide/svelte/icons/skip-forward';
@@ -71,6 +72,8 @@
 		commands.notes[device.device_id] ?? (raised?.kind === 'rule' ? raised.reason : undefined)
 	);
 	const off = $derived(!card.available);
+	// Someone who may only look sees the card as it is, with nothing to press.
+	const locked = $derived(off || !session.mayUse);
 
 	function set(want: Record<string, unknown>) {
 		void commands.set(device.device_id, card.kind, want, device.attributes);
@@ -132,7 +135,7 @@
 		<Toggle
 			on={c.on}
 			label={name}
-			disabled={off}
+			disabled={locked}
 			onchange={async (on) => {
 				if (await goAhead(device.device_id, card.kind, `Turn ${name} ${on ? 'on' : 'off'}?`))
 					set({ [c.attr]: on });
@@ -142,7 +145,7 @@
 		<button
 			class="round"
 			aria-label={c.playing ? `Pause ${name}` : `Play ${name}`}
-			disabled={off}
+			disabled={locked}
 			onclick={() => run(c)}
 		>
 			{#if c.playing}<Pause size={18} fill="currentColor" />{:else}<Play
@@ -151,7 +154,7 @@
 				/>{/if}
 		</button>
 	{:else if c}
-		<button class="pill" disabled={off} onclick={() => run(c)}>
+		<button class="pill" disabled={locked} onclick={() => run(c)}>
 			{c.kind === 'lock'
 				? c.locked
 					? 'Unlock'
@@ -268,7 +271,7 @@
 					<Toggle
 						on={ch.on}
 						label={`${name} ${ch.label}`}
-						disabled={off}
+						disabled={locked}
 						onchange={(on) => set({ [ch.attr]: on })}
 					/>
 				</li>
@@ -288,7 +291,7 @@
 							max={e.max}
 							step={e.step}
 							value={dragging[e.attr] ?? e.value}
-							disabled={off}
+							disabled={locked}
 							oninput={(ev) => slide(e, Number(ev.currentTarget.value))}
 							onchange={(ev) => release(e, Number(ev.currentTarget.value))}
 						/>
@@ -302,7 +305,7 @@
 							<button
 								role="radio"
 								aria-checked={e.value === o}
-								disabled={off}
+								disabled={locked}
 								onclick={() => set({ [e.attr]: o })}>{o.replace(/[-_]/g, ' ')}</button
 							>
 						{/each}
@@ -313,7 +316,7 @@
 							<button
 								class="round quiet"
 								aria-label="Previous"
-								disabled={off}
+								disabled={locked}
 								onclick={() => commands.act(device.device_id, e.previous!)}
 								><SkipBack size={18} /></button
 							>
@@ -322,7 +325,7 @@
 							<button
 								class="round quiet"
 								aria-label="Next"
-								disabled={off}
+								disabled={locked}
 								onclick={() => commands.act(device.device_id, e.next!)}
 								><SkipForward size={18} /></button
 							>

@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { onReturn } from '#lib/refresh.js';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import { session } from '#lib/me.svelte.js';
 	import { wide } from '#lib/wide.svelte.js';
@@ -32,7 +33,11 @@
 	let seen = $state<Record<string, string>>({});
 	let failed = $state<string | null>(null);
 
-	onMount(async () => {
+	onMount(() => {
+		void load();
+		return onReturn(load);
+	});
+	async function load() {
 		const [p, r, k] = await Promise.all([loadPeople(), loadRoles(), loadKeys()]);
 		if (!p.ok) return void (failed = p.error);
 		people = [...p.data].sort((a, b) => a.created_at.localeCompare(b.created_at));
@@ -42,7 +47,7 @@
 		const d = await fetch('/api/v1/displays').catch(() => null);
 		if (d?.ok)
 			displays = ((await d.json()) as { revoked?: boolean }[]).filter((x) => !x.revoked).length;
-	});
+	}
 
 	const said = $derived(people ? advice(people, roles) : null);
 	const liveKeys = $derived(keys ? keyGroups(keys, clock.now).live.length : null);

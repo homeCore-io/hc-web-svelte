@@ -18,6 +18,35 @@ export interface Notice {
 	remedy?: string;
 }
 
+/**
+ * What a finished action handed back, as lines a person reads: each field
+ * of an object by its name; a list by how many; nested objects as JSON.
+ */
+export function resultLines(result: unknown): { label: string; value: string }[] {
+	if (result === undefined || result === null) return [];
+	if (typeof result !== 'object') return [{ label: 'Result', value: String(result) }];
+	if (Array.isArray(result))
+		return [{ label: 'Result', value: `${result.length} item${result.length === 1 ? '' : 's'}` }];
+	const say = (v: unknown): string =>
+		v === null || v === undefined
+			? '—'
+			: typeof v === 'boolean'
+				? v
+					? 'yes'
+					: 'no'
+				: Array.isArray(v)
+					? v.every((x) => typeof x !== 'object')
+						? v.join(', ') || 'none'
+						: `${v.length} item${v.length === 1 ? '' : 's'}`
+					: typeof v === 'object'
+						? JSON.stringify(v)
+						: String(v);
+	return Object.entries(result as Record<string, unknown>).map(([k, v]) => ({
+		label: k.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()),
+		value: say(v)
+	}));
+}
+
 export interface PluginAction {
 	id: string;
 	label: string;

@@ -4,6 +4,8 @@
 -->
 <script lang="ts">
 	import Control from './Control.svelte';
+	import SourceTable from './SourceTable.svelte';
+	import ImportField from './ImportField.svelte';
 	import { describe, fieldShown, linkTo, same, type Section } from '#lib/descriptor.js';
 	import type { FormState } from '#lib/form.svelte.js';
 
@@ -32,7 +34,27 @@
 				>
 				{#if f.help}<span class="help">{f.help}</span>{/if}
 			</p>
-		{:else if f.key !== undefined && f.kind !== 'import'}
+		{:else if f.kind === 'import'}
+			<div class="field wide">
+				<div class="about">
+					<span class="label-text">{f.label ?? 'Import'}</span>
+					{#if f.help}<span class="help">{f.help}</span>{/if}
+				</div>
+				<div class="control">
+					<ImportField field={f} {form} pluginId={form.descriptor.plugin_id} />
+				</div>
+			</div>
+		{:else if f.kind === 'table' && f.source?.kind === 'core_resource' && f.source.ref === 'devices'}
+			<div class="field wide">
+				<div class="about">
+					<span class="label-text">{f.label ?? f.key}</span>
+					{#if f.help}<span class="help">{f.help}</span>{/if}
+				</div>
+				<div class="control">
+					<SourceTable field={f} pluginId={form.descriptor.plugin_id} />
+				</div>
+			</div>
+		{:else if f.key !== undefined}
 			{@const key = f.key}
 			{@const changed = !same(form.original[key], form.draft[key])}
 			{@const problem = form.errors[key]}
@@ -167,5 +189,8 @@
 		padding-top: var(--space-2);
 		color: var(--ink-muted);
 		font-size: 13px;
+	}
+	.label-text {
+		font-weight: 600;
 	}
 </style>

@@ -53,6 +53,8 @@ export function tabsFor(doc: DisplayDoc | undefined, rooms: { id: string; name: 
  */
 export function allowedOn(tabs: Tab[], pathname: string): boolean {
 	if (tabs.some((t) => t.href === pathname)) return true;
+	// What needs attention is always one tap away, from the bell.
+	if (pathname === '/alerts') return true;
 	return pathname.startsWith('/rooms/') && tabs.some((t) => t.key === 'home');
 }
 

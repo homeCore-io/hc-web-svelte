@@ -6,12 +6,13 @@
 -->
 <script lang="ts">
 	import X from '@lucide/svelte/icons/x';
+	import { session } from '#lib/me.svelte.js';
 	import Power from '@lucide/svelte/icons/power';
 	import Play from '@lucide/svelte/icons/play';
 	import Pause from '@lucide/svelte/icons/pause';
 	import SkipBack from '@lucide/svelte/icons/skip-back';
 	import SkipForward from '@lucide/svelte/icons/skip-forward';
-	import { actionBody, detailsFor, ready, type ActionView } from '#lib/details.js';
+	import { rgbValue, actionBody, detailsFor, ready, type ActionView } from '#lib/details.js';
 	import { activityOf, type StateEvent } from '#lib/activity.js';
 	import { withPending } from '#lib/pending.js';
 	import { roomOf } from '#lib/summary.js';
@@ -36,7 +37,8 @@
 	const card = $derived(withPending(view.card, pending));
 	const note = $derived(commands.notes[id]);
 	const room = $derived(roomOf(device, rooms.list));
-	const off = $derived(!device.available);
+	// Offline, or someone who may only look: every control here is still.
+	const off = $derived(!device.available || !session.mayUse);
 	const want = (attr: string, value: unknown) => pending?.want[attr] ?? value;
 
 	const brightness = $derived(
@@ -49,6 +51,10 @@
 
 	// ---- actions ----
 	let values = $state<Record<string, Record<string, unknown>>>({});
+	/** Actions whose optional settings are showing. */
+	let opened = $state<Record<string, boolean>>({});
+	/** The unit each length of time is entered in: seconds per one. */
+	let units = $state<Record<string, number>>({});
 	let ran = $state<string | null>(null);
 	async function run(a: ActionView) {
 		if (!(await goAhead(id, card.kind, `${a.label} — ${card.name}?`, a.confirm))) return;
@@ -363,6 +369,39 @@
 					{/each}
 				</div>
 			</div>
+		{:else if c.kind === 'rgb'}
+			<label class="field inline">
+				<span class="label">{c.label}</span>
+				<input
+					type="color"
+					value={c.hex}
+					disabled={off}
+					onchange={(ev) => set({ [c.attr]: rgbValue(ev.currentTarget.value, c.shape) })}
+				/>
+			</label>
+		{:else if c.kind === 'number'}
+			<form
+				class="field inline"
+				onsubmit={(ev) => {
+					ev.preventDefault();
+					const v = new FormData(ev.currentTarget).get('v');
+					if (v !== null && String(v) !== '') set({ [c.attr]: Number(v) });
+				}}
+			>
+				<label class="label" for={`n-${c.attr}`}>{c.label}</label>
+				<input
+					id={`n-${c.attr}`}
+					name="v"
+					type="number"
+					min={c.min}
+					max={c.max}
+					step={c.step ?? 'any'}
+					value={c.value ?? ''}
+					disabled={off}
+				/>
+				{#if c.unit}<span class="unit">{c.unit}</span>{/if}
+				<button class="pill" disabled={off}>Set</button>
+			</form>
 		{:else if c.kind === 'text'}
 			<form
 				class="field inline"
@@ -383,10 +422,35 @@
 	{#snippet group(g: (typeof view.groups)[number])}
 		<div class="actions">
 			{#each g.actions as a (a.id)}
-				{#if a.fields.length === 0}
-					<button class="pill" disabled={off} onclick={() => run(a)}
-						>{ran === a.id ? 'Done' : a.label}</button
+				{#if a.switch}
+					{@const sw = a.switch}
+					<label class="check switch"
+						><input
+							type="checkbox"
+							disabled={off}
+							checked={Boolean(values[a.id]?.[sw.name] ?? sw.on)}
+							onchange={async (ev) => {
+								field(a.id, sw.name, ev.currentTarget.checked);
+								await run(a);
+								// Back to showing the reading, which the device now reports.
+								const { [a.id]: _done, ...rest } = values;
+								values = rest;
+							}}
+						/>
+						{a.label}</label
 					>
+				{:else if a.fields.every((f) => f.optional) && !opened[a.id]}
+					<span class="plainact">
+						<button class="pill" disabled={off} title={a.description} onclick={() => run(a)}
+							>{ran === a.id ? 'Done' : a.label}</button
+						>
+						{#if a.fields.length}<button
+								type="button"
+								class="more"
+								aria-label={`${a.label}: its settings`}
+								onclick={() => (opened = { ...opened, [a.id]: true })}>⋯</button
+							>{/if}
+					</span>
 				{:else}
 					<form
 						class="action"
@@ -395,24 +459,48 @@
 							void run(a);
 						}}
 					>
-						{#each a.fields as f (f.name)}
+						{#each a.fields.filter((f) => !f.optional || opened[a.id]) as f (f.name)}
 							{#if f.kind === 'choice'}
 								<select
 									aria-label={f.label}
 									value={String(values[a.id]?.[f.name] ?? f.value)}
 									onchange={(ev) => field(a.id, f.name, ev.currentTarget.value)}
 								>
+									{#if f.optional}<option value="">{f.label}: as it sees fit</option>{/if}
 									{#each f.options as o (o.value)}<option value={o.value}>{o.label}</option>{/each}
 								</select>
 							{:else if f.kind === 'number'}
+								{@const n = Number(values[a.id]?.[f.name] ?? f.value)}
+								{@const per = f.duration ? (units[`${a.id}.${f.name}`] ?? 1) : 1}
 								<input
 									type="number"
 									aria-label={f.label}
-									min={f.min}
-									max={f.max}
-									value={Number(values[a.id]?.[f.name] ?? f.value)}
-									oninput={(ev) => field(a.id, f.name, Number(ev.currentTarget.value))}
+									placeholder={f.optional ? `${f.label} (optional)` : f.label}
+									min={f.min === undefined ? undefined : f.min / per}
+									max={f.max === undefined ? undefined : f.max / per}
+									step="any"
+									value={Number.isNaN(n) ? '' : n / per}
+									oninput={(ev) =>
+										field(
+											a.id,
+											f.name,
+											ev.currentTarget.value === ''
+												? Number.NaN
+												: Math.round(Number(ev.currentTarget.value) * per)
+										)}
 								/>
+								{#if f.duration}
+									<select
+										aria-label={`${f.label}: unit`}
+										value={String(per)}
+										onchange={(ev) =>
+											(units = { ...units, [`${a.id}.${f.name}`]: Number(ev.currentTarget.value) })}
+									>
+										<option value="1">s</option>
+										<option value="60">min</option>
+										<option value="3600">h</option>
+									</select>
+								{/if}
 							{:else if f.kind === 'toggle'}
 								<label class="check"
 									><input
@@ -425,7 +513,7 @@
 							{:else}
 								<input
 									aria-label={f.label}
-									placeholder={f.label}
+									placeholder={f.optional ? `${f.label} (optional)` : f.label}
 									value={String(values[a.id]?.[f.name] ?? f.value)}
 									oninput={(ev) => field(a.id, f.name, ev.currentTarget.value)}
 								/>
@@ -434,6 +522,13 @@
 						<button class="pill" disabled={off || !ready(a, values[a.id] ?? {})}
 							>{ran === a.id ? 'Done' : a.label}</button
 						>
+						{#if a.fields.some((f) => f.optional) && !opened[a.id]}<button
+								type="button"
+								class="more"
+								aria-label={`${a.label}: more settings`}
+								onclick={() => (opened = { ...opened, [a.id]: true })}>⋯</button
+							>{/if}
+						{#if a.description}<p class="what">{a.description}</p>{/if}
 					</form>
 				{/if}
 			{/each}
@@ -863,5 +958,29 @@
 		50% {
 			opacity: 0.25;
 		}
+	}
+	.plainact {
+		display: inline-flex;
+		align-items: center;
+		gap: 2px;
+	}
+	.more {
+		height: 32px;
+		min-width: 32px;
+		border: none;
+		border-radius: 16px;
+		background: none;
+		color: var(--ink-muted);
+		font: inherit;
+		font-weight: 700;
+	}
+	.switch {
+		font-weight: 600;
+	}
+	.what {
+		flex-basis: 100%;
+		margin: 2px 0 0;
+		font-size: 12px;
+		color: var(--ink-muted);
 	}
 </style>

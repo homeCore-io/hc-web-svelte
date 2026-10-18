@@ -9,6 +9,9 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { onReturn } from '#lib/refresh.js';
+	import { live as stream } from '#lib/live.svelte.js';
+	import { liveRules } from '#lib/rules.svelte.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import Minus from '@lucide/svelte/icons/minus';
@@ -30,7 +33,7 @@
 		sunWords,
 		type CoreMode
 	} from '#lib/modes.js';
-	import { loadRules, rulesNaming, type RuleRef } from '#lib/uses.js';
+	import { rulesNaming, type RuleRef } from '#lib/uses.js';
 	import { deviceCall } from '#lib/deviceAdmin.js';
 	import ListDetail from '#lib/components/admin/ListDetail.svelte';
 	import Toggle from '#lib/components/Toggle.svelte';
@@ -38,16 +41,31 @@
 	import type { Rule } from '#lib/ruleWords.js';
 
 	let modes = $state<CoreMode[] | null>(null);
-	let rules = $state<RuleRef[]>([]);
+	const rules: RuleRef[] = $derived(liveRules.list);
 	let trouble = $state<string | null>(null);
 	async function load() {
 		const res = await fetch('/api/v1/modes').catch(() => null);
 		if (res?.ok) modes = (await res.json()) as CoreMode[];
 		else trouble = 'homeCore wouldn’t list its modes.';
 	}
-	onMount(async () => {
-		await load();
-		rules = (await loadRules()) ?? [];
+	onMount(() => {
+		void load();
+		liveRules.start();
+		// A mode made, removed or changed elsewhere arrives as its device's news.
+		const stop = stream.listen((frame) => {
+			const f = frame as { type: string; device?: { device_type?: string }; device_id?: string };
+			if (
+				((f.type === 'device_added' || f.type === 'device_metadata_changed') &&
+					f.device?.device_type === 'mode') ||
+				(f.type === 'device_removed' && f.device_id?.startsWith('mode_'))
+			)
+				void load();
+		});
+		const away = onReturn(load);
+		return () => {
+			stop();
+			away();
+		};
 	});
 
 	// The mode's device carries what changes live: on, and today's times.
@@ -411,7 +429,7 @@
 								rules={rules as unknown as Rule[]}
 								onsaved={async () => {
 									await load();
-									rules = (await loadRules()) ?? [];
+									await liveRules.load();
 								}}
 							/>
 						{/key}

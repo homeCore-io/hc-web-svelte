@@ -18,11 +18,16 @@
 		loadLevel,
 		loadStatus,
 		loadVersions,
+		loadUpdates,
 		restartAndWait,
 		setLevel,
-		type Status
+		type Status,
+		loadConnections,
+		browserOf,
+		type Connection
 	} from '#lib/systemAdmin.js';
 	import { loadStatus as loadPlugins } from '#lib/pluginAdmin.js';
+	import { newer, type Latest } from '#lib/updates.js';
 
 	let status = $state<Status | null>(null);
 	let failed = $state<string | null>(null);
@@ -31,13 +36,16 @@
 	let levelMissing = $state(false);
 	let plugins = $state<{ running: number; all: number } | null>(null);
 
+	let connections = $state<Connection[] | null>(null);
 	async function load() {
-		const [st, v, l, p] = await Promise.all([
+		const [st, v, l, p, c] = await Promise.all([
 			loadStatus(),
 			loadVersions(),
 			loadLevel(),
-			loadPlugins()
+			loadPlugins(),
+			loadConnections()
 		]);
+		connections = c.ok ? c.data.connections : null;
 		if (!st.ok) return void (failed = st.error);
 		failed = null;
 		status = st.data;
@@ -50,8 +58,12 @@
 				all: p.data.length
 			};
 	}
+	let updates = $state.raw<{ core?: Latest; app?: Latest }>({});
 	onMount(() => {
 		void load();
+		void loadUpdates().then((u) => {
+			if (u.ok) updates = u.data;
+		});
 		const every = setInterval(load, 30_000);
 		return () => clearInterval(every);
 	});
@@ -152,6 +164,12 @@
 
 	// ---- versions ----
 	const appVersion = __APP_VERSION__;
+	const coreNew = $derived(
+		status && updates.core && newer(updates.core.version, status.version) ? updates.core : null
+	);
+	const appNew = $derived(
+		updates.app && newer(updates.app.version, appVersion) ? updates.app : null
+	);
 	const extra = $derived(
 		Object.entries(versions).filter(([k, v]) => k !== 'core' && typeof v === 'string') as [
 			string,
@@ -270,6 +288,33 @@
 			{/if}
 		</section>
 
+		{#if connections}
+			<section class="card">
+				<h2>Connected now</h2>
+				<p class="sub">
+					Screens following the house live — each tab of the app, each display — and anyone reading
+					the log.
+				</p>
+				{#if connections.length === 0}<p class="sub">Nobody.</p>{/if}
+				<ul class="conns">
+					{#each connections as c (c.connection_id)}
+						<li>
+							<strong>{c.user.replace(/^api_key:/, '')}</strong>
+							<span class="sub"
+								>{c.endpoint === 'logs_stream' ? 'the log' : 'the house'} · {browserOf(
+									c.user_agent
+								)} · since {new Date(c.connected_at).toLocaleString(undefined, {
+									weekday: 'short',
+									hour: '2-digit',
+									minute: '2-digit'
+								})}</span
+							>
+						</li>
+					{/each}
+				</ul>
+			</section>
+		{/if}
+
 		<section class="card row">
 			<span>homeCore <strong class="mono">{status.version}</strong></span>
 			<span>this app <strong class="mono">{appVersion}</strong></span>
@@ -280,6 +325,19 @@
 				>Release notes</a
 			>
 		</section>
+		{#if coreNew || appNew}
+			<p class="banner info" role="status">
+				{#if coreNew}<span
+						>homeCore <strong class="mono">{coreNew.version}</strong> is out —
+						<a href={coreNew.url} target="_blank" rel="noreferrer">what’s new</a>.</span
+					>{/if}
+				{#if appNew}<span
+						>This app <strong class="mono">{appNew.version}</strong> is out —
+						<a href={appNew.url} target="_blank" rel="noreferrer">what’s new</a>.</span
+					>{/if}
+				<span class="sub">Updating is done where homeCore runs, not from here.</span>
+			</p>
+		{/if}
 	</div>
 {/if}
 
@@ -474,6 +532,35 @@
 	}
 	.quiet {
 		margin: 0;
+		color: var(--ink-muted);
+		font-size: 13px;
+	}
+	.conns {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+	.conns li {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 4px 10px;
+	}
+	.banner {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		margin: 0;
+		padding: 10px 14px;
+		border-radius: 12px;
+		line-height: 1.45;
+		background: var(--surface-2);
+		color: var(--ink);
+	}
+	.banner .sub {
 		color: var(--ink-muted);
 		font-size: 13px;
 	}

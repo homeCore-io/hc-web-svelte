@@ -65,7 +65,8 @@
 	// ---- the form ----
 	const asked = $derived(page.url.searchParams.get('s'));
 	const section = $derived(
-		form.sections.find((s) => s.id === asked) ?? (wide.current ? form.sections[0] : undefined)
+		[...form.sections, ...form.tucked].find((s) => s.id === asked) ??
+			(wide.current ? form.sections[0] : undefined)
 	);
 	const choose = (id: string) => {
 		const u = new URL(page.url.href);
@@ -216,6 +217,28 @@
 						</li>
 					{/each}
 				</ul>
+				{#if form.tucked.length}
+					<p class="also">Also</p>
+					<ul class="sections tucked">
+						{#each form.tucked as s (s.id)}
+							<li>
+								<a
+									href={`?tab=settings&s=${encodeURIComponent(s.id)}`}
+									aria-current={section?.id === s.id ? 'page' : undefined}
+									onclick={(e) => {
+										e.preventDefault();
+										choose(s.id);
+									}}
+								>
+									<span class="title">{s.title}</span>
+									{#if form.wrongIn(s)}<span class="dot bad" aria-label="has a problem"></span>
+									{:else if form.changedIn(s)}<span class="dot" aria-label="changed"></span>{/if}
+									<ChevronRight size={16} aria-hidden="true" />
+								</a>
+							</li>
+						{/each}
+					</ul>
+				{/if}
 			{/snippet}
 			{#snippet detail()}
 				{#if section}
@@ -385,5 +408,13 @@
 		margin: 0;
 		color: var(--ink-muted);
 		font-size: 13px;
+	}
+	.also {
+		margin: var(--space-4) 0 var(--space-1);
+		font-size: 12px;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--ink-muted);
 	}
 </style>

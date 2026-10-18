@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { onReturn } from '#lib/refresh.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { session } from '#lib/me.svelte.js';
@@ -47,7 +48,10 @@
 		if (r.ok) roles = ordered(r.data);
 		if (k.ok) keys = k.data;
 	}
-	onMount(load);
+	onMount(() => {
+		void load();
+		return onReturn(load);
+	});
 
 	const person = $derived(people?.find((p) => p.id === id));
 	const isMe = $derived(person?.id === session.me?.id);

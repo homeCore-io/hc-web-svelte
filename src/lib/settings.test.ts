@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
 	SETTINGS,
+	hasSettings,
+	mayOpen,
 	backupDue,
 	daysAgo,
 	found,
@@ -44,5 +46,24 @@ describe('settings', () => {
 		expect(backupDue(null, now)).toBe(true);
 		expect(backupDue('2026-08-02T12:00:00Z', now)).toBe(true);
 		expect(backupDue('2026-10-10T12:00:00Z', now)).toBe(false);
+	});
+});
+
+describe('who may open what', () => {
+	const item = (slug: string) => SETTINGS.find((s) => s.slug === slug)!;
+	const scopes =
+		(...list: string[]) =>
+		(s: string) =>
+			list.includes(s);
+	it('each item by the scope its changes take; system and displays for admins', () => {
+		const editor = scopes('automations:read', 'automations:write', 'devices:read');
+		expect(mayOpen(item('automations'), editor, false)).toBe(true);
+		expect(mayOpen(item('events'), editor, false)).toBe(true);
+		expect(mayOpen(item('devices'), editor, false)).toBe(false);
+		expect(mayOpen(item('displays'), editor, false)).toBe(false);
+		expect(mayOpen(item('system'), editor, false)).toBe(false);
+		expect(mayOpen(item('system'), scopes(), true)).toBe(true);
+		expect(hasSettings(scopes('devices:read'), false)).toBe(true);
+		expect(hasSettings(scopes(), false)).toBe(false);
 	});
 });

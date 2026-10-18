@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
+	import { liveRules } from '#lib/rules.svelte.js';
 	import { core } from '#lib/core.svelte.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -34,7 +35,7 @@
 		valuesFrom,
 		type HelperType
 	} from '#lib/helpers.js';
-	import { loadRules, rulesNaming, type RuleRef } from '#lib/uses.js';
+	import { rulesNaming, type RuleRef } from '#lib/uses.js';
 	import { deleteDevices, deviceCall, patchDevice } from '#lib/deviceAdmin.js';
 	import ListDetail from '#lib/components/admin/ListDetail.svelte';
 	import SaveBar from '#lib/components/admin/SaveBar.svelte';
@@ -48,8 +49,8 @@
 		return () => clearInterval(t);
 	});
 
-	let rules = $state<RuleRef[]>([]);
-	onMount(async () => (rules = (await loadRules()) ?? []));
+	const rules: RuleRef[] = $derived(liveRules.list);
+	onMount(() => liveRules.start());
 
 	const helpers = $derived(
 		Object.values(devices.byId)

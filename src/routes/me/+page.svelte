@@ -10,6 +10,56 @@
 	import BarChooser from '#lib/components/BarChooser.svelte';
 	import { roleName } from '#lib/people.js';
 	import { changeMyPassword } from '#lib/peopleAdmin.js';
+	import { onMount } from 'svelte';
+	import { core } from '#lib/core.svelte.js';
+	import { browserOf } from '#lib/systemAdmin.js';
+
+	// ---- where you're signed in (homeCore 0.1.83) ----
+	interface SignedIn {
+		id: string;
+		user_agent: string;
+		started_at?: string | null;
+		last_active: string;
+	}
+	let sessions = $state<SignedIn[] | null>(null);
+	let sessionNote = $state<string | null>(null);
+	async function loadSessions() {
+		const res = await fetch('/api/v1/auth/sessions').catch(() => null);
+		sessions = res?.ok ? ((await res.json()) as SignedIn[]) : null;
+	}
+	onMount(() => {
+		if (!session.isDisplay && !session.me?.unlocked_on) void loadSessions();
+	});
+	const day = (iso: string) =>
+		new Date(iso).toLocaleString(undefined, {
+			weekday: 'short',
+			day: 'numeric',
+			month: 'short',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+	async function endSession(x: SignedIn) {
+		const res = await fetch(`/api/v1/auth/sessions/${encodeURIComponent(x.id)}`, {
+			method: 'DELETE'
+		}).catch(() => null);
+		sessionNote = res?.ok
+			? `${browserOf(x.user_agent)} is signed out within the hour.`
+			: 'homeCore didn’t end it.';
+		await loadSessions();
+	}
+	async function endAll() {
+		const yes = await ask({
+			title: 'Sign out everywhere?',
+			body: 'Every browser and app signed in as you, this one included. Your API keys keep working.',
+			go: 'Sign out everywhere',
+			danger: true
+		});
+		if (!yes) return;
+		const res = await fetch('/api/v1/auth/sessions/end-all', { method: 'POST' }).catch(() => null);
+		if (!res?.ok) return void (sessionNote = 'homeCore didn’t sign you out.');
+		await session.signOut();
+		void goto('/', { replace: true });
+	}
 
 	// ---- the phone bar (N2): their own, else the household's ----
 	const bar = $derived(
@@ -178,6 +228,38 @@
 	</section>
 
 	{#if !session.isDisplay && !session.me?.unlocked_on}
+		{#if sessions && core.since('0.1.83')}
+			<section>
+				<h2 class="section-label" id="sessions">Signed in</h2>
+				<p class="note">Each browser and app signed in as you, newest first.</p>
+				<ul class="sessions">
+					{#each sessions as x (x.id)}
+						<li>
+							<span
+								><strong>{browserOf(x.user_agent)}</strong>
+								<span class="note"
+									>{x.started_at ? `since ${day(x.started_at)}` : ''}{x.started_at ? ' · ' : ''}last
+									active {day(x.last_active)}</span
+								></span
+							>
+							<button class="link" onclick={() => endSession(x)}>Sign it out</button>
+						</li>
+					{/each}
+				</ul>
+				<button class="link" onclick={endAll}>Sign out everywhere</button>
+				{#if sessionNote}<p class="note" role="status">{sessionNote}</p>{/if}
+			</section>
+		{/if}
+
+		<section>
+			<h2 class="section-label" id="keys">API keys</h2>
+			<p class="note">
+				Keys let a program — a script, another app — use homeCore as you, with no more than you may. <a
+					href="/settings/people/keys">Your keys</a
+				>
+			</p>
+		</section>
+
 		<section>
 			<h2 class="section-label" id="password">Password</h2>
 			{#if changingPassword}
@@ -329,5 +411,23 @@
 		border: 1px solid var(--line);
 		background: var(--surface);
 		font-weight: 600;
+	}
+	.sessions {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+	.sessions li {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 8px;
+	}
+	.sessions li > span {
+		display: flex;
+		flex-direction: column;
 	}
 </style>

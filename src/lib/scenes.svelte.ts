@@ -30,14 +30,19 @@ class Scenes {
 		}
 	}
 
-	async run(id: string): Promise<boolean> {
+	/** True when it ran; otherwise why not, in a few words. */
+	async run(id: string): Promise<true | string> {
 		try {
 			const res = await fetch(`/api/v1/scenes/${encodeURIComponent(id)}/activate`, {
 				method: 'POST'
 			});
-			return res.ok;
+			if (res.ok) return true;
+			if (res.status === 403) return 'not allowed';
+			if (res.status === 404) return 'it’s gone';
+			if (res.status === 401) return 'signed out';
+			return 'homeCore said no';
 		} catch {
-			return false;
+			return 'homeCore isn’t answering';
 		}
 	}
 

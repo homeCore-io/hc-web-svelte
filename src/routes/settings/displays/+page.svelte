@@ -6,6 +6,7 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { onReturn } from '#lib/refresh.js';
 	import ArrowUp from '@lucide/svelte/icons/arrow-up';
 	import ArrowDown from '@lucide/svelte/icons/arrow-down';
 	import X from '@lucide/svelte/icons/x';
@@ -30,7 +31,10 @@
 		const res = await fetch('/api/v1/displays').catch(() => null);
 		list = res?.ok ? ((await res.json()) as Display[]).filter((d) => !d.revoked) : null;
 	}
-	onMount(reload);
+	onMount(() => {
+		void reload();
+		return onReturn(reload);
+	});
 
 	// ---- a new display ----
 	let name = $state('');

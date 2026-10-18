@@ -62,6 +62,16 @@ class Session {
 	get isAdmin(): boolean {
 		return this.me?.role === 'admin';
 	}
+
+	/** Whether they may tell devices what to do — not only look. */
+	get mayUse(): boolean {
+		return this.can('devices:command') || this.can('devices:write');
+	}
+
+	/** Whether they may run scenes. */
+	get mayRunScenes(): boolean {
+		return this.can('scenes:run') || this.can('scenes:write');
+	}
 }
 
 export const session = new Session();

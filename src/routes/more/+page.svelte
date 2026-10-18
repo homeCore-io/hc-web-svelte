@@ -1,11 +1,14 @@
 <!-- What doesn't fit in the phone bar (N2). -->
 <script lang="ts">
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import { hasSettings } from '#lib/settings.js';
 	import { session } from '#lib/me.svelte.js';
 
 	const items = $derived([
 		{ href: '/alerts', label: 'Alerts' },
-		...(session.isAdmin ? [{ href: '/settings', label: 'Settings' }] : []),
+		...(hasSettings((s) => session.can(s), session.isAdmin)
+			? [{ href: '/settings', label: 'Settings' }]
+			: []),
 		{ href: '/me', label: 'Me' }
 	]);
 </script>

@@ -302,8 +302,150 @@ export function eventRow(e: Json, house: EventHouse): EventRow | undefined {
 			};
 		case 'system_alert':
 			return { ...base, key: `sys:${e.message}`, kind: 'warn', words: [p(e.message)] };
-		default:
+
+		// ---- things added, changed, removed (0.1.x had no words for these) ----
+		case 'device_added': {
+			const id = e.device?.device_id ?? '';
+			return {
+				...base,
+				room: house.room(id),
+				key: `da:${id}`,
+				kind: 'device',
+				words: [s(e.device?.name_override ?? e.device?.name ?? name(id)), p(' was added')],
+				href: `/settings/devices/${encodeURIComponent(id)}`
+			};
+		}
+		case 'device_removed':
+			return {
+				...base,
+				key: `dr:${e.device_id}`,
+				kind: 'device',
+				words: [s(name(e.device_id)), p(' was removed')]
+			};
+		case 'device_name_changed':
+			return {
+				...base,
+				key: `dn:${e.device_id}`,
+				kind: 'device',
+				words: [s(e.previous_name ?? name(e.device_id)), p(' is now called '), s(e.current_name)],
+				href: `/settings/devices/${encodeURIComponent(e.device_id)}`
+			};
+		case 'device_metadata_changed': {
+			const id = e.device?.device_id ?? '';
+			return {
+				...base,
+				room: house.room(id),
+				key: `dm:${id}`,
+				kind: 'device',
+				words: [s(e.device?.name_override ?? e.device?.name ?? name(id)), p('’s details changed')],
+				href: `/settings/devices/${encodeURIComponent(id)}`
+			};
+		}
+		case 'device_battery_recovered':
+			return {
+				...base,
+				key: `br:${e.device_id}`,
+				kind: 'device',
+				words: [
+					s(name(e.device_id, e.device_name)),
+					p(` battery is fine again — ${Math.round(e.battery_pct)}%`)
+				]
+			};
+		case 'alert_cleared':
+			return {
+				...base,
+				key: `ac:${e.alert_id}`,
+				kind: 'device',
+				words: [s(name(e.device_id)), p(' no longer needs attention')]
+			};
+		case 'room_changed':
+			return {
+				...base,
+				key: `rc:${e.room?.id}`,
+				kind: 'system',
+				words: [p('Room '), s(e.room?.name ?? 'a room'), p(' changed')]
+			};
+		case 'room_removed':
+			return {
+				...base,
+				key: `rr:${e.room_id}`,
+				kind: 'system',
+				words: [p(e.merged_into ? 'A room was merged into another' : 'A room was removed')]
+			};
+		case 'scene_changed':
+			return {
+				...base,
+				key: `scc:${e.scene?.id}`,
+				kind: 'scene',
+				words: [p('Scene '), s(e.scene?.name ?? 'a scene'), p(' changed')]
+			};
+		case 'scene_removed':
+			return {
+				...base,
+				key: `scr:${e.scene_id}`,
+				kind: 'scene',
+				words: [p('A scene was removed')]
+			};
+		case 'rule_changed':
+			return {
+				...base,
+				key: `rch:${e.rule?.id}`,
+				kind: 'rule',
+				words: [p('Rule '), s(e.rule?.name ?? 'a rule'), p(' changed')],
+				href: e.rule?.id ? `/settings/automations/${encodeURIComponent(e.rule.id)}` : undefined
+			};
+		case 'rule_removed':
+			return {
+				...base,
+				key: `rrm:${e.rule_id}`,
+				kind: 'rule',
+				words: [p('A rule was deleted')]
+			};
+		case 'rule_evaluation_failed':
+			return {
+				...base,
+				key: `ref:${e.rule_id}`,
+				kind: 'warn',
+				words: [
+					p('Rule '),
+					s(e.rule_name || e.rule_id),
+					p(` couldn’t check whether to run: ${e.reason ?? 'no reason given'}`)
+				],
+				href: `/settings/automations/${encodeURIComponent(e.rule_id)}`
+			};
+		case 'plugin_registered':
+			return {
+				...base,
+				key: `pr:${e.plugin_id}`,
+				kind: 'system',
+				words: [p('Plugin '), s(pluginLabel(e.plugin_id)), p(' connected')]
+			};
+		case 'plugin_offline':
+			return {
+				...base,
+				key: `po:${e.plugin_id}`,
+				kind: 'warn',
+				words: [p('Plugin '), s(pluginLabel(e.plugin_id)), p(' went offline')]
+			};
+		case 'plugin_capabilities':
+			return {
+				...base,
+				key: `pc:${e.plugin_id}`,
+				kind: 'system',
+				words: [p('Plugin '), s(pluginLabel(e.plugin_id)), p(' re-declared what it can do')]
+			};
+		// homeCore's own housekeeping (a schedule's tick, a run asked for, a
+		// plugin saying it's still there): not news.
+		case 'custom':
+		case 'plugin_heartbeat':
 			return undefined;
+		default:
+			return {
+				...base,
+				key: `?:${e.type}`,
+				kind: 'system',
+				words: [p(String(e.type ?? 'something').replace(/_/g, ' '))]
+			};
 	}
 }
 

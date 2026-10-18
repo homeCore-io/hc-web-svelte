@@ -9,6 +9,7 @@ import {
 	problems,
 	fieldShown,
 	sectionShown,
+	sectionTucked,
 	type Change,
 	type Descriptor,
 	type Section
@@ -37,7 +38,7 @@ export class FormState {
 	readonly changes: Change[] = $derived(changes(this.descriptor, this.original, this.draft));
 	readonly errors: Record<string, string> = $derived.by(() => {
 		const out = problems(this.descriptor, this.draft);
-		for (const s of this.sections)
+		for (const s of [...this.sections, ...this.tucked])
 			for (const f of s.fields)
 				if (f.key && this.typing[f.key] && fieldShown(f, this.get))
 					out[f.key] = this.typing[f.key]!;
@@ -46,6 +47,10 @@ export class FormState {
 	/** Sections shown, in order. */
 	readonly sections: Section[] = $derived(
 		this.descriptor.sections.filter((s) => sectionShown(s, this.get))
+	);
+	/** Sections kept out of the list but editable, listed apart. */
+	readonly tucked: Section[] = $derived(
+		this.descriptor.sections.filter((s) => sectionTucked(s, this.get))
 	);
 	readonly dirty = $derived(this.changes.length > 0);
 	readonly blocked = $derived(Object.keys(this.errors).length > 0);

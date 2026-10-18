@@ -6,6 +6,7 @@
  */
 import { putConfig, restart } from './config.js';
 import type { AuditEntry, LogLine } from './system.js';
+import type { Latest } from './updates.js';
 
 export type Answer<T> =
 	{ ok: true; data: T } | { ok: false; error: string; status?: number; body?: unknown };
@@ -67,6 +68,9 @@ export interface Status {
 
 export const loadStatus = () => call<Status>('GET', '/system/status');
 export const loadVersions = () => call<Record<string, unknown>>('GET', '/system/versions');
+/** Newer releases, as the UI server last heard from GitHub. */
+export const loadUpdates = () =>
+	call<{ off?: true; core?: Latest; app?: Latest }>('GET', '/ui/updates');
 
 // ---- the log level ----
 
@@ -93,6 +97,48 @@ export const keepLevel = (
 		}
 	});
 };
+
+// ---- who's connected ----
+
+export interface Connection {
+	connection_id: string;
+	endpoint: 'events_stream' | 'logs_stream' | string;
+	client_id?: string | null;
+	ip: string;
+	user: string;
+	user_agent?: string | null;
+	connected_at: string;
+}
+export const loadConnections = () =>
+	call<{ count: number; connections: Connection[] }>('GET', '/ws/connections');
+
+/** "Firefox on Linux" from a user agent; the raw words when it can't tell. */
+export function browserOf(ua: string | null | undefined): string {
+	if (!ua) return 'something unnamed';
+	const b = /Edg\//.test(ua)
+		? 'Edge'
+		: /Firefox\//.test(ua)
+			? 'Firefox'
+			: /Chrome\//.test(ua)
+				? 'Chrome'
+				: /Safari\//.test(ua)
+					? 'Safari'
+					: /node|undici/i.test(ua)
+						? 'the app’s server'
+						: null;
+	const os = /iPhone|iPad/.test(ua)
+		? 'iOS'
+		: /Android/.test(ua)
+			? 'Android'
+			: /Mac OS X/.test(ua)
+				? 'a Mac'
+				: /Windows/.test(ua)
+					? 'Windows'
+					: /Linux/.test(ua)
+						? 'Linux'
+						: null;
+	return b ? (os ? `${b} on ${os}` : b) : ua.slice(0, 40);
+}
 
 // ---- logs and events ----
 
@@ -179,6 +225,40 @@ export async function backUp(): Promise<Answer<{ filename: string; bytes: number
 	save(blob, filename);
 	return { ok: true, data: { filename, bytes: blob.size } };
 }
+
+/** Backups homeCore makes by itself, kept on the house (core 0.1.83). */
+export interface KeptBackups {
+	every_hours: number;
+	keep: number;
+	dir: string | null;
+	backups: { name: string; bytes: number; created_at: string }[];
+}
+export const loadKept = () => call<KeptBackups>('GET', '/system/backups');
+
+/** Hand one kept backup to the browser to save. */
+export async function downloadKept(name: string): Promise<Answer<{ filename: string }>> {
+	let res: Response;
+	try {
+		res = await fetch(`/api/v1/system/backups/${encodeURIComponent(name)}`);
+	} catch {
+		return { ok: false, error: 'homeCore is not answering.' };
+	}
+	if (!res.ok) return { ok: false, status: res.status, error: 'That backup is gone.' };
+	save(await res.blob(), name);
+	return { ok: true, data: { filename: name } };
+}
+
+/** How often, said as a person would. */
+export const everySaid = (hours: number) =>
+	hours % 24 === 0
+		? hours === 24
+			? 'once a day'
+			: hours === 168
+				? 'once a week'
+				: `every ${hours / 24} days`
+		: hours === 1
+			? 'every hour'
+			: `every ${hours} hours`;
 
 /** The UI server's own documents — pages, people's Homes, displays — saved too. */
 export async function backUpApp(): Promise<Answer<{ filename: string; bytes: number }>> {

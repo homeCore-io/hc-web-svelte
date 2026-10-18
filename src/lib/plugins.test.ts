@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+	resultLines,
 	buttonOf,
 	compareVersions,
 	latestOf,
@@ -198,4 +199,21 @@ describe('an action talking back', () => {
 		expect(after({ stage: 'timeout' }).state).toBe('timed out');
 		expect(after({ stage: 'canceled' }).state).toBe('canceled');
 	});
+});
+
+test('what an action hands back reads as lines', () => {
+	expect(
+		resultLines({
+			host: '10.0.0.5',
+			devices_removed: 3,
+			raw_response: { ok: true },
+			ids: ['a', 'b']
+		})
+	).toEqual([
+		{ label: 'Host', value: '10.0.0.5' },
+		{ label: 'Devices removed', value: '3' },
+		{ label: 'Raw response', value: '{"ok":true}' },
+		{ label: 'Ids', value: 'a, b' }
+	]);
+	expect(resultLines(undefined)).toEqual([]);
 });

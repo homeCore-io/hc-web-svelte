@@ -376,7 +376,7 @@
 				</div>
 			{/if}
 			{#each plugin.notices ?? [] as n (n.code)}
-				<div class="banner {n.level === 'error' ? 'bad' : 'lit'}">
+				<div class="banner {n.level === 'error' ? 'bad' : n.level === 'warning' ? 'lit' : 'info'}">
 					<span
 						><strong>{n.message}</strong>{#if n.remedy}
 							{n.remedy}{/if}</span
@@ -583,6 +583,10 @@
 	.banner.lit {
 		background: var(--lit-bg);
 		color: var(--lit-ink);
+	}
+	.banner.info {
+		background: var(--surface-2);
+		color: var(--ink);
 	}
 	.banner.bad {
 		background: var(--alert-bg);

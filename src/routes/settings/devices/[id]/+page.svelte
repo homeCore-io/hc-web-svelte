@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { liveRules } from '#lib/rules.svelte.js';
 	import { repointAll } from '#lib/ruleAdmin.js';
 	import { core } from '#lib/core.svelte.js';
 	import { page } from '$app/state';
@@ -20,7 +21,7 @@
 	import { roomOf } from '#lib/summary.js';
 	import { kindLabel, pluginLabel, seenText } from '#lib/inventory.js';
 	import { chartable, readingsOf, usesOf } from '#lib/deviceView.js';
-	import { loadRules, type RuleRef } from '#lib/uses.js';
+	import type { RuleRef } from '#lib/uses.js';
 	import { alertRules as loadAlertRules } from '#lib/admin.js';
 	import type { AlertRule } from '#lib/alerts.js';
 	import { deleteDevices, patchDevice } from '#lib/deviceAdmin.js';
@@ -58,10 +59,10 @@
 		return d ? displayName(d) : undefined;
 	};
 
-	let rules = $state<RuleRef[]>([]);
+	const rules: RuleRef[] = $derived(liveRules.list);
 	let alertRules = $state<AlertRule[]>([]);
 	onMount(async () => {
-		rules = (await loadRules()) ?? [];
+		liveRules.start();
 		alertRules = (await loadAlertRules()) ?? [];
 	});
 	const uses = $derived(device ? usesOf(device, rules, scenes.list, alertRules) : null);
@@ -90,7 +91,7 @@
 			: res.error;
 		if (res.ok) {
 			instead = '';
-			rules = (await loadRules()) ?? [];
+			await liveRules.load();
 		}
 	}
 

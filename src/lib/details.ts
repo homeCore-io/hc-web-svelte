@@ -45,35 +45,63 @@ export type DetailControl =
 	  }
 	| { kind: 'choice'; attr: string; label: string; value: string; options: Option[] }
 	| { kind: 'colour'; attr: string; label: string; value: { x: number; y: number } | null }
-	| { kind: 'text'; attr: string; label: string; value: string };
-
-export type Field =
-	| {
-			kind: 'choice';
-			name: string;
-			label: string;
-			options: Option[];
-			value: string;
-			numeric: boolean;
-	  }
+	/** An RGB colour, kept in the shape the device reports it: `[r, g, b]` or `{ r, g, b }`. */
+	| { kind: 'rgb'; attr: string; label: string; hex: string; shape: 'array' | 'object' }
+	/** A number with no range to slide along (WLED's effect number). */
 	| {
 			kind: 'number';
-			name: string;
+			attr: string;
 			label: string;
-			value: number;
+			value: number | null;
 			min?: number;
 			max?: number;
+			step?: number;
 			unit?: string;
 	  }
-	| { kind: 'toggle'; name: string; label: string; value: boolean }
-	| { kind: 'text'; name: string; label: string; value: string };
+	| { kind: 'text'; attr: string; label: string; value: string };
+
+/** A parameter the action may go without: left empty, it isn't sent. */
+type Optional = { optional?: boolean };
+
+export type Field = Optional &
+	(
+		| {
+				kind: 'choice';
+				name: string;
+				label: string;
+				options: Option[];
+				value: string;
+				numeric: boolean;
+		  }
+		| {
+				kind: 'number';
+				name: string;
+				label: string;
+				value: number;
+				min?: number;
+				max?: number;
+				unit?: string;
+				/** Seconds, entered as s, min or h. */
+				duration?: boolean;
+		  }
+		| { kind: 'toggle'; name: string; label: string; value: boolean }
+		| { kind: 'text'; name: string; label: string; value: string }
+	);
 
 export interface ActionView {
 	id: string;
 	label: string;
 	confirm?: string;
-	/** Required parameters, as fields; empty for a plain button. */
+	/** What to know before running it, in the plugin's words. */
+	description?: string;
+	/** Its parameters, as fields — required and optional; empty for a plain button. */
 	fields: Field[];
+	/**
+	 * An action standing in for an on/off reading (Sonos's mute, shuffle,
+	 * loudness): drawn as a switch showing the reading, sending its one
+	 * parameter as the switch is set.
+	 */
+	switch?: { name: string; on: boolean };
 }
 
 export interface ActionGroup {
@@ -172,6 +200,32 @@ export function detailsFor(d: CoreDevice, all: CoreDevice[] = [], now = Date.now
 	};
 }
 
+/** `[r, g, b]` or `{ r, g, b }` as numbers, or null. */
+export function rgbOf(v: unknown): [number, number, number] | null {
+	const arr = Array.isArray(v)
+		? v
+		: v && typeof v === 'object'
+			? [
+					(v as Record<string, unknown>).r,
+					(v as Record<string, unknown>).g,
+					(v as Record<string, unknown>).b
+				]
+			: null;
+	if (!arr || arr.length < 3 || !arr.slice(0, 3).every((n) => typeof n === 'number')) return null;
+	return arr.slice(0, 3).map((n) => Math.max(0, Math.min(255, Math.round(n as number)))) as [
+		number,
+		number,
+		number
+	];
+}
+export const hexOf = (rgb: [number, number, number]) =>
+	'#' + rgb.map((n) => n.toString(16).padStart(2, '0')).join('');
+/** "#ff8000" in the shape the device reports colours. */
+export function rgbValue(hex: string, shape: 'array' | 'object'): unknown {
+	const n = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+	return shape === 'object' ? { r: n[0], g: n[1], b: n[2] } : n;
+}
+
 function controlFor(
 	name: string,
 	spec: AttributeSchema,
@@ -185,7 +239,19 @@ function controlFor(
 		case 'integer':
 		case 'float':
 		case 'color_temp':
-			if (spec.min === undefined || spec.max === undefined) return undefined;
+			if (spec.min === undefined || spec.max === undefined)
+				return spec.kind === 'color_temp'
+					? undefined
+					: {
+							kind: 'number',
+							attr: name,
+							label,
+							value: typeof value === 'number' ? value : null,
+							min: spec.min,
+							max: spec.max,
+							step: spec.step,
+							unit: spec.unit
+						};
 			return {
 				kind: 'slider',
 				attr: name,
@@ -212,6 +278,17 @@ function controlFor(
 							}
 				)
 			};
+		case 'color_rgb': {
+			const rgb = rgbOf(value);
+			return {
+				kind: 'rgb',
+				attr: name,
+				label,
+				hex: rgb ? hexOf(rgb) : '#ffffff',
+				shape:
+					value !== null && typeof value === 'object' && !Array.isArray(value) ? 'object' : 'array'
+			};
+		}
 		case 'color_xy':
 			return {
 				kind: 'colour',
@@ -238,18 +315,45 @@ const CATEGORY_ORDER = ['Power', 'Transport', 'Volume', 'Apps', 'Content', 'Live
 function groupsOf(d: CoreDevice, s: Schema, all: CoreDevice[]): ActionGroup[] {
 	const groups = new Map<string, ActionView[]>();
 	for (const action of s.actions ?? []) {
-		const fields = (action.params ?? [])
-			.filter((p) => p.required)
-			.map((p) => fieldFor(p, d, all))
-			.filter((f): f is Field => f !== undefined);
+		const params = action.params ?? [];
+		// A parameter can't be drawn (a colour, raw JSON): an action that needs
+		// one isn't offered, rather than sent without it.
+		const drawn = params.map((p) => ({ p, f: fieldFor(p, d, all) }));
+		if (drawn.some((x) => x.f === undefined && x.p.required)) continue;
+		const fields = drawn
+			.filter((x): x is { p: ParamSpec; f: Field } => x.f !== undefined)
+			.map(({ p, f }) => {
+				// Standing in for a reading: its parameter starts as the reading is.
+				const now =
+					action.writes && (params.length === 1 || p.name === action.writes)
+						? d.attributes[action.writes]
+						: undefined;
+				const valued = now === undefined ? f : withValue(f, now);
+				if (p.required) return valued;
+				// Optional with nothing to start from: empty, so it isn't sent.
+				const empty =
+					now === undefined && p.default === undefined
+						? valued.kind === 'number'
+							? { ...valued, value: Number.NaN }
+							: valued.kind === 'choice' || valued.kind === 'text'
+								? { ...valued, value: '' }
+								: valued
+						: valued;
+				return { ...empty, optional: true };
+			});
 		// A choice with nothing to choose from (a Roku that publishes no TV
 		// channels) can't be run; offering it would be a dead control.
 		if (fields.some((f) => f.kind === 'choice' && f.options.length === 0)) continue;
+		const only = fields.length === 1 ? fields[0] : undefined;
 		const view: ActionView = {
 			id: action.id,
 			label: action.label,
 			confirm: action.confirm,
-			fields
+			...(action.description ? { description: action.description } : {}),
+			fields,
+			...(action.writes && only?.kind === 'toggle'
+				? { switch: { name: only.name, on: only.value } }
+				: {})
 		};
 		const title = action.category ?? 'Actions';
 		const list = groups.get(title);
@@ -265,16 +369,37 @@ function groupsOf(d: CoreDevice, s: Schema, all: CoreDevice[]): ActionGroup[] {
 		.map(([title, actions]) => ({ title, actions }));
 }
 
+/** A field holding a device's current value, where it can. */
+function withValue(f: Field, v: unknown): Field {
+	switch (f.kind) {
+		case 'toggle':
+			return typeof v === 'boolean' ? { ...f, value: v } : f;
+		case 'number':
+			return typeof v === 'number' ? { ...f, value: v } : f;
+		case 'choice':
+		case 'text':
+			return typeof v === 'string' || typeof v === 'number' ? { ...f, value: String(v) } : f;
+	}
+}
+
 function fieldFor(p: ParamSpec, d: CoreDevice, all: CoreDevice[]): Field | undefined {
 	const label = p.label ?? words(p.name);
 	let options: Option[] | undefined;
+	const from = typeof p.options_from === 'object' ? p.options_from : undefined;
 	if (p.options)
 		options = p.options.map((o) => ({ value: o.value, label: o.label ?? words(o.value) }));
-	else if (p.options_from?.attribute) {
-		const src = p.options_from.attribute;
+	else if (p.options_from === 'modes' || p.options_from === 'scenes') {
+		// homeCore's own lists: its modes, and the scenes devices stand for.
+		const kind = p.options_from === 'modes' ? 'mode' : 'scene';
+		options = all
+			.filter((x) => x.device_type === kind)
+			.map((x) => ({ value: x.device_id, label: displayName(x) }))
+			.sort((x, y) => x.label.localeCompare(y.label));
+	} else if (from?.attribute) {
+		const src = from.attribute;
 		options = optionsFromList(d.attributes[src.attribute], src.label_key, src.value_key);
-	} else if (p.options_from?.devices) {
-		const want = p.options_from.devices;
+	} else if (from?.devices) {
+		const want = from.devices;
 		options = all
 			.filter((x) => !(want.exclude_self && x.device_id === d.device_id))
 			.filter((x) => !want.plugin_id || x.plugin_id === want.plugin_id)
@@ -305,7 +430,8 @@ function fieldFor(p: ParamSpec, d: CoreDevice, all: CoreDevice[]): Field | undef
 				value: typeof p.default === 'number' ? p.default : (p.min ?? 0),
 				min: p.min,
 				max: p.max,
-				unit: p.kind === 'duration' ? 's' : p.unit
+				unit: p.kind === 'duration' ? 's' : p.unit,
+				...(p.kind === 'duration' ? { duration: true } : {})
 			};
 		case 'bool':
 			return { kind: 'toggle', name: p.name, label, value: p.default === true };
@@ -330,17 +456,26 @@ export function actionBody(
 ): Record<string, unknown> {
 	const body: Record<string, unknown> = { action: action.id };
 	for (const f of action.fields) {
+		// An optional parameter nobody set, or set empty, is left out: the
+		// plugin's own default.
+		if (f.optional && !(f.name in values)) continue;
 		const v = values[f.name] ?? f.value;
+		if (
+			f.optional &&
+			(v === '' || v === undefined || v === null || (typeof v === 'number' && Number.isNaN(v)))
+		)
+			continue;
 		body[f.name] = f.kind === 'choice' && f.numeric ? Number(v) : v;
 	}
 	return body;
 }
 
-/** Whether every field of an action has something in it. */
+/** Whether every required field of an action has something in it. */
 export function ready(action: ActionView, values: Record<string, unknown>): boolean {
 	return action.fields.every((f) => {
+		if (f.optional || f.kind === 'toggle') return true;
 		const v = values[f.name] ?? f.value;
-		return f.kind === 'toggle' || (v !== '' && v !== undefined && v !== null);
+		return v !== '' && v !== undefined && v !== null;
 	});
 }
 

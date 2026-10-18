@@ -2,6 +2,8 @@
 	A person unlocked on a display (H5): whose app this is, on which display,
 	for how much longer — and Lock, to give the display back now. When the
 	time is up the server has already ended the session; this just notices.
+	Left untouched for a minute and a half, it locks itself: a person who
+	walked away shouldn't leave their app open on the kitchen wall.
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
@@ -17,6 +19,22 @@
 	const left = $derived(on?.until ? Math.max(0, on.until - now) : null);
 	$effect(() => {
 		if (left === 0) void back();
+	});
+
+	// ---- idle: nobody's touched it ----
+	const IDLE_MS = 90_000;
+	let touched = $state(Date.now());
+	$effect(() => {
+		if (!on) return;
+		const mark = () => (touched = Date.now());
+		const events = ['pointerdown', 'keydown', 'wheel'] as const;
+		for (const e of events) window.addEventListener(e, mark, { passive: true });
+		return () => {
+			for (const e of events) window.removeEventListener(e, mark);
+		};
+	});
+	$effect(() => {
+		if (on && now - touched > IDLE_MS) void back();
 	});
 	const mmss = (ms: number) => {
 		const s = Math.ceil(ms / 1000);

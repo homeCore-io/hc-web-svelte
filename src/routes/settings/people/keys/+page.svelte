@@ -7,6 +7,7 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { onReturn } from '#lib/refresh.js';
 	import { session } from '#lib/me.svelte.js';
 	import { heading } from '#lib/heading.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
@@ -37,7 +38,14 @@
 		rotateKey
 	} from '#lib/peopleAdmin.js';
 
-	$effect(() => heading.show('API keys', { href: '/settings/people', label: 'People & access' }));
+	$effect(() =>
+		heading.show(
+			'API keys',
+			session.isAdmin
+				? { href: '/settings/people', label: 'People & access' }
+				: { href: '/me', label: 'Me' }
+		)
+	);
 
 	let keys = $state<ApiKey[] | null>(null);
 	let people = $state<Person[]>([]);
@@ -58,7 +66,10 @@
 		if (p.ok) people = p.data;
 		if (r.ok) roles = r.data;
 	}
-	onMount(load);
+	onMount(() => {
+		void load();
+		return onReturn(load);
+	});
 
 	const groups = $derived(keys ? keyGroups(keys, clock.now) : { live: [], stopped: [] });
 	const mine = $derived(session.me?.scopes ?? []);

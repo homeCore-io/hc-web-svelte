@@ -45,6 +45,9 @@ class Live {
 		const url = new URL('/api/v1/events/stream', location.href);
 		url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
 		url.searchParams.set('snapshot', 'true');
+		// Which tab this is, so homeCore's list of who's connected can tell
+		// one person's tabs apart from a screen reconnecting over and over.
+		url.searchParams.set('client_id', tabId());
 		const socket = new WebSocket(url);
 		this.#socket = socket;
 		socket.onopen = () => {
@@ -68,6 +71,19 @@ class Live {
 			const wait = Math.min(30_000, 1000 * 2 ** this.#retry++);
 			this.#timer = setTimeout(() => this.#open(), wait);
 		};
+	}
+}
+
+/** This tab's id: made once, kept while the tab lives. */
+function tabId(): string {
+	try {
+		const had = sessionStorage.getItem('hc-tab');
+		if (had) return had;
+		const made = Math.random().toString(36).slice(2, 10);
+		sessionStorage.setItem('hc-tab', made);
+		return made;
+	} catch {
+		return 'tab';
 	}
 }
 

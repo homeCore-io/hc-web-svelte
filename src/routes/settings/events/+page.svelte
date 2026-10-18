@@ -91,7 +91,7 @@
 	};
 </script>
 
-{#if !session.isAdmin}
+{#if !session.can('devices:read')}
 	<p class="quiet">Events are for the house’s admins.</p>
 {:else}
 	<div class="page">

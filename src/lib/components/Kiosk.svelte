@@ -32,7 +32,8 @@
 	}
 	$effect(() => {
 		void load();
-		const t = setInterval(load, 120_000);
+		// Often enough that a display removed in Settings says so soon.
+		const t = setInterval(load, 30_000);
 		return () => clearInterval(t);
 	});
 
@@ -102,7 +103,6 @@
 	const time = $derived(now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
 
 	let unlocking = $state(false);
-	const alertsHere = $derived(tabs.some((t) => t.key === 'alerts'));
 </script>
 
 {#if gone}
@@ -117,15 +117,10 @@
 			<span class="title">{tabs.find((t) => t.href === pathname)?.label ?? ''}</span>
 			<span class="live" data-state={live.state} aria-hidden="true"></span>
 			{#if alerts.list.length > 0}
-				<svelte:element
-					this={alertsHere ? 'a' : 'span'}
-					class="bell"
-					href={alertsHere ? '/alerts' : undefined}
-					aria-label={`Alerts — ${alerts.list.length}`}
-				>
+				<a class="bell" href="/alerts" aria-label={`Alerts — ${alerts.list.length}`}>
 					<Bell size={20} aria-hidden="true" />
 					{alerts.list.length}
-				</svelte:element>
+				</a>
 			{/if}
 			<button class="unlock" aria-label="Unlock with your PIN" onclick={() => (unlocking = true)}>
 				<Lock size={20} aria-hidden="true" />

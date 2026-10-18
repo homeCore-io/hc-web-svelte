@@ -43,6 +43,9 @@
 		exportAll,
 		history,
 		importRules,
+		changeGroup,
+		createGroup,
+		deleteGroup,
 		loadGroups,
 		loadRules,
 		loadVocabulary,
@@ -51,6 +54,7 @@
 		setEnabled,
 		setGroupEnabled,
 		setManyEnabled,
+		withMembers,
 		type Imported,
 		type RuleGroup
 	} from '#lib/ruleAdmin.js';
@@ -136,7 +140,14 @@
 
 	const house = $derived(houseOf(devices.byId, scenes.list, rules ?? []));
 	const rows = $derived(rules ? rowsOf(rules, house, runs, byMode) : []);
-	const shown = $derived(rows.filter((r) => shows(r, query, show)));
+	// A set chosen to look at narrows the list to its rules.
+	const setId = $derived(page.url.searchParams.get('set'));
+	const lookingAt = $derived(groups.find((g) => g.id === setId));
+	const shown = $derived(
+		rows.filter(
+			(r) => shows(r, query, show) && (!lookingAt || lookingAt.rule_ids.includes(r.rule.id))
+		)
+	);
 	const tally = $derived(counts(rows, query));
 	const grouped = $derived(
 		groupsOf(
@@ -187,6 +198,106 @@
 		const res = await setGroupEnabled(g.id, on);
 		note = res.ok ? `${g.name}: turned ${on ? 'on' : 'off'}.` : res.error;
 		await load();
+	}
+
+	// ---- sets: made, renamed, filled, removed ----
+	const reloadGroups = async () => {
+		const g = await loadGroups();
+		if (g.ok) groups = g.data;
+	};
+	/** The set being changed ('new' for one being made), and its form. */
+	let editing = $state<string | null>(null);
+	let setName = $state('');
+	let setAbout = $state('');
+	function editSet(g: RuleGroup | null) {
+		editing = g ? g.id : 'new';
+		setName = g?.name ?? '';
+		setAbout = g?.description ?? '';
+	}
+	const nameTaken = (name: string, except?: string) =>
+		groups.some((g) => g.id !== except && g.name.trim().toLowerCase() === name.toLowerCase());
+	const setProblem = $derived.by(() => {
+		const name = setName.trim();
+		if (name === '') return 'A set needs a name.';
+		if (nameTaken(name, editing ?? undefined)) return `There is already a set called “${name}”.`;
+		return null;
+	});
+
+	async function saveSet() {
+		if (setProblem || !editing) return;
+		busy = true;
+		const name = setName.trim();
+		const about = setAbout.trim();
+		const was = groups.find((g) => g.id === editing);
+		const res = was
+			? await changeGroup(was.id, {
+					name,
+					...(about !== (was.description ?? '') ? { description: about } : {})
+				})
+			: await createGroup(
+					name,
+					selected.filter((r) => !byMode[r.id]).map((r) => r.id),
+					about || undefined
+				);
+		busy = false;
+		if (!res.ok) {
+			note = res.error;
+			return;
+		}
+		note = was
+			? `Set “${name}” saved.`
+			: `Set “${name}” made${res.data.rule_ids.length ? ` with ${count(res.data.rule_ids.length).toLowerCase()}` : ''}.`;
+		if (!was) picked = {};
+		editing = null;
+		await reloadGroups();
+	}
+
+	async function removeSet(g: RuleGroup) {
+		const yes = await ask({
+			title: `Delete the set “${g.name}”?`,
+			body: 'Its rules stay as they are, on or off. Only the set goes.',
+			go: 'Delete',
+			danger: true
+		});
+		if (!yes) return;
+		const res = await deleteGroup(g.id);
+		note = res.ok ? `Set “${g.name}” deleted.` : res.error;
+		if (res.ok) {
+			editing = null;
+			if (setId === g.id) set('set', null);
+		}
+		await reloadGroups();
+	}
+
+	/** Ids a set still holds for rules that have since been deleted. */
+	const goneFrom = (g: RuleGroup) =>
+		rules ? g.rule_ids.filter((id) => !rules!.some((r) => r.id === id)) : [];
+	async function forgetGone(g: RuleGroup) {
+		const gone = goneFrom(g);
+		const res = await changeGroup(g.id, { rule_ids: withMembers(g, gone, false) });
+		note = res.ok
+			? `${g.name}: forgot ${gone.length === 1 ? 'one deleted rule' : `${gone.length} deleted rules`}.`
+			: res.error;
+		await reloadGroups();
+	}
+
+	let intoSet = $state('');
+	async function bulkSet(add: boolean) {
+		const g = groups.find((x) => x.id === intoSet);
+		if (!g) return;
+		const ids = selected.filter((r) => !add || !byMode[r.id]).map((r) => r.id);
+		const next = withMembers(g, ids, add);
+		const moved = Math.abs(next.length - g.rule_ids.length);
+		busy = true;
+		const res = await changeGroup(g.id, { rule_ids: next });
+		busy = false;
+		note = res.ok
+			? moved === 0
+				? `${add ? 'They were all in' : 'None of them was in'} “${g.name}” already.`
+				: `${count(moved)} ${add ? 'added to' : 'taken out of'} “${g.name}”.`
+			: res.error;
+		if (res.ok) picked = {};
+		await reloadGroups();
 	}
 
 	// ---- several at once ----
@@ -350,6 +461,42 @@
 	{/if}
 {/snippet}
 
+{#snippet setForm(g: RuleGroup | null)}
+	<form
+		class="set-form"
+		onsubmit={(e) => {
+			e.preventDefault();
+			void saveSet();
+		}}
+	>
+		<label>Name <input bind:value={setName} required /></label>
+		<label>What it’s for <input bind:value={setAbout} placeholder="Optional" /></label>
+		{#if setProblem && setName.trim() !== ''}<p class="bad" role="alert">{setProblem}</p>{/if}
+		{#if !g && selected.length}
+			<p class="quiet">
+				It starts with the {selected.length === 1
+					? 'selected rule'
+					: `${selected.length} selected rules`}{selected.some((r) => byMode[r.id])
+					? ', leaving out rules a mode made'
+					: ''}.
+			</p>
+		{/if}
+		<div class="buttons">
+			<button type="submit" disabled={busy || !!setProblem}>{g ? 'Save' : 'Make the set'}</button>
+			<button type="button" class="plain" onclick={() => (editing = null)}>Cancel</button>
+			{#if g && goneFrom(g).length}
+				<button type="button" class="plain" onclick={() => forgetGone(g)}
+					>Forget the deleted rules</button
+				>
+			{/if}
+			{#if g}
+				<span class="spacer"></span>
+				<button type="button" class="danger" onclick={() => removeSet(g)}>Delete set…</button>
+			{/if}
+		</div>
+	</form>
+{/snippet}
+
 {#snippet itemOf(item: Item)}
 	{#if 'row' in item}
 		{@render rowOf(item.row)}
@@ -456,21 +603,72 @@
 			</div>
 		{/if}
 
-		{#if groups.length > 0}
+		{#if rules && rows.length > 0}
 			<section class="sets" aria-label="Sets of rules">
-				<h2>Sets</h2>
+				<header>
+					<h2>Sets</h2>
+					{#if editing !== 'new'}
+						<button type="button" class="link" onclick={() => editSet(null)}
+							>{selected.length
+								? `New set of the ${selected.length} selected…`
+								: 'New set…'}</button
+						>
+					{/if}
+				</header>
+				{#if groups.length === 0 && editing !== 'new'}
+					<p class="quiet">
+						A set is rules you turn on and off together — for when you’re away, say. Select rules
+						and make one, or make it empty and add rules later.
+					</p>
+				{/if}
 				{#each groups as g (g.id)}
 					{@const inSet = rows.filter((r) => g.rule_ids.includes(r.rule.id))}
-					<div>
+					{@const gone = goneFrom(g)}
+					<div class="set" class:looking={setId === g.id}>
 						<span
 							><strong>{g.name}</strong> · {inSet.filter((r) => r.rule.enabled).length} of {inSet.length}
-							on</span
+							on{#if gone.length}<span class="gone">
+									· {gone.length === 1 ? 'one deleted rule' : `${gone.length} deleted rules`}</span
+								>{/if}
+							{#if g.description}<small>{g.description}</small>{/if}</span
 						>
-						<button type="button" class="plain" onclick={() => turnGroup(g, true)}>All on</button>
-						<button type="button" class="plain" onclick={() => turnGroup(g, false)}>All off</button>
+						<button
+							type="button"
+							class="plain"
+							aria-pressed={setId === g.id}
+							onclick={() => set('set', setId === g.id ? null : g.id)}
+							>{setId === g.id ? 'Show all' : 'Show'}</button
+						>
+						<button
+							type="button"
+							class="plain"
+							disabled={inSet.length === 0}
+							onclick={() => turnGroup(g, true)}>All on</button
+						>
+						<button
+							type="button"
+							class="plain"
+							disabled={inSet.length === 0}
+							onclick={() => turnGroup(g, false)}>All off</button
+						>
+						<button
+							type="button"
+							class="plain"
+							aria-expanded={editing === g.id}
+							onclick={() => (editing === g.id ? (editing = null) : editSet(g))}>Change…</button
+						>
 					</div>
+					{#if editing === g.id}{@render setForm(g)}{/if}
 				{/each}
+				{#if editing === 'new'}{@render setForm(null)}{/if}
 			</section>
+		{/if}
+
+		{#if lookingAt}
+			<p class="note" role="status">
+				Showing the set “{lookingAt.name}”.
+				<button type="button" class="link" onclick={() => set('set', null)}>Show all rules</button>
+			</p>
 		{/if}
 
 		{#if failed}
@@ -525,6 +723,20 @@
 					onclick={() => bulkTag(false)}>Untag</button
 				>
 			</span>
+			{#if groups.length}
+				<span class="tag">
+					<select bind:value={intoSet} aria-label="Set">
+						<option value="">A set…</option>
+						{#each groups as g (g.id)}<option value={g.id}>{g.name}</option>{/each}
+					</select>
+					<button type="button" disabled={busy || !intoSet} onclick={() => bulkSet(true)}
+						>Add to set</button
+					>
+					<button type="button" disabled={busy || !intoSet} onclick={() => bulkSet(false)}
+						>Take out</button
+					>
+				</span>
+			{/if}
 			<datalist id="known-tags">
 				{#each [...new Set(rows.flatMap((r) => r.rule.tags ?? []))].sort() as t (t)}<option
 						value={t}
@@ -797,8 +1009,14 @@
 		flex-direction: column;
 		gap: 6px;
 	}
-	.sets div {
+	.sets header {
 		display: flex;
+		align-items: baseline;
+		gap: var(--space-3);
+	}
+	.set {
+		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		gap: var(--space-2);
 		padding: var(--space-2) var(--space-4);
@@ -806,8 +1024,82 @@
 		background: var(--surface);
 		border: 1px solid var(--card-line);
 	}
-	.sets span {
+	.set.looking {
+		border-color: var(--accent);
+	}
+	.set > span {
+		flex: 1 1 200px;
+	}
+	.set small {
+		display: block;
+		color: var(--ink-muted);
+	}
+	.set .gone,
+	.set-form .bad {
+		color: var(--alert);
+	}
+	.set-form .danger {
+		height: 34px;
+		padding: 0 14px;
+		border-radius: 17px;
+		border: none;
+		background: var(--alert);
+		color: var(--alert-ink);
+		font: inherit;
+		font-weight: 600;
+	}
+	.set-form .spacer {
 		flex: 1;
+	}
+	.set-form {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		padding: var(--space-3) var(--space-4);
+		border-radius: var(--radius);
+		background: var(--surface);
+		border: 1px solid var(--card-line);
+	}
+	.set-form label {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		font-size: 13px;
+		font-weight: 600;
+	}
+	.set-form input {
+		max-width: 420px;
+		height: 38px;
+		padding: 0 var(--space-3);
+		border-radius: 10px;
+		border: 1px solid var(--line);
+		background: var(--bg);
+		color: var(--ink);
+		font: inherit;
+		font-weight: 400;
+	}
+	.set-form button[type='submit'] {
+		height: 34px;
+		padding: 0 14px;
+		border-radius: 17px;
+		border: none;
+		background: var(--accent);
+		color: var(--accent-ink);
+		font: inherit;
+		font-weight: 700;
+		font-size: 13px;
+	}
+	.set-form button:disabled {
+		opacity: 0.5;
+	}
+	.set-form .buttons {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+	}
+	.set-form p {
+		margin: 0;
+		font-size: 13px;
 	}
 	.quiet {
 		margin: 0;
@@ -877,6 +1169,16 @@
 		color: var(--bg);
 		font: inherit;
 		font-weight: 700;
+	}
+	.bulk select {
+		height: 36px;
+		max-width: 160px;
+		padding: 0 10px;
+		border-radius: 18px;
+		border: 1px solid color-mix(in srgb, var(--bg) 40%, transparent);
+		background: var(--ink);
+		color: var(--bg);
+		font: inherit;
 	}
 	.bulk input {
 		width: 120px;

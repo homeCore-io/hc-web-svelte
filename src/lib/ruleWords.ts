@@ -927,6 +927,7 @@ export function moreOf(r: Rule): string[] {
 	if (r.trigger_condition) out.push(`Only when ${r.trigger_condition}`);
 	if (r.variables && Object.keys(r.variables).length)
 		out.push(`Has its own values: ${Object.keys(r.variables).join(', ')}`);
+	if (r.trigger_label) out.push(`Its scripts know its moment as “${r.trigger_label}”`);
 	if (r.log_events || r.log_triggers || r.log_actions) out.push('Writes what it does to the log');
 	return out;
 }

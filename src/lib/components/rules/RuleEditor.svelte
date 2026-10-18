@@ -339,6 +339,11 @@
 					onchange={(v) => setField('log_events', v || undefined)}
 				/>
 				<FieldInput
+					field={{ kind: 'bool', name: 'log_triggers', label: 'Log each time it starts' }}
+					value={draft.log_triggers}
+					onchange={(v) => setField('log_triggers', v || undefined)}
+				/>
+				<FieldInput
 					field={{ kind: 'bool', name: 'log_actions', label: 'Log what it does' }}
 					value={draft.log_actions}
 					onchange={(v) => setField('log_actions', v || undefined)}
@@ -375,6 +380,16 @@
 					}}
 					value={draft.trigger_condition}
 					onchange={(v) => setField('trigger_condition', v)}
+				/>
+				<FieldInput
+					field={{
+						kind: 'text',
+						name: 'trigger_label',
+						label: 'Name for its moment, read by scripts as trigger_label()',
+						optional: true
+					}}
+					value={draft.trigger_label}
+					onchange={(v) => setField('trigger_label', v)}
 				/>
 				<FieldInput
 					field={{

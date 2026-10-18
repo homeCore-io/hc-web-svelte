@@ -7,6 +7,9 @@
 import { cap, words } from './card.js';
 import type { CoreDevice } from './devices.js';
 
+/** How many settings an entry shows, and takes from the device, to begin with. */
+export const FIRST = 3;
+
 export interface Setting {
 	attr: string;
 	label: string;
@@ -18,8 +21,12 @@ export interface Setting {
 	options?: { value: string; label: string }[];
 }
 
-/** The settings a scene can give a device, primary ones first; none for sensors. */
-export function settingsOf(d: CoreDevice, max = 3): Setting[] {
+/**
+ * The settings a scene can give a device, primary ones first; none for
+ * sensors. The first few are what a new entry takes and what's shown at once;
+ * `Infinity` gives them all.
+ */
+export function settingsOf(d: CoreDevice, max = FIRST): Setting[] {
 	const attrs = d.schema?.attributes ?? {};
 	const primary = d.schema?.primary ?? [];
 	const rank = (a: string) => (primary.includes(a) ? primary.indexOf(a) : a === 'on' ? -1 : 100);
@@ -74,7 +81,10 @@ export function stateNow(d: CoreDevice, settings = settingsOf(d)): Record<string
 
 /** A device's entry in words: "on · 30 %", "off". */
 export function describeState(state: Record<string, unknown>, settings: Setting[]): string {
-	if ('actions' in state) return 'runs its own steps';
+	if (isSteps(state)) {
+		const n = stepsOf(state).length;
+		return n === 1 ? 'one step' : `${n} steps, in order`;
+	}
 	if (state.on === false) return 'off';
 	const parts = settings
 		.filter((s) => s.attr !== 'on' && state[s.attr] !== undefined)
@@ -89,3 +99,55 @@ export function describeState(state: Record<string, unknown>, settings: Setting[
 /** Whether two scenes' states differ. */
 export const differ = (a: Record<string, unknown>, b: Record<string, unknown>) =>
 	JSON.stringify(a) !== JSON.stringify(b);
+
+// ---- entries that are steps ----
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Json = any;
+
+/**
+ * An entry homeCore sends as commands, one after another, rather than as
+ * one state: `{ actions: [cmd, cmd, …] }` (handlers.rs activate_scene).
+ */
+export const isSteps = (st: Record<string, unknown>) => Array.isArray(st.actions);
+export const stepsOf = (st: Record<string, unknown>): Json[] =>
+	Array.isArray(st.actions) ? (st.actions as Json[]) : [];
+
+/**
+ * An entry as steps: each thing it set becomes a step of its own, so each
+ * reads as one command — power first, as the device would want it.
+ */
+export function asSteps(st: Record<string, unknown>): { actions: Json[] } {
+	if (isSteps(st)) return { actions: stepsOf(st) };
+	const keys = Object.keys(st).sort((a, b) => Number(b === 'on') - Number(a === 'on'));
+	return { actions: keys.map((k) => ({ [k]: st[k] })) };
+}
+
+/**
+ * Steps back to one state: kept when it's a single plain state; otherwise
+ * how the device is now.
+ */
+export function asSettings(st: Record<string, unknown>, d: CoreDevice): Record<string, unknown> {
+	const steps = stepsOf(st);
+	const only = steps.length === 1 ? steps[0] : undefined;
+	const settings = settingsOf(d, Infinity);
+	if (
+		only &&
+		typeof only === 'object' &&
+		!Array.isArray(only) &&
+		Object.keys(only).length > 0 &&
+		Object.keys(only).every((k) => settings.some((s) => s.attr === k))
+	)
+		return { ...only };
+	return stateNow(d);
+}
+
+/** What an entry sets that the form has no control for — kept, and shown as written. */
+export function othersIn(st: Record<string, unknown>, settings: Setting[]): [string, unknown][] {
+	if (isSteps(st)) return [];
+	return Object.entries(st).filter(([k]) => !settings.some((s) => s.attr === k));
+}
+
+/** The settings shown for an entry: the first few, and any it already sets. */
+export const shownSettings = (all: Setting[], st: Record<string, unknown>, more: boolean) =>
+	more ? all : all.filter((s, i) => i < FIRST || st[s.attr] !== undefined);

@@ -1,10 +1,12 @@
 <!--
 	What to tell one device (A3): chosen from what the device says it can do,
 	as "Set a device" does — or, for a device that says nothing, as JSON.
-	Used where a state stands on its own: per mode, and "otherwise".
+	Used where a state stands on its own: per mode, "otherwise", and a
+	scene's steps (which pass the device, having no editor around them).
 -->
 <script lang="ts">
 	import { commandOf, commandsOf, rebuild } from '#lib/ruleEdit.js';
+	import type { CoreDevice } from '#lib/devices.js';
 	import { editor } from './context.js';
 	import FieldInput from './FieldInput.svelte';
 
@@ -14,11 +16,18 @@
 		deviceId,
 		value,
 		onchange,
-		label = 'What to do'
-	}: { deviceId: string; value: Json; onchange: (v: Json) => void; label?: string } = $props();
+		label = 'What to do',
+		device: given
+	}: {
+		deviceId: string;
+		value: Json;
+		onchange: (v: Json) => void;
+		label?: string;
+		device?: CoreDevice;
+	} = $props();
 
 	const ctx = editor();
-	const device = $derived(ctx.house.device(deviceId));
+	const device = $derived(given ?? ctx?.house.device(deviceId));
 	const cmds = $derived(device ? commandsOf(device) : []);
 	const current = $derived(value === undefined ? undefined : commandOf(cmds, value));
 	function setCommand(key: string, values?: Record<string, unknown>) {
@@ -33,11 +42,19 @@
 		<span>{label}</span>
 		<select value={current?.cmd.key ?? ''} onchange={(e) => setCommand(e.currentTarget.value, {})}>
 			{#if !current}<option value="" disabled
-					>{value === undefined ? 'Choose…' : 'As written — see the JSON tab'}</option
+					>{value === undefined
+						? 'Choose…'
+						: ctx
+							? 'As written — see the JSON tab'
+							: 'As written, below'}</option
 				>{/if}
 			{#each cmds as c (c.key)}<option value={c.key}>{c.label}</option>{/each}
 		</select>
 	</label>
+	{#if !current && value !== undefined && !ctx}
+		<!-- No JSON tab around it (a scene's step): what it says, as written. -->
+		<FieldInput field={{ kind: 'json', name: 'state', label: 'As written' }} {value} {onchange} />
+	{/if}
 	{#if current}
 		{#each current.cmd.fields as field (field.name)}
 			<FieldInput

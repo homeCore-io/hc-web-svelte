@@ -19,7 +19,23 @@
 	import { roomOf } from '#lib/summary.js';
 	import { kindLabel } from '#lib/inventory.js';
 	import { kindOf } from '#lib/card.js';
-	import { describeState, differ, sceneable, settingsOf, stateNow } from '#lib/sceneEdit.js';
+	import {
+		asSettings,
+		asSteps,
+		describeState,
+		differ,
+		isSteps,
+		othersIn,
+		sceneable,
+		settingsOf,
+		shownSettings,
+		stateNow,
+		stepsOf
+	} from '#lib/sceneEdit.js';
+	import { commandsOf } from '#lib/ruleEdit.js';
+	import StateEdit from '#lib/components/rules/StateEdit.svelte';
+	import ChevronUp from '@lucide/svelte/icons/chevron-up';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import { deviceCall } from '#lib/deviceAdmin.js';
 
 	const id = $derived(page.params.id ?? 'new');
@@ -85,11 +101,39 @@
 			for (const k of Object.keys(cur)) if (k !== 'on') delete cur[k];
 		states = { ...states, [did]: cur };
 	};
+	/** Leave a setting as the device has it: the scene stops setting it. */
+	function drop(did: string, attr: string) {
+		const { [attr]: _, ...rest } = states[did] ?? {};
+		states = { ...states, [did]: rest };
+	}
+
+	// Devices showing all their settings, not just the first few.
+	let more = $state<Record<string, boolean>>({});
+
+	// ---- an entry as steps, sent one after another ----
+	const setSteps = (did: string, steps: unknown[]) =>
+		(states = { ...states, [did]: { actions: steps } });
+	function useSteps(c: { id: string; d?: CoreDevice }, on: boolean) {
+		const st = states[c.id] ?? {};
+		if (on === isSteps(st)) return;
+		states = {
+			...states,
+			[c.id]: on ? asSteps(st) : c.d ? asSettings(st, c.d) : {}
+		};
+	}
+	function moveStep(did: string, i: number, by: number) {
+		const steps = [...stepsOf(states[did] ?? {})];
+		const [s] = steps.splice(i, 1);
+		steps.splice(i + by, 0, s);
+		setSteps(did, steps);
+	}
+
 	function takeNow() {
 		const next: typeof states = {};
 		for (const did of Object.keys(states)) {
 			const d = devices.byId[did];
-			next[did] = d ? stateNow(d) : states[did]!;
+			// Steps are what to do, not how it is: they stay.
+			next[did] = d && !isSteps(states[did]!) ? stateNow(d) : states[did]!;
 		}
 		states = next;
 	}
@@ -100,14 +144,15 @@
 	async function tryIt() {
 		busy = true;
 		note = null;
-		for (const [did, st] of Object.entries(states)) {
-			if ('actions' in st) continue;
-			const err = await deviceCall('PATCH', `/devices/${encodeURIComponent(did)}/state`, st);
-			if (err) {
-				note = err;
-				break;
+		// As homeCore runs it: an entry's steps one after another.
+		send: for (const [did, st] of Object.entries(states))
+			for (const cmd of isSteps(st) ? stepsOf(st) : [st]) {
+				const err = await deviceCall('PATCH', `/devices/${encodeURIComponent(did)}/state`, cmd);
+				if (err) {
+					note = err;
+					break send;
+				}
 			}
-		}
 		busy = false;
 		note ??= 'Sent to each device.';
 	}
@@ -203,14 +248,15 @@
 			{/if}
 			{#each chosen as c (c.id)}
 				{@const st = states[c.id] ?? {}}
-				{@const settings = c.d ? settingsOf(c.d) : []}
+				{@const all = c.d ? settingsOf(c.d, Infinity) : []}
+				{@const settings = shownSettings(all, st, !!more[c.id])}
+				{@const others = othersIn(st, all)}
+				{@const steps = isSteps(st)}
 				<div class="dev">
 					<div class="dhead">
 						<span class="dname">
 							<strong>{c.d ? displayName(c.d) : c.id}</strong>
-							{#if c.d}<span class="now"
-									>now {describeState(stateNow(c.d, settings), settings)}</span
-								>{/if}
+							{#if c.d}<span class="now">now {describeState(stateNow(c.d), all)}</span>{/if}
 						</span>
 						<button
 							type="button"
@@ -219,14 +265,90 @@
 							onclick={() => c.d && toggle(c.d)}><X size={16} /></button
 						>
 					</div>
+					{#if c.d && commandsOf(c.d).length}
+						<div
+							class="seg how"
+							role="radiogroup"
+							aria-label={`How the scene sets ${displayName(c.d)}`}
+						>
+							<button
+								type="button"
+								role="radio"
+								aria-checked={!steps}
+								onclick={() => useSteps(c, false)}>Set it</button
+							>
+							<button
+								type="button"
+								role="radio"
+								aria-checked={steps}
+								onclick={() => useSteps(c, true)}>Steps, in order</button
+							>
+						</div>
+					{/if}
 					{#if !c.d}
 						<p class="quiet">This device is gone from homeCore.</p>
-					{:else if 'actions' in st}
-						<p class="quiet">Set by its own steps, which this editor doesn’t show yet.</p>
+					{:else if steps}
+						{@const list = stepsOf(st)}
+						<p class="quiet">
+							Each is sent when the one before has gone — for a speaker to join a group before it
+							plays, say.
+						</p>
+						<ol class="steps">
+							{#each list as step, i (i)}
+								<li>
+									<div class="step">
+										<StateEdit
+											deviceId={c.id}
+											device={c.d}
+											value={step}
+											label={`Step ${i + 1}`}
+											onchange={(v) =>
+												setSteps(
+													c.id,
+													list.map((x, j) => (j === i ? v : x))
+												)}
+										/>
+									</div>
+									<div class="order">
+										<button
+											type="button"
+											class="x"
+											aria-label={`Move step ${i + 1} up`}
+											disabled={i === 0}
+											onclick={() => moveStep(c.id, i, -1)}><ChevronUp size={16} /></button
+										>
+										<button
+											type="button"
+											class="x"
+											aria-label={`Move step ${i + 1} down`}
+											disabled={i === list.length - 1}
+											onclick={() => moveStep(c.id, i, 1)}><ChevronDown size={16} /></button
+										>
+										<button
+											type="button"
+											class="x"
+											aria-label={`Remove step ${i + 1}`}
+											onclick={() =>
+												setSteps(
+													c.id,
+													list.filter((_, j) => j !== i)
+												)}><X size={16} /></button
+										>
+									</div>
+								</li>
+							{/each}
+						</ol>
+						{#if list.length === 0}<p class="empty">No steps yet: it does nothing.</p>{/if}
+						<button
+							type="button"
+							class="ghost add"
+							onclick={() => setSteps(c.id, [...list, undefined])}>+ Add a step</button
+						>
 					{:else}
 						<div class="controls">
 							{#each settings as s (s.attr)}
 								{#if s.kind === 'bool'}
+									{#if s.attr !== 'on'}<span class="blabel">{s.label}</span>{/if}
 									<div class="seg" role="radiogroup" aria-label={s.label}>
 										<button
 											type="button"
@@ -259,13 +381,24 @@
 												: `${st[s.attr]}${s.unit ? ` ${s.unit}` : ''}`}</span
 										>
 									</label>
+									{#if st[s.attr] !== undefined && st.on !== false}
+										<button
+											type="button"
+											class="link leave"
+											aria-label={`Leave ${s.label} as it is`}
+											onclick={() => drop(c.id, s.attr)}>Leave</button
+										>
+									{/if}
 								{:else if s.kind === 'enum'}
 									<label class="range">
 										<span>{s.label}</span>
 										<select
 											value={String(st[s.attr] ?? '')}
 											disabled={st.on === false}
-											onchange={(e) => put(c.id, s.attr, e.currentTarget.value)}
+											onchange={(e) =>
+												e.currentTarget.value === ''
+													? drop(c.id, s.attr)
+													: put(c.id, s.attr, e.currentTarget.value)}
 										>
 											<option value="">Leave as it is</option>
 											{#each s.options ?? [] as o (o.value)}<option value={o.value}
@@ -276,6 +409,25 @@
 								{/if}
 							{/each}
 						</div>
+						{#each others as [attr, v] (attr)}
+							<p class="other">
+								Also sets <code>{attr}</code> to <code>{JSON.stringify(v)}</code>
+								<button type="button" class="link" onclick={() => drop(c.id, attr)}
+									>Stop setting it</button
+								>
+							</p>
+						{/each}
+						{#if all.length > settings.length || more[c.id]}
+							<button
+								type="button"
+								class="link"
+								aria-expanded={!!more[c.id]}
+								onclick={() => (more = { ...more, [c.id]: !more[c.id] })}
+								>{more[c.id]
+									? 'Fewer settings'
+									: `More settings (${all.length - settings.length})`}</button
+							>
+						{/if}
 					{/if}
 				</div>
 			{/each}
@@ -502,6 +654,67 @@
 		background: var(--bg);
 		color: var(--ink);
 		font: inherit;
+	}
+	.blabel {
+		font-size: 13px;
+		color: var(--ink-muted);
+	}
+	.link {
+		align-self: flex-start;
+		border: none;
+		background: none;
+		padding: 0;
+		color: var(--accent);
+		font: inherit;
+		font-size: 13px;
+		font-weight: 600;
+	}
+	.leave {
+		align-self: center;
+	}
+	.how {
+		align-self: flex-start;
+	}
+	.other {
+		margin: 0;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 6px;
+		font-size: 13px;
+		color: var(--ink-muted);
+	}
+	.steps {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+	.steps li {
+		display: flex;
+		align-items: flex-end;
+		gap: var(--space-2);
+		padding: var(--space-2);
+		border-radius: 10px;
+		background: var(--surface-2);
+	}
+	.step {
+		flex: 1;
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+		min-width: 0;
+	}
+	.order {
+		display: flex;
+	}
+	.x:disabled {
+		opacity: 0.35;
+	}
+	.add {
+		align-self: flex-start;
 	}
 	.foot {
 		padding-top: var(--space-3);

@@ -179,10 +179,14 @@ export async function importRules(text: string): Promise<Imported> {
 	};
 }
 
-/** Rule groups (homeCore's), only for turning a set on and off (E9). */
+/**
+ * Rule groups (homeCore's): "sets" here, named rules turned on and off
+ * together (E9). Tags still do the grouping of the list.
+ */
 export interface RuleGroup {
 	id: string;
 	name: string;
+	description?: string;
 	rule_ids: string[];
 }
 export const loadGroups = () => call<RuleGroup[]>('GET', '/automations/groups');
@@ -191,6 +195,28 @@ export const setGroupEnabled = (id: string, on: boolean) =>
 		'POST',
 		`/automations/groups/${encodeURIComponent(id)}/${on ? 'enable' : 'disable'}`
 	);
+
+/** homeCore assigns the id, but won't read a body without one. */
+export const createGroup = (name: string, rule_ids: string[], description?: string) =>
+	call<RuleGroup>('POST', '/automations/groups', {
+		id: '00000000-0000-0000-0000-000000000000',
+		name,
+		...(description ? { description } : {}),
+		rule_ids
+	});
+/** homeCore can't drop a description, only set one: '' reads as none here. */
+export const changeGroup = (
+	id: string,
+	patch: Partial<Pick<RuleGroup, 'name' | 'description' | 'rule_ids'>>
+) => call<RuleGroup>('PATCH', `/automations/groups/${encodeURIComponent(id)}`, patch);
+export const deleteGroup = (id: string) =>
+	call<{ deleted: boolean }>('DELETE', `/automations/groups/${encodeURIComponent(id)}`);
+
+/** A set's members after adding or taking out some, in its order. */
+export function withMembers(group: RuleGroup, ids: string[], add: boolean): string[] {
+	if (!add) return group.rule_ids.filter((id) => !ids.includes(id));
+	return [...group.rule_ids, ...ids.filter((id) => !group.rule_ids.includes(id))];
+}
 
 // ---- writing (A3) ----
 

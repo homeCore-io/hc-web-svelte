@@ -237,6 +237,14 @@ export interface TestResult {
 
 /** homeCore's word that a script was judged now, whatever time was asked. */
 const JUDGED_NOW = 'a script is judged now';
+/** homeCore's word that a check can't be judged in a test (a private boolean). */
+const CANT_TELL = "can't tell";
+
+/** Why a check said no, when homeCore says and it adds something. */
+function whyNot(c: { passed: boolean; reason?: string | null }): string {
+	if (c.passed || !c.reason || c.reason.startsWith(JUDGED_NOW)) return '';
+	return ` (${c.reason})`;
+}
 
 export interface Tested {
 	yes: boolean;
@@ -255,13 +263,15 @@ export function tested(h: House, rule: Rule, res: TestResult, when?: string): Te
 			rule.conditions?.[i] !== undefined
 				? checkPhrase(h, rule.conditions[i])
 				: [{ t: c.reason ?? '' }],
-		mark:
-			(c.passed
-				? 'yes'
-				: `no${c.actual !== undefined && c.actual !== null ? ` — it’s ${actualText(c.actual)}` : ''}`) +
-			(c.reason?.startsWith(JUDGED_NOW) ? ' (a script reads the clock now)' : ''),
-		tone: c.passed ? 'good' : 'bad'
+		mark: c.reason?.startsWith(CANT_TELL)
+			? 'can’t tell in a test — the running rule keeps this'
+			: (c.passed
+					? 'yes'
+					: `no${c.actual !== undefined && c.actual !== null ? ` — it’s ${actualText(c.actual)}` : whyNot(c)}`) +
+				(c.reason?.startsWith(JUDGED_NOW) ? ' (a script reads the clock now)' : ''),
+		tone: c.reason?.startsWith(CANT_TELL) ? 'muted' : c.passed ? 'good' : 'bad'
 	}));
+	const unsure = res.conditions.some((c) => c.reason?.startsWith(CANT_TELL));
 	const then = when ?? 'now';
 	if (res.would_fire)
 		for (const [i, a] of (rule.actions ?? []).entries()) {
@@ -281,7 +291,9 @@ export function tested(h: House, rule: Rule, res: TestResult, when?: string): Te
 			? rule.conditions?.length
 				? `Every check passes ${then}, so it would run.`
 				: 'It has no checks, so it would run.'
-			: `It wouldn’t run ${then} — a check says no.`,
+			: unsure && res.conditions.every((c) => c.passed || c.reason?.startsWith(CANT_TELL))
+				? `It can’t be told ${then}: a check depends on what the running rule keeps.`
+				: `It wouldn’t run ${then} — a check says no.`,
 		lines
 	};
 }

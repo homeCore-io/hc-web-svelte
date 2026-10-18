@@ -158,7 +158,7 @@
 					{#each cmds as c (c.key)}<option value={c.key}>{c.label}</option>{/each}
 				</select>
 			</label>
-			{#if current}
+			{#if current && !f.track_event_value}
 				{#each current.cmd.fields as field (field.name)}
 					<FieldInput
 						{field}
@@ -167,6 +167,18 @@
 					/>
 				{/each}
 			{/if}
+			<!-- Mirror rules: send what the moment brought, in this step's setting. -->
+			<label class="mirror">
+				<input
+					type="checkbox"
+					checked={!!f.track_event_value}
+					onchange={(e) => set('track_event_value', e.currentTarget.checked)}
+				/>
+				<span
+					>Use the value that started it — this step’s setting, with the reading the moment brought
+					(to make one device follow another)</span
+				>
+			</label>
 		{/if}
 	{:else if kind === 'scene'}
 		<FieldInput
@@ -393,5 +405,12 @@
 		font-weight: 700;
 		text-transform: none;
 		letter-spacing: 0;
+	}
+	.mirror {
+		display: flex;
+		gap: var(--space-2);
+		align-items: flex-start;
+		font-size: 13.5px;
+		color: var(--ink-muted);
 	}
 </style>

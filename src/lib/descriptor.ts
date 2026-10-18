@@ -213,7 +213,8 @@ export function problem(f: Field, v: unknown, required = !!f.required): string |
 	if (v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) {
 		return required && f.default === undefined ? 'This needs a value.' : null;
 	}
-	if (f.kind === 'port' && (typeof v !== 'number' || v < 1 || v > 65535)) return PORT;
+	// A port may be 0 only where the field says so (0 = off).
+	if (f.kind === 'port' && (typeof v !== 'number' || v < (f.min ?? 1) || v > 65535)) return PORT;
 	if (numeric(f.kind) && typeof v !== 'number') return 'That isn’t a number.';
 	if (typeof v === 'number') {
 		if (f.kind !== 'number' && !Number.isInteger(v)) return 'A whole number, please.';

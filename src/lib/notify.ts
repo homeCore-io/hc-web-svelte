@@ -64,6 +64,28 @@ export const PROVIDERS: Record<Provider, { label: string; mark: string; fields: 
 					{ value: 1, label: 'High — through quiet hours' },
 					{ value: 2, label: 'Emergency — repeats until acknowledged' }
 				]
+			},
+			// Pushover refuses an emergency without these (homeCore 0.1.84 sends them).
+			{
+				kind: 'int',
+				key: 'retry',
+				label: 'Repeat every',
+				unit: 's',
+				min: 30,
+				default: 60,
+				help: 'Until someone acknowledges it. At least 30 seconds.',
+				visible_when: { field: 'priority', eq: 2 }
+			},
+			{
+				kind: 'int',
+				key: 'expire',
+				label: 'For up to',
+				unit: 's',
+				min: 30,
+				max: 10800,
+				default: 3600,
+				help: 'Then it stops repeating. At most 3 hours (10800 s).',
+				visible_when: { field: 'priority', eq: 2 }
 			}
 		]
 	},

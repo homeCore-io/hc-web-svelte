@@ -27,6 +27,19 @@ export function resultLines(result: unknown): { label: string; value: string }[]
 	if (typeof result !== 'object') return [{ label: 'Result', value: String(result) }];
 	if (Array.isArray(result))
 		return [{ label: 'Result', value: `${result.length} item${result.length === 1 ? '' : 's'}` }];
+	const count = (n: number, what: string) => `${n} ${n === 1 ? what.replace(/s$/, '') : what}`;
+	// One thing's parts in a few words: its lists counted, its words kept.
+	const brief = (o: Record<string, unknown>): string =>
+		Object.entries(o)
+			.map(([n, y]) =>
+				Array.isArray(y)
+					? count(y.length, n.replace(/_/g, ' '))
+					: typeof y === 'object' && y !== null
+						? ''
+						: `${n.replace(/_/g, ' ')} ${String(y)}`
+			)
+			.filter(Boolean)
+			.join(', ');
 	const say = (v: unknown): string =>
 		v === null || v === undefined
 			? '—'
@@ -39,7 +52,13 @@ export function resultLines(result: unknown): { label: string; value: string }[]
 						? v.join(', ') || 'none'
 						: `${v.length} item${v.length === 1 ? '' : 's'}`
 					: typeof v === 'object'
-						? JSON.stringify(v)
+						? Object.entries(v as Record<string, unknown>)
+								.map(([k, x]) =>
+									typeof x === 'object' && x !== null && !Array.isArray(x)
+										? `${k}: ${brief(x as Record<string, unknown>) || '…'}`
+										: `${k}: ${say(x)}`
+								)
+								.join('; ') || '—'
 						: String(v);
 	return Object.entries(result as Record<string, unknown>).map(([k, v]) => ({
 		label: k.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()),
@@ -58,6 +77,8 @@ export interface PluginAction {
 	item_key?: string;
 	requires_role?: 'admin' | 'user' | 'read_only';
 	timeout_ms?: number;
+	/** It can't be taken back or interrupts the house; ask first (core 0.1.84). */
+	danger?: boolean;
 }
 
 export interface ParamSchema {
@@ -68,6 +89,10 @@ export interface ParamSchema {
 	minimum?: number;
 	maximum?: number;
 	enum?: unknown[];
+	/** Labels for `enum` values — Hue's bridges by name and address. */
+	'x-options'?: { value: unknown; label: string }[];
+	format?: string;
+	writeOnly?: boolean;
 }
 
 export interface PluginRecord {
@@ -246,20 +271,33 @@ export function sizeOf(r: RegistryPlugin, version: string): string | undefined {
 export function paramFields(a: PluginAction): Field[] {
 	return Object.entries(a.params ?? {}).map(([name, p]): Field => {
 		const label = p.title ?? cap(words(name));
-		if (p.enum?.length)
+		// What the plugin says about it, under it — unless it only repeats the label.
+		const help =
+			p.description && p.description.toLowerCase() !== label.toLowerCase()
+				? p.description
+				: undefined;
+		if (p.enum?.length) {
+			const named = new Map((p['x-options'] ?? []).map((o) => [String(o.value), o.label]));
 			return {
 				kind: 'choice',
 				name,
 				label,
-				options: p.enum.map((v) => ({ value: String(v), label: words(String(v)) })),
+				help,
+				options: p.enum.map((v) => ({
+					value: String(v),
+					label: named.get(String(v)) ?? words(String(v))
+				})),
 				numeric: p.type === 'integer' || p.type === 'number'
 			};
+		}
 		if (p.type === 'integer' || p.type === 'number')
-			return { kind: 'number', name, label, min: p.minimum, max: p.maximum };
-		if (p.type === 'boolean') return { kind: 'bool', name, label };
+			return { kind: 'number', name, label, help, min: p.minimum, max: p.maximum };
+		if (p.type === 'boolean') return { kind: 'bool', name, label, help };
 		if (p.type === 'object' || p.type === 'array')
-			return { kind: 'json', name, label, optional: true };
-		return { kind: 'text', name, label, optional: true };
+			return { kind: 'json', name, label, help, optional: true };
+		const secret =
+			p.format === 'password' || p.writeOnly === true || /password|secret|token/i.test(name);
+		return { kind: 'text', name, label, help, optional: true, secret };
 	});
 }
 
@@ -274,12 +312,14 @@ export const paramDefaults = (a: PluginAction): Record<string, unknown> =>
 /** The verb on an action's button. */
 export function buttonOf(a: PluginAction): string {
 	if (/^(remove|delete|forget|unpair|reset)/i.test(a.id)) return 'Remove…';
+	if (a.danger) return a.stream || Object.keys(a.params ?? {}).length ? 'Start…' : 'Run…';
 	if (Object.keys(a.params ?? {}).length || a.stream) return a.stream ? 'Start…' : 'Run…';
 	return 'Run';
 }
 
+/** The plugin says so; or, from a plugin that doesn't say, its name does. */
 export const dangerous = (a: PluginAction) =>
-	/^(remove|delete|forget|unpair|reset|factory)/i.test(a.id);
+	a.danger === true || /^(remove|delete|forget|unpair|reset|factory|reboot)/i.test(a.id);
 
 // ---- an action talking back ----
 

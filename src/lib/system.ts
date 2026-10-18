@@ -438,6 +438,9 @@ export function eventRow(e: Json, house: EventHouse): EventRow | undefined {
 		// plugin saying it's still there): not news.
 		case 'custom':
 		case 'plugin_heartbeat':
+		// The stream's own frames: the house as it stands, or "you fell behind".
+		case 'snapshot':
+		case 'lagged':
 			return undefined;
 		default:
 			return {

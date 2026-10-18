@@ -17,6 +17,8 @@
 		backUp,
 		backUpApp,
 		checkRestore,
+		checkKept,
+		stageKept,
 		downloadKept,
 		everySaid,
 		loadKept,
@@ -83,7 +85,8 @@
 	}
 
 	// ---- restore ----
-	let file = $state<File | null>(null);
+	// An uploaded file, or one of the backups kept on the house (by name).
+	let file = $state<File | string | null>(null);
 	let plan = $state<RestorePlan | null>(null);
 	let restoreNote = $state<string | null>(null);
 	let restoring = $state(false);
@@ -103,6 +106,20 @@
 		}
 		plan = r.data;
 		restoreNote = null;
+	}
+	/** A kept backup chosen: what it brings, as for an uploaded one. */
+	async function choseKept(name: string) {
+		plan = null;
+		file = name;
+		restoreNote = 'Reading the backup…';
+		const r = await checkKept(name);
+		if (!r.ok) {
+			file = null;
+			return void (restoreNote = r.error);
+		}
+		plan = r.data;
+		restoreNote = null;
+		document.getElementById('restore')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 	}
 	const counts = $derived.by(() => {
 		if (!plan) return [];
@@ -133,7 +150,7 @@
 		if (!ok) return;
 		restoring = true;
 		restoreNote = 'Handing the backup to homeCore…';
-		const staged = await stageRestore(file);
+		const staged = typeof file === 'string' ? await stageKept(file) : await stageRestore(file);
 		if (!staged.ok) {
 			restoring = false;
 			return void (restoreNote = staged.error);
@@ -301,121 +318,129 @@
 	};
 </script>
 
-{#if !session.isAdmin}
+{#if !session.isAdmin && !session.can('automations:write')}
 	<p class="quiet">Backups are for the house’s admins.</p>
 {:else}
 	<div class="grid">
-		<section class="card" class:due>
-			<h2>Back up</h2>
-			<p class:bad={due}><strong>{lastSaid}</strong></p>
-			<p class="sub">
-				One file with the house’s state{status ? ` (${size(status.state_db_bytes)})` : ''}, history{status
-					? ` (${size(status.history_db_bytes)})`
-					: ''}, rules, settings and calendars.
-			</p>
-			<button class="go" onclick={backupNow} disabled={backing?.startsWith('Making')}
-				>Back up now</button
-			>
-			{#if backing}<p class="sub" role="status">{backing}</p>{/if}
-			<p class="sub">
-				This app’s own pages, displays and everyone’s Home are kept apart from homeCore —
-				<button class="link" onclick={backupApp}>save them too</button>.
-			</p>
-			{#if appBacking}<p class="sub" role="status">{appBacking}</p>{/if}
-			{#if kept?.every_hours}
+		<!-- Backups are admins'; the calendars rules check, anyone who makes rules. -->
+		{#if session.isAdmin}
+			<section class="card" class:due>
+				<h2>Back up</h2>
+				<p class:bad={due}><strong>{lastSaid}</strong></p>
 				<p class="sub">
-					homeCore also makes one {everySaid(kept.every_hours)}, keeping the newest {kept.keep}
-					on the house<span class="path">{kept.dir ? ` in ${kept.dir}` : ''}</span> —
-					<a href="/settings/configuration?s=backup">change</a>.
+					One file with the house’s state{status ? ` (${size(status.state_db_bytes)})` : ''},
+					history{status ? ` (${size(status.history_db_bytes)})` : ''}, rules, settings and
+					calendars.
 				</p>
-			{:else if kept}
-				<p class="sub">
-					homeCore doesn’t back itself up on a schedule.
-					<a href="/settings/configuration?s=backup">Set one under Backups</a>.
-				</p>
-			{:else}
-				<p class="sub">homeCore doesn’t back itself up on a schedule.</p>
-			{/if}
-			{#if kept?.backups.length}
-				<ul class="kept">
-					{#each kept.backups as b (b.name)}
-						<li>
-							<button class="link" onclick={() => fetchKept(b.name)}
-								>{new Date(b.created_at).toLocaleString(undefined, {
-									day: 'numeric',
-									month: 'short',
-									hour: '2-digit',
-									minute: '2-digit'
-								})}</button
-							>
-							<span class="sub">{size(b.bytes)}</span>
-						</li>
-					{/each}
-				</ul>
-				{#if keptNote}<p class="sub" role="status">{keptNote}</p>{/if}
-			{/if}
-		</section>
-
-		<section class="card">
-			<h2>Restore</h2>
-			<p class="sub">
-				Put the house back as a backup has it. You’re told what it brings before anything happens.
-			</p>
-			{#if !plan}
-				<label class="plain bad file"
-					>Choose a backup file…<input
-						type="file"
-						accept=".zip,application/zip"
-						onchange={chose}
-					/></label
+				<button class="go" onclick={backupNow} disabled={backing?.startsWith('Making')}
+					>Back up now</button
 				>
-			{:else}
-				<div class="plan">
-					<strong
-						>A backup from {plan.taken_at
-							? new Date(plan.taken_at).toLocaleString(undefined, {
-									dateStyle: 'medium',
-									timeStyle: 'short'
-								})
-							: 'an unknown time'}</strong
-					>
-					<ul>
-						{#each counts as c (c)}<li>{c}</li>{/each}
+				{#if backing}<p class="sub" role="status">{backing}</p>{/if}
+				<p class="sub">
+					This app’s own pages, displays and everyone’s Home are kept apart from homeCore —
+					<button class="link" onclick={backupApp}>save them too</button>.
+				</p>
+				{#if appBacking}<p class="sub" role="status">{appBacking}</p>{/if}
+				{#if kept?.every_hours}
+					<p class="sub">
+						homeCore also makes one {everySaid(kept.every_hours)}, keeping the newest {kept.keep}
+						on the house<span class="path">{kept.dir ? ` in ${kept.dir}` : ''}</span> —
+						<a href="/settings/configuration?s=backup">change</a>.
+					</p>
+				{:else if kept}
+					<p class="sub">
+						homeCore doesn’t back itself up on a schedule.
+						<a href="/settings/configuration?s=backup">Set one under Backups</a>.
+					</p>
+				{:else}
+					<p class="sub">homeCore doesn’t back itself up on a schedule.</p>
+				{/if}
+				{#if kept?.backups.length}
+					<ul class="kept">
+						{#each kept.backups as b (b.name)}
+							<li>
+								<button class="link" onclick={() => fetchKept(b.name)}
+									>{new Date(b.created_at).toLocaleString(undefined, {
+										day: 'numeric',
+										month: 'short',
+										hour: '2-digit',
+										minute: '2-digit'
+									})}</button
+								>
+								<span class="sub">{size(b.bytes)}</span>
+								<button class="link" disabled={restoring} onclick={() => choseKept(b.name)}
+									>Put back…</button
+								>
+							</li>
+						{/each}
 					</ul>
-					{#if plan.skipped.length}<span class="sub"
-							>Left out: {plan.skipped.join(', ')} — not for this homeCore.</span
-						>{/if}
-				</div>
-				<div class="acts">
-					<button class="plain" onclick={backupNow}>Back up now first</button>
-					<button class="danger" onclick={putBack} disabled={restoring}>Put it back…</button>
-					<button class="plain" onclick={() => ((plan = null), (file = null))} disabled={restoring}
-						>Cancel</button
-					>
-				</div>
-			{/if}
-			{#if restoreNote}<p class="sub" role="status">{restoreNote}</p>{/if}
-			<p class="sub">
-				This app’s pages and Homes: <label class="link file"
-					>put a saved copy back<input
-						type="file"
-						accept=".json,application/json"
-						onchange={choseApp}
-					/></label
-				>
-			</p>
-			{#if appNote}<p class="sub" role="status">{appNote}</p>{/if}
-		</section>
+					{#if keptNote}<p class="sub" role="status">{keptNote}</p>{/if}
+				{/if}
+			</section>
 
-		<section class="card">
-			<h2>Rules and scenes, on their own</h2>
-			<p class="sub">
-				As JSON — to keep a copy, move them to another homeCore, or look through them.
-			</p>
-			<ScenesTransfer>
-				<a class="plain" href="/settings/automations">Export or import rules</a>
-			</ScenesTransfer>
-		</section>
+			<section class="card" id="restore">
+				<h2>Restore</h2>
+				<p class="sub">
+					Put the house back as a backup has it. You’re told what it brings before anything happens.
+				</p>
+				{#if !plan}
+					<label class="plain bad file"
+						>Choose a backup file…<input
+							type="file"
+							accept=".zip,application/zip"
+							onchange={chose}
+						/></label
+					>
+				{:else}
+					<div class="plan">
+						<strong
+							>A backup from {plan.taken_at
+								? new Date(plan.taken_at).toLocaleString(undefined, {
+										dateStyle: 'medium',
+										timeStyle: 'short'
+									})
+								: 'an unknown time'}</strong
+						>
+						<ul>
+							{#each counts as c (c)}<li>{c}</li>{/each}
+						</ul>
+						{#if plan.skipped.length}<span class="sub"
+								>Left out: {plan.skipped.join(', ')} — not for this homeCore.</span
+							>{/if}
+					</div>
+					<div class="acts">
+						<button class="plain" onclick={backupNow}>Back up now first</button>
+						<button class="danger" onclick={putBack} disabled={restoring}>Put it back…</button>
+						<button
+							class="plain"
+							onclick={() => ((plan = null), (file = null))}
+							disabled={restoring}>Cancel</button
+						>
+					</div>
+				{/if}
+				{#if restoreNote}<p class="sub" role="status">{restoreNote}</p>{/if}
+				<p class="sub">
+					This app’s pages and Homes: <label class="link file"
+						>put a saved copy back<input
+							type="file"
+							accept=".json,application/json"
+							onchange={choseApp}
+						/></label
+					>
+				</p>
+				{#if appNote}<p class="sub" role="status">{appNote}</p>{/if}
+			</section>
+
+			<section class="card">
+				<h2>Rules and scenes, on their own</h2>
+				<p class="sub">
+					As JSON — to keep a copy, move them to another homeCore, or look through them.
+				</p>
+				<ScenesTransfer>
+					<a class="plain" href="/settings/automations">Export or import rules</a>
+				</ScenesTransfer>
+			</section>
+		{/if}
 
 		<section class="card">
 			<h2>Calendars</h2>

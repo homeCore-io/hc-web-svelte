@@ -171,7 +171,12 @@ const NEEDS: Record<string, string> = {
 	alerts: 'automations:write',
 	asking: 'content:write',
 	look: 'content:write',
-	events: 'devices:read'
+	events: 'devices:read',
+	// Looking, for those whose role reads them (observer, operators, editors).
+	audit: 'audit:read',
+	plugins: 'plugins:read',
+	// The calendars rules check; backups stay admins'.
+	data: 'automations:write'
 };
 
 /** Whether this person may open a settings item. */

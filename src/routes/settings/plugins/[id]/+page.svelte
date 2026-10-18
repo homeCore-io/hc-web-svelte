@@ -261,15 +261,24 @@
 			second: '2-digit',
 			hour12: false
 		});
-	const TABS = [
+	// Someone who may read plugins but not change them (plugins:read) sees how
+	// each is and what it has, and nothing to press; its log is admins' (logs).
+	const canWrite = $derived(session.isAdmin || session.can('plugins:write'));
+	const mayRead = $derived(session.isAdmin || session.can('plugins:read'));
+	const TABS_ALL = [
 		{ id: 'overview', label: 'Overview' },
 		{ id: 'settings', label: 'Settings' },
 		{ id: 'logs', label: 'Log' },
 		{ id: 'devices', label: 'Devices' }
 	];
+	const TABS = $derived(
+		TABS_ALL.filter(
+			(t) => (t.id !== 'settings' || canWrite) && (t.id !== 'logs' || session.isAdmin)
+		)
+	);
 </script>
 
-{#if !session.isAdmin}
+{#if !mayRead}
 	<p class="quiet">Plugins are for the house’s admins.</p>
 {:else if failed}
 	<p class="quiet">{failed} <a href="/settings/plugins">All plugins</a></p>
@@ -280,7 +289,9 @@
 		<header class="top">
 			<div class="line">
 				<span class="state {health.tone}"><b>{health.word}</b> {health.detail}</span>
-				{#if plugin.enabled}
+				{#if !canWrite}
+					<!-- Look, don't touch. -->
+				{:else if plugin.enabled}
 					<button type="button" class="plain" disabled={busy} onclick={() => act('restart')}
 						>Restart</button
 					>
@@ -312,9 +323,9 @@
 
 		{#if note}<p class="note" role="status">{note}</p>{/if}
 
-		{#if tab === 'settings'}
+		{#if tab === 'settings' && canWrite}
 			<PluginSettings pluginId={id} {name} running={plugin.enabled} />
-		{:else if tab === 'logs'}
+		{:else if tab === 'logs' && session.isAdmin}
 			<section class="logs">
 				<label class="lvl">
 					Show
@@ -384,7 +395,7 @@
 				</div>
 			{/each}
 
-			{#if actions.length}
+			{#if actions.length && canWrite}
 				<section class="actions">
 					<h2>Actions</h2>
 					{#each actions as a (a.id)}
@@ -445,7 +456,7 @@
 					<select
 						value={level}
 						onchange={(e) => setLevel(e.currentTarget.value)}
-						disabled={!running}
+						disabled={!running || !canWrite}
 					>
 						{#if level === ''}<option value="">As its settings say</option>{/if}
 						{#each LEVELS as l (l)}<option value={l}>{l}</option>{/each}
@@ -458,25 +469,27 @@
 				</label>
 			</section>
 
-			<section class="card danger-zone">
-				<h2>Turn off or remove</h2>
-				<p class="quiet">
-					Turning it off keeps its settings and stays off through restarts; its {plugin.device_count}
-					devices go quiet. Removing it takes its program and its devices — rules that use them are turned
-					off.
-				</p>
-				<div class="buttons">
-					{#if plugin.enabled}<button
-							type="button"
-							class="plain"
-							disabled={busy}
-							onclick={() => turn(false)}>Turn off</button
-						>{/if}
-					<button type="button" class="plain danger" disabled={busy} onclick={remove}
-						>Remove…</button
-					>
-				</div>
-			</section>
+			{#if canWrite}
+				<section class="card danger-zone">
+					<h2>Turn off or remove</h2>
+					<p class="quiet">
+						Turning it off keeps its settings and stays off through restarts; its {plugin.device_count}
+						devices go quiet. Removing it takes its program and its devices — rules that use them are
+						turned off.
+					</p>
+					<div class="buttons">
+						{#if plugin.enabled}<button
+								type="button"
+								class="plain"
+								disabled={busy}
+								onclick={() => turn(false)}>Turn off</button
+							>{/if}
+						<button type="button" class="plain danger" disabled={busy} onclick={remove}
+							>Remove…</button
+						>
+					</div>
+				</section>
+			{/if}
 		{/if}
 	</div>
 {/if}

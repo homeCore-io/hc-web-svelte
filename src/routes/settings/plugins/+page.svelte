@@ -54,7 +54,7 @@
 	const href = (id: string) => `/settings/plugins/${encodeURIComponent(id)}`;
 </script>
 
-{#if !session.isAdmin}
+{#if !(session.isAdmin || session.can('plugins:read'))}
 	<p class="quiet">Plugins are for the house’s admins.</p>
 {:else}
 	<div class="page">
@@ -62,14 +62,18 @@
 			<span class="sum">
 				{running} running{updates ? ` · ${updates} ${updates === 1 ? 'update' : 'updates'}` : ''}
 			</span>
-			<a class="plain" href="/settings/plugins/runtimes"
-				>Plugin runtimes · {runtimes
-					? runtimes.pending
-						? `${runtimes.pending} waiting`
-						: runtimes.all || 'none'
-					: '…'}</a
-			>
-			<a class="go" href="/settings/plugins/add">+ Add a plugin</a>
+			{#if session.isAdmin}
+				<a class="plain" href="/settings/plugins/runtimes"
+					>Plugin runtimes · {runtimes
+						? runtimes.pending
+							? `${runtimes.pending} waiting`
+							: runtimes.all || 'none'
+						: '…'}</a
+				>
+			{/if}
+			{#if session.isAdmin || session.can('plugins:write')}
+				<a class="go" href="/settings/plugins/add">+ Add a plugin</a>
+			{/if}
 		</div>
 
 		{#if failed}

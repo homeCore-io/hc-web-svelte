@@ -235,8 +235,9 @@ export const idFor = (type: string, name: string) => `${type}_${slugOf(name)}`;
 /** Form values from a helper's attributes (its config lives there). */
 export function valuesFrom(type: string, attrs: Record<string, unknown>): Record<string, unknown> {
 	const out: Record<string, unknown> = { ...attrs };
-	if (type === 'timer' && typeof attrs.duration_secs === 'number')
-		out.duration_mins = attrs.duration_secs / 60;
+	// Its own length: `default_secs` (core 0.1.84), else `duration_secs`.
+	const own = typeof attrs.default_secs === 'number' ? attrs.default_secs : attrs.duration_secs;
+	if (type === 'timer' && typeof own === 'number') out.duration_mins = own / 60;
 	return out;
 }
 

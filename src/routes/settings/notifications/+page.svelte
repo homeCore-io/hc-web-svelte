@@ -76,6 +76,9 @@
 	const open = (q: string) =>
 		goto(`/settings/notifications${q}`, { replace: wide.current, reset: !wide.current });
 
+	// Before the effect below resets it: a page opened straight at ?new=… runs
+	// that effect while the script is still being read.
+	let tested = $state<{ ok: boolean; text: string } | null>(null);
 	const form = new FormState();
 	// A channel chosen (or a new one begun) starts a fresh form. Set before
 	// the page draws, so the form never shows the last channel's fields.
@@ -186,7 +189,6 @@
 	}
 
 	// ---- test ----
-	let tested = $state<{ ok: boolean; text: string } | null>(null);
 	let testing = $state(false);
 	/** What the test says; homeCore's own words when left empty. */
 	let testText = $state('');

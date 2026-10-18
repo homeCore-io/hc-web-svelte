@@ -48,7 +48,9 @@
 		rulesNaming,
 		runRule,
 		setEnabled,
-		testRule
+		testRule,
+		loadPaused,
+		resumeRule
 	} from '#lib/ruleAdmin.js';
 	import { featuresOf, type Features } from '#lib/ruleEdit.js';
 
@@ -72,6 +74,18 @@
 	async function loadHistory() {
 		const res = await history(id);
 		records = res.ok ? res.data : [];
+		void loadPause();
+	}
+	// Paused by another rule (homeCore 0.1.84): its moment doesn't run it.
+	let paused = $state(false);
+	async function loadPause() {
+		const p = await loadPaused();
+		paused = p.ok && p.data.paused.includes(id);
+	}
+	async function resume() {
+		const r = await resumeRule(id);
+		if (r.ok) paused = false;
+		else note = r.error;
 	}
 
 	let features = $state<Features | null>(null);
@@ -88,6 +102,9 @@
 				f.rule_id === id
 			)
 				void loadHistory();
+			// Any rule running may pause or resume this one.
+			else if (f.type === 'rule_fired' || (f.type === 'rule_changed' && f.rule?.id === id))
+				void loadPause();
 			if (f.type === 'rule_changed' && f.rule && all) {
 				const changed = f.rule;
 				all = all.some((r) => r.id === changed.id)
@@ -418,6 +435,14 @@
 			{/if}
 			{#if rule.error}
 				<p class="banner bad">homeCore can’t run it: {rule.error}</p>
+			{/if}
+			{#if paused}
+				<div class="banner lit">
+					<strong
+						>Another rule paused it: its moment doesn’t run it until a rule resumes it — or you do.</strong
+					>
+					{#if canWrite}<button type="button" onclick={resume}>Resume it</button>{/if}
+				</div>
 			{/if}
 			{#each fixes as f (f.id)}
 				<div class="banner bad">

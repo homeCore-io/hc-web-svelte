@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { ask } from '#lib/confirm.svelte.js';
 	import { loadConfig } from '#lib/config.js';
 	import { session } from '#lib/me.svelte.js';
 	import { heading } from '#lib/heading.svelte.js';
@@ -57,6 +58,19 @@
 			? `${r.hostname ?? r.runtime_id} ${yes ? 'may join' : 'was turned away'}.`
 			: res.error;
 		await load();
+	}
+	/** A joined runtime retired: turned away, so it can't connect again. */
+	async function remove(r: Runtime) {
+		const mine = hosted(r.runtime_id);
+		const yes = await ask({
+			title: `Remove ${r.hostname ?? r.runtime_id}?`,
+			body: mine.length
+				? `It runs ${mine.map((p) => pluginLabel(p.plugin_id)).join(', ')}, which stop reaching homeCore. To use it again it has to join again.`
+				: 'It can’t connect again unless it joins again.',
+			go: 'Remove',
+			danger: true
+		});
+		if (yes) await decide(r, false);
 	}
 	async function makeToken() {
 		const r = await runtimeToken();
@@ -124,6 +138,9 @@
 						{:else}
 							<span class="st {r.status}">{r.status === 'approved' ? 'Joined' : 'Turned away'}</span
 							>
+							{#if r.status === 'approved'}
+								<button type="button" class="plain" onclick={() => remove(r)}>Remove…</button>
+							{/if}
 						{/if}
 					</li>
 				{/each}

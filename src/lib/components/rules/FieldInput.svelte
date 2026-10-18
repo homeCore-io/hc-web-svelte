@@ -148,7 +148,7 @@
 					)}
 			>
 				{#if field.optional}
-					<option value="">—</option>
+					<option value="">{field.blank || '—'}</option>
 				{:else if unset(value)}
 					<option value="" disabled>Choose…</option>
 				{/if}
@@ -214,9 +214,14 @@
 			<textarea
 				rows="2"
 				value={typeof value === 'string' ? value : ''}
-				oninput={(e) => onchange(e.currentTarget.value)}></textarea>
+				oninput={(e) =>
+					onchange(
+						e.currentTarget.value === '' && field.optional ? undefined : e.currentTarget.value
+					)}></textarea>
 		{:else if field.kind === 'text'}
 			<input
+				type={field.secret ? 'password' : 'text'}
+				autocomplete={field.secret ? 'off' : undefined}
 				list={field.suggest ? id : undefined}
 				value={typeof value === 'string' ? value : ''}
 				oninput={(e) =>
@@ -228,10 +233,16 @@
 					>{#each field.suggest as s (s)}<option value={s}></option>{/each}</datalist
 				>{/if}
 		{/if}
+		{#if field.help}<small class="help">{field.help}</small>{/if}
 	</label>
 {/if}
 
 <style>
+	.help {
+		font-size: 12px;
+		color: var(--ink-muted);
+		max-width: 46ch;
+	}
 	.devices {
 		flex-basis: 100%;
 		display: flex;

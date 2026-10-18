@@ -228,7 +228,8 @@ test('the rest of the vocabulary, as fields', () => {
 		testDraft: true,
 		ruleEvents: true,
 		runNow: false,
-		testAt: false
+		testAt: false,
+		ifAnyCheck: false
 	});
 	expect(
 		featuresOf({ triggers: [], conditions: [], actions: [], features: ['run_now', 'test_at'] })

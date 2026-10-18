@@ -329,13 +329,15 @@
 								{:else}
 									<button
 										type="button"
-										disabled={!(Number(a.duration_secs) > 0)}
-										title={Number(a.duration_secs) > 0
+										disabled={!(Number(a.default_secs ?? a.duration_secs) > 0)}
+										title={Number(a.default_secs ?? a.duration_secs) > 0
 											? undefined
 											: 'Set how long it runs for first'}
 										onclick={() =>
-											command({ command: 'start', duration_secs: Number(a.duration_secs) })}
-										>Start</button
+											command({
+												command: 'start',
+												duration_secs: Number(a.default_secs ?? a.duration_secs)
+											})}>Start</button
 									>
 								{/if}
 							{:else if kind.type === 'switch'}
@@ -391,6 +393,20 @@
 										setTo = '';
 									}}>Set</button
 								>
+								{#if kind.type === 'number'}
+									<button
+										type="button"
+										aria-label="Down a step"
+										onclick={() => command({ command: 'decrement' })}><Minus size={16} /></button
+									>
+									<button
+										type="button"
+										aria-label="Up a step"
+										onclick={() => command({ command: 'increment' })}><Plus size={16} /></button
+									>
+								{:else if a.value !== undefined && a.value !== ''}
+									<button type="button" onclick={() => command({ command: 'clear' })}>Clear</button>
+								{/if}
 							{:else}
 								<span class="what">{cardFor(helper, now.now).stateLine}</span>
 							{/if}

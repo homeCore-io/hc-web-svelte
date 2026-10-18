@@ -300,7 +300,13 @@ function describe(
 						: words(state);
 			// homeCore's own timers take commands rather than declaring actions.
 			if (d.plugin_id === 'core.glue') {
-				v.control = { kind: 'timer', running, durationSecs: num(a.duration_secs) ?? 300 };
+				// Its own length (`default_secs`, core 0.1.84); `duration_secs` is
+				// the current run's, which a rule may have made longer.
+				v.control = {
+					kind: 'timer',
+					running,
+					durationSecs: num(a.default_secs) ?? num(a.duration_secs) ?? 300
+				};
 			}
 			return v;
 		}

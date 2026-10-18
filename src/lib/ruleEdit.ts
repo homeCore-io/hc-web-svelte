@@ -48,6 +48,8 @@ export interface Features {
 	runNow: boolean;
 	/** A dry run can be asked as if it were another time (0.1.81). */
 	testAt: boolean;
+	/** An if/otherwise can ask any check a rule can (0.1.84). */
+	ifAnyCheck: boolean;
 }
 
 export function featuresOf(v: Vocabulary | null | undefined): Features {
@@ -58,7 +60,8 @@ export function featuresOf(v: Vocabulary | null | undefined): Features {
 		testDraft: f.has('test_draft'),
 		ruleEvents: f.has('rule_events'),
 		runNow: f.has('run_now'),
-		testAt: f.has('test_at')
+		testAt: f.has('test_at'),
+		ifAnyCheck: f.has('if_any_check')
 	};
 }
 
@@ -69,7 +72,7 @@ export interface Choice {
 	label: string;
 }
 
-export type Field =
+export type Field = (
 	| {
 			kind: 'number';
 			name: string;
@@ -87,6 +90,8 @@ export type Field =
 			long?: boolean;
 			optional?: boolean;
 			suggest?: string[];
+			/** A password: typed unseen. */
+			secret?: boolean;
 	  }
 	| {
 			kind: 'choice';
@@ -96,6 +101,8 @@ export type Field =
 			numeric?: boolean;
 			/** "—" leaves it out: homeCore's default. */
 			optional?: boolean;
+			/** What leaving it out means, in place of "—" — "Any calendar". */
+			blank?: string;
 	  }
 	/** One value of any type, typed plainly: words, 42, true. Objects stay JSON. */
 	| { kind: 'value'; name: string; label: string; optional?: boolean }
@@ -112,7 +119,11 @@ export type Field =
 	| { kind: 'checks'; name: string; label: string }
 	/** One check inside a check: not. */
 	| { kind: 'check'; name: string; label: string }
-	| { kind: 'json'; name: string; label: string; optional?: boolean };
+	| { kind: 'json'; name: string; label: string; optional?: boolean }
+) & {
+	/** A sentence under it: what it's for, what's best (a plugin's description). */
+	help?: string;
+};
 
 // ---- a device's attributes, as a rule sees them ----
 
@@ -476,11 +487,25 @@ export function commandsOf(d: CoreDevice): Command[] {
 		out.push({
 			key: 'cmd:start',
 			label: 'start',
-			fields: [{ kind: 'duration', name: 'duration_secs', label: 'For' }],
-			build: (v) => ({ command: 'start', duration_secs: Number(v.duration_secs ?? 300) }),
+			// Left empty, the timer runs for its own length and keeps its own
+			// "start again" (homeCore 0.1.84).
+			fields: [
+				{ kind: 'duration', name: 'duration_secs', label: 'For', optional: true },
+				{ kind: 'text', name: 'label', label: 'Label', optional: true }
+			],
+			build: (v) => {
+				const out: Json = { command: 'start' };
+				if (v.duration_secs !== undefined && v.duration_secs !== null)
+					out.duration_secs = Number(v.duration_secs);
+				if (typeof v.label === 'string' && v.label !== '') out.label = v.label;
+				return out;
+			},
 			read: (s) =>
 				plainState(s) && s.command === 'start'
-					? { duration_secs: s.duration_secs ?? 300 }
+					? {
+							...(s.duration_secs === undefined ? {} : { duration_secs: s.duration_secs }),
+							...(s.label === undefined ? {} : { label: s.label })
+						}
 					: undefined
 		});
 		for (const c of ['cancel', 'pause', 'resume', 'restart'])
@@ -580,6 +605,14 @@ export function commandsOf(d: CoreDevice): Command[] {
 			read: (s) => (plainState(s) && s.command === 'clear' ? {} : undefined)
 		});
 	}
+	if (helper && type === 'switch')
+		out.push({
+			key: 'cmd:toggle',
+			label: 'flip',
+			fields: [],
+			build: () => ({ command: 'toggle' }),
+			read: (s) => (plainState(s) && s.command === 'toggle' ? {} : undefined)
+		});
 	if (helper && type === 'button')
 		out.push({
 			key: 'cmd:press',
@@ -1040,7 +1073,11 @@ function fromRhai(s: string): Json | undefined {
 
 /** Which kinds of check an if/otherwise can ask on this homeCore. */
 export const ifKinds = (f: Features): CheckKind[] =>
-	f.ifChecks ? ['device', 'mode', 'time', 'any'] : ['device', 'mode'];
+	f.ifAnyCheck
+		? ['device', 'mode', 'time', 'any', 'other']
+		: f.ifChecks
+			? ['device', 'mode', 'time', 'any']
+			: ['device', 'mode'];
 
 // ---- a whole rule ----
 
@@ -1271,12 +1308,16 @@ const VALUE_FIELDS = new Set(['to', 'from', 'not_to', 'not_from', 'value', 'valu
  * has: a rule, a calendar, a mode, devices; variable names as suggestions.
  */
 export function withPickers(tag: string, f: Field, lists: Lists): Field {
-	const base = { name: f.name, label: f.label };
+	// Optional stays optional: an emptied filter is left out ("any"), never
+	// sent as "" — which homeCore matches literally, so the rule never runs.
+	const optional = 'optional' in f && f.optional ? true : undefined;
+	const base = { name: f.name, label: f.label, optional };
 	if (f.name === 'rule_id' && lists.rules.length)
 		return {
 			kind: 'choice',
 			...base,
 			label: 'Rule',
+			blank: optional && (tag === 'CancelRuleTimers' ? 'This rule' : 'Any rule'),
 			options: [...lists.rules]
 				.sort((a, b) => a.name.localeCompare(b.name))
 				.map((r) => ({ value: r.id, label: r.name }))
@@ -1287,6 +1328,7 @@ export function withPickers(tag: string, f: Field, lists: Lists): Field {
 					kind: 'choice',
 					...base,
 					label: 'Calendar',
+					blank: optional && 'Any calendar',
 					options: lists.calendars.map((c) => ({ value: c, label: c }))
 				}
 			: { kind: 'text', ...base, label: 'Calendar', suggest: [] };
@@ -1295,6 +1337,7 @@ export function withPickers(tag: string, f: Field, lists: Lists): Field {
 			kind: 'choice',
 			...base,
 			label: 'Mode',
+			blank: optional && 'Any mode',
 			options: lists.modes.map((m) => ({ value: m.id, label: m.name }))
 		};
 	if (f.name === 'device_ids') return { kind: 'devices', ...base, label: 'Devices' };
@@ -1327,14 +1370,20 @@ export function withPickers(tag: string, f: Field, lists: Lists): Field {
 			...base,
 			label: fixed.label ?? base.label,
 			options: fixed.options,
-			optional: fixed.optional
+			optional: fixed.optional ?? optional
 		};
-	if (f.kind === 'json' && VALUE_FIELDS.has(f.name))
-		return { kind: 'value', ...base, optional: 'optional' in f ? f.optional : undefined };
+	if (f.kind === 'json' && VALUE_FIELDS.has(f.name)) return { kind: 'value', ...base };
 	if (f.name === 'attribute' && lists.attributes)
 		return { kind: 'text', ...base, label: 'Reading', suggest: lists.attributes };
 	if (f.name === 'button_number' && lists.buttons?.length)
-		return { kind: 'choice', ...base, label: 'Button', options: lists.buttons, numeric: true };
+		return {
+			kind: 'choice',
+			...base,
+			label: 'Button',
+			blank: optional && 'Any button',
+			options: lists.buttons,
+			numeric: true
+		};
 	return f;
 }
 

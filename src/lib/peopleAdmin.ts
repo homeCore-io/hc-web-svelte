@@ -60,7 +60,7 @@ export const setRole = (id: string, role: string) =>
 
 /** Signs them out everywhere. */
 export const setPassword = (id: string, password: string) =>
-	call<null>('PATCH', `${user(id)}/password`, { password });
+	call<null>('PATCH', `${user(id)}/password`, { new_password: password });
 
 /** So they can choose another on Me. */
 export const clearPin = (id: string) => call<null>('DELETE', `${user(id)}/pin`);

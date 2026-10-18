@@ -1,7 +1,8 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, it, test } from 'vitest';
 import {
 	resultLines,
 	buttonOf,
+	dangerous,
 	compareVersions,
 	latestOf,
 	needsCore,
@@ -140,6 +141,11 @@ describe('actions', () => {
 		expect(buttonOf(pair)).toBe('Start…');
 		expect(buttonOf({ id: 'remove_bridge', label: 'Remove bridge' })).toBe('Remove…');
 		expect(buttonOf({ id: 'refresh', label: 'Refresh' })).toBe('Run');
+		// A plugin that says an action is dangerous is asked first, whatever its name.
+		expect(dangerous({ id: 'recalibrate', label: 'Recalibrate', danger: true })).toBe(true);
+		expect(dangerous({ id: 'reboot', label: 'Reboot devices' })).toBe(true);
+		expect(dangerous({ id: 'refresh', label: 'Refresh' })).toBe(false);
+		expect(buttonOf({ id: 'recalibrate', label: 'Recalibrate', danger: true })).toBe('Run…');
 	});
 });
 
@@ -212,8 +218,49 @@ test('what an action hands back reads as lines', () => {
 	).toEqual([
 		{ label: 'Host', value: '10.0.0.5' },
 		{ label: 'Devices removed', value: '3' },
-		{ label: 'Raw response', value: '{"ok":true}' },
+		{ label: 'Raw response', value: 'ok: yes' },
 		{ label: 'Ids', value: 'a, b' }
 	]);
 	expect(resultLines(undefined)).toEqual([]);
+	// WLED's per-device lists, counted rather than dumped.
+	expect(
+		resultLines({
+			devices: {
+				wled_desk: { host: '10.0.10.74', effects: ['Solid', 'Blink'], palettes: ['Default'] }
+			}
+		})
+	).toEqual([{ label: 'Devices', value: 'wled_desk: host 10.0.10.74, 2 effects, 1 palette' }]);
+});
+
+describe('what a plugin says about its fields', () => {
+	it('names choices as the plugin does, keeps its help, and hides passwords', () => {
+		const [bridge, server, password] = paramFields({
+			id: 'x',
+			label: 'x',
+			params: {
+				bridge_id: {
+					type: 'string',
+					title: 'Bridge',
+					description: 'Pick which bridge to pair against',
+					enum: ['001788fffe1', '001788fffe2'],
+					'x-options': [
+						{ value: '001788fffe1', label: 'Hue Bridge (10.0.10.20)' },
+						{ value: '001788fffe2', label: 'Upstairs (10.0.10.21)' }
+					]
+				},
+				server: { type: 'string', description: 'Leave blank to auto-detect (recommended)' },
+				password: { type: 'string' }
+			}
+		});
+		expect(bridge).toMatchObject({
+			kind: 'choice',
+			help: 'Pick which bridge to pair against',
+			options: [
+				{ value: '001788fffe1', label: 'Hue Bridge (10.0.10.20)' },
+				{ value: '001788fffe2', label: 'Upstairs (10.0.10.21)' }
+			]
+		});
+		expect(server).toMatchObject({ help: 'Leave blank to auto-detect (recommended)' });
+		expect(password).toMatchObject({ kind: 'text', secret: true });
+	});
 });

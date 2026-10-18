@@ -323,11 +323,14 @@ function groupsOf(d: CoreDevice, s: Schema, all: CoreDevice[]): ActionGroup[] {
 		const fields = drawn
 			.filter((x): x is { p: ParamSpec; f: Field } => x.f !== undefined)
 			.map(({ p, f }) => {
-				// Standing in for a reading: its parameter starts as the reading is.
+				// Standing in for a reading: its parameter starts as the reading is —
+				// as does one named for a reading the device has (min_on_secs).
 				const now =
 					action.writes && (params.length === 1 || p.name === action.writes)
 						? d.attributes[action.writes]
-						: undefined;
+						: d.schema?.attributes?.[p.name] !== undefined
+							? d.attributes[p.name]
+							: undefined;
 				const valued = now === undefined ? f : withValue(f, now);
 				if (p.required) return valued;
 				// Optional with nothing to start from: empty, so it isn't sent.

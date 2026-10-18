@@ -295,6 +295,13 @@ export const checkRestore = (file: Blob) =>
 		headers: { 'content-type': 'application/zip' }
 	});
 
+/** What a backup kept on the house would put back (core 0.1.84). */
+export const checkKept = (name: string) =>
+	call<RestorePlan>('POST', `/system/backups/${encodeURIComponent(name)}/restore?check=true`);
+/** Stage a kept one for the next start. */
+export const stageKept = (name: string) =>
+	call<RestorePlan>('POST', `/system/backups/${encodeURIComponent(name)}/restore`);
+
 /** Stage it for the next start. */
 export const stageRestore = (file: Blob) =>
 	call<RestorePlan>('POST', '/system/restore', undefined, {

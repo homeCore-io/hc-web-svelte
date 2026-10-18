@@ -218,6 +218,9 @@
 				kind: 'choice',
 				name: 'mode_id',
 				label: 'Mode',
+				// Left out, the moment is any mode changing.
+				optional: true,
+				blank: 'Any mode',
 				options: ctx.modes.map((m) => ({ value: m.device_id, label: displayName(m) }))
 			}}
 			value={f.mode_id}

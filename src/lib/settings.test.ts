@@ -64,6 +64,11 @@ describe('who may open what', () => {
 		expect(mayOpen(item('system'), editor, false)).toBe(false);
 		expect(mayOpen(item('system'), scopes(), true)).toBe(true);
 		expect(hasSettings(scopes('devices:read'), false)).toBe(true);
+		// An observer reads the audit and the plugins, and changes nothing.
+		const observer = scopes('audit:read', 'plugins:read', 'devices:read');
+		expect(mayOpen(item('audit'), observer, false)).toBe(true);
+		expect(mayOpen(item('plugins'), observer, false)).toBe(true);
+		expect(mayOpen(item('logs'), observer, false)).toBe(false);
 		expect(hasSettings(scopes(), false)).toBe(false);
 	});
 });

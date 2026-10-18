@@ -61,6 +61,14 @@ export const rulesNaming = (rules: Rule[], deviceId: string) => {
 };
 
 /** Run a rule now; homeCore answers before it runs (homeCore with `run_now`). */
+/** Rules another rule has paused (homeCore 0.1.84; older ones say 404). */
+export const loadPaused = () => call<{ paused: string[] }>('GET', '/automations/paused');
+/** Resume one by hand. */
+export const resumeRule = (id: string) => call<unknown>('DELETE', `${one(id)}/pause`);
+/** The house values rules keep, with what each is now. */
+export const loadHouseValues = () =>
+	call<{ hub: Record<string, unknown> }>('GET', '/automations/variables');
+
 export const runRule = (id: string, checks: boolean) =>
 	call<{ rule_id: string; checks: boolean }>('POST', `${one(id)}/run`, { checks });
 

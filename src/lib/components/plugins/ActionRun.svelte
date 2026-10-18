@@ -31,6 +31,7 @@
 	let run = $state<Run | null>(null);
 	let requestId = $state<string | null>(null);
 	let reply = $state<string | null>(null);
+	let replyLines = $state.raw<{ label: string; value: string }[]>([]);
 	let trouble = $state<string | null>(null);
 	let busy = $state(false);
 	let answer = $state<Record<string, unknown>>({});
@@ -74,6 +75,7 @@
 	async function start() {
 		trouble = null;
 		reply = null;
+		replyLines = [];
 		if (dangerous(action)) {
 			const yes = await ask({
 				title: `${action.label}?`,
@@ -94,18 +96,18 @@
 			return;
 		}
 		if (d.kind === 'reply') {
-			reply = summary(d.reply);
+			// A message as it is; anything else as labelled lines, not JSON.
+			const { request_id: _r, status: _s, ...rest } = d.reply;
+			const msg = rest.message ?? rest.result;
+			if (typeof msg === 'string') reply = msg;
+			else {
+				replyLines = resultLines(rest.data ?? rest);
+				if (!replyLines.length) reply = 'Done.';
+			}
 			return;
 		}
 		remember(d.request_id);
 		listen(d.request_id);
-	}
-
-	function summary(r: Record<string, unknown>): string {
-		const { request_id: _r, status: _s, ...rest } = r;
-		const msg = rest.message ?? rest.result;
-		if (typeof msg === 'string') return msg;
-		return Object.keys(rest).length ? JSON.stringify(rest.data ?? rest, null, 1) : 'Done.';
 	}
 
 	async function cancel() {
@@ -238,6 +240,12 @@
 			</p>{/if}
 	{/if}
 	{#if reply}<pre class="reply">{reply}</pre>{/if}
+	{#if replyLines.length}
+		<dl class="result">
+			{#each replyLines as l (l.label)}<dt>{l.label}</dt>
+				<dd>{l.value}</dd>{/each}
+		</dl>
+	{/if}
 	{#if trouble}<p class="trouble" role="alert">{trouble}</p>{/if}
 </div>
 

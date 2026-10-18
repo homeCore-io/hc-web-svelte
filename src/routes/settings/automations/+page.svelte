@@ -56,7 +56,9 @@
 		setManyEnabled,
 		withMembers,
 		type Imported,
-		type RuleGroup
+		type RuleGroup,
+		loadPaused,
+		loadHouseValues
 	} from '#lib/ruleAdmin.js';
 
 	// Someone who may read rules but not change them sees them, and nothing to press.
@@ -78,9 +80,18 @@
 	let runs = $state<Record<string, LastRuns>>({});
 	let byMode = $state<Record<string, string>>({});
 	let groups = $state<RuleGroup[]>([]);
+	// Rules a rule has paused, and the house values rules keep (homeCore 0.1.84).
+	let paused = $state.raw<Set<string>>(new Set());
+	let values = $state.raw<[string, unknown][]>([]);
+	async function loadAside() {
+		const [p, v] = await Promise.all([loadPaused(), loadHouseValues()]);
+		paused = new Set(p.ok ? p.data.paused : []);
+		values = v.ok ? Object.entries(v.data.hub ?? {}) : [];
+	}
 
 	async function load() {
 		const res = await loadRules();
+		void loadAside();
 		if (!res.ok) {
 			failed = res.error;
 			return;
@@ -119,6 +130,8 @@
 		// homeCore says when a rule fires, not when one changes.
 		const stop = live.listen((frame) => {
 			const f = frame as { type: string; rule_id?: string; timestamp?: string; rule?: Rule };
+			// A rule that ran may have paused or resumed one, or set a value.
+			if (f.type === 'rule_fired' || f.type === 'rule_changed') void loadAside();
 			if (f.type === 'rule_fired' && f.rule_id)
 				runs = {
 					...runs,
@@ -447,6 +460,7 @@
 				<span class="name">{r.name}</span>
 				{#if !wide.current && !r.enabled}<span>· off</span>{/if}
 				{#if row.byMode}<span>· made by {row.byMode}</span>{/if}
+				{#if paused.has(r.id)}<span class="pausedby">· paused by a rule</span>{/if}
 			</span>
 		</a>
 		<span
@@ -714,6 +728,18 @@
 				{rows.length === 1 ? 'One rule' : `${rows.length} rules`}, {onCount} on. A rule with two tags
 				is under both.
 			</p>
+		{/if}
+		{#if values.length}
+			<details class="values">
+				<summary>House values rules keep <span class="n">{values.length}</span></summary>
+				<dl>
+					{#each values as [name, v] (name)}
+						<dt><code>{name}</code></dt>
+						<dd>{typeof v === 'string' ? v : JSON.stringify(v)}</dd>
+					{/each}
+				</dl>
+				<p class="quiet">As they are now. homeCore forgets them when it restarts.</p>
+			</details>
 		{/if}
 	</div>
 
@@ -1215,5 +1241,30 @@
 	}
 	.bulk button:disabled {
 		opacity: 0.5;
+	}
+	.pausedby {
+		color: var(--lit-ink);
+		font-weight: 600;
+	}
+	.values {
+		margin-top: var(--space-3);
+		padding: var(--space-3);
+		border-radius: 12px;
+		background: var(--surface);
+		border: 1px solid var(--card-line);
+	}
+	.values summary {
+		cursor: pointer;
+		font-weight: 600;
+	}
+	.values dl {
+		display: grid;
+		grid-template-columns: max-content minmax(0, 1fr);
+		gap: 4px 12px;
+		margin: var(--space-2) 0;
+	}
+	.values dd {
+		margin: 0;
+		overflow-wrap: anywhere;
 	}
 </style>

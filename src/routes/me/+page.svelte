@@ -20,9 +20,14 @@
 		user_agent: string;
 		started_at?: string | null;
 		last_active: string;
+		/** This browser (core 0.1.84). */
+		current?: boolean;
 	}
 	let sessions = $state<SignedIn[] | null>(null);
 	let sessionNote = $state<string | null>(null);
+	// The newest few; the rest on asking (an old browser left signed in, a script).
+	let allSessions = $state(false);
+	const shownSessions = $derived(sessions ? (allSessions ? sessions : sessions.slice(0, 8)) : []);
 	async function loadSessions() {
 		const res = await fetch('/api/v1/auth/sessions').catch(() => null);
 		sessions = res?.ok ? ((await res.json()) as SignedIn[]) : null;
@@ -42,8 +47,12 @@
 		const res = await fetch(`/api/v1/auth/sessions/${encodeURIComponent(x.id)}`, {
 			method: 'DELETE'
 		}).catch(() => null);
+		// Since homeCore 0.1.84 it ends at once; before, it lasted until its
+		// access token ran out — a day by default.
 		sessionNote = res?.ok
-			? `${browserOf(x.user_agent)} is signed out within the hour.`
+			? core.since('0.1.84')
+				? `${browserOf(x.user_agent)} is signed out.`
+				: `${browserOf(x.user_agent)} is signed out within a day.`
 			: 'homeCore didn’t end it.';
 		await loadSessions();
 	}
@@ -233,19 +242,32 @@
 				<h2 class="section-label" id="sessions">Signed in</h2>
 				<p class="note">Each browser and app signed in as you, newest first.</p>
 				<ul class="sessions">
-					{#each sessions as x (x.id)}
+					{#each shownSessions as x (x.id)}
 						<li>
 							<span
-								><strong>{browserOf(x.user_agent)}</strong>
+								><strong
+									>{browserOf(x.user_agent)}{#if x.current}<span class="this">
+											· this one</span
+										>{/if}</strong
+								>
 								<span class="note"
 									>{x.started_at ? `since ${day(x.started_at)}` : ''}{x.started_at ? ' · ' : ''}last
 									active {day(x.last_active)}</span
 								></span
 							>
-							<button class="link" onclick={() => endSession(x)}>Sign it out</button>
+							{#if x.current}
+								<button class="link" onclick={() => session.signOut()}>Sign out</button>
+							{:else}
+								<button class="link" onclick={() => endSession(x)}>Sign it out</button>
+							{/if}
 						</li>
 					{/each}
 				</ul>
+				{#if sessions.length > shownSessions.length}
+					<button class="link" onclick={() => (allSessions = true)}
+						>Show all {sessions.length}</button
+					>
+				{/if}
 				<button class="link" onclick={endAll}>Sign out everywhere</button>
 				{#if sessionNote}<p class="note" role="status">{sessionNote}</p>{/if}
 			</section>
@@ -411,6 +433,10 @@
 		border: 1px solid var(--line);
 		background: var(--surface);
 		font-weight: 600;
+	}
+	.this {
+		font-weight: 400;
+		color: var(--ink-muted);
 	}
 	.sessions {
 		list-style: none;

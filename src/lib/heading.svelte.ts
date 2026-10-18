@@ -10,7 +10,10 @@ export interface Back {
 
 class Heading {
 	text = $state<string | null>(null);
-	back = $state<Back | null>(null);
+	// Raw, not deep state: `show`'s clean-up knows its own back by identity, and
+	// a deep proxy is never identical to what was handed in — so a page's back
+	// outlived it, and a list was left pointing back at itself.
+	back = $state.raw<Back | null>(null);
 
 	/** Use inside `$effect`: sets the heading, and clears it when the page goes. */
 	show(text: string | null, back: Back | null = null): () => void {

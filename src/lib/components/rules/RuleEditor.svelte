@@ -119,15 +119,18 @@
 	let test = $state<Tested | null>(null);
 	let testNote = $state<string | null>(null);
 	let testing = $state(false);
+	/** A time to test at instead of now (homeCore with `test_at`): `datetime-local`. */
+	let testAt = $state('');
 	async function runTest() {
 		if (tab === 'json' && !readJson()) return;
 		testing = true;
 		testNote = null;
 		const snap = $state.snapshot(draft) as Rule;
+		const at = features.testAt && testAt ? testAt : undefined;
 		const res = features.testDraft
-			? await testDraft(snap)
+			? await testDraft(snap, at)
 			: saved && !changed
-				? await testRule(saved.id)
+				? await testRule(saved.id, at)
 				: null;
 		testing = false;
 		if (res === null) {
@@ -137,7 +140,13 @@
 		} else if (!res.ok) {
 			test = null;
 			testNote = res.error;
-		} else test = tested(house, snap, res.data);
+		} else
+			test = tested(
+				house,
+				snap,
+				res.data,
+				at ? `at ${at.slice(11, 16)} on ${at.slice(0, 10)}` : undefined
+			);
 	}
 	function save() {
 		if (tab === 'json' && !readJson()) return;
@@ -160,6 +169,15 @@
 			>
 		</div>
 		<span class="state">{changed ? 'Draft — not saved yet.' : 'Saved.'}</span>
+		{#if features.testAt}
+			<input
+				class="at"
+				type="datetime-local"
+				bind:value={testAt}
+				title="Test as if it were this time; empty is now"
+				aria-label="Test at (empty is now)"
+			/>
+		{/if}
 		<button type="button" class="plain" disabled={testing} onclick={runTest}
 			>{testing ? 'Testing…' : 'Test'}</button
 		>
@@ -456,6 +474,16 @@
 	.state {
 		flex: 1;
 		color: var(--ink-muted);
+		font-size: 13px;
+	}
+	.at {
+		height: 34px;
+		padding: 0 8px;
+		border-radius: 10px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--ink);
+		font: inherit;
 		font-size: 13px;
 	}
 	@media (max-width: 499px) {

@@ -2,6 +2,7 @@
 	Displays (D7, M5): a kitchen panel, a hall tablet — each its own identity
 	in homeCore, made here. Its key is shown once, to type on the tablet at
 	/display. What it shows and how it behaves are kept by the UI server.
+	Its name is homeCore's, and can be changed from homeCore 0.1.81.
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
@@ -13,6 +14,7 @@
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { nudgeFavourite } from '#lib/layers.js';
 	import { tabsFor, type DisplayDoc } from '#lib/display.js';
+	import { core } from '#lib/core.svelte.js';
 
 	interface Display {
 		id: string;
@@ -67,8 +69,22 @@
 	// ---- one display's settings ----
 	let open = $state<string | null>(null);
 	let doc = $state<DisplayDoc>({ version: 0 });
+	let newName = $state('');
+	async function rename(d: Display) {
+		const name = newName.trim();
+		if (name === '' || name === d.name) return;
+		const res = await fetch(`/api/v1/displays/${d.id}`, {
+			method: 'PATCH',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ name })
+		}).catch(() => null);
+		if (res?.ok) await reload();
+		else trouble = 'homeCore didn’t rename it.';
+	}
+
 	async function edit(d: Display) {
 		open = open === d.id ? null : d.id;
+		newName = d.name;
 		if (open === null) return;
 		const res = await fetch(`/ui/displays/${d.id}`).catch(() => null);
 		doc = res?.ok ? ((await res.json()) as DisplayDoc) : { version: 0 };
@@ -157,6 +173,21 @@
 						</div>
 						{#if open === d.id}
 							<div class="edit">
+								{#if core.since('0.1.81')}
+									<form
+										class="rename"
+										onsubmit={(e) => {
+											e.preventDefault();
+											void rename(d);
+										}}
+									>
+										<input bind:value={newName} aria-label={`${d.name}'s name`} />
+										<button
+											type="submit"
+											disabled={newName.trim() === '' || newName.trim() === d.name}>Rename</button
+										>
+									</form>
+								{/if}
 								<h3 class="section-label">Its pages, in order</h3>
 								<ol>
 									{#each chosen as t, i (t.key)}
@@ -380,6 +411,35 @@
 		flex-direction: column;
 		gap: 8px;
 		padding: 4px 14px 14px;
+	}
+	.rename {
+		display: flex;
+		gap: 8px;
+	}
+	.rename input {
+		flex: 1;
+		min-width: 0;
+		max-width: 320px;
+		height: 38px;
+		padding: 0 12px;
+		border-radius: 10px;
+		border: 1px solid var(--line);
+		background: var(--bg);
+		color: var(--ink);
+		font: inherit;
+	}
+	.rename button {
+		height: 38px;
+		padding: 0 14px;
+		border-radius: 19px;
+		border: none;
+		background: var(--accent);
+		color: var(--accent-ink);
+		font: inherit;
+		font-weight: 700;
+	}
+	.rename button:disabled {
+		opacity: 0.5;
 	}
 	h3 {
 		margin: 8px 0 0;

@@ -274,3 +274,9 @@ describe('helpers told what to do', () => {
 		expect(plain(setPhrase(h, ['text_note'], { command: 'clear' }))).toMatch(/^clear /);
 	});
 });
+
+test('a timer is given more time', () => {
+	expect(plain(setPhrase(h, ['timer_den_fan'], { command: 'extend', duration_secs: 600 }))).toBe(
+		'add 10 min to Den Fan Timer'
+	);
+});

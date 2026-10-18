@@ -45,7 +45,13 @@ export const loadRules = () => call<Rule[]>('GET', '/automations');
 export const loadRule = (id: string) => call<Rule>('GET', one(id));
 export const history = (id: string) => call<Record_[]>('GET', `${one(id)}/history`);
 export const ronOf = (id: string) => call<string>('GET', `${one(id)}/ron`);
-export const testRule = (id: string) => call<TestResult>('POST', `${one(id)}/test`);
+/** `?at=` for a dry run judged at another time, or nothing for now. */
+const atQuery = (at?: string) => (at ? `?at=${encodeURIComponent(at)}` : '');
+export const testRule = (id: string, at?: string) =>
+	call<TestResult>('POST', `${one(id)}/test${atQuery(at)}`);
+/** Run a rule now; homeCore answers before it runs (homeCore with `run_now`). */
+export const runRule = (id: string, checks: boolean) =>
+	call<{ rule_id: string; checks: boolean }>('POST', `${one(id)}/run`, { checks });
 
 export const setEnabled = (id: string, enabled: boolean) =>
 	call<Rule>('PATCH', one(id), { enabled });
@@ -227,9 +233,9 @@ export function createRule(rule: Rule): Promise<Answer<Rule>> {
 }
 
 /** A dry run of a draft that isn't saved (homeCore with `test_draft`). */
-export function testDraft(rule: Rule): Promise<Answer<TestResult>> {
+export function testDraft(rule: Rule, at?: string): Promise<Answer<TestResult>> {
 	const { id: _id, error: _error, ...body } = rule;
-	return call<TestResult>('POST', '/automations/test', body);
+	return call<TestResult>('POST', `/automations/test${atQuery(at)}`, body);
 }
 
 let vocabulary: Promise<Vocabulary | null> | null = null;

@@ -14,10 +14,10 @@
 	{:else if alerts.list.length === 0}
 		<p class="calm">Nothing needs attention.</p>
 	{:else}
-		<AlertList list={alerts.list} />
+		<AlertList list={alerts.list} act />
 	{/if}
 	{#if session.can('automations:write')}
-		<a class="link" href="/settings/alerts">Time rules for alerts</a>
+		<a class="link" href="/settings/alerts">Alert rules, and what’s ignored</a>
 	{/if}
 </div>
 

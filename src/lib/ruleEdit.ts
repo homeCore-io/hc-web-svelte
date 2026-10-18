@@ -44,6 +44,10 @@ export interface Features {
 	testDraft: boolean;
 	/** homeCore says when a rule changes. */
 	ruleEvents: boolean;
+	/** A rule can be run now, with or without its checks (0.1.81). */
+	runNow: boolean;
+	/** A dry run can be asked as if it were another time (0.1.81). */
+	testAt: boolean;
 }
 
 export function featuresOf(v: Vocabulary | null | undefined): Features {
@@ -52,7 +56,9 @@ export function featuresOf(v: Vocabulary | null | undefined): Features {
 		triggers: f.has('triggers'),
 		ifChecks: f.has('if_checks'),
 		testDraft: f.has('test_draft'),
-		ruleEvents: f.has('rule_events')
+		ruleEvents: f.has('rule_events'),
+		runNow: f.has('run_now'),
+		testAt: f.has('test_at')
 	};
 }
 
@@ -484,6 +490,17 @@ export function commandsOf(d: CoreDevice): Command[] {
 				build: () => ({ command: c }),
 				read: (s) => (plainState(s) && s.command === c ? {} : undefined)
 			});
+		// homeCore 0.1.81: more time for a running or paused timer.
+		out.push({
+			key: 'cmd:extend',
+			label: 'add time to',
+			fields: [{ kind: 'duration', name: 'duration_secs', label: 'More' }],
+			build: (v) => ({ command: 'extend', duration_secs: Number(v.duration_secs ?? 300) }),
+			read: (s) =>
+				plainState(s) && s.command === 'extend'
+					? { duration_secs: s.duration_secs ?? 300 }
+					: undefined
+		});
 	}
 	if (helper && (type === 'counter' || type === 'number')) {
 		// Only a counter resets (glue/counter.rs); a number drops it (glue/number.rs).

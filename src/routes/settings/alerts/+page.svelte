@@ -6,6 +6,10 @@
 
 	One form adds a rule or changes one (tap its row): several devices that
 	share the state, and a name of your own or one made from what it watches.
+
+	From homeCore 0.1.81 a rule can watch a reading go over or under a line
+	and tell a notification channel, and what's been ignored (from Alerts)
+	is listed here to show again.
 -->
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
@@ -17,26 +21,53 @@
 	import { session } from '#lib/me.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
 	import {
+		describeIgnore,
 		describeRule,
 		devicesFor,
+		levelChoices,
+		levelLabel,
+		ranOut,
 		ruleName,
 		sameState,
 		stateChoices,
+		type AlertIgnore,
 		type AlertRule,
 		type StateChoice
 	} from '#lib/alerts.js';
-	import { alertRules, createAlertRule, deleteAlertRule, saveAlertRule } from '#lib/admin.js';
+	import {
+		alertIgnores,
+		alertRules,
+		createAlertRule,
+		deleteAlertRule,
+		saveAlertRule,
+		unignore
+	} from '#lib/admin.js';
+	import { core } from '#lib/core.svelte.js';
+	import { clock } from '#lib/clock.svelte.js';
+	import { loadConfig } from '#lib/config.js';
+	import { channelsOf } from '#lib/notify.js';
 
 	let rules = $state<AlertRule[] | null>(null);
+	let ignores = $state<AlertIgnore[] | null>(null);
 	let trouble = $state<string | null>(null);
 	const reload = async () => {
-		rules = await alertRules();
+		[rules, ignores] = await Promise.all([alertRules(), alertIgnores()]);
 	};
-	onMount(reload);
+	// Levels and channels are homeCore 0.1.81's; channel names are in its
+	// settings, which only an admin reads.
+	const newer = $derived(core.since('0.1.81'));
+	let channels = $state<string[]>([]);
+	onMount(() => {
+		void reload();
+		if (session.isAdmin)
+			void loadConfig().then((got) => {
+				if (typeof got !== 'string') channels = channelsOf(got.config.parsed).map((c) => c.name);
+			});
+	});
 
 	const all = $derived(
 		Object.values(devices.byId)
-			.filter((d) => stateChoices(d).length > 0)
+			.filter((d) => stateChoices(d).length > 0 || (newer && levelChoices(d).length > 0))
 			.sort((a, b) => displayName(a).localeCompare(displayName(b)))
 	);
 	const label = (d: (typeof all)[number]) =>
@@ -46,6 +77,8 @@
 	/** A rule's state, in the device's words. */
 	function stateOf(r: AlertRule): string {
 		if (r.state_label) return r.state_label;
+		if (r.op === 'above' || r.op === 'below') return `${r.attribute} ${r.op} ${String(r.value)}`;
+		if (r.op === 'ne') return `${r.attribute} isn’t ${String(r.value)}`;
 		const d = devices.byId[r.device_ids[0] ?? ''];
 		const c = d && stateChoices(d).find((c) => sameState(c, r));
 		return c?.label ?? `${r.attribute} is ${String(r.value)}`;
@@ -61,19 +94,28 @@
 	let until = $state('');
 	let forMinutes = $state<number | null>(null);
 	let critical = $state(false);
+	let level = $state<number | null>(null);
+	let notify = $state('');
 	let saving = $state(false);
 	let form = $state<HTMLElement | undefined>(undefined);
 
-	const keyOf = (c: Pick<StateChoice, 'attribute' | 'value'>) =>
-		`${c.attribute}=${JSON.stringify(c.value)}`;
+	const keyOf = (c: Pick<StateChoice, 'attribute' | 'value'> & { op?: string }) =>
+		c.op === 'above' || c.op === 'below'
+			? `${c.attribute}~${c.op}`
+			: `${c.attribute}=${JSON.stringify(c.value)}`;
 	const first = $derived(devices.byId[ids[0] ?? '']);
 	// The first device's states — and, when changing a rule, its own state even
 	// if the device no longer reports it, so a save never quietly changes it.
 	const choices = $derived.by(() => {
-		const out = first ? stateChoices(first) : [];
+		const out = first ? [...stateChoices(first), ...(newer ? levelChoices(first) : [])] : [];
 		const r = editing;
 		if (r && !out.some((c) => sameState(c, r)))
-			out.push({ attribute: r.attribute, value: r.value, label: stateOf(r) });
+			out.push({
+				attribute: r.attribute,
+				value: r.value,
+				label: stateOf(r),
+				...(r.op === 'above' || r.op === 'below' ? { op: r.op } : {})
+			});
 		return out;
 	});
 	const chosen = $derived(choices.find((c) => keyOf(c) === stateKey));
@@ -81,11 +123,15 @@
 	const others = $derived(
 		chosen ? devicesFor(all, chosen).filter((d) => !ids.includes(d.device_id)) : []
 	);
+	/** The chosen state in words: a level's with its number. */
+	const stateWords = $derived(
+		!chosen ? '' : chosen.op ? (level === null ? '' : levelLabel(chosen, level)) : chosen.label
+	);
 	const said = $derived(
-		chosen
+		stateWords
 			? describeRule(
 					{ after: after || null, until: until || null, for_minutes: forMinutes },
-					chosen.label
+					stateWords
 				)
 			: ''
 	);
@@ -100,6 +146,8 @@
 		after = until = '';
 		forMinutes = null;
 		critical = false;
+		level = null;
+		notify = '';
 	}
 	async function change(r: AlertRule) {
 		editing = r;
@@ -109,6 +157,8 @@
 		until = r.until ?? '';
 		forMinutes = r.for_minutes ?? null;
 		critical = r.severity === 'critical';
+		level = r.op === 'above' || r.op === 'below' ? Number(r.value) : null;
+		notify = r.notify ?? '';
 		// A name its maker typed stays theirs; one the app made follows the rule.
 		const made = [
 			ruleName(r.device_ids.map(nameOf), describeRule(r, stateOf(r))),
@@ -128,15 +178,18 @@
 
 	async function submit(e: SubmitEvent) {
 		e.preventDefault();
-		if (!chosen || picked.length === 0) return;
+		if (!chosen || picked.length === 0 || (chosen.op && level === null)) return;
 		saving = true;
 		const body = {
 			name: name.trim() || autoName,
 			enabled: editing?.enabled ?? true,
 			device_ids: picked,
 			attribute: chosen.attribute,
-			value: chosen.value,
-			state_label: chosen.label,
+			value: chosen.op ? level : chosen.value,
+			// Only a level says how it compares: an older homeCore never sees `op`.
+			...(chosen.op ? { op: chosen.op } : {}),
+			...(newer ? { notify: notify || null } : {}),
+			state_label: stateWords,
 			after: after || null,
 			until: until || null,
 			for_minutes: forMinutes || null,
@@ -154,6 +207,20 @@
 		trouble = await saveAlertRule({ ...r, enabled: !r.enabled });
 		await reload();
 	}
+	async function show(i: AlertIgnore) {
+		trouble = await unignore(i.id);
+		await reload();
+	}
+	const ruleNameOf = (id: string) => rules?.find((r) => r.id === id)?.name;
+	const day = (iso: string) =>
+		new Date(iso).toLocaleString(undefined, {
+			weekday: 'short',
+			day: 'numeric',
+			month: 'short',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+
 	async function remove(r: AlertRule) {
 		if (!(await ask({ title: `Delete “${r.name}”?`, go: 'Delete', danger: true }))) return;
 		trouble = await deleteAlertRule(r.id);
@@ -168,7 +235,8 @@
 	<div class="stack">
 		<p class="quiet">
 			Something wet, smoke, a device offline, a lock jammed or a battery low is always an alert.
-			Rules add the ones that depend on the time — a door open at night, a lock left open.
+			Rules add the ones that depend on the time or a reading — a door open at night, a lock left
+			open{newer ? ', a freezer warmer than −10 °C' : ''}.
 		</p>
 
 		{#if rules === null}
@@ -185,6 +253,8 @@
 								<span class="what"
 									>{devicesOf(r)} · {describeRule(r, stateOf(r))}{r.severity === 'critical'
 										? ' · urgent'
+										: ''}{r.notify
+										? ` · tells ${r.notify === 'all' ? 'every channel' : r.notify}`
 										: ''}</span
 								>
 							</button>
@@ -231,6 +301,18 @@
 							{#each choices as c (keyOf(c))}<option value={keyOf(c)}>{c.label}</option>{/each}
 						</select>
 					</label>
+					{#if chosen?.op}
+						<label>
+							<span>{chosen.op === 'above' ? 'over' : 'under'}</span>
+							<input
+								type="number"
+								step="any"
+								bind:value={level}
+								placeholder={chosen.unit ?? 'a number'}
+								aria-label="The line"
+							/>
+						</label>
+					{/if}
 					{#if chosen && others.length}
 						<label>
 							<span></span>
@@ -266,6 +348,19 @@
 					<label class="check"
 						><input type="checkbox" bind:checked={critical} /> Urgent — show it first, in red</label
 					>
+					{#if newer}
+						<label>
+							<span>Tell</span>
+							<select bind:value={notify}>
+								<option value="">No one — just show it</option>
+								<option value="all">Every channel</option>
+								{#each channels as c (c)}<option value={c}>{c}</option>{/each}
+								{#if notify && notify !== 'all' && !channels.includes(notify)}<option value={notify}
+										>{notify}</option
+									>{/if}
+							</select>
+						</label>
+					{/if}
 					<label>
 						<span>Name</span>
 						<input
@@ -279,13 +374,52 @@
 							{said.toLowerCase()}.
 						</p>{/if}
 					<div class="acts">
-						<button type="submit" class="add" disabled={!chosen || picked.length === 0 || saving}
+						<button
+							type="submit"
+							class="add"
+							disabled={!chosen || picked.length === 0 || saving || (!!chosen.op && level === null)}
 							>{saving ? 'Saving…' : editing ? 'Save' : 'Add rule'}</button
 						>
 						{#if editing}<button type="button" class="ghost" onclick={reset}>Cancel</button>{/if}
 					</div>
 				</form>
 			</section>
+
+			{#if ignores !== null}
+				<section>
+					<h2 class="section-label">Ignored</h2>
+					{#if ignores.length === 0}
+						<p class="quiet">
+							Nothing. On Alerts, “Ignore…” stops showing an alert — just that one, every one like
+							it, or a device’s — for good or a while.
+						</p>
+					{/if}
+					<ul>
+						{#each ignores as i (i.id)}
+							{@const out = ranOut(i, clock.now)}
+							<li class:off={out}>
+								<span class="text static">
+									<span class="name"
+										>{describeIgnore(i, nameOf, ruleNameOf, day)}{out ? ' — ran out' : ''}</span
+									>
+									<span class="what"
+										>{[i.note, i.by ? `by ${i.by}` : '', i.created_at ? day(i.created_at) : '']
+											.filter(Boolean)
+											.join(' · ')}</span
+									>
+								</span>
+								<button class="pill" onclick={() => show(i)}>{out ? 'Remove' : 'Show again'}</button
+								>
+							</li>
+						{/each}
+					</ul>
+				</section>
+				<p class="quiet">
+					Where wet, smoke, jammed and offline alerts are sent is in
+					<a href="/settings/configuration">Configuration › Alerts</a>; low batteries in its Battery
+					alerts.
+				</p>
+			{/if}
 		{/if}
 		{#if trouble}<p class="trouble" role="alert">{trouble}</p>{/if}
 	</div>
@@ -330,6 +464,12 @@
 	}
 	.text {
 		cursor: pointer;
+	}
+	.text.static {
+		cursor: default;
+	}
+	.text.static .name {
+		text-decoration: none;
 	}
 	.text:hover .name,
 	.text:focus-visible .name {

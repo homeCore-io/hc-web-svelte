@@ -124,3 +124,37 @@ test('times found by a check read as times', () => {
 		actualText(35)
 	]).toEqual(['05:04', '20:14', 'on', '35']);
 });
+
+test('a test at another time says when, and that a script reads the clock now', () => {
+	const later = tested(
+		h,
+		rule('r-music-am'),
+		{
+			conditions_pass: true,
+			would_fire: true,
+			at: '2026-10-19T12:00:00Z',
+			conditions: [
+				{
+					passed: true,
+					actual: '08:00:00',
+					reason: 'a script is judged now, not at the time asked'
+				}
+			]
+		},
+		'at 08:00 tomorrow'
+	);
+	expect(later.headline).toBe('Every check passes at 08:00 tomorrow, so it would run.');
+	expect(later.lines[0]!.mark).toBe('yes (a script reads the clock now)');
+});
+
+test('a run someone asked for says so, and who', () => {
+	const r: Record_ = {
+		timestamp: '2026-10-18T14:00:00Z',
+		trigger_type: 'ManualRun',
+		trigger_context: { change_actor_name: 'sam' },
+		outcome: { type: 'fired' },
+		conditions: [],
+		actions: []
+	} as unknown as Record_;
+	expect(plain(runOf(h, rule('r-door'), r).summary)).toMatch(/^run now by sam/);
+});

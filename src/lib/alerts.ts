@@ -6,6 +6,10 @@
  *
  * Kept current from the event stream: the snapshot on connect, then
  * `alert_raised` and `alert_cleared`.
+ *
+ * Someone can say they've seen one (it stays, marked, until it clears) or
+ * ignore some — a kind, a device's, a rule's — for good or for a while;
+ * homeCore 0.1.81 and later. An ignored alert isn't raised at all.
  */
 import type { Frame } from './house.js';
 import type { CoreDevice } from './devices.js';
@@ -24,7 +28,74 @@ export interface Alert {
 	reason: string;
 	severity: 'critical' | 'warning';
 	raised_at: string;
+	/** Someone has seen it; it stays until it clears. */
+	acknowledged?: { by: string; at: string };
 }
+
+/** Alerts not to show: a kind, a device's, a rule's — or a kind on one device. */
+export interface AlertIgnore {
+	id: string;
+	kind?: AlertKind;
+	device_id?: string;
+	rule_id?: string;
+	/** Until then; for good when missing. */
+	until?: string;
+	note?: string;
+	by?: string;
+	created_at?: string;
+}
+
+/** What each kind is, in words. */
+export const KIND_WORDS: Record<AlertKind, string> = {
+	wet: 'something wet',
+	smoke: 'smoke',
+	offline: 'offline',
+	jammed: 'a jammed lock',
+	low_battery: 'low battery',
+	rule: 'a rule’s alert'
+};
+
+export type IgnoreScope = 'this' | 'kind' | 'device';
+
+/**
+ * An ignore for an alert: just this (its kind on its device — its rule on
+ * its device, for a rule's), every one of its kind (every alert of its
+ * rule), or everything about its device.
+ */
+export function ignoreFor(a: Alert, scope: IgnoreScope, until?: string): Omit<AlertIgnore, 'id'> {
+	const by = a.kind === 'rule' && a.rule_id ? { rule_id: a.rule_id } : ({ kind: a.kind } as const);
+	const base =
+		scope === 'device'
+			? { device_id: a.device_id }
+			: scope === 'kind'
+				? by
+				: { ...by, device_id: a.device_id };
+	return until ? { ...base, until } : base;
+}
+
+/** An ignore in a sentence: "Low battery on Front Lock, until 25 Oct". */
+export function describeIgnore(
+	i: AlertIgnore,
+	nameOf: (deviceId: string) => string,
+	ruleOf: (ruleId: string) => string | undefined,
+	untilText?: (iso: string) => string
+): string {
+	const device = i.device_id ? nameOf(i.device_id) : undefined;
+	const rule = i.rule_id ? (ruleOf(i.rule_id) ?? 'a deleted rule') : undefined;
+	let s: string;
+	if (rule) s = device ? `“${rule}” on ${device}` : `Everything “${rule}” raises`;
+	else if (i.kind) {
+		const k = KIND_WORDS[i.kind];
+		const K = k.charAt(0).toUpperCase() + k.slice(1);
+		s = device ? `${K} on ${device}` : `Every ${k === 'smoke' ? 'smoke alert' : k}`;
+	} else s = device ? `Everything about ${device}` : 'Nothing';
+	if (i.until) s += `, until ${untilText ? untilText(i.until) : i.until}`;
+	return s;
+}
+
+/** Whether an ignore has run out. */
+export const ranOut = (i: AlertIgnore, now: number) =>
+	i.until !== undefined && Date.parse(i.until) <= now;
 
 /** A time rule (C9), made by an admin in Settings and checked by homeCore. */
 export interface AlertRule {
@@ -43,6 +114,10 @@ export interface AlertRule {
 	/** Only once it has lasted this long. */
 	for_minutes?: number | null;
 	severity: 'critical' | 'warning';
+	/** How the value counts: equal (when missing), not, or a number above or below it. */
+	op?: 'eq' | 'ne' | 'above' | 'below';
+	/** A notification channel told when it's raised (homeCore 0.1.81+). */
+	notify?: string | null;
 }
 
 type AlertFrame =
@@ -86,6 +161,9 @@ export interface StateChoice {
 	attribute: string;
 	value: unknown;
 	label: string;
+	/** A reading over or under a number the rule gives, rather than a value. */
+	op?: 'above' | 'below';
+	unit?: string;
 }
 
 /**
@@ -118,22 +196,43 @@ export function stateChoices(d: CoreDevice): StateChoice[] {
 	return out;
 }
 
-/** The same state, on any device: `open` is `true`. */
-export const sameState = (
-	a: Pick<StateChoice, 'attribute' | 'value'>,
-	b: Pick<StateChoice, 'attribute' | 'value'>
-) => a.attribute === b.attribute && JSON.stringify(a.value) === JSON.stringify(b.value);
+/**
+ * A number a rule can watch go over or under a line: each numeric reading,
+ * both ways ("Temperature above…"). homeCore 0.1.81 and later.
+ */
+export function levelChoices(d: CoreDevice): StateChoice[] {
+	const out: StateChoice[] = [];
+	for (const [attr, spec] of Object.entries(d.schema?.attributes ?? {})) {
+		if (spec.category) continue;
+		if (!['integer', 'float', 'number'].includes(spec.kind ?? '')) continue;
+		const title = spec.display_name ?? words(attr);
+		for (const op of ['above', 'below'] as const)
+			out.push({ attribute: attr, value: null, label: `${title} ${op}`, op, unit: spec.unit });
+	}
+	return out;
+}
+
+type Same = Pick<StateChoice, 'attribute' | 'value'> & { op?: string };
+/** The same state, on any device: `open` is `true`; a level by its reading and way. */
+export const sameState = (a: Same, b: Same) => {
+	const level = (x: Same) => x.op === 'above' || x.op === 'below';
+	if (level(a) || level(b)) return a.attribute === b.attribute && a.op === b.op;
+	return a.attribute === b.attribute && JSON.stringify(a.value) === JSON.stringify(b.value);
+};
+
+/** A level rule's state in words: "Temperature above 30 °F". */
+export const levelLabel = (c: Pick<StateChoice, 'label' | 'unit'>, n: number) =>
+	`${c.label} ${n}${c.unit ? ` ${c.unit}` : ''}`;
 
 /**
  * The devices that can share a rule's state: one rule watches several
  * devices only by the same reading and value — every door "open", not one
  * door open and one lock unlocked.
  */
-export function devicesFor(
-	all: CoreDevice[],
-	state: Pick<StateChoice, 'attribute' | 'value'>
-): CoreDevice[] {
-	return all.filter((d) => stateChoices(d).some((c) => sameState(c, state)));
+export function devicesFor(all: CoreDevice[], state: Same): CoreDevice[] {
+	return all.filter((d) =>
+		[...stateChoices(d), ...levelChoices(d)].some((c) => sameState(c, state))
+	);
 }
 
 /** A rule's name when its maker gives none: "Garage Door, Back Door: Open after 22:00". */

@@ -111,6 +111,8 @@ export function cause(h: House, rule: Rule, r: Record_): Phrase {
 		return out;
 	}
 	if (c.device_id) return [deviceBit(h, c.device_id)];
+	if (r.trigger_type === 'ManualRun')
+		return [{ t: `run now${c.change_actor_name ? ` by ${c.change_actor_name}` : ''}` }];
 	// A moment with no device: the rule's own words for it.
 	const moment = [rule.trigger, ...(rule.triggers ?? [])][c.trigger_index ?? 0] ?? rule.trigger;
 	const when = whenPhrase(h, moment);
@@ -229,7 +231,12 @@ export interface TestResult {
 	conditions_pass: boolean;
 	conditions: { passed: boolean; actual?: unknown; reason?: string }[];
 	would_fire: boolean;
+	/** The time it was judged at, when one was asked for (homeCore 0.1.81). */
+	at?: string;
 }
+
+/** homeCore's word that a script was judged now, whatever time was asked. */
+const JUDGED_NOW = 'a script is judged now';
 
 export interface Tested {
 	yes: boolean;
@@ -237,18 +244,25 @@ export interface Tested {
 	lines: Line[];
 }
 
-export function tested(h: House, rule: Rule, res: TestResult): Tested {
+/**
+ * A dry run in lines and a headline. `when` names the time it was asked
+ * about ("at 22:30"), for a run judged at another time than now.
+ */
+export function tested(h: House, rule: Rule, res: TestResult, when?: string): Tested {
 	const lines: Line[] = res.conditions.map((c, i) => ({
 		label: 'Check',
 		words:
 			rule.conditions?.[i] !== undefined
 				? checkPhrase(h, rule.conditions[i])
 				: [{ t: c.reason ?? '' }],
-		mark: c.passed
-			? 'yes'
-			: `no${c.actual !== undefined && c.actual !== null ? ` — it’s ${actualText(c.actual)}` : ''}`,
+		mark:
+			(c.passed
+				? 'yes'
+				: `no${c.actual !== undefined && c.actual !== null ? ` — it’s ${actualText(c.actual)}` : ''}`) +
+			(c.reason?.startsWith(JUDGED_NOW) ? ' (a script reads the clock now)' : ''),
 		tone: c.passed ? 'good' : 'bad'
 	}));
+	const then = when ?? 'now';
 	if (res.would_fire)
 		for (const [i, a] of (rule.actions ?? []).entries()) {
 			if (a.enabled === false) continue;
@@ -265,9 +279,9 @@ export function tested(h: House, rule: Rule, res: TestResult): Tested {
 		yes: res.would_fire,
 		headline: res.would_fire
 			? rule.conditions?.length
-				? 'Every check passes now, so it would run.'
+				? `Every check passes ${then}, so it would run.`
 				: 'It has no checks, so it would run.'
-			: 'It wouldn’t run now — a check says no.',
+			: `It wouldn’t run ${then} — a check says no.`,
 		lines
 	};
 }

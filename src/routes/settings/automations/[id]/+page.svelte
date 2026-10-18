@@ -42,9 +42,12 @@
 		modeMade,
 		ronOf,
 		saveRule,
+		loadVocabulary,
+		runRule,
 		setEnabled,
 		testRule
 	} from '#lib/ruleAdmin.js';
+	import { featuresOf, type Features } from '#lib/ruleEdit.js';
 
 	const id = $derived(page.params.id ?? '');
 
@@ -66,8 +69,10 @@
 		records = res.ok ? res.data : [];
 	}
 
+	let features = $state<Features | null>(null);
 	onMount(() => {
 		void modeMade().then((m) => (byMode = m));
+		void loadVocabulary().then((v) => (features = featuresOf(v)));
 		const stop = live.listen((frame) => {
 			const f = frame as { type: string; rule_id?: string; rule?: Rule };
 			if (f.type === 'rule_fired' && f.rule_id === id) void loadHistory();
@@ -195,16 +200,63 @@
 				.toLowerCase() || 'rule'
 		}.json`;
 
-	// ---- test ----
+	// ---- test: now, or as if it were another time ----
 	let test = $state<Tested | null>(null);
 	let testing = $state(false);
+	let atTime = $state(false);
+	/** `datetime-local`'s value: the house's own time, as homeCore reads it. */
+	let at = $state('');
 	async function runTest() {
 		if (!rule) return;
+		const then = atTime && at ? at : undefined;
 		testing = true;
-		const res = await testRule(id);
+		const res = await testRule(id, then);
 		testing = false;
 		if (!res.ok) note = res.error;
-		else test = tested(house, rule, res.data);
+		else test = tested(house, rule, res.data, then ? whenText(then) : undefined);
+	}
+	/** "at 22:30 on Sun 19 Oct". */
+	function whenText(local: string): string {
+		const [d, t] = local.split('T');
+		const day = new Date(`${d}T12:00:00`).toLocaleDateString(undefined, {
+			weekday: 'short',
+			day: 'numeric',
+			month: 'short'
+		});
+		return `at ${t?.slice(0, 5)} on ${day}`;
+	}
+	function chooseTime(on: boolean) {
+		atTime = on;
+		test = null;
+		if (on && !at) {
+			const n = new Date(clock.now);
+			const pad = (x: number) => String(x).padStart(2, '0');
+			at = `${n.getFullYear()}-${pad(n.getMonth() + 1)}-${pad(n.getDate())}T${pad(n.getHours())}:${pad(n.getMinutes())}`;
+		}
+	}
+
+	// ---- run it now ----
+	let running = $state(false);
+	async function runNow(checks: boolean) {
+		if (!rule) return;
+		const yes = await ask({
+			title: checks ? `Run “${rule.name}” now?` : `Do the steps of “${rule.name}” now?`,
+			body: checks
+				? 'As if its moment came: its checks still decide, and if they pass it does its steps — on the house, for real.'
+				: 'Its steps are done on the house, for real, whatever its checks say.',
+			go: checks ? 'Run it' : 'Do the steps'
+		});
+		if (!yes) return;
+		running = true;
+		const res = await runRule(id, checks);
+		running = false;
+		note = res.ok
+			? checks
+				? 'Asked. What it did shows under Recent runs in a moment.'
+				: 'Asked. Its steps are being done; they show under Recent runs in a moment.'
+			: res.error;
+		// A run its checks stop isn't announced; look anyway.
+		if (res.ok) setTimeout(() => void loadHistory(), 1500);
 	}
 
 	// A different rule (a family member, a copy) is a different page.
@@ -436,8 +488,39 @@
 			<aside>
 				<section class="card side">
 					<strong>Test it</strong>
-					<span class="quiet">Asks its checks about the house as it is now. Nothing is done.</span>
-					<button type="button" class="go" disabled={testing} onclick={runTest}
+					<span class="quiet"
+						>Asks its checks about the house as it is {atTime ? 'then' : 'now'}. Nothing is done.</span
+					>
+					{#if features?.testAt}
+						<div class="seg" role="radiogroup" aria-label="When">
+							<button
+								type="button"
+								role="radio"
+								aria-checked={!atTime}
+								onclick={() => chooseTime(false)}>Now</button
+							>
+							<button
+								type="button"
+								role="radio"
+								aria-checked={atTime}
+								onclick={() => chooseTime(true)}>At a time…</button
+							>
+						</div>
+						{#if atTime}
+							<input
+								class="when"
+								type="datetime-local"
+								bind:value={at}
+								aria-label="The time to test at"
+								oninput={() => (test = null)}
+							/>
+							<span class="quiet"
+								>Times of day and how long things have lasted move to then; devices and modes stay
+								as they are now.</span
+							>
+						{/if}
+					{/if}
+					<button type="button" class="go" disabled={testing || (atTime && !at)} onclick={runTest}
 						>{testing ? 'Testing…' : 'Test'}</button
 					>
 					{#if test}
@@ -457,6 +540,26 @@
 						</div>
 					{/if}
 				</section>
+
+				{#if features?.runNow}
+					<section class="card side">
+						<strong>Run it now</strong>
+						<span class="quiet"
+							>As if its moment came — even while it’s off. Its steps are done on the house.</span
+						>
+						<button type="button" class="go" disabled={running} onclick={() => runNow(true)}
+							>Run it</button
+						>
+						{#if rule.conditions?.length || rule.required_expression || rule.trigger_condition}
+							<button
+								type="button"
+								class="plainbtn"
+								disabled={running}
+								onclick={() => runNow(false)}>Do its steps, skipping its checks</button
+							>
+						{/if}
+					</section>
+				{/if}
 
 				{#if kin.length > 0 && family}
 					<section class="card side">
@@ -849,6 +952,52 @@
 		color: var(--accent-ink);
 		font: inherit;
 		font-weight: 700;
+	}
+	.seg {
+		display: inline-flex;
+		align-self: flex-start;
+		padding: 3px;
+		border-radius: 12px;
+		background: var(--surface-2);
+	}
+	.seg button {
+		height: 30px;
+		padding: 0 12px;
+		border: none;
+		border-radius: 9px;
+		background: transparent;
+		color: var(--ink-muted);
+		font: inherit;
+		font-weight: 600;
+		font-size: 13px;
+	}
+	.seg button[aria-checked='true'] {
+		background: var(--surface);
+		color: var(--ink);
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+	}
+	.when {
+		height: 38px;
+		padding: 0 10px;
+		border-radius: 10px;
+		border: 1px solid var(--line);
+		background: var(--bg);
+		color: var(--ink);
+		font: inherit;
+	}
+	.plainbtn {
+		height: 36px;
+		border-radius: 18px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--ink);
+		font: inherit;
+		font-weight: 600;
+		font-size: 13px;
+	}
+	.go:disabled,
+	.plainbtn:disabled {
+		opacity: 0.5;
 	}
 	.result {
 		display: flex;

@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { core } from '#lib/core.svelte.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -225,10 +226,15 @@
 	$effect(() => {
 		if (plugin && level === '') level = plugin.log_level ?? '';
 	});
+	// From homeCore 0.1.81 a level set here is kept in the plugin's own
+	// settings — when it runs beside homeCore, which has its file.
+	const levelKept = $derived(core.since('0.1.81') && !runsOn);
 	async function setLevel(v: string) {
 		level = v;
 		const r = await setLogLevel(id, v);
-		note = r.ok ? `${name} now logs ${v} and above, until it restarts.` : r.error;
+		note = r.ok
+			? `${name} now logs ${v} and above${levelKept ? '.' : ', until it restarts.'}`
+			: r.error;
 	}
 
 	// ---- the log ----
@@ -443,7 +449,11 @@
 						{#if level === ''}<option value="">As its settings say</option>{/if}
 						{#each LEVELS as l (l)}<option value={l}>{l}</option>{/each}
 					</select>
-					<span class="quiet">Until it restarts; to keep it, change its settings.</span>
+					<span class="quiet"
+						>{levelKept
+							? 'Kept in its settings, so it starts at this level too.'
+							: 'Until it restarts; to keep it, change its settings.'}</span
+					>
 				</label>
 			</section>
 

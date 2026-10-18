@@ -111,7 +111,8 @@ describe('what a device can be told', () => {
 			'cancel',
 			'pause',
 			'resume',
-			'restart'
+			'restart',
+			'add time to'
 		]);
 		expect(commandsOf(d('zz_door_1'))).toEqual([]);
 	});
@@ -219,7 +220,17 @@ test('the rest of the vocabulary, as fields', () => {
 	expect(vocabFields(spec).map((f) => f.kind)).toEqual(['number', 'json', 'number']);
 	expect(newOf(spec)).toEqual({ RepeatCount: { count: 0, actions: [] } });
 	expect(newOf({ tag: 'ExitRule', fields: [] })).toBe('ExitRule');
-	expect(after).toEqual({ triggers: true, ifChecks: true, testDraft: true, ruleEvents: true });
+	expect(after).toEqual({
+		triggers: true,
+		ifChecks: true,
+		testDraft: true,
+		ruleEvents: true,
+		runNow: false,
+		testAt: false
+	});
+	expect(
+		featuresOf({ triggers: [], conditions: [], actions: [], features: ['run_now', 'test_at'] })
+	).toMatchObject({ runNow: true, testAt: true });
 });
 
 describe('pickers for what a field names', () => {

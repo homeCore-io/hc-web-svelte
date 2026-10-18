@@ -4,8 +4,8 @@
 	and off is switched here and can be made new.
 
 	What homeCore can't yet do through its API is said, not hidden: give a
-	new mode sun events (only modes.toml can), rename a mode, or describe the
-	condition a mode is on while (that arrives with the rule editor, A3).
+	new mode sun events (only modes.toml can), or rename a mode before
+	homeCore 0.1.81. Renaming keeps its id, so rules naming it carry on.
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
@@ -16,6 +16,7 @@
 	import { devices } from '#lib/devices.svelte.js';
 	import { session } from '#lib/me.svelte.js';
 	import { heading } from '#lib/heading.svelte.js';
+	import { core } from '#lib/core.svelte.js';
 	import { wide } from '#lib/wide.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
 	import {
@@ -122,6 +123,28 @@
 		await load();
 		void open(`?m=${encodeURIComponent(id)}`);
 	}
+
+	// ---- renaming (homeCore 0.1.81): the id, and every rule's reference, stays ----
+	let renaming = $state(false);
+	let newName = $state('');
+	function startRename() {
+		renaming = true;
+		newName = mode?.config.name ?? '';
+	}
+	async function rename() {
+		if (!mode || newName.trim() === '' || newName.trim() === mode.config.name) return;
+		trouble = await deviceCall('PATCH', `/modes/${encodeURIComponent(mode.config.id)}`, {
+			name: newName.trim()
+		});
+		if (trouble === null) {
+			renaming = false;
+			await load();
+		}
+	}
+	$effect(() => {
+		void mode?.config.id;
+		renaming = false;
+	});
 
 	async function remove() {
 		if (!mode) return;
@@ -230,6 +253,30 @@
 						{/if}
 					</div>
 					<p class="sub">{howOf(mode)}</p>
+					{#if core.since('0.1.81')}
+						{#if renaming}
+							<form
+								class="rename"
+								onsubmit={(e) => {
+									e.preventDefault();
+									void rename();
+								}}
+							>
+								<input bind:value={newName} aria-label="New name" />
+								<button
+									type="submit"
+									class="go"
+									disabled={newName.trim() === '' || newName.trim() === c.name}>Rename</button
+								>
+								<button type="button" class="ghost" onclick={() => (renaming = false)}
+									>Cancel</button
+								>
+								<span class="sub">Rules call it <code>{c.id}</code> still.</span>
+							</form>
+						{:else}
+							<button type="button" class="linkish" onclick={startRename}>Rename…</button>
+						{/if}
+					{/if}
 
 					{#if c.kind === 'solar' && c.on_event && c.off_event}
 						{#each [{ title: 'Turns on', event: c.on_event, key: 'on_offset_minutes' as const, at: onAt }, { title: 'Turns off', event: c.off_event, key: 'off_offset_minutes' as const, at: offAt }] as e (e.key)}
@@ -306,7 +353,8 @@
 					{#if !builtIn(c.id)}
 						<div class="foot">
 							<button type="button" class="danger" onclick={remove}>Delete…</button>
-							<span class="sub">homeCore can’t rename a mode yet.</span>
+							{#if !core.since('0.1.81')}<span class="sub">This homeCore can’t rename a mode.</span
+								>{/if}
 						</div>
 					{/if}
 				</section>
@@ -386,6 +434,43 @@
 	}
 	.go:disabled {
 		opacity: 0.5;
+	}
+	.rename {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-2);
+	}
+	.rename input {
+		height: 40px;
+		min-width: 0;
+		flex: 1 1 200px;
+		max-width: 320px;
+		padding: 0 var(--space-3);
+		border-radius: 10px;
+		border: 1px solid var(--line);
+		background: var(--bg);
+		color: var(--ink);
+		font: inherit;
+	}
+	.ghost {
+		height: 40px;
+		padding: 0 14px;
+		border-radius: 20px;
+		border: 1px solid var(--line);
+		background: none;
+		color: var(--ink);
+		font: inherit;
+		font-weight: 600;
+	}
+	.linkish {
+		align-self: flex-start;
+		border: none;
+		background: none;
+		padding: 0;
+		color: var(--accent);
+		font: inherit;
+		font-weight: 600;
 	}
 	.card {
 		display: flex;

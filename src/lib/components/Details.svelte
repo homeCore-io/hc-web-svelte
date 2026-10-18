@@ -26,6 +26,7 @@
 	import Art from './Art.svelte';
 	import Toggle from './Toggle.svelte';
 	import { goAhead } from '#lib/ask.js';
+	import { core } from '#lib/core.svelte.js';
 
 	let { device, onclose }: { device: CoreDevice; onclose: () => void } = $props();
 
@@ -202,6 +203,14 @@
 					tm.running ? { command: 'cancel' } : { command: 'start', duration_secs: tm.durationSecs }
 				)}>{tm.running ? 'Cancel timer' : 'Start timer'}</button
 		>
+		{#if tm.running && core.since('0.1.81')}
+			<button
+				class="wide"
+				disabled={off}
+				onclick={() => commands.timer(id, { command: 'extend', duration_secs: 300 })}
+				>5 more minutes</button
+			>
+		{/if}
 	{:else if card.control?.kind === 'button'}
 		{@const bt = card.control}
 		<button

@@ -340,6 +340,8 @@ export function setPhrase(h: House, ids: string[], state: Json): Phrase {
 		return [t(`${label}${extras.length ? ` ${extras.join(', ')}` : ''} on `), ...who];
 	}
 
+	if (state.command === 'extend' && typeof state.duration_secs === 'number')
+		return [t(`add ${duration(state.duration_secs)} to `), ...who];
 	if (typeof state.command === 'string') {
 		const verb = COMMAND[state.command] ?? words(state.command);
 		const out: Phrase = [t(`${verb} `), ...who];

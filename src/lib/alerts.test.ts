@@ -2,12 +2,18 @@ import { describe, expect, it } from 'vitest';
 import {
 	alertsAfter,
 	byDevice,
+	describeIgnore,
 	describeRule,
 	devicesFor,
+	ignoreFor,
+	levelChoices,
+	levelLabel,
+	ranOut,
 	ruleName,
 	sameState,
 	stateChoices,
-	type Alert
+	type Alert,
+	type AlertIgnore
 } from './alerts.js';
 import type { CoreDevice } from './devices.js';
 
@@ -134,5 +140,74 @@ describe('one rule, several devices', () => {
 		expect(ruleName(['Garage Door'], 'Open after 22:00')).toBe('Garage Door: Open after 22:00');
 		expect(ruleName(['Garage Door', 'Back Door'], 'Open')).toBe('Garage Door, Back Door: Open');
 		expect(ruleName(['A', 'B', 'C'], 'Open')).toBe('A and 2 more: Open');
+	});
+});
+
+describe('levels, ignores and acknowledgements (0.1.81)', () => {
+	const freezer = {
+		device_id: 'freezer',
+		name: 'Freezer',
+		available: true,
+		attributes: { temperature: -18, battery_pct: 80 },
+		schema: {
+			attributes: {
+				temperature: { kind: 'float', unit: '°C', display_name: 'Temperature' },
+				battery_pct: { kind: 'integer', unit: '%', category: 'diagnostic' }
+			}
+		}
+	} as unknown as CoreDevice;
+
+	it('a reading is watched going over or under a line', () => {
+		const c = levelChoices(freezer);
+		expect(c.map((x) => x.label)).toEqual(['Temperature above', 'Temperature below']);
+		expect(levelLabel(c[0]!, -10)).toBe('Temperature above -10 °C');
+		expect(sameState(c[0]!, { attribute: 'temperature', value: -5, op: 'above' })).toBe(true);
+		expect(sameState(c[0]!, c[1]!)).toBe(false);
+		expect(devicesFor([freezer], { attribute: 'temperature', value: 0, op: 'below' })).toHaveLength(
+			1
+		);
+	});
+
+	const low: Alert = {
+		id: 'low_battery:lock',
+		kind: 'low_battery',
+		device_id: 'lock',
+		message: 'Front Lock: battery low',
+		reason: 'Battery low',
+		severity: 'warning',
+		raised_at: '2026-10-18T10:00:00Z'
+	};
+	const ruled: Alert = { ...low, id: 'rule:r1:lock', kind: 'rule', rule_id: 'r1' };
+
+	it('an alert is ignored just so, every one of its kind, or its whole device', () => {
+		expect(ignoreFor(low, 'this')).toEqual({ kind: 'low_battery', device_id: 'lock' });
+		expect(ignoreFor(low, 'kind')).toEqual({ kind: 'low_battery' });
+		expect(ignoreFor(low, 'device', '2026-10-25T00:00:00Z')).toEqual({
+			device_id: 'lock',
+			until: '2026-10-25T00:00:00Z'
+		});
+		expect(ignoreFor(ruled, 'this')).toEqual({ rule_id: 'r1', device_id: 'lock' });
+		expect(ignoreFor(ruled, 'kind')).toEqual({ rule_id: 'r1' });
+	});
+
+	it('an ignore reads as a sentence', () => {
+		const name = (id: string) => (id === 'lock' ? 'Front Lock' : id);
+		const rule = (id: string) => (id === 'r1' ? 'Garage at night' : undefined);
+		const say = (i: Omit<AlertIgnore, 'id'>) => describeIgnore({ id: 'x', ...i }, name, rule);
+		expect(say({ kind: 'low_battery' })).toBe('Every low battery');
+		expect(say({ kind: 'low_battery', device_id: 'lock' })).toBe('Low battery on Front Lock');
+		expect(say({ device_id: 'lock' })).toBe('Everything about Front Lock');
+		expect(say({ rule_id: 'r1' })).toBe('Everything “Garage at night” raises');
+		expect(say({ rule_id: 'gone', device_id: 'lock' })).toBe('“a deleted rule” on Front Lock');
+		expect(say({ kind: 'offline', until: 'Sunday' })).toBe('Every offline, until Sunday');
+		expect(ranOut({ id: 'x', until: '2026-10-18T00:00:00Z' }, Date.parse('2026-10-19'))).toBe(true);
+		expect(ranOut({ id: 'x' }, Date.now())).toBe(false);
+	});
+
+	it('an acknowledgement arrives as the alert raised again', () => {
+		const seen = { ...low, acknowledged: { by: 'sam', at: '2026-10-18T10:05:00Z' } };
+		const list = alertsAfter([low], { type: 'alert_raised', alert: seen } as never)!;
+		expect(list).toHaveLength(1);
+		expect(list[0]!.acknowledged?.by).toBe('sam');
 	});
 });

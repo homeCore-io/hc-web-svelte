@@ -5,7 +5,7 @@
  *
  * Each answers `null` when done, or what went wrong, in words for a person.
  */
-import type { AlertRule } from './alerts.js';
+import type { AlertIgnore, AlertRule } from './alerts.js';
 
 async function send(method: string, path: string, body: unknown): Promise<string | null> {
 	let res: Response;
@@ -58,6 +58,26 @@ export const saveAlertRule = (rule: AlertRule) =>
 	send('PUT', `/alert-rules/${encodeURIComponent(rule.id)}`, rule);
 export const deleteAlertRule = (id: string) =>
 	send('DELETE', `/alert-rules/${encodeURIComponent(id)}`, {});
+
+// ---- seen and ignored (homeCore 0.1.81) ----
+
+/** Say an alert has been seen; it stays until it clears. */
+export const acknowledgeAlert = (id: string) =>
+	send('POST', `/alerts/${encodeURIComponent(id)}/acknowledge`, {});
+
+/** What's ignored; null when this homeCore can't ignore alerts. */
+export async function alertIgnores(): Promise<AlertIgnore[] | null> {
+	try {
+		const res = await fetch('/api/v1/alert-ignores');
+		return res.ok ? ((await res.json()) as AlertIgnore[]) : null;
+	} catch {
+		return null;
+	}
+}
+export const ignoreAlerts = (ignore: Omit<AlertIgnore, 'id'>) =>
+	send('POST', '/alert-ignores', ignore);
+export const unignore = (id: string) =>
+	send('DELETE', `/alert-ignores/${encodeURIComponent(id)}`, {});
 
 /** Delete a room; its devices are left in no room. */
 export const deleteRoom = (id: string) => send('DELETE', room(id), {});

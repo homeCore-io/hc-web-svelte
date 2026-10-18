@@ -1,7 +1,7 @@
 build/
 .svelte-kit/
 node_modules/
-data/
+/data/
 package-lock.json
 docs/design/mockups/
 docs/

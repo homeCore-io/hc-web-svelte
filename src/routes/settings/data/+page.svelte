@@ -204,8 +204,20 @@
 	let calName = $state('');
 	let refresh = $state(24);
 	let calNote = $state<string | null>(null);
+	/** Adding under a name already used replaces that calendar — ask first. */
+	async function replaces(name: string): Promise<boolean> {
+		if (!calendars?.some((c) => c.id === name)) return true;
+		return ask({
+			title: `Replace the calendar “${name}”?`,
+			body: 'There’s one by that name already. Its events are replaced by these; rules that check it check the new one.',
+			go: 'Replace',
+			danger: true
+		});
+	}
 	async function add(e: SubmitEvent) {
 		e.preventDefault();
+		const name = calName.trim() || nameFromUrl(url);
+		if (name && !(await replaces(name))) return;
 		calNote = 'Fetching it…';
 		const r = await addCalendar(url.trim(), calName.trim() || undefined, refresh || undefined);
 		calNote = r.ok ? `Added “${r.data.calendar_id}” — ${r.data.event_count} events.` : r.error;
@@ -217,7 +229,11 @@
 		const f = input.files?.[0];
 		input.value = '';
 		if (!f) return;
-		const r = await uploadCalendar(await f.text(), f.name.replace(/\.ics$/i, '').replace(/[^A-Za-z0-9_-]/g, '_'));
+		// The Name box, if filled, names it; else the file's name does.
+		const name = cleanName(calName.trim() || f.name.replace(/\.ics$/i, ''));
+		if (!(await replaces(name))) return;
+		const r = await uploadCalendar(await f.text(), name);
+		if (r.ok) calName = '';
 		calNote = r.ok ? `Added “${r.data.calendar_id}” — ${r.data.event_count} events.` : r.error;
 		await load();
 	}
@@ -238,16 +254,60 @@
 		await load();
 	}
 	const ago = (iso: string | null) => (iso ? daysAgo(iso, clock.now) : 'never');
+	/** A calendar's name as homeCore keeps it: letters, digits, `-` and `_`. */
+	const cleanName = (s: string) => s.replace(/[^A-Za-z0-9_-]/g, '_');
+	/** The name homeCore gives a fetched calendar with none: the file's, from its address. */
+	function nameFromUrl(u: string): string {
+		try {
+			const last = new URL(u.trim()).pathname.split('/').pop() ?? '';
+			return cleanName(last.replace(/\.ics$/i, ''));
+		} catch {
+			return '';
+		}
+	}
+
+	// A fetched calendar: fetch it now, or change how often.
+	let busyCal = $state<string | null>(null);
+	let everyFor = $state<string | null>(null);
+	let every = $state(24);
+	async function refetch(c: Calendar, hours = c.refresh_hours ?? undefined) {
+		if (!c.source_url) return;
+		busyCal = c.id;
+		const r = await addCalendar(c.source_url, c.id, hours);
+		busyCal = null;
+		calNote = r.ok ? `Fetched “${c.id}” — ${r.data.event_count} events.` : r.error;
+		if (r.ok) {
+			everyFor = null;
+			delete coming[c.id];
+			coming = { ...coming };
+			if (showing === c.id) {
+				showing = null;
+				void toggleComing(c.id);
+			}
+		}
+		await load();
+	}
+	const howOften = (c: Calendar) =>
+		c.refresh_hours
+			? `again every ${c.refresh_hours === 24 ? 'day' : `${c.refresh_hours} h`}`
+			: 'not again';
 
 	// What's coming up in a calendar, read when asked.
 	type Coming = { uid: string; summary: string; start: string; is_all_day: boolean }[];
 	let coming = $state<Record<string, Coming | string>>({});
 	let showing = $state<string | null>(null);
+	/** How many coming events each shows: 8, then more on asking. */
+	let shown = $state<Record<string, number>>({});
+	async function moreComing(id: string) {
+		shown = { ...shown, [id]: (shown[id] ?? 8) + 25 };
+		const r = await calendarEvents(id, shown[id]);
+		coming = { ...coming, [id]: r.ok ? r.data.events : r.error };
+	}
 	async function toggleComing(id: string) {
 		if (showing === id) return void (showing = null);
 		showing = id;
 		if (coming[id] && typeof coming[id] !== 'string') return;
-		const r = await calendarEvents(id, 8);
+		const r = await calendarEvents(id, shown[id] ?? 8);
 		coming = { ...coming, [id]: r.ok ? r.data.events : r.error };
 	}
 	const when = (e: Coming[number]) => {
@@ -280,7 +340,9 @@
 					? ` (${size(status.history_db_bytes)})`
 					: ''}, rules, settings and calendars.
 			</p>
-			<button class="go" onclick={backupNow} disabled={backing?.startsWith('Making')}>Back up now</button>
+			<button class="go" onclick={backupNow} disabled={backing?.startsWith('Making')}
+				>Back up now</button
+			>
 			{#if backing}<p class="sub" role="status">{backing}</p>{/if}
 			<p class="sub">
 				This app’s own pages, displays and everyone’s Home are kept apart from homeCore —
@@ -297,13 +359,20 @@
 			</p>
 			{#if !plan}
 				<label class="plain bad file"
-					>Choose a backup file…<input type="file" accept=".zip,application/zip" onchange={chose} /></label
+					>Choose a backup file…<input
+						type="file"
+						accept=".zip,application/zip"
+						onchange={chose}
+					/></label
 				>
 			{:else}
 				<div class="plan">
 					<strong
 						>A backup from {plan.taken_at
-							? new Date(plan.taken_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+							? new Date(plan.taken_at).toLocaleString(undefined, {
+									dateStyle: 'medium',
+									timeStyle: 'short'
+								})
 							: 'an unknown time'}</strong
 					>
 					<ul>
@@ -316,13 +385,19 @@
 				<div class="acts">
 					<button class="plain" onclick={backupNow}>Back up now first</button>
 					<button class="danger" onclick={putBack} disabled={restoring}>Put it back…</button>
-					<button class="plain" onclick={() => ((plan = null), (file = null))} disabled={restoring}>Cancel</button>
+					<button class="plain" onclick={() => ((plan = null), (file = null))} disabled={restoring}
+						>Cancel</button
+					>
 				</div>
 			{/if}
 			{#if restoreNote}<p class="sub" role="status">{restoreNote}</p>{/if}
 			<p class="sub">
 				This app’s pages and Homes: <label class="link file"
-					>put a saved copy back<input type="file" accept=".json,application/json" onchange={choseApp} /></label
+					>put a saved copy back<input
+						type="file"
+						accept=".json,application/json"
+						onchange={choseApp}
+					/></label
 				>
 			</p>
 			{#if appNote}<p class="sub" role="status">{appNote}</p>{/if}
@@ -330,12 +405,18 @@
 
 		<section class="card">
 			<h2>Rules and scenes, on their own</h2>
-			<p class="sub">As JSON — to keep a copy, move them to another homeCore, or look through them.</p>
+			<p class="sub">
+				As JSON — to keep a copy, move them to another homeCore, or look through them.
+			</p>
 			<div class="acts">
 				<a class="plain" href="/settings/automations">Export or import rules</a>
 				<button class="plain" onclick={scenesOut}>Export scenes</button>
 				<label class="plain file"
-					>Import scenes…<input type="file" accept=".json,application/json" onchange={scenesIn} /></label
+					>Import scenes…<input
+						type="file"
+						accept=".json,application/json"
+						onchange={scenesIn}
+					/></label
 				>
 			</div>
 			{#if incoming}
@@ -344,7 +425,9 @@
 					{#each incoming as x, i (i)}
 						<label class="pick"
 							><input type="checkbox" bind:checked={x.take} />
-							{x.scene.name}{#if x.here}<span class="sub"> — one by this name is here already</span>{/if}</label
+							{x.scene.name}{#if x.here}<span class="sub">
+									— one by this name is here already</span
+								>{/if}</label
 						>
 					{/each}
 				</div>
@@ -360,7 +443,9 @@
 
 		<section class="card">
 			<h2>Calendars</h2>
-			<p class="sub">Holidays, bin days, school terms — rules can check whether there’s an event now.</p>
+			<p class="sub">
+				Holidays, bin days, school terms — rules can check whether there’s an event now.
+			</p>
 			{#if calendars?.length}
 				<ul class="cals">
 					{#each calendars as c (c.id)}
@@ -369,17 +454,52 @@
 								><strong>{c.id}</strong>
 								<span class="sub"
 									>{c.upcoming_count} coming up of {c.event_count} · {c.source_url
-										? `fetched ${ago(c.fetched_at)}`
+										? `fetched ${ago(c.fetched_at)}${'refresh_hours' in c ? `, ${howOften(c)}` : ''}`
 										: 'uploaded'}</span
 								></span
 							>
 							<button
 								class="plain"
 								aria-expanded={showing === c.id}
-								onclick={() => toggleComing(c.id)}>{showing === c.id ? 'Hide' : 'What’s coming'}</button
+								onclick={() => toggleComing(c.id)}
+								>{showing === c.id ? 'Hide' : 'What’s coming'}</button
 							>
+							{#if c.source_url && 'refresh_hours' in c}
+								<button class="plain" disabled={busyCal === c.id} onclick={() => refetch(c)}
+									>{busyCal === c.id ? 'Fetching…' : 'Fetch now'}</button
+								>
+								<button
+									class="plain"
+									aria-expanded={everyFor === c.id}
+									onclick={() => {
+										everyFor = everyFor === c.id ? null : c.id;
+										every = c.refresh_hours ?? 24;
+									}}>How often…</button
+								>
+							{/if}
 							<button class="plain bad" onclick={() => remove(c)}>Remove</button>
 						</li>
+						{#if everyFor === c.id}
+							<li class="coming">
+								<form
+									class="every"
+									onsubmit={(e) => {
+										e.preventDefault();
+										void refetch(c, every > 0 ? every : undefined);
+									}}
+								>
+									<label class="sub refresh"
+										>Fetch it again every <input
+											type="number"
+											min="0"
+											bind:value={every}
+											aria-label="Hours"
+										/> hours — 0 for never</label
+									>
+									<button class="go" type="submit" disabled={busyCal === c.id}>Save</button>
+								</form>
+							</li>
+						{/if}
 						{#if showing === c.id}
 							{@const list = coming[c.id]}
 							<li class="coming">
@@ -395,6 +515,9 @@
 											<li><span class="day">{when(e)}</span> {e.summary || '(no title)'}</li>
 										{/each}
 									</ol>
+									{#if list.length >= (shown[c.id] ?? 8) && list.length < c.upcoming_count}
+										<button class="plain" onclick={() => moreComing(c.id)}>More</button>
+									{/if}
 								{/if}
 							</li>
 						{/if}
@@ -404,14 +527,30 @@
 				<p class="sub">None yet.</p>
 			{/if}
 			<form class="add" onsubmit={add}>
-				<input type="url" bind:value={url} placeholder="A calendar’s web address (.ics)" aria-label="Calendar address" required />
-				<input bind:value={calName} placeholder="Name (optional)" aria-label="Calendar name" />
+				<input
+					type="url"
+					bind:value={url}
+					placeholder="A calendar’s web address (.ics)"
+					aria-label="Calendar address"
+					required
+				/>
+				<input
+					bind:value={calName}
+					placeholder="Name (optional — for an upload too)"
+					aria-label="Calendar name"
+				/>
 				<label class="sub refresh"
 					>Fetch again every <input type="number" min="0" bind:value={refresh} aria-label="Hours" /> hours</label
 				>
 				<button class="go" type="submit">Add</button>
 			</form>
-			<label class="link file">or upload an .ics file<input type="file" accept=".ics,text/calendar" onchange={uploadIcs} /></label>
+			<label class="link file"
+				>or upload an .ics file<input
+					type="file"
+					accept=".ics,text/calendar"
+					onchange={uploadIcs}
+				/></label
+			>
 			{#if calNote}<p class="sub" role="status">{calNote}</p>{/if}
 		</section>
 	</div>

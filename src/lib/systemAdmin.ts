@@ -93,11 +93,39 @@ export const loadEvents = (limit = 500) =>
 
 // ---- the audit ----
 
-export function loadAudit(q: { limit?: number; before?: string; actor_id?: string } = {}) {
+/** What homeCore filters the audit by itself — across all of it, not a loaded page. */
+export interface AuditAsk {
+	limit?: number;
+	/** Older than this (homeCore's `to`). */
+	before?: string;
+	/** Since this (homeCore's `from`). */
+	since?: string;
+	actor_id?: string;
+	result?: 'success' | 'denied' | 'error';
+}
+
+export function loadAudit(q: AuditAsk = {}) {
 	const params = new URLSearchParams({ limit: String(q.limit ?? 500) });
 	if (q.before) params.set('to', q.before);
+	if (q.since) params.set('from', q.since);
 	if (q.actor_id) params.set('actor_id', q.actor_id);
+	if (q.result) params.set('result', q.result);
 	return call<AuditEntry[]>('GET', `/audit?${params}`);
+}
+
+/**
+ * Refused and failed together — homeCore's `result` takes one value, so two
+ * asks, merged newest first and cut to the page.
+ */
+export async function loadRefused(q: Omit<AuditAsk, 'result'>) {
+	const [a, b] = await Promise.all([
+		loadAudit({ ...q, result: 'denied' }),
+		loadAudit({ ...q, result: 'error' })
+	]);
+	if (!a.ok) return a;
+	if (!b.ok) return b;
+	const all = [...a.data, ...b.data].sort((x, y) => Date.parse(y.ts) - Date.parse(x.ts));
+	return { ok: true as const, data: all.slice(0, q.limit ?? 500) };
 }
 
 // ---- backups ----
@@ -209,6 +237,8 @@ export interface Calendar {
 	upcoming_count: number;
 	source_url: string | null;
 	fetched_at: string | null;
+	/** How often it's fetched again; null when it isn't. Absent before homeCore 0.1.80. */
+	refresh_hours?: number | null;
 	loaded_at: string;
 }
 

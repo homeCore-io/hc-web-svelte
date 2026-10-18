@@ -184,7 +184,7 @@
 					"render": "path"
 				},
 				{
-					"help": "DEPRECATED \u2014 prefer the admin socket below. Every address listed bypasses sign-in entirely and is treated as Admin.",
+					"help": "DEPRECATED — prefer the admin socket below. Every address listed bypasses sign-in entirely and is treated as Admin.",
 					"item": "text",
 					"key": "auth.whitelist",
 					"kind": "list",
@@ -617,7 +617,7 @@
 					}
 				}
 			],
-			"help": "Containers you run yourself that host plugins written in other languages. homeCore does not manage the container \u2014 only whether one is allowed to join.",
+			"help": "Containers you run yourself that host plugins written in other languages. homeCore does not manage the container — only whether one is allowed to join.",
 			"id": "plugin_runtimes",
 			"title": "Plugin runtimes"
 		},
@@ -694,6 +694,35 @@
 							"value": "utc"
 						}
 					]
+				},
+				{
+					"help": "A level for one part of homeCore or a library, by its name with underscores — hc_core, hc_api, rumqttd. Overrides the level above.",
+					"item": "enum",
+					"key": "logging.targets",
+					"kind": "map",
+					"label": "Per module",
+					"options": [
+						{
+							"label": "error",
+							"value": "error"
+						},
+						{
+							"label": "warn",
+							"value": "warn"
+						},
+						{
+							"label": "info",
+							"value": "info"
+						},
+						{
+							"label": "debug",
+							"value": "debug"
+						},
+						{
+							"label": "trace",
+							"value": "trace"
+						}
+					]
 				}
 			],
 			"id": "logging",
@@ -733,7 +762,7 @@
 				}
 			],
 			"id": "logging.stderr",
-			"title": "Logging \u2014 console"
+			"title": "Logging — console"
 		},
 		{
 			"fields": [
@@ -750,7 +779,7 @@
 					"render": "path"
 				},
 				{
-					"help": "homecore \u2192 homecore.2026-07-28.log",
+					"help": "homecore → homecore.2026-07-28.log",
 					"key": "logging.file.prefix",
 					"kind": "text",
 					"label": "Filename prefix"
@@ -823,7 +852,7 @@
 				}
 			],
 			"id": "logging.file",
-			"title": "Logging \u2014 file"
+			"title": "Logging — file"
 		},
 		{
 			"fields": [
@@ -909,7 +938,7 @@
 			],
 			"help": "A separate file carrying only rule-engine lines, so automations are readable on their own.",
 			"id": "logging.rules_file",
-			"title": "Logging \u2014 rules file"
+			"title": "Logging — rules file"
 		},
 		{
 			"fields": [
@@ -980,7 +1009,7 @@
 					}
 				},
 				{
-					"help": "user, or local0 \u2026 local7.",
+					"help": "user, or local0 … local7.",
 					"key": "logging.syslog.facility",
 					"kind": "text",
 					"label": "Facility",
@@ -1011,7 +1040,7 @@
 				}
 			],
 			"id": "logging.syslog",
-			"title": "Logging \u2014 syslog"
+			"title": "Logging — syslog"
 		},
 		{
 			"fields": [
@@ -1028,9 +1057,9 @@
 					"unit": "lines"
 				}
 			],
-			"help": "The feed behind Administration \u2192 Logs.",
+			"help": "The feed behind Administration → Logs.",
 			"id": "logging.stream",
-			"title": "Logging \u2014 live stream"
+			"title": "Logging — live stream"
 		},
 		{
 			"fields": [

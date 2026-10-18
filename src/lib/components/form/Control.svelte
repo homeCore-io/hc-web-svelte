@@ -9,7 +9,16 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Toggle from '../Toggle.svelte';
 	import Self from './Control.svelte';
-	import { entry, numeric, parse, problem, same, unitName, type Field } from '#lib/descriptor.js';
+	import {
+		MAP_NAME,
+		entry,
+		numeric,
+		parse,
+		problem,
+		same,
+		unitName,
+		type Field
+	} from '#lib/descriptor.js';
 	import { devices } from '#lib/devices.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { sourceOptions } from '#lib/formSources.js';
@@ -107,6 +116,30 @@
 	}
 
 	const labelOf = (x: unknown) => opts?.find((o) => same(o.value, x))?.label ?? entry(x);
+
+	// ---- name → value tables ----
+	const pairs = $derived(
+		value !== null && typeof value === 'object' && !Array.isArray(value)
+			? Object.entries(value as Record<string, unknown>)
+			: []
+	);
+	let newName = $state('');
+	let newValue = $state('');
+	let mapProblem = $state<string | null>(null);
+	const setPair = (k: string, v: unknown) =>
+		onchange(Object.fromEntries(pairs.map(([n, x]) => [n, n === k ? v : x])));
+	function addPair() {
+		const k = newName.trim();
+		if (!k) return;
+		if (!MAP_NAME.test(k))
+			return void (mapProblem = 'A name has no spaces — like hc_core or hc_core::engine.');
+		if (pairs.some(([n]) => n === k)) return void (mapProblem = `${k} is there already.`);
+		const v = opts ? (opts[0] && !newValue ? opts[0].value : newValue) : newValue;
+		mapProblem = null;
+		newName = '';
+		newValue = '';
+		onchange(Object.fromEntries([...pairs, [k, v]]));
+	}
 
 	// ---- tables ----
 	const columns = $derived(Array.isArray(field.item) ? field.item : []);
@@ -225,6 +258,72 @@
 			{#if addProblem}<span class="problem" role="alert">{addProblem}</span>{/if}
 		{/if}
 	</div>
+{:else if field.kind === 'map'}
+	<div class="map">
+		{#each pairs as [k, x] (k)}
+			<div class="pair">
+				<span class="mono name">{k}</span>
+				{#if opts}
+					<select
+						aria-label={`${k} — ${label}`}
+						value={JSON.stringify(x)}
+						{disabled}
+						onchange={(e) => setPair(k, JSON.parse(e.currentTarget.value))}
+					>
+						{#if !opts.some((o) => same(o.value, x))}<option value={JSON.stringify(x)}
+								>{entry(x)}</option
+							>{/if}
+						{#each opts as o (String(o.value))}<option value={JSON.stringify(o.value)}
+								>{o.label}</option
+							>{/each}
+					</select>
+				{:else}
+					<input
+						aria-label={`${k} — ${label}`}
+						value={entry(x)}
+						{disabled}
+						oninput={(e) => setPair(k, e.currentTarget.value)}
+					/>
+				{/if}
+				{#if !disabled}<button
+						type="button"
+						class="small remove"
+						aria-label={`Remove ${k}`}
+						onclick={() => onchange(Object.fromEntries(pairs.filter(([n]) => n !== k)))}
+						><X size={14} aria-hidden="true" /></button
+					>{/if}
+			</div>
+		{/each}
+		{#if !disabled}
+			<div class="pair">
+				<input
+					{id}
+					class="mono name"
+					bind:value={newName}
+					placeholder={field.placeholder ?? 'name'}
+					aria-label={`New name for ${label}`}
+					spellcheck="false"
+					oninput={() => (mapProblem = null)}
+					onkeydown={(e) => {
+						if (e.key !== 'Enter') return;
+						e.preventDefault();
+						addPair();
+					}}
+				/>
+				{#if opts}
+					<select bind:value={newValue} aria-label={`Its value`}>
+						{#each opts as o (String(o.value))}<option value={o.value}>{o.label}</option>{/each}
+					</select>
+				{:else}
+					<input bind:value={newValue} aria-label="Its value" />
+				{/if}
+				<button type="button" class="small" disabled={newName.trim() === ''} onclick={addPair}
+					><Plus size={14} aria-hidden="true" />Add</button
+				>
+			</div>
+			{#if mapProblem}<span class="problem" role="alert">{mapProblem}</span>{/if}
+		{/if}
+	</div>
 {:else if field.kind === 'table'}
 	<div class="table">
 		{#each rows as row, i (i)}
@@ -287,6 +386,25 @@
 {/if}
 
 <style>
+	.map {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		width: 100%;
+	}
+	.pair {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		min-width: 0;
+	}
+	.pair .name {
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+	.pair span.name {
+		overflow-wrap: anywhere;
+	}
 	input,
 	select {
 		height: 40px;

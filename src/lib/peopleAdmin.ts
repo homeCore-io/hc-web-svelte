@@ -110,10 +110,13 @@ export const makeKey = (body: {
 	scopes: string[];
 	expires_in_days?: number;
 	owner_uid?: string;
+	allowed_cidrs?: string[];
 }) => call<ApiKey & { token: string }>('POST', '/auth/api-keys', body);
 
-export const editKey = (id: string, body: { label?: string; scopes?: string[] }) =>
-	call<ApiKey>('PATCH', key(id), body);
+export const editKey = (
+	id: string,
+	body: { label?: string; scopes?: string[]; expires_in_days?: number; allowed_cidrs?: string[] }
+) => call<ApiKey>('PATCH', key(id), body);
 
 export const revokeKey = (id: string) => call<null>('DELETE', key(id));
 

@@ -1,8 +1,9 @@
 <!--
 	API keys (A5): for scripts and other programs — what each is for, what
 	it may do, when it was last used. A new key is shown once. Keys can be
-	renamed, narrowed, given a new secret or revoked. Wall tablets have their
-	own keys, under Displays.
+	renamed, narrowed, kept to some addresses, given longer, given a new
+	secret or revoked; an admin can make one for someone else. Wall tablets
+	have their own keys, under Displays.
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
@@ -11,6 +12,7 @@
 	import { clock } from '#lib/clock.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
 	import { daysAgo } from '#lib/settings.js';
+	import { compareVersions } from '#lib/plugins.js';
 	import {
 		EXPIRY,
 		LEVEL_WORDS,
@@ -41,7 +43,15 @@
 	let people = $state<Person[]>([]);
 	let roles = $state<RoleInfo[]>([]);
 	let failed = $state<string | null>(null);
+	// homeCore checks a key's addresses from 0.1.80; before, it only kept them.
+	let checksAddresses = $state(false);
 	async function load() {
+		void fetch('/api/v1/health')
+			.then((r) => r.json())
+			.then((h: { version?: string }) => {
+				checksAddresses = !!h.version && compareVersions(h.version, '0.1.80') >= 0;
+			})
+			.catch(() => {});
 		const [k, p, r] = await Promise.all([loadKeys(), loadPeople(), loadRoles()]);
 		if (!k.ok) return void (failed = k.error);
 		keys = k.data;
@@ -54,12 +64,20 @@
 	const mine = $derived(session.me?.scopes ?? []);
 	const nameOf = (uid: string) =>
 		uid === session.me?.id ? 'you' : (people.find((p) => p.id === uid)?.username ?? 'someone gone');
-	/** What a key's owner holds — the most it can be given. */
-	const ownerScopes = (k: ApiKey) => {
-		if (k.owner_uid === session.me?.id) return mine;
-		const role = people.find((p) => p.id === k.owner_uid)?.role;
-		return roles.find((r) => r.role === role)?.scopes ?? k.scopes;
+	/** What someone holds — the most a key of theirs can be given. */
+	const scopesOf = (uid: string, fallback: string[]) => {
+		if (uid === session.me?.id) return mine;
+		const role = people.find((p) => p.id === uid)?.role;
+		return roles.find((r) => r.role === role)?.scopes ?? fallback;
 	};
+	const ownerScopes = (k: ApiKey) => scopesOf(k.owner_uid, k.scopes);
+	const canForOthers = $derived(session.can('api_keys:admin') && people.length > 1);
+	/** Addresses as typed — commas, spaces or lines between them. */
+	const addressesOf = (text: string) =>
+		text
+			.split(/[\s,]+/)
+			.map((x) => x.trim())
+			.filter(Boolean);
 	const when = (iso: string | null) => (iso ? daysAgo(iso, clock.now) : 'never');
 
 	// ---- a new key, or editing one ----
@@ -68,11 +86,15 @@
 	let level = $state<KeyLevel>('read');
 	let custom = $state<string[]>([]);
 	let expiry = $state<number | null>(90);
+	/** Editing: stop it this many days from now, or leave it (null). */
+	let extend = $state<number | null>(null);
+	let owner = $state('');
+	let addresses = $state('');
 	let made = $state<{ label: string; token: string } | null>(null);
 	let note = $state<string | null>(null);
 	let busy = $state(false);
 
-	const holds = $derived(editing ? ownerScopes(editing) : mine);
+	const holds = $derived(editing ? ownerScopes(editing) : owner ? scopesOf(owner, mine) : mine);
 	const scopes = $derived(level === 'custom' ? custom : scopesFor(level, holds));
 
 	function fresh() {
@@ -81,6 +103,9 @@
 		level = 'read';
 		custom = [];
 		expiry = 90;
+		extend = null;
+		owner = '';
+		addresses = '';
 		note = null;
 	}
 	function edit(k: ApiKey) {
@@ -89,6 +114,8 @@
 		label = k.label;
 		level = levelOf(k.scopes, ownerScopes(k));
 		custom = [...k.scopes];
+		extend = null;
+		addresses = (k.allowed_cidrs ?? []).join(', ');
 		note = null;
 	}
 	function pickLevel(l: KeyLevel) {
@@ -103,7 +130,14 @@
 		if (!scopes.length) return void (note = 'Give it something it may do.');
 		busy = true;
 		if (editing) {
-			const r = await editKey(editing.id, { label: label.trim(), scopes });
+			const limit = addressesOf(addresses);
+			const was = editing.allowed_cidrs ?? [];
+			const r = await editKey(editing.id, {
+				label: label.trim(),
+				scopes,
+				...(extend === null ? {} : { expires_in_days: extend }),
+				...(checksAddresses && limit.join() !== was.join() ? { allowed_cidrs: limit } : {})
+			});
 			busy = false;
 			if (!r.ok) return void (note = r.error);
 			fresh();
@@ -111,7 +145,9 @@
 			const r = await makeKey({
 				label: label.trim(),
 				scopes,
-				...(expiry === null ? {} : { expires_in_days: expiry })
+				...(expiry === null ? {} : { expires_in_days: expiry }),
+				...(owner ? { owner_uid: owner } : {}),
+				...(checksAddresses && addresses.trim() ? { allowed_cidrs: addressesOf(addresses) } : {})
 			});
 			busy = false;
 			if (!r.ok) return void (note = r.error);
@@ -186,6 +222,11 @@
 								: ''}</span
 						>
 						<span class="sub">Can {keyWords(k.scopes)}</span>
+						{#if k.allowed_cidrs?.length}<span class="sub"
+								>Only from {k.allowed_cidrs.join(', ')}{checksAddresses
+									? ''
+									: ' — not checked by this homeCore'}</span
+							>{/if}
 						<span class="mono">hc_sk_{k.prefix}…</span>
 						<div class="acts">
 							<button class="plain" onclick={() => edit(k)}>Edit</button>
@@ -228,6 +269,17 @@
 						<span>What it’s for</span>
 						<input bind:value={label} placeholder="Backup script on the NAS" autocomplete="off" />
 					</label>
+					{#if !editing && canForOthers}
+						<label class="field row">
+							<span>Whose key</span>
+							<select bind:value={owner} onchange={() => (custom = [])}>
+								<option value="">Yours</option>
+								{#each people.filter((p) => p.id !== session.me?.id) as p (p.id)}<option
+										value={p.id}>{p.username}’s</option
+									>{/each}
+							</select>
+						</label>
+					{/if}
 					<fieldset>
 						<legend>What it may do</legend>
 						{#each Object.entries(LEVEL_WORDS) as [id, w] (id)}
@@ -264,6 +316,36 @@
 								{#each EXPIRY as e (e.label)}<option value={e.days}>{e.label}</option>{/each}
 							</select>
 						</label>
+					{:else}
+						<label class="field row">
+							<span>Stops working</span>
+							<select bind:value={extend}>
+								<option value={null}
+									>{editing.expires_at
+										? `as now — ${new Date(editing.expires_at).toLocaleDateString()}`
+										: 'as now — never'}</option
+								>
+								{#each EXPIRY.filter((e) => e.days !== null) as e (e.label)}<option value={e.days}
+										>{e.label} from today</option
+									>{/each}
+							</select>
+						</label>
+					{/if}
+					{#if checksAddresses}
+						<label class="field">
+							<span>Only from (optional)</span>
+							<input
+								bind:value={addresses}
+								placeholder="10.0.10.0/24, 192.168.1.7"
+								autocomplete="off"
+								spellcheck="false"
+							/>
+							<span class="sub"
+								>Networks or single addresses, from where the program runs. Leave it empty for
+								anywhere. A program that reaches homeCore through this app is seen at the app’s
+								address.</span
+							>
+						</label>
 					{/if}
 					{#if note}<p class="note bad" role="alert">{note}</p>{/if}
 					<div class="acts">
@@ -272,10 +354,12 @@
 						>
 						{#if editing}<button type="button" class="plain" onclick={fresh}>Cancel</button>{/if}
 					</div>
-					<p class="sub">
-						homeCore can record addresses a key may be used from, but doesn’t check them yet, so
-						this page doesn’t offer it.
-					</p>
+					{#if !checksAddresses}
+						<p class="sub">
+							This homeCore keeps addresses a key may be used from but doesn’t check them, so this
+							page doesn’t offer it — homeCore 0.1.80 does.
+						</p>
+					{/if}
 				</form>
 			{/if}
 		</section>

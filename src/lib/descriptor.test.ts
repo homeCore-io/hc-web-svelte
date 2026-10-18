@@ -186,3 +186,40 @@ describe('the file, read over a shoulder', async () => {
 		]);
 	});
 });
+
+describe('a name → value table (logging.targets)', () => {
+	const levels = ['error', 'warn', 'info', 'debug', 'trace'].map((l) => ({ value: l, label: l }));
+	const d: Descriptor = {
+		sections: [
+			{
+				id: 'logging',
+				title: 'Logging',
+				fields: [{ kind: 'map', key: 'logging.targets', item: 'enum', options: levels }]
+			}
+		]
+	};
+	const field = d.sections[0]!.fields[0]!;
+
+	it('is read from the file like any setting', () => {
+		expect(valuesOf(d, { logging: { targets: { hc_core: 'debug' } } })).toEqual({
+			'logging.targets': { hc_core: 'debug' }
+		});
+	});
+
+	it('is written as a patch on the table: each name set, each one taken out as null', () => {
+		const was = { 'logging.targets': { hc_core: 'debug', rumqttd: 'warn' } };
+		const now = { 'logging.targets': { hc_core: 'trace', hc_api: 'info' } };
+		const w = writes(changes(d, was, now));
+		expect(w.patch).toEqual({
+			'logging.targets': { hc_core: 'trace', hc_api: 'info', rumqttd: null }
+		});
+		expect(w.cannot).toEqual([]);
+	});
+
+	it('says what’s wrong with a name or a level', () => {
+		expect(problem(field, { hc_core: 'debug', 'hc_core::engine': 'trace' })).toBeNull();
+		expect(problem(field, { 'hc core': 'debug' })).toMatch(/no spaces/);
+		expect(problem(field, { hc_core: 'loud' })).toMatch(/isn’t one of/);
+		expect(say(field, { a: 'info', b: 'warn' })).toBe('2 entries');
+	});
+});

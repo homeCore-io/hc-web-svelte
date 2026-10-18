@@ -97,7 +97,8 @@ const VALUED = new Set([
 	'enum',
 	'select',
 	'list',
-	'table'
+	'table',
+	'map'
 ]);
 export const holdsValue = (f: Field): f is Field & { key: string } =>
 	f.key !== undefined && VALUED.has(f.kind);
@@ -177,6 +178,8 @@ export const sectionShown = (s: Section, get: (key: string) => unknown) =>
 export const fieldShown = (f: Field, get: (key: string) => unknown) => holds(f.visible_when, get);
 
 const PORT = 'A port is a whole number from 1 to 65535.';
+/** A name in a name → value table: one TOML key, as homeCore's targets are spelled. */
+export const MAP_NAME = /^[A-Za-z0-9_][A-Za-z0-9_:.-]*$/;
 
 /**
  * Typed text to a value, or what's wrong with it. Empty text is `undefined`:
@@ -215,6 +218,14 @@ export function problem(f: Field, v: unknown, required = !!f.required): string |
 		return 'A web address, starting http:// or https://.';
 	if (f.kind === 'host' && typeof v === 'string' && /\s/.test(v))
 		return 'A host name or address has no spaces.';
+	if (f.kind === 'map' && v !== null && typeof v === 'object' && !Array.isArray(v)) {
+		for (const [k, x] of Object.entries(v)) {
+			if (!MAP_NAME.test(k))
+				return `“${k}”: a name has no spaces — like hc_core or hc_core::engine.`;
+			if (f.options && !f.options.some((o) => same(o.value, x)))
+				return `${k}: ${entry(x)} isn’t one of ${f.options.map((o) => o.label).join(', ')}.`;
+		}
+	}
 	if (f.kind === 'list' && Array.isArray(v) && typeof f.item === 'string') {
 		const item = { kind: f.item } as Field;
 		for (const x of v) {
@@ -247,6 +258,10 @@ export function describe(f: Field, v: unknown): string {
 	}
 	if (Array.isArray(v))
 		return v.length === 0 ? 'none' : `${v.length} item${v.length === 1 ? '' : 's'}`;
+	if (f.kind === 'map' && v !== null && typeof v === 'object') {
+		const n = Object.keys(v).length;
+		return n === 0 ? 'none' : `${n} entr${n === 1 ? 'y' : 'ies'}`;
+	}
 	if (v === '') return 'empty';
 	return `${String(v)}${unitText(f)}`;
 }
@@ -328,6 +343,17 @@ export function writes(cs: Change[]): Writes {
 	for (const c of cs) {
 		if (c.field.kind === 'table') {
 			tables.push({ section: c.key, items: Array.isArray(c.now) ? c.now : [] });
+			continue;
+		}
+		if (c.field.kind === 'map') {
+			// A patch on the table itself: each name set, each one gone as null
+			// (homeCore 0.1.80 and later take null as "remove").
+			const was = (c.was ?? {}) as Record<string, unknown>;
+			const now = (c.now ?? {}) as Record<string, unknown>;
+			const edits: Record<string, unknown> = {};
+			for (const [k, x] of Object.entries(now)) if (!same(was[k], x)) edits[k] = x;
+			for (const k of Object.keys(was)) if (!(k in now)) edits[k] = null;
+			if (Object.keys(edits).length) patch[c.key] = { ...(patch[c.key] ?? {}), ...edits };
 			continue;
 		}
 		let now = c.now;

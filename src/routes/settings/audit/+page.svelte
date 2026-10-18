@@ -2,9 +2,12 @@
 	Audit (A6): who changed what, and when, as sentences. A person's repeated
 	sign-ins on a day are one row; changes stand alone. A row opens to say
 	exactly what homeCore recorded.
+
+	A person, a day and "refused" are asked of homeCore, so they reach the
+	whole audit; the kind of entry and the words are matched in what's loaded.
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { session } from '#lib/me.svelte.js';
 	import { heading } from '#lib/heading.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
@@ -16,7 +19,9 @@
 		type AuditEntry,
 		type AuditFilter
 	} from '#lib/system.js';
-	import { loadAudit } from '#lib/systemAdmin.js';
+	import { loadAudit, loadRefused } from '#lib/systemAdmin.js';
+	import { loadPeople } from '#lib/peopleAdmin.js';
+	import type { Person } from '#lib/people.js';
 
 	$effect(() => heading.show('Audit', { href: '/settings/system', label: 'System' }));
 
@@ -25,25 +30,47 @@
 	let failed = $state<string | null>(null);
 	let more = $state(true);
 	let busy = $state(false);
+	/** `uid:<id>` — a person, asked of homeCore; `as:<words>` — anyone else, matched here. */
 	let who = $state('');
 	let what = $state<AuditFilter>('all');
+	let since = $state('');
 	let query = $state('');
 	let open = $state<string | null>(null);
+	let accounts = $state<Person[]>([]);
 
+	const ask = $derived({
+		actor_id: who.startsWith('uid:') ? who.slice(4) : undefined,
+		since: since ? new Date(`${since}T00:00:00`).toISOString() : undefined
+	});
 	async function load(older = false) {
 		busy = true;
 		const before = older ? entries[entries.length - 1]?.ts : undefined;
-		const r = await loadAudit({ limit: PAGE, before });
+		const q = { limit: PAGE, before, ...ask };
+		const r = refused ? await loadRefused(q) : await loadAudit(q);
 		busy = false;
 		if (!r.ok) return void (failed = r.error);
-		const seen = new Set(entries.map((e) => e.id));
+		failed = null;
+		const seen = new Set(older ? entries.map((e) => e.id) : []);
 		const fresh = r.data.filter((e) => !seen.has(e.id));
 		entries = older ? [...entries, ...fresh] : r.data;
 		more = r.data.length === PAGE;
 	}
-	onMount(() => void load());
+	onMount(() => {
+		void loadPeople().then((p) => p.ok && (accounts = p.data));
+	});
+	// What homeCore filters changes the page: ask again from the newest.
+	const refused = $derived(what === 'refused');
+	$effect(() => {
+		void ask.actor_id;
+		void ask.since;
+		void refused;
+		untrack(() => void load());
+	});
 
-	const people = $derived([...new Set(entries.map(whoOf))].sort());
+	// Everyone with an account, then whoever else is in what's loaded.
+	const others = $derived(
+		[...new Set(entries.map(whoOf))].filter((w) => !accounts.some((p) => p.username === w)).sort()
+	);
 	const said = (e: AuditEntry) =>
 		`${auditWords(e)
 			.map((w) => w.t)
@@ -52,7 +79,10 @@
 		const q = query.trim().toLowerCase();
 		return auditRows(
 			entries.filter(
-				(e) => (!who || whoOf(e) === who) && auditMatches(e, what) && (!q || said(e).includes(q))
+				(e) =>
+					(!who.startsWith('as:') || whoOf(e) === who.slice(3)) &&
+					auditMatches(e, what) &&
+					(!q || said(e).includes(q))
 			)
 		);
 	});
@@ -95,8 +125,23 @@
 				>Who
 				<select bind:value={who}>
 					<option value="">anyone</option>
-					{#each people as p (p)}<option value={p}>{p}</option>{/each}
+					{#if accounts.length}<optgroup label="People"
+							>{#each accounts as p (p.id)}<option value={`uid:${p.id}`}
+									>{p.username}{p.id === session.me?.id ? ' (you)' : ''}</option
+								>{/each}</optgroup
+						>{/if}
+					{#if others.length}<optgroup label="Also in what’s loaded"
+							>{#each others as o (o)}<option value={`as:${o}`}>{o}</option>{/each}</optgroup
+						>{/if}
 				</select>
+			</label>
+			<label
+				>Since
+				<input
+					type="date"
+					bind:value={since}
+					max={new Date(clock.now).toISOString().slice(0, 10)}
+				/>
 			</label>
 			<label
 				>What
@@ -123,7 +168,11 @@
 		{#if failed}<p class="note bad" role="alert">{failed}</p>{/if}
 		{#if rows.length === 0}
 			<p class="empty">
-				{entries.length ? 'Nothing matches.' : busy ? 'Loading…' : 'Nothing recorded yet.'}
+				{busy
+					? 'Loading…'
+					: entries.length || who || since || what !== 'all'
+						? 'Nothing matches.'
+						: 'Nothing recorded yet.'}
 			</p>
 		{:else}
 			<ol class="list">
@@ -151,6 +200,13 @@
 				{/each}
 			</ol>
 			{#if more}
+				{#if query.trim() || what === 'changes' || what === 'signins' || who.startsWith('as:')}
+					<p class="quiet">
+						Matched in the {entries.length} loaded, back to {new Date(
+							entries[entries.length - 1]!.ts
+						).toLocaleDateString()} — older ones may match too.
+					</p>
+				{/if}
 				<button class="plain" onclick={() => load(true)} disabled={busy}
 					>{busy ? 'Loading…' : 'Older'}</button
 				>
@@ -184,6 +240,13 @@
 		border-radius: 17px;
 		border: 1px solid var(--line);
 		background: var(--surface);
+	}
+	input[type='date'] {
+		height: 34px;
+		border-radius: 10px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		padding: 0 8px;
 	}
 	select {
 		height: 34px;

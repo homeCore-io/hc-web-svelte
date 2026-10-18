@@ -4,8 +4,8 @@
 	and off is switched here and can be made new.
 
 	What homeCore can't yet do through its API is said, not hidden: give a
-	new mode sun events (only modes.toml can), or rename a mode before
-	homeCore 0.1.81. Renaming keeps its id, so rules naming it carry on.
+	sun-following mode its events before homeCore 0.1.82, or rename a mode
+	before 0.1.81. Renaming keeps its id, so rules naming it carry on.
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
@@ -26,6 +26,7 @@
 		modeIdFor,
 		offsetText,
 		spans,
+		SUN_EVENTS,
 		sunWords,
 		type CoreMode
 	} from '#lib/modes.js';
@@ -110,6 +111,37 @@
 		const next = offsetOf(key) + by;
 		pending = { ...pending, [`${mode.config.id}.${key}`]: next };
 		void command({ [key]: next });
+	}
+
+	// ---- which sun events a solar mode follows (homeCore 0.1.82) ----
+	const sunSettable = $derived(core.since('0.1.82'));
+	async function setEvent(key: 'on_event' | 'off_event', event: string) {
+		if (!mode) return;
+		trouble = await deviceCall('PATCH', `/modes/${encodeURIComponent(mode.config.id)}`, {
+			[key]: event
+		});
+		if (!trouble) setTimeout(load, 800);
+	}
+
+	// ---- a new mode that follows the sun ----
+	let sunName = $state('');
+	let sunOn = $state('Sunset');
+	let sunOff = $state('Sunrise');
+	const sunId = $derived(modeIdFor(sunName));
+	async function makeSolar() {
+		const id = sunId;
+		trouble = await deviceCall('POST', '/modes', { id, name: sunName.trim(), kind: 'solar' });
+		if (trouble) return;
+		trouble = await deviceCall('PATCH', `/modes/${encodeURIComponent(id)}`, {
+			on_event: sunOn,
+			off_event: sunOff
+		});
+		if (trouble) return;
+		sunName = '';
+		setTimeout(async () => {
+			await load();
+			void open(`?m=${encodeURIComponent(id)}`);
+		}, 800);
 	}
 
 	// ---- a new manual mode ----
@@ -227,10 +259,40 @@
 						<div class="kind">
 							<strong>Follows the sun</strong>
 							<span>On between two sun events, each with an offset.</span>
-							<span class="gap"
-								>homeCore can’t yet give a new mode its sun events from here — only by editing
-								modes.toml. Night and Day already follow the sun, and their offsets can be moved.</span
-							>
+							{#if sunSettable}
+								<label class="name">
+									<span>Name</span>
+									<input bind:value={sunName} placeholder="Evening" />
+								</label>
+								<label class="name">
+									<span>On at</span>
+									<select bind:value={sunOn}
+										>{#each SUN_EVENTS as ev (ev)}<option value={ev}>{sunWords(ev)}</option
+											>{/each}</select
+									>
+								</label>
+								<label class="name">
+									<span>Off at</span>
+									<select bind:value={sunOff}
+										>{#each SUN_EVENTS as ev (ev)}<option value={ev}>{sunWords(ev)}</option
+											>{/each}</select
+									>
+								</label>
+								<span class="sub">Offsets are moved on its page once it’s made.</span>
+								<button
+									type="button"
+									class="go"
+									disabled={sunName.trim() === '' ||
+										sunOn === sunOff ||
+										modes?.some((m) => m.config.id === sunId)}
+									onclick={makeSolar}>Make it</button
+								>
+							{:else}
+								<span class="gap"
+									>This homeCore can’t give a new mode its sun events from here — only by editing
+									modes.toml. Night and Day already follow the sun, and their offsets can be moved.</span
+								>
+							{/if}
 						</div>
 						<div class="kind">
 							<strong>On while something is true</strong>
@@ -282,7 +344,22 @@
 						{#each [{ title: 'Turns on', event: c.on_event, key: 'on_offset_minutes' as const, at: onAt }, { title: 'Turns off', event: c.off_event, key: 'off_offset_minutes' as const, at: offAt }] as e (e.key)}
 							<div class="edge">
 								<span class="t">{e.title}</span>
-								<span class="ev">At {sunWords(e.event)}</span>
+								{#if sunSettable}
+									<select
+										class="ev"
+										aria-label={`${e.title} at`}
+										value={e.event}
+										onchange={(ev) =>
+											setEvent(
+												e.key === 'on_offset_minutes' ? 'on_event' : 'off_event',
+												ev.currentTarget.value
+											)}
+									>
+										{#each SUN_EVENTS as s (s)}<option value={s}>At {sunWords(s)}</option>{/each}
+									</select>
+								{:else}
+									<span class="ev">At {sunWords(e.event)}</span>
+								{/if}
 								<span class="nudge">
 									<button
 										type="button"
@@ -319,10 +396,12 @@
 								>
 							</div>
 						{/if}
-						<p class="sub">
-							Which sun event it follows is set in modes.toml; homeCore can’t change it from here
-							yet.
-						</p>
+						{#if !sunSettable}
+							<p class="sub">
+								Which sun event it follows is set in modes.toml; this homeCore can’t change it from
+								here.
+							</p>
+						{/if}
 					{:else if c.kind === 'manual' && session.can('automations:write')}
 						{#key c.id}
 							<ModeCriteria
@@ -524,7 +603,8 @@
 		gap: 4px;
 		font-weight: 600;
 	}
-	input {
+	input,
+	select {
 		height: 40px;
 		padding: 0 12px;
 		border-radius: 10px;

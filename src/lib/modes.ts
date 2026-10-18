@@ -52,6 +52,8 @@ const SUN: Record<SunEvent, string> = {
 	CivilDusk: 'dusk'
 };
 export const sunWords = (e: SunEvent | undefined) => (e ? SUN[e] : 'never');
+/** Every sun event, in the day's order. */
+export const SUN_EVENTS: SunEvent[] = ['CivilDawn', 'Sunrise', 'SolarNoon', 'Sunset', 'CivilDusk'];
 
 /** "on time", "+15 min", "−30 min". */
 export const offsetText = (n: number) =>

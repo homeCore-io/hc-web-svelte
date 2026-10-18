@@ -17,7 +17,9 @@
 	];
 	const unitOf = (secs: number) =>
 		UNITS.find((u) => secs % u.secs === 0 && secs >= u.secs) ?? UNITS[2]!;
-	const secs = $derived(typeof value === 'number' ? value : 0);
+	// A duration homeCore counts in milliseconds is shown in seconds and up.
+	const scale = $derived(field.kind === 'duration' && field.ms ? 1000 : 1);
+	const secs = $derived(typeof value === 'number' ? value / scale : 0);
 	let unit = $state<number | null>(null);
 	const shownUnit = $derived(unit ?? unitOf(secs).secs);
 
@@ -117,7 +119,7 @@
 								? field.optional
 									? undefined
 									: 0
-								: Math.round(Number(e.currentTarget.value) * shownUnit)
+								: Math.round(Number(e.currentTarget.value) * shownUnit * scale)
 						)}
 				/>
 				<select
@@ -127,7 +129,7 @@
 						const next = Number(e.currentTarget.value);
 						const n = secs / shownUnit;
 						unit = next;
-						if (value !== undefined && value !== null) onchange(Math.round(n * next));
+						if (value !== undefined && value !== null) onchange(Math.round(n * next * scale));
 					}}
 				>
 					{#each UNITS as u (u.secs)}<option value={String(u.secs)}>{u.label}</option>{/each}

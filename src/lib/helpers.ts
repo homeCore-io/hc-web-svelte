@@ -103,14 +103,21 @@ const schedule: Field[] = [
 				item: 'text',
 				options: DAYS.map((d) => ({ value: d, label: d }))
 			}),
-			f('start', 'text', 'From', { placeholder: '08:00' }),
-			f('end', 'text', 'Until', { placeholder: '17:00' })
+			f('start', 'text', 'From', { placeholder: '08:00', render: 'time' }),
+			f('end', 'text', 'Until', { placeholder: '17:00', render: 'time' })
 		]
 	}
 ];
 
-/** Every kind. `devices` are the house's devices, for groups and thresholds to pick from. */
-export function helperKinds(devices: { value: string; label: string }[] = []): HelperKind[] {
+/**
+ * Every kind. `devices` are the house's devices, for groups and thresholds to
+ * pick from; `scheduleEditable` when homeCore can change a schedule's blocks
+ * after it's made (0.1.82).
+ */
+export function helperKinds(
+	devices: { value: string; label: string }[] = [],
+	scheduleEditable = false
+): HelperKind[] {
 	return [
 		{
 			type: 'switch',
@@ -198,8 +205,8 @@ export function helperKinds(devices: { value: string; label: string }[] = []): H
 			plural: 'Schedules',
 			what: 'On during blocks of the week — weekdays 8 to 5.',
 			create: schedule,
-			// homeCore can't change a schedule's blocks once it's made.
-			edit: schedule.map((x) => ({ ...x, read_only: true }))
+			// Before 0.1.82 homeCore couldn't change a schedule's blocks once made.
+			edit: scheduleEditable ? schedule : schedule.map((x) => ({ ...x, read_only: true }))
 		}
 	];
 }
@@ -259,8 +266,7 @@ export function createBody(type: string, name: string, values: Record<string, un
 }
 
 /** Whether a device is one of homeCore's helpers. */
-export const isHelper = (d: { plugin_id?: string }) =>
-	d.plugin_id === 'core.glue' || d.plugin_id === 'core.timer' || d.plugin_id === 'core.switch';
+export const isHelper = (d: { plugin_id?: string }) => d.plugin_id === 'core.glue';
 
 /** Clock text for seconds: 2:18, 1:02:05. */
 export function clock(secs: number): string {

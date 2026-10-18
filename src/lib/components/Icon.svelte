@@ -59,6 +59,10 @@
 		room: House,
 		alert: Alert
 	} satisfies Record<Name, unknown>;
+
+	/** Whether the app draws this meaning — a plugin may name one it doesn't. */
+	export const drawn = (name: string | undefined): name is Name =>
+		name !== undefined && Object.hasOwn(ICONS, name);
 </script>
 
 <script lang="ts">

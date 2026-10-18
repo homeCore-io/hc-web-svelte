@@ -24,7 +24,13 @@ export function provideHouse(rules: () => Rule[]): EditorContext {
 	let vocab = $state<Vocabulary | null>(null);
 	let configChannels = $state<string[]>([]);
 	let calendars = $state<string[]>([]);
+	/** Hub variables homeCore holds now (0.1.82), beside those rules name. */
+	let hubNow = $state<string[]>([]);
 	onMount(async () => {
+		void fetch('/api/v1/automations/variables')
+			.then((r) => (r.ok ? r.json() : { hub: {} }))
+			.then((v: { hub?: Record<string, unknown> }) => (hubNow = Object.keys(v.hub ?? {})))
+			.catch(() => {});
 		void fetch('/api/v1/calendars')
 			.then((r) => (r.ok ? r.json() : []))
 			.then((list: { id: string }[]) => (calendars = list.map((c) => c.id).sort()))
@@ -51,7 +57,10 @@ export function provideHouse(rules: () => Rule[]): EditorContext {
 		modes: all
 			.filter((d) => d.plugin_id === 'core.mode')
 			.map((d) => ({ id: d.device_id, name: displayName(d) })),
-		variables: variablesIn(rules())
+		variables: (() => {
+			const v = variablesIn(rules());
+			return { ...v, hub: [...new Set([...v.hub, ...hubNow])].sort() };
+		})()
 	});
 	const ctx: EditorContext = {
 		get house() {

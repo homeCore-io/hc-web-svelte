@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { core } from '#lib/core.svelte.js';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import { session } from '#lib/me.svelte.js';
 	import { wide } from '#lib/wide.svelte.js';
@@ -46,7 +47,7 @@
 		};
 	});
 
-	const rows = $derived(list ? rowsOf(list, registry, clock.now) : []);
+	const rows = $derived(list ? rowsOf(list, registry, clock.now, core.version) : []);
 	const running = $derived(rows.filter((r) => r.state.word === 'Running').length);
 	const updates = $derived(rows.filter((r) => r.update).length);
 	const more = $derived(list ? notInstalled(registry, list) : []);

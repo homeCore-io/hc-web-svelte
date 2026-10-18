@@ -70,6 +70,34 @@ export function readLevel(directive: string): LevelReading {
 	return { preset: bare.length === 1 && onlyBroker ? preset : null, level, note };
 }
 
+/**
+ * A directive as homeCore's settings keep it: `[logging] level` and, per
+ * module, `[logging.targets]` — "info,hc_core::engine=debug" is level info
+ * and hc_core::engine at debug. Null when it says no level for everything.
+ */
+export function keptOf(
+	directive: string
+): { level: string; targets: Record<string, string> } | null {
+	const parts = directive
+		.split(',')
+		.map((p) => p.trim())
+		.filter(Boolean);
+	const bare = parts.filter((p) => LEVEL_WORDS.includes(p.toLowerCase()));
+	const level = bare.at(-1)?.toLowerCase();
+	if (!level) return null;
+	const targets: Record<string, string> = {};
+	for (const p of parts) {
+		const i = p.indexOf('=');
+		if (i <= 0) continue;
+		const lvl = p
+			.slice(i + 1)
+			.trim()
+			.toLowerCase();
+		if (LEVEL_WORDS.includes(lvl)) targets[p.slice(0, i).trim()] = lvl;
+	}
+	return { level, targets };
+}
+
 // ---- log lines ----
 
 export interface LogLine {

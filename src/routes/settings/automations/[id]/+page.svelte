@@ -7,6 +7,7 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { core } from '#lib/core.svelte.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -43,6 +44,8 @@
 		ronOf,
 		saveRule,
 		loadVocabulary,
+		repointAll,
+		rulesNaming,
 		runRule,
 		setEnabled,
 		testRule
@@ -143,6 +146,22 @@
 	async function sendTo(from: string, to: string) {
 		if (!rule) return;
 		const toName = displayName(devices.byId[to]!);
+		// Other rules naming the same missing device are fixed with it, at once.
+		const others = core.since('0.1.82')
+			? rulesNaming(all ?? [], from).filter((r) => r.id !== rule.id)
+			: [];
+		if (others.length > 0) {
+			const yes = await ask({
+				title: `Send ${others.length + 1} rules to ${toName} instead?`,
+				body: `This rule and ${others.length === 1 ? `“${others[0]!.name}”` : `${others.length} others`} name “${from}”. Every place they do will name ${toName} (${to}), and any turned off because it was deleted are turned on again.`,
+				go: 'Change them'
+			});
+			if (!yes) return;
+			const res = await repointAll(from, to);
+			note = res.ok ? `${res.data.changed.length} rules now name ${toName}.` : res.error;
+			if (res.ok) await load();
+			return;
+		}
 		const yes = await ask({
 			title: `Send it to ${toName} instead?`,
 			body: `Every place this rule names “${from}” will name ${toName} (${to}). Nothing else changes.`,
@@ -579,6 +598,14 @@
 							{/each}
 						</ul>
 					</section>
+				{/if}
+
+				{#if session.can('audit:read')}
+					<a
+						class="audit"
+						href={`/settings/audit?about=automation:${encodeURIComponent(id)}&name=${encodeURIComponent(rule.name)}`}
+						>Who has changed it, in the audit</a
+					>
 				{/if}
 
 				<section class="card side">
@@ -1059,5 +1086,11 @@
 		font-style: normal;
 		color: var(--ink-muted);
 		font-size: 13px;
+	}
+	.audit {
+		align-self: flex-start;
+		color: var(--accent);
+		font-size: 13px;
+		font-weight: 600;
 	}
 </style>

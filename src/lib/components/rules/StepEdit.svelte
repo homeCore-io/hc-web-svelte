@@ -185,6 +185,23 @@
 			value={f.duration_secs}
 			onchange={(v) => set('duration_secs', v)}
 		/>
+		<FieldInput
+			field={{ kind: 'bool', name: 'cancelable', label: 'Another rule may cut it short' }}
+			value={f.cancelable === true}
+			onchange={(v) => set('cancelable', v === true)}
+		/>
+		{#if f.cancelable}
+			<FieldInput
+				field={{
+					kind: 'text',
+					name: 'cancel_key',
+					label: 'Its name, for “cancel waits” (optional)',
+					optional: true
+				}}
+				value={f.cancel_key ?? undefined}
+				onchange={(v) => set('cancel_key', v || undefined)}
+			/>
+		{/if}
 	{:else if kind === 'notify'}
 		<FieldInput
 			field={{ kind: 'text', name: 'channel', label: 'Channel', suggest: channels }}

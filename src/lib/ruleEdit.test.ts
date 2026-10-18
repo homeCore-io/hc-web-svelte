@@ -16,6 +16,7 @@ import {
 	statesOf,
 	stepKindOf,
 	vocabFields,
+	buttonsOf,
 	whenKindOf,
 	whensOf,
 	withWhens,
@@ -27,7 +28,8 @@ import {
 	webhookName,
 	webhookProblem,
 	newWhen,
-	type Lists
+	type Lists,
+	type VariantSpec
 } from './ruleEdit.js';
 
 const d = (id: string) => DEVICES.find((x) => x.device_id === id)!;
@@ -217,7 +219,7 @@ test('the rest of the vocabulary, as fields', () => {
 			{ name: 'interval_ms', type: 'integer', required: false }
 		]
 	};
-	expect(vocabFields(spec).map((f) => f.kind)).toEqual(['number', 'json', 'number']);
+	expect(vocabFields(spec).map((f) => f.kind)).toEqual(['number', 'json', 'duration']);
 	expect(newOf(spec)).toEqual({ RepeatCount: { count: 0, actions: [] } });
 	expect(newOf({ tag: 'ExitRule', fields: [] })).toBe('ExitRule');
 	expect(after).toEqual({
@@ -407,10 +409,51 @@ describe('homeCore’s fixed lists, as choices', () => {
 		expect(withPickers('DeviceStateChanged', json('not_from'), lists)).toMatchObject({
 			kind: 'value'
 		});
-		expect(withPickers('FadeDevice', json('target'), lists)).toEqual(json('target'));
+		// A fade's target is one value too: 0, 40, "warm".
+		expect(withPickers('FadeDevice', json('target'), lists)).toMatchObject({ kind: 'value' });
 		expect(
 			withPickers('TimeElapsed', text('attribute'), { ...lists, attributes: ['battery', 'on'] })
 		).toMatchObject({ kind: 'text', label: 'Reading', suggest: ['battery', 'on'] });
+	});
+});
+
+describe('times, and buttons by name', () => {
+	test('seconds and milliseconds are lengths of time', () => {
+		const spec = {
+			tag: 'WaitForExpression',
+			fields: [
+				{ name: 'timeout_ms', type: 'integer', required: false },
+				{ name: 'for_duration_secs', type: 'integer', required: false },
+				{ name: 'count', type: 'integer', required: true }
+			]
+		} as VariantSpec;
+		expect(vocabFields(spec)).toEqual([
+			{ kind: 'duration', name: 'timeout_ms', label: 'Timeout', optional: true, ms: true },
+			{ kind: 'duration', name: 'for_duration_secs', label: 'For', optional: true },
+			{ kind: 'number', name: 'count', label: 'Count', optional: false }
+		]);
+	});
+
+	test('a keypad’s buttons are offered by their names', () => {
+		const keypad = {
+			...d('zz_keypad'),
+			button_names: { '1': 'Lights', '3': 'Fan' }
+		};
+		expect(buttonsOf(keypad).find((b) => b.value === '1')).toEqual({
+			value: '1',
+			label: '1 — Lights'
+		});
+		expect(buttonsOf(keypad).map((b) => b.value)).toContain('3');
+		const lists: Lists = {
+			rules: [],
+			calendars: [],
+			modes: [],
+			variables: { hub: [], private: [], rule: [] },
+			buttons: buttonsOf(keypad)
+		};
+		expect(
+			withPickers('ButtonEvent', { kind: 'number', name: 'button_number', label: 'B' }, lists)
+		).toMatchObject({ kind: 'choice', numeric: true, label: 'Button' });
 	});
 });
 

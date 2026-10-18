@@ -11,7 +11,8 @@
 	import { alerts } from '#lib/alerts.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
 	import { backupDue, daysAgo, size, uptime } from '#lib/settings.js';
-	import { PRESETS, directiveOf, readLevel, type Preset } from '#lib/system.js';
+	import { PRESETS, directiveOf, keptOf, readLevel, type Preset } from '#lib/system.js';
+	import { loadConfig } from '#lib/config.js';
 	import {
 		keepLevel,
 		loadLevel,
@@ -130,10 +131,22 @@
 		if (!r.ok) return void (levelNote = r.error);
 		level = r.data.level;
 		editing = false;
-		if (keep && bare) {
-			const err = await keepLevel(bare);
+		const kept = keep ? keptOf(directive) : null;
+		if (kept) {
+			// The modules kept before, so ones no longer set apart are taken out.
+			const got = await loadConfig();
+			const was =
+				typeof got === 'string'
+					? {}
+					: (((got.config.parsed as { logging?: { targets?: Record<string, unknown> } } | null)
+							?.logging?.targets ?? {}) as Record<string, unknown>);
+			const err = await keepLevel(kept.level, kept.targets, was);
 			levelNote = err ?? 'Set, and kept for after a restart.';
-		} else levelNote = 'Set until homeCore restarts.';
+		} else
+			levelNote =
+				keep && !bare
+					? 'Set until homeCore restarts — it doesn’t say one level for everything, so it can’t be kept.'
+					: 'Set until homeCore restarts.';
 	}
 	const pick = (p: Preset) => choose(directiveOf(p), PRESETS.find((x) => x.id === p)!.level);
 

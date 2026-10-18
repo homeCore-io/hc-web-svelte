@@ -3,6 +3,7 @@ import {
 	buttonOf,
 	compareVersions,
 	latestOf,
+	needsCore,
 	notInstalled,
 	paramDefaults,
 	paramFields,
@@ -52,6 +53,28 @@ describe('versions', () => {
 		expect(updateOf(rec({ version: '0.1.17' }), REGISTRY[0])).toBeUndefined();
 		expect(updateOf(rec({ installed_version: '0.1.9' }), REGISTRY[0])).toBe('0.1.17');
 		expect(updateOf(rec({}), REGISTRY[0])).toBeUndefined();
+		// A version that needs a newer homeCore isn't offered.
+		const needy = {
+			...REGISTRY[0]!,
+			versions: REGISTRY[0]!.versions.map((v) =>
+				v.version === '0.1.17' ? { ...v, min_core: '0.1.90' } : v
+			)
+		};
+		expect(latestOf(needy, '0.1.81')).not.toBe('0.1.17');
+		expect(latestOf(needy, '0.1.90')).toBe('0.1.17');
+		expect(updateOf(rec({ version: '0.1.16' }), needy, '0.1.81')).toBeUndefined();
+		expect(
+			needsCore(
+				needy.versions.find((v) => v.version === '0.1.17'),
+				'0.1.81'
+			)
+		).toBe('0.1.90');
+		expect(
+			needsCore(
+				needy.versions.find((v) => v.version === '0.1.17'),
+				null
+			)
+		).toBeUndefined();
 	});
 });
 

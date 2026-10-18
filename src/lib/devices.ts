@@ -28,7 +28,8 @@ export interface AttributeSchema {
 	min?: number;
 	max?: number;
 	step?: number;
-	options?: (string | { value: string; label?: string })[];
+	/** `icon` is a meaning ("fan"), drawn when the app has one for it. */
+	options?: (string | { value: string; label?: string; icon?: string })[];
 	category?: 'diagnostic' | 'config';
 	states?: { when_true: StateLabel; when_false: StateLabel };
 }

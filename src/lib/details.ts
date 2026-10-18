@@ -27,6 +27,8 @@ import {
 export interface Option {
 	value: string;
 	label: string;
+	/** A meaning ("fan") the plugin gave it, drawn when the app has one. */
+	icon?: string;
 }
 
 export type DetailControl =
@@ -203,7 +205,11 @@ function controlFor(
 				options: (spec.options ?? []).map((o) =>
 					typeof o === 'string'
 						? { value: o, label: words(o) }
-						: { value: o.value, label: o.label ?? words(o.value) }
+						: {
+								value: o.value,
+								label: o.label ?? words(o.value),
+								...(o.icon ? { icon: o.icon } : {})
+							}
 				)
 			};
 		case 'color_xy':

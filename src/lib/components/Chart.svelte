@@ -1,6 +1,7 @@
 <!--
-	One reading over the last day (or `span`), from homeCore's history: a line for a number,
-	a band for on/off. Drawn as plain SVG — no chart library to ship.
+	One reading over the last day (or `span`, ending `end`), from homeCore's history: a line
+	for a number, a band for on/off. Drawn as plain SVG — no chart library to ship. homeCore
+	reads at most so many rows; when it stops short, the chart says so.
 -->
 <script lang="ts">
 	const DAY = 24 * 3600_000;
@@ -11,7 +12,8 @@
 		unit,
 		bool,
 		current,
-		span = DAY
+		span = DAY,
+		end
 	}: {
 		deviceId: string;
 		attr: string;
@@ -21,6 +23,8 @@
 		current?: unknown;
 		/** How far back, in ms: a day unless said. */
 		span?: number;
+		/** When it ends, in ms since 1970: now unless said. */
+		end?: number;
 	} = $props();
 
 	interface Point {
@@ -32,19 +36,35 @@
 	const spanShort = $derived(span <= DAY ? '24 h' : `${Math.round(span / DAY)} d`);
 	let points = $state<Point[] | null>(null);
 	let failed = $state(false);
+	/** homeCore read as many rows as it would and stopped: the start is missing. */
+	let cut = $state(false);
+	/** The end the drawing uses: the one asked for, or now when it was fetched. */
+	let until = $state(Date.now());
 
 	$effect(() => {
 		const id = deviceId;
 		const name = attr;
 		const back = span;
+		const stop = end ?? Date.now();
 		let gone = false;
 		points = null;
 		failed = false;
-		const from = new Date(Date.now() - back).toISOString();
-		fetch(
-			`/api/v1/devices/${encodeURIComponent(id)}/history?attribute=${encodeURIComponent(name)}&from=${encodeURIComponent(from)}&max_points=160`
-		)
-			.then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+		cut = false;
+		until = stop;
+		const q = new URLSearchParams({
+			attribute: name,
+			from: new Date(stop - back).toISOString(),
+			// Enough rows for a busy sensor's week; homeCore thins them to 160.
+			limit: String(back > DAY ? 5000 : 1000),
+			max_points: '160'
+		});
+		if (end !== undefined) q.set('to', new Date(stop).toISOString());
+		fetch(`/api/v1/devices/${encodeURIComponent(id)}/history?${q}`)
+			.then((r) => {
+				if (!r.ok) return Promise.reject(r.status);
+				if (!gone) cut = r.headers.get('X-Truncated') === 'true';
+				return r.json();
+			})
 			.then((rows: { value: unknown; recorded_at: string }[]) => {
 				if (gone) return;
 				points = rows
@@ -68,20 +88,22 @@
 		// Nothing recorded means nothing changed: it held its current value.
 		const now = typeof current === 'boolean' ? (current ? 1 : 0) : Number(current);
 		const series =
-			points.length > 0 || !Number.isFinite(now) ? points : [{ t: Date.now() - span, v: now }];
+			points.length > 0 || !Number.isFinite(now) || end !== undefined
+				? points
+				: [{ t: until - span, v: now }];
 		return series.length === 0 ? null : draw(series);
 	});
 
 	function draw(points: Point[]) {
-		const end = Date.now();
-		const start = end - span;
+		const last = until;
+		const start = last - span;
 		const x = (t: number) => ((Math.max(t, start) - start) / span) * W;
 		if (bool) {
 			// Bands where it was true, each lasting until the next reading.
 			const bands: { x: number; w: number }[] = [];
 			points.forEach((p, i) => {
 				if (p.v !== 1) return;
-				const next = points[i + 1]?.t ?? end;
+				const next = points[i + 1]?.t ?? last;
 				bands.push({ x: x(p.t), w: Math.max(2, x(next) - x(p.t)) });
 			});
 			return { bands, line: '', min: 0, max: 1 };
@@ -103,11 +125,15 @@
 		return { bands: [], line: d, min: Math.min(...vs), max: Math.max(...vs) };
 	}
 	const fmt = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
+	/** An end that isn't now, as a day: "Tue 14 Oct". */
+	const day = (t: number) =>
+		new Date(t).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+	const past = $derived(end !== undefined);
 </script>
 
 <div class="chart">
 	<div class="head">
-		<span>{label}, last {spanText}</span>
+		<span>{label}, {past ? `${spanText} to ${day(until)}` : `last ${spanText}`}</span>
 		{#if shape && !bool}
 			<span class="num range"
 				>{fmt(shape.min) === fmt(shape.max)
@@ -125,7 +151,7 @@
 	{:else if points === null}
 		<div class="placeholder"></div>
 	{:else if shape === null}
-		<p class="quiet">Nothing recorded in the last {spanText}.</p>
+		<p class="quiet">Nothing recorded in {past ? 'those' : 'the last'} {spanText}.</p>
 	{:else}
 		<svg
 			viewBox={`0 0 ${W} ${H}`}
@@ -138,7 +164,16 @@
 			{/each}
 			{#if shape.line}<path d={shape.line} />{/if}
 		</svg>
-		<div class="axis" aria-hidden="true"><span>{spanShort} ago</span><span>now</span></div>
+		<div class="axis" aria-hidden="true">
+			{#if past}<span>{day(until - span)}</span><span>{day(until)}</span>{:else}<span
+					>{spanShort} ago</span
+				><span>now</span>{/if}
+		</div>
+		{#if cut}
+			<p class="quiet">
+				homeCore stopped at as many readings as it reads at once, so the earliest part is missing.
+			</p>
+		{/if}
 	{/if}
 </div>
 

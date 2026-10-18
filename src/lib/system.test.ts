@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	keptOf,
 	auditMatches,
 	auditRows,
 	auditWords,
@@ -181,5 +182,16 @@ describe('the audit, in words', () => {
 		expect(auditMatches(entry({}), 'changes')).toBe(false);
 		expect(auditMatches(entry({ result: 'denied' }), 'refused')).toBe(true);
 		expect(auditMatches(entry({ event_type: 'scene.deleted' }), 'changes')).toBe(true);
+	});
+});
+
+describe('a log level, kept', () => {
+	it('is everything’s level and each module’s', () => {
+		expect(keptOf('info')).toEqual({ level: 'info', targets: {} });
+		expect(keptOf('debug,rumqttd=warn,hc_core::engine=trace')).toEqual({
+			level: 'debug',
+			targets: { rumqttd: 'warn', 'hc_core::engine': 'trace' }
+		});
+		expect(keptOf('hc_core=debug')).toBeNull();
 	});
 });

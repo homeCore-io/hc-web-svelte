@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
+	import { core } from '#lib/core.svelte.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -68,7 +69,7 @@
 			}))
 			.sort((a, b) => a.label.localeCompare(b.label))
 	);
-	const kinds = $derived(helperKinds(choices));
+	const kinds = $derived(helperKinds(choices, core.since('0.1.82')));
 	const groups = $derived(
 		kinds
 			.map((k) => ({ kind: k, items: helpers.filter((h) => (h.device_type ?? '') === k.type) }))
@@ -416,7 +417,7 @@
 					{#if form.descriptor.sections[0]?.fields.length}
 						<SectionForm {form} section={form.descriptor.sections[0]} showKeys={false} />
 					{/if}
-					{#if kind.type === 'schedule' && !making}
+					{#if kind.type === 'schedule' && !making && !core.since('0.1.82')}
 						<p class="quiet">
 							homeCore can’t change a schedule’s times once it’s made: delete it and make it again.
 						</p>

@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import Plus from '@lucide/svelte/icons/plus';
+	import ScenesTransfer from '#lib/components/admin/ScenesTransfer.svelte';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import { scenes } from '#lib/scenes.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
@@ -51,6 +52,7 @@
 				are changed in their own apps.
 			</p>
 		{/if}
+		<ScenesTransfer onadded={() => void scenes.load()} />
 	</div>
 {/if}
 

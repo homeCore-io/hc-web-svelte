@@ -219,18 +219,18 @@ export function rulesSendingTo(
 }
 
 /** Sends a test through a running channel: null when it went, else why not. */
-export async function sendTest(channel: string): Promise<string | null> {
+export async function sendTest(channel: string, message?: string): Promise<string | null> {
 	try {
 		const res = await fetch('/api/v1/notify/test', {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ channel })
+			body: JSON.stringify({ channel, ...(message?.trim() ? { message: message.trim() } : {}) })
 		});
 		if (res.ok) return null;
 		const body = (await res.json().catch(() => ({}))) as { error?: unknown };
 		const err = typeof body.error === 'string' ? body.error : `homeCore said no (${res.status}).`;
 		// homeCore builds its channels when it starts; a new one isn't there yet.
-		if (res.status === 503 || /not configured/i.test(err))
+		if (channel !== 'all' && (res.status === 503 || /not configured/i.test(err)))
 			return `homeCore doesn’t have “${channel}” running — it reads channels when it starts. Restart it, then test.`;
 		return err;
 	} catch {

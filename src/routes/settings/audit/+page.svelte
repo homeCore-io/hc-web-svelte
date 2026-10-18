@@ -3,11 +3,18 @@
 	sign-ins on a day are one row; changes stand alone. A row opens to say
 	exactly what homeCore recorded.
 
-	A person, a day and "refused" are asked of homeCore, so they reach the
-	whole audit; the kind of entry and the words are matched in what's loaded.
+	A person, a day, "refused" and one thing (?about=device:<id>, from a
+	device's or a rule's page) are asked of homeCore, so they reach the whole
+	audit — and from homeCore 0.1.82 so are changes and sign-ins. The words
+	are matched in what's loaded.
 -->
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import { core } from '#lib/core.svelte.js';
+	import { devices } from '#lib/devices.svelte.js';
+	import { displayName } from '#lib/devices.js';
 	import { session } from '#lib/me.svelte.js';
 	import { heading } from '#lib/heading.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
@@ -38,9 +45,28 @@
 	let open = $state<string | null>(null);
 	let accounts = $state<Person[]>([]);
 
+	// One thing's history: `?about=device:<id>`, `automation:<id>`.
+	const about = $derived.by(() => {
+		const a = page.url.searchParams.get('about');
+		const i = a?.indexOf(':') ?? -1;
+		return a && i > 0 ? { kind: a.slice(0, i), id: a.slice(i + 1) } : null;
+	});
+	const aboutName = $derived(
+		!about
+			? ''
+			: about.kind === 'device' && devices.byId[about.id]
+				? displayName(devices.byId[about.id]!)
+				: (page.url.searchParams.get('name') ?? about.id)
+	);
+	// homeCore 0.1.82 picks out sign-ins and changes itself; before, they're matched here.
+	const byKind = $derived(core.since('0.1.82'));
 	const ask = $derived({
 		actor_id: who.startsWith('uid:') ? who.slice(4) : undefined,
-		since: since ? new Date(`${since}T00:00:00`).toISOString() : undefined
+		since: since ? new Date(`${since}T00:00:00`).toISOString() : undefined,
+		target_kind: about?.kind,
+		target_id: about?.id,
+		...(byKind && what === 'signins' ? { event_type: 'auth.*' } : {}),
+		...(byKind && what === 'changes' ? { event_type: '!auth.*', result: 'success' as const } : {})
 	});
 	async function load(older = false) {
 		busy = true;
@@ -63,6 +89,8 @@
 	$effect(() => {
 		void ask.actor_id;
 		void ask.since;
+		void ask.target_id;
+		void ask.event_type;
 		void refused;
 		untrack(() => void load());
 	});
@@ -159,7 +187,17 @@
 				bind:value={query}
 			/>
 		</div>
-		{#if entries.length && !changesRecorded}
+		{#if about}
+			<p class="about">
+				Everything recorded about <strong>{aboutName}</strong>
+				<button
+					type="button"
+					class="link"
+					onclick={() => goto('/settings/audit', { replaceState: true })}>Show all</button
+				>
+			</p>
+		{/if}
+		{#if entries.length && !changesRecorded && !about}
 			<p class="lit">
 				This homeCore records sign-ins, accounts and keys, but not changes to rules, devices, rooms
 				and scenes — a newer one does.
@@ -254,6 +292,20 @@
 		border: 1px solid var(--line);
 		background: var(--surface);
 		padding: 0 8px;
+	}
+	.about {
+		margin: 0;
+		display: flex;
+		align-items: baseline;
+		gap: 8px;
+	}
+	.about .link {
+		border: none;
+		background: none;
+		padding: 0;
+		color: var(--accent);
+		font: inherit;
+		font-weight: 600;
 	}
 	.lit {
 		margin: 0;

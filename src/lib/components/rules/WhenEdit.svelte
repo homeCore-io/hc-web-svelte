@@ -8,6 +8,7 @@
 	import { whenPhrase } from '#lib/ruleWords.js';
 	import {
 		WHEN_KINDS,
+		CHANGE_KIND,
 		keepExtras,
 		momentful,
 		momentOf,
@@ -130,6 +131,22 @@
 					field={{ kind: 'duration', name: 'for', label: 'And stays so for', optional: true }}
 					value={now?.for}
 					onchange={(v) => setMoment(moment!.key, { for: (v as number) || undefined })}
+				/>
+			{/if}
+			{#if tagOf(value)[0] === 'DeviceStateChanged'}
+				<FieldInput
+					field={{
+						kind: 'choice',
+						name: 'change_kind',
+						label: 'Changed by',
+						options: CHANGE_KIND,
+						optional: true
+					}}
+					value={f.change_kind}
+					onchange={(v) => {
+						const { change_kind: _, ...rest } = f;
+						onchange({ DeviceStateChanged: v === undefined ? rest : { ...rest, change_kind: v } });
+					}}
 				/>
 			{/if}
 			{#if canAddDevices}

@@ -107,7 +107,7 @@
 	const name = $derived(reg?.name ?? pluginLabel(id));
 	$effect(() => heading.show(name, { href: '/settings/plugins', label: 'Plugins' }));
 	const health = $derived(plugin ? stateOf(plugin, clock.now) : null);
-	const update = $derived(plugin ? updateOf(plugin, reg) : undefined);
+	const update = $derived(plugin ? updateOf(plugin, reg, core.version) : undefined);
 	const actions = $derived(
 		plugin?.capabilities?.actions?.filter((a) => a.requires_role !== 'admin' || session.isAdmin) ??
 			[]
@@ -284,8 +284,9 @@
 					<button type="button" class="plain" disabled={busy} onclick={() => act('restart')}
 						>Restart</button
 					>
-					{#if plugin.status === 'stopped'}
-						<button type="button" class="plain" disabled={busy} onclick={() => act('start')}
+					<!-- Stopped, or crashed and given up on: start it. -->
+					{#if !running}
+						<button type="button" class="go" disabled={busy} onclick={() => act('start')}
 							>Start</button
 						>
 					{:else}
@@ -420,7 +421,7 @@
 				<dl>
 					<dt>Version</dt>
 					<dd>
-						{`${versionOf(plugin) ?? '—'}${reg && latestOf(reg) && !update ? ' · the latest' : ''}`}
+						{`${versionOf(plugin) ?? '—'}${reg && latestOf(reg, core.version) && !update ? ' · the latest' : ''}`}
 					</dd>
 					<dt>Runs on</dt>
 					<dd>

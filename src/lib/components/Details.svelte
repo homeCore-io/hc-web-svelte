@@ -22,7 +22,7 @@
 	import type { CoreDevice } from '#lib/devices.js';
 	import BigBar from './BigBar.svelte';
 	import Chart from './Chart.svelte';
-	import Icon from './Icon.svelte';
+	import Icon, { drawn } from './Icon.svelte';
 	import Art from './Art.svelte';
 	import Toggle from './Toggle.svelte';
 	import { goAhead } from '#lib/ask.js';
@@ -331,7 +331,8 @@
 								role="radio"
 								aria-checked={want(c.attr, c.value) === o.value}
 								disabled={off}
-								onclick={() => set({ [c.attr]: o.value })}>{o.label}</button
+								onclick={() => set({ [c.attr]: o.value })}
+								>{#if drawn(o.icon)}<Icon name={o.icon} size={16} />{/if}{o.label}</button
 							>
 						{/each}
 					</div>
@@ -690,6 +691,9 @@
 		gap: 6px;
 	}
 	.steps button {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
 		height: 40px;
 		padding: 0 14px;
 		border-radius: 20px;

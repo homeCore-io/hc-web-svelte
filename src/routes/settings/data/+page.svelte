@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import ScenesTransfer from '#lib/components/admin/ScenesTransfer.svelte';
 	import { session } from '#lib/me.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
@@ -15,8 +16,6 @@
 		backUp,
 		backUpApp,
 		checkRestore,
-		exportScenes,
-		importScenes,
 		loadCalendars,
 		loadStatus,
 		removeCalendar,
@@ -151,52 +150,6 @@
 		if (!ok) return;
 		const r = await restoreApp(doc);
 		appNote = r.ok ? `Put back ${r.data.restored} documents.` : r.error;
-	}
-
-	// ---- scenes ----
-	async function scenesOut() {
-		const r = await exportScenes();
-		if (!r.ok) return;
-		const blob = new Blob([JSON.stringify(r.data, null, '\t')], { type: 'application/json' });
-		const a = document.createElement('a');
-		a.href = URL.createObjectURL(blob);
-		a.download = `homecore-scenes-${new Date().toISOString().slice(0, 10)}.json`;
-		a.click();
-	}
-
-	// homeCore adds every imported scene as a new one, so one already here by
-	// name would be doubled: those start unticked.
-	let incoming = $state<{ scene: { name?: string }; take: boolean; here: boolean }[] | null>(null);
-	let scenesNote = $state<string | null>(null);
-	async function scenesIn(e: Event) {
-		const input = e.currentTarget as HTMLInputElement;
-		const f = input.files?.[0];
-		input.value = '';
-		if (!f) return;
-		let list: unknown;
-		try {
-			list = JSON.parse(await f.text());
-		} catch {
-			return void (scenesNote = 'That isn’t a scenes file.');
-		}
-		if (!Array.isArray(list) || !list.every((x) => x && typeof x === 'object' && 'name' in x))
-			return void (scenesNote = 'That isn’t a scenes file.');
-		const here = await exportScenes();
-		const names = new Set(
-			here.ok ? (here.data as { name: string }[]).map((x) => x.name.trim().toLowerCase()) : []
-		);
-		incoming = (list as { name: string }[]).map((scene) => {
-			const dup = names.has(String(scene.name).trim().toLowerCase());
-			return { scene, take: !dup, here: dup };
-		});
-		scenesNote = null;
-	}
-	async function bringScenes() {
-		if (!incoming) return;
-		const chosen = incoming.filter((x) => x.take).map((x) => x.scene);
-		const r = await importScenes(chosen);
-		scenesNote = r.ok ? `Added ${r.data.imported} scenes.` : r.error;
-		if (r.ok) incoming = null;
 	}
 
 	// ---- calendars ----
@@ -408,37 +361,9 @@
 			<p class="sub">
 				As JSON — to keep a copy, move them to another homeCore, or look through them.
 			</p>
-			<div class="acts">
+			<ScenesTransfer>
 				<a class="plain" href="/settings/automations">Export or import rules</a>
-				<button class="plain" onclick={scenesOut}>Export scenes</button>
-				<label class="plain file"
-					>Import scenes…<input
-						type="file"
-						accept=".json,application/json"
-						onchange={scenesIn}
-					/></label
-				>
-			</div>
-			{#if incoming}
-				<div class="plan">
-					<strong>{incoming.length} scenes in the file</strong>
-					{#each incoming as x, i (i)}
-						<label class="pick"
-							><input type="checkbox" bind:checked={x.take} />
-							{x.scene.name}{#if x.here}<span class="sub">
-									— one by this name is here already</span
-								>{/if}</label
-						>
-					{/each}
-				</div>
-				<div class="acts">
-					<button class="go" onclick={bringScenes} disabled={!incoming.some((x) => x.take)}
-						>Add {incoming.filter((x) => x.take).length}</button
-					>
-					<button class="plain" onclick={() => (incoming = null)}>Cancel</button>
-				</div>
-			{/if}
-			{#if scenesNote}<p class="sub" role="status">{scenesNote}</p>{/if}
+			</ScenesTransfer>
 		</section>
 
 		<section class="card">
@@ -662,12 +587,6 @@
 	.plan ul {
 		margin: 0;
 		padding-left: 20px;
-	}
-	.pick {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		min-height: 32px;
 	}
 	.acts {
 		display: flex;

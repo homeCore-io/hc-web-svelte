@@ -37,6 +37,42 @@ export type IconName =
 	| 'scene'
 	| 'device';
 
+/**
+ * The symbols a person can give a device (its `status_icon`), in words. The
+ * ones a card draws by state — unlocked, an open door — come with their
+ * pair and aren't offered on their own.
+ */
+export const SYMBOLS: { icon: IconName; label: string }[] = [
+	{ icon: 'light', label: 'Light' },
+	{ icon: 'switch', label: 'Switch' },
+	{ icon: 'fan', label: 'Fan' },
+	{ icon: 'lock', label: 'Lock' },
+	{ icon: 'door', label: 'Door' },
+	{ icon: 'tv', label: 'TV' },
+	{ icon: 'speaker', label: 'Speaker' },
+	{ icon: 'timer', label: 'Timer' },
+	{ icon: 'water', label: 'Water' },
+	{ icon: 'motion', label: 'Motion' },
+	{ icon: 'thermometer', label: 'Thermometer' },
+	{ icon: 'weather', label: 'Weather' },
+	{ icon: 'rain', label: 'Rain' },
+	{ icon: 'lightning', label: 'Lightning' },
+	{ icon: 'vibration', label: 'Vibration' },
+	{ icon: 'keypad', label: 'Keypad' },
+	{ icon: 'remote', label: 'Remote' },
+	{ icon: 'router', label: 'Network' },
+	{ icon: 'mode', label: 'Mode' },
+	{ icon: 'scene', label: 'Scene' },
+	{ icon: 'device', label: 'Box' }
+];
+/** A chosen symbol, kept in step with the state it shows: open, unlocked. */
+function symbolFor(chosen: string | undefined, drawn: IconName): IconName | undefined {
+	if (!chosen || !SYMBOLS.some((s) => s.icon === chosen)) return undefined;
+	if (chosen === 'lock' && drawn === 'unlock') return 'unlock';
+	if (chosen === 'door' && drawn === 'door-open') return 'door-open';
+	return chosen as IconName;
+}
+
 /** The one control on Compact and Standard cards. */
 export type Control =
 	| { kind: 'switch'; attr: string; on: boolean }
@@ -149,6 +185,7 @@ export function cardFor(d: CoreDevice, now = Date.now()): CardView {
 	};
 
 	const view = describe(kind, d, a, s, base, now);
+	view.icon = symbolFor(d.status_icon, view.icon) ?? view.icon;
 	view.alarm = alarmOf(d, kind);
 	if (view.alarm !== undefined) view.tone = 'alert';
 
@@ -262,7 +299,7 @@ function describe(
 						? `Paused · ${clock(left)} left`
 						: words(state);
 			// homeCore's own timers take commands rather than declaring actions.
-			if (d.plugin_id === 'core.glue' || d.plugin_id === 'core.timer') {
+			if (d.plugin_id === 'core.glue') {
 				v.control = { kind: 'timer', running, durationSecs: num(a.duration_secs) ?? 300 };
 			}
 			return v;
@@ -452,6 +489,17 @@ function channelsOf(d: CoreDevice, s: Schema): Channel[] {
 		}));
 }
 
+/**
+ * Whether a device's battery is low, as homeCore says: its alerts apply its
+ * threshold, its recovery band and what's been ignored. Set by the alerts
+ * store; `undefined` from it (or no judge) means homeCore isn't saying, and
+ * the reading is judged against homeCore's default line.
+ */
+let batteryJudge: ((deviceId: string) => boolean | undefined) | null = null;
+export const judgeBatteriesBy = (judge: typeof batteryJudge) => (batteryJudge = judge);
+/** homeCore's `[battery] threshold_pct` unless changed. */
+const BATTERY_LINE = 20;
+
 /** C9's built-in set; offline is added by `cardFor`. */
 function alarmOf(d: CoreDevice, kind: string): string | undefined {
 	const a = d.attributes;
@@ -459,8 +507,11 @@ function alarmOf(d: CoreDevice, kind: string): string | undefined {
 	if (a.smoke === true || a.smoke_detected === true) return 'smoke';
 	if (kind === 'lock' && typeof a.last_alert === 'string' && /jam/i.test(a.last_alert))
 		return 'jammed';
+	const judged = batteryJudge?.(d.device_id);
+	if (judged !== undefined) return judged ? 'low battery' : undefined;
 	const battery = num(a.battery) ?? num(a.battery_pct);
-	if (a.battery_low === true || (battery !== undefined && battery <= 15)) return 'low battery';
+	if (a.battery_low === true || (battery !== undefined && battery <= BATTERY_LINE))
+		return 'low battery';
 	return undefined;
 }
 

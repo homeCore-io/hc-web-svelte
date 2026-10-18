@@ -73,8 +73,8 @@
 			? '9ch'
 			: field.kind === 'host' || field.kind === 'port'
 				? '22ch'
-				: field.render === 'path' || field.kind === 'url'
-					? '100%'
+				: field.render === 'time'
+					? '14ch'
 					: '100%'
 	);
 
@@ -373,7 +373,7 @@
 					? 'decimal'
 					: 'numeric'
 				: undefined}
-			type={field.kind === 'url' ? 'url' : 'text'}
+			type={field.kind === 'url' ? 'url' : field.render === 'time' ? 'time' : 'text'}
 			autocomplete="off"
 			spellcheck="false"
 			value={text}

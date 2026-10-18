@@ -74,7 +74,25 @@ export const loadLevel = () => call<{ level: string }>('GET', '/system/log-level
 export const setLevel = (level: string) =>
 	call<{ ok: boolean; level: string }>('PUT', '/system/log-level', { level });
 /** Keep it after a restart: homecore.toml's `[logging].level`. */
-export const keepLevel = (level: string) => putConfig({ patch: { logging: { level } } });
+/**
+ * Keep a level for after a restart: everything's level, and each module's —
+ * replacing the modules kept before (`was`), which a null removes.
+ */
+export const keepLevel = (
+	level: string,
+	targets: Record<string, string> = {},
+	was: Record<string, unknown> = {}
+) => {
+	const modules: Record<string, string | null> = {};
+	for (const k of Object.keys(was)) if (!(k in targets)) modules[k] = null;
+	Object.assign(modules, targets);
+	return putConfig({
+		patch: {
+			logging: { level },
+			...(Object.keys(modules).length ? { 'logging.targets': modules } : {})
+		}
+	});
+};
 
 // ---- logs and events ----
 
@@ -102,6 +120,11 @@ export interface AuditAsk {
 	since?: string;
 	actor_id?: string;
 	result?: 'success' | 'denied' | 'error';
+	/** An event type; `auth.*` a kind of them, `!auth.*` all but (homeCore 0.1.82). */
+	event_type?: string;
+	/** One thing: a device, a rule, a key — everything recorded about it. */
+	target_kind?: string;
+	target_id?: string;
 }
 
 export function loadAudit(q: AuditAsk = {}) {
@@ -110,6 +133,9 @@ export function loadAudit(q: AuditAsk = {}) {
 	if (q.since) params.set('from', q.since);
 	if (q.actor_id) params.set('actor_id', q.actor_id);
 	if (q.result) params.set('result', q.result);
+	if (q.event_type) params.set('event_type', q.event_type);
+	if (q.target_kind) params.set('target_kind', q.target_kind);
+	if (q.target_id) params.set('target_id', q.target_id);
 	return call<AuditEntry[]>('GET', `/audit?${params}`);
 }
 

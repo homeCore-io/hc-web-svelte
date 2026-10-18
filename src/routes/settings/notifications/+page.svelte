@@ -30,11 +30,17 @@
 		type Provider
 	} from '#lib/notify.js';
 	import ListDetail from '#lib/components/admin/ListDetail.svelte';
+	import { loadRules } from '#lib/ruleAdmin.js';
+	import { alertRules } from '#lib/admin.js';
+	import type { AlertRule } from '#lib/alerts.js';
 	import SaveBar from '#lib/components/admin/SaveBar.svelte';
 	import SectionForm from '#lib/components/form/SectionForm.svelte';
 
 	let channels = $state<Channel[] | null>(null);
 	let batteryChannel = $state<string | null>(null);
+	/** `[alerts] notify_channel`: where wet, smoke, jammed and offline alerts go. */
+	let alertsChannel = $state<string | null>(null);
+	let alertRuleList = $state<AlertRule[]>([]);
 	let rules = $state<{ id: string; name: string; actions?: unknown }[]>([]);
 	let trouble = $state<string | null>(null);
 	let saving = $state(false);
@@ -46,12 +52,15 @@
 		channels = channelsOf(got.config.parsed);
 		const b = (got.config.parsed as { battery?: { notify_channel?: unknown } }).battery;
 		batteryChannel = typeof b?.notify_channel === 'string' ? b.notify_channel : null;
+		const a = (got.config.parsed as { alerts?: { notify_channel?: unknown } }).alerts;
+		alertsChannel = typeof a?.notify_channel === 'string' ? a.notify_channel : null;
 		trouble = null;
 	}
 	onMount(async () => {
 		await load();
-		const res = await fetch('/api/v1/rules').catch(() => null);
-		if (res?.ok) rules = await res.json();
+		const [res, alerting] = await Promise.all([loadRules(), alertRules()]);
+		if (res.ok) rules = res.data;
+		alertRuleList = alerting ?? [];
 	});
 
 	// ---- which channel: ?c=name, or ?new=type ----
@@ -105,6 +114,30 @@
 		current !== undefined && askedNew === null && draftName !== current.name
 	);
 	const using = $derived(current ? rulesSendingTo(rules, current.name) : []);
+	/** Everything else that sends here, in words: alert rules and homeCore's own alerts. */
+	const alsoUsing = $derived.by(() => {
+		if (!current) return [];
+		const here = (c: string | null | undefined) => c === current.name || c === 'all';
+		return [
+			...alertRuleList
+				.filter((r) => here(r.notify))
+				.map((r) => ({
+					what: `The alert rule “${r.name}”`,
+					lost: `The alert rule “${r.name}” tells it, and will fail to.`
+				})),
+			...(here(alertsChannel)
+				? [
+						{
+							what: 'Wet, smoke, jammed and offline alerts',
+							lost: 'Wet, smoke, jammed and offline alerts are sent here.'
+						}
+					]
+				: []),
+			...(here(batteryChannel)
+				? [{ what: 'Low-battery alerts', lost: 'Low-battery alerts are sent here.' }]
+				: [])
+		];
+	});
 	const blocked = $derived(
 		badName ?? (form.blocked ? 'Fill in or fix the fields marked in red first.' : null)
 	);
@@ -139,7 +172,7 @@
 		if (!channels || !current) return;
 		const lost = [
 			...using.map((r) => `“${r.name}” sends here, and will fail to.`),
-			...(batteryChannel === current.name ? ['Low-battery messages are sent here.'] : [])
+			...alsoUsing.map((w) => w.lost)
 		];
 		const yes = await ask({
 			title: `Remove ${current.name}?`,
@@ -155,15 +188,29 @@
 	// ---- test ----
 	let tested = $state<{ ok: boolean; text: string } | null>(null);
 	let testing = $state(false);
+	/** What the test says; homeCore's own words when left empty. */
+	let testText = $state('');
 	async function test() {
 		if (!current) return;
 		testing = true;
-		const err = await sendTest(current.name);
+		const err = await sendTest(current.name, testText);
 		testing = false;
 		const at = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 		tested = err
 			? { ok: false, text: err }
 			: { ok: true, text: `A test went to ${current.name} at ${at} — check that it arrived.` };
+	}
+	// Every channel at once, from the list.
+	let testedAll = $state<{ ok: boolean; text: string } | null>(null);
+	async function testAll() {
+		testedAll = null;
+		testing = true;
+		const err = await sendTest('all');
+		testing = false;
+		const at = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		testedAll = err
+			? { ok: false, text: err }
+			: { ok: true, text: `A test went to every channel at ${at} — check that each arrived.` };
 	}
 
 	async function restartNow() {
@@ -234,6 +281,17 @@
 			<button type="button" class="add" onclick={() => open('?add')}
 				><Plus size={16} aria-hidden="true" />Add a channel</button
 			>
+			{#if channels!.length > 1}
+				<button type="button" class="ghost all" disabled={testing} onclick={testAll}
+					>Test every channel</button
+				>
+				{#if testedAll}
+					<p class="tested" class:bad={!testedAll.ok} role="status">
+						<strong>{testedAll.ok ? 'Sent.' : 'Not everywhere.'}</strong>
+						{testedAll.text}
+					</p>
+				{/if}
+			{/if}
 		{/snippet}
 		{#snippet detail()}
 			{#if adding}
@@ -269,6 +327,14 @@
 							>
 						{/if}
 					</div>
+					{#if current && askedNew === null}
+						<input
+							class="test-text"
+							bind:value={testText}
+							placeholder="What the test says (optional)"
+							aria-label="What the test says"
+						/>
+					{/if}
 					{#if tested}
 						<p class="tested" class:bad={!tested.ok} role="status">
 							<strong>{tested.ok ? 'Sent.' : 'Didn’t send.'}</strong>
@@ -282,12 +348,12 @@
 					{#if current && askedNew === null}
 						<div class="used">
 							<h3>Sent here by</h3>
-							{#if using.length === 0 && batteryChannel !== current.name}
-								<p class="quiet">No automation names this channel yet.</p>
+							{#if using.length === 0 && alsoUsing.length === 0}
+								<p class="quiet">Nothing names this channel yet.</p>
 							{:else}
 								<ul>
 									{#each using as r (r.id)}<li>{r.name}</li>{/each}
-									{#if batteryChannel === current.name}<li>Low-battery alerts</li>{/if}
+									{#each alsoUsing as w (w.what)}<li>{w.what}</li>{/each}
 								</ul>
 							{/if}
 						</div>
@@ -517,5 +583,18 @@
 	}
 	.saved span {
 		flex: 1 1 260px;
+	}
+	.all {
+		align-self: flex-start;
+		margin-top: var(--space-2);
+	}
+	.test-text {
+		height: 38px;
+		padding: 0 12px;
+		border-radius: 10px;
+		border: 1px solid var(--line);
+		background: var(--bg);
+		color: var(--ink);
+		font: inherit;
 	}
 </style>

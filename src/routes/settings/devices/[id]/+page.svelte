@@ -4,6 +4,8 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { repointAll } from '#lib/ruleAdmin.js';
+	import { core } from '#lib/core.svelte.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { devices } from '#lib/devices.svelte.js';
@@ -14,7 +16,7 @@
 	import { heading } from '#lib/heading.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
-	import { cardFor } from '#lib/card.js';
+	import { SYMBOLS, cardFor } from '#lib/card.js';
 	import { roomOf } from '#lib/summary.js';
 	import { kindLabel, pluginLabel, seenText } from '#lib/inventory.js';
 	import { chartable, readingsOf, usesOf } from '#lib/deviceView.js';
@@ -63,6 +65,34 @@
 		alertRules = (await loadAlertRules()) ?? [];
 	});
 	const uses = $derived(device ? usesOf(device, rules, scenes.list, alertRules) : null);
+
+	// ---- another device in its place, in every rule (homeCore 0.1.82) ----
+	let instead = $state('');
+	let insteadNote = $state<string | null>(null);
+	const others = $derived(
+		Object.values(devices.byId)
+			.filter((d) => d.device_id !== id)
+			.sort((a, b) => displayName(a).localeCompare(displayName(b)))
+	);
+	async function useInstead() {
+		const to = devices.byId[instead];
+		if (!device || !to || !uses) return;
+		const n = uses.rules.length;
+		const yes = await ask({
+			title: `Use ${displayName(to)} in ${n === 1 ? 'its rule' : `its ${n} rules`}?`,
+			body: `Every place ${n === 1 ? 'it names' : 'they name'} ${displayName(device)} will name ${displayName(to)}. ${displayName(device)} itself stays as it is.`,
+			go: 'Change them'
+		});
+		if (!yes) return;
+		const res = await repointAll(id, to.device_id);
+		insteadNote = res.ok
+			? `${res.data.changed.length === 1 ? 'One rule now names' : `${res.data.changed.length} rules now name`} ${displayName(to)}.`
+			: res.error;
+		if (res.ok) {
+			instead = '';
+			rules = (await loadRules()) ?? [];
+		}
+	}
 
 	// ---- name and room, saved together ----
 	let draftName = $state<string | null>(null);
@@ -132,6 +162,13 @@
 		const err = await patchDevice(id, { ui_hint: v || null });
 		hintNote = err ?? (v ? `Shown as ${kindLabel(v).toLowerCase()}.` : 'Shown as its plugin says.');
 	}
+	let symbolNote = $state<string | null>(null);
+	async function setSymbol(v: string) {
+		symbolNote = null;
+		const err = await patchDevice(id, { status_icon: v || null });
+		symbolNote =
+			err ?? (v ? `Shown with the ${v} symbol.` : 'Shown with the symbol for what it is.');
+	}
 	const buttons = $derived.by(() => {
 		if (!device) return [];
 		const nums = new Set<string>(Object.keys(device.button_names ?? {}));
@@ -165,6 +202,9 @@
 		{ label: '30 d', ms: 30 * 24 * 3600_000 }
 	];
 	let period = $state(PERIODS[0]!);
+	/** How many periods back the charts end: 0 is now. */
+	let ago = $state(0);
+	const chartEnd = $derived(ago === 0 ? undefined : Date.now() - ago * period.ms);
 	const charts = $derived(device ? chartable(device) : []);
 
 	// ---- delete ----
@@ -178,7 +218,9 @@
 				...(using > 0 ? ['Rules that name it are turned off until someone changes them.'] : []),
 				...(fromPlugin
 					? [
-							`If ${pluginLabel(device.plugin_id)} still reports it, it comes back as a new device on the next report — remove it there first.`
+							core.since('0.1.82')
+								? `If ${pluginLabel(device.plugin_id)} still reports it, it stays out — Devices lists it under Removed, to bring back.`
+								: `If ${pluginLabel(device.plugin_id)} still reports it, it comes back as a new device on the next report — remove it there first.`
 						]
 					: [])
 			],
@@ -298,6 +340,17 @@
 						</select>
 					</label>
 					{#if hintNote}<p class="hint" role="status">{hintNote}</p>{/if}
+					<label class="row">
+						<span class="k">Symbol</span>
+						<select
+							value={device.status_icon ?? ''}
+							onchange={(e) => setSymbol(e.currentTarget.value)}
+						>
+							<option value="">The one for what it is</option>
+							{#each SYMBOLS as s (s.icon)}<option value={s.icon}>{s.label}</option>{/each}
+						</select>
+					</label>
+					{#if symbolNote}<p class="hint" role="status">{symbolNote}</p>{/if}
 					{#if buttons.length}
 						<p class="hint">
 							Its buttons, by number — a name here wins over what the bridge calls it.
@@ -375,7 +428,10 @@
 									type="button"
 									role="radio"
 									aria-checked={period === p}
-									onclick={() => (period = p)}>{p.label}</button
+									onclick={() => {
+										period = p;
+										ago = 0;
+									}}>{p.label}</button
 								>
 							{/each}
 						</div>
@@ -390,8 +446,20 @@
 								bool={c.bool}
 								current={device.attributes[c.attr]}
 								span={period.ms}
+								end={chartEnd}
 							/>
 						{/each}
+					</div>
+					<div class="when">
+						<button type="button" class="plain" onclick={() => (ago += 1)}
+							>← Earlier {period.label}</button
+						>
+						{#if ago > 0}
+							<button type="button" class="plain" onclick={() => (ago -= 1)}
+								>Later {period.label} →</button
+							>
+							<button type="button" class="plain" onclick={() => (ago = 0)}>Now</button>
+						{/if}
 					</div>
 				</section>
 			{/if}
@@ -415,14 +483,38 @@
 				{#if card?.alarm}
 					<p class="quiet">Its {card.alarm} is a built-in alert, which needs no rule.</p>
 				{/if}
+				{#if uses?.rules.length && core.since('0.1.82') && session.can('automations:write')}
+					<div class="instead">
+						<label>
+							<span>Replaced? Use another device in its rules</span>
+							<select bind:value={instead}>
+								<option value="">Choose a device…</option>
+								{#each others as d (d.device_id)}<option value={d.device_id}
+										>{displayName(d)}</option
+									>{/each}
+							</select>
+						</label>
+						<button type="button" class="small go" disabled={!instead} onclick={useInstead}
+							>Use it instead</button
+						>
+					</div>
+					{#if insteadNote}<p class="hint" role="status">{insteadNote}</p>{/if}
+				{/if}
+				{#if session.can('audit:read')}
+					<a class="audit" href={`/settings/audit?about=device:${encodeURIComponent(id)}`}
+						>Who has changed it, in the audit</a
+					>
+				{/if}
 			</section>
 
 			<section>
 				<h2>Remove</h2>
 				<p class="quiet">
 					Delete it from homeCore.
-					{#if fromPlugin}If {pluginLabel(device.plugin_id)} still reports it, it comes back on the next
-						report — remove it there first.{/if}
+					{#if fromPlugin && core.since('0.1.82')}If {pluginLabel(device.plugin_id)} still reports it,
+						it stays out: Devices lists it under Removed, to bring back.{:else if fromPlugin}If {pluginLabel(
+							device.plugin_id
+						)} still reports it, it comes back on the next report — remove it there first.{/if}
 				</p>
 				<button type="button" class="danger" onclick={remove}>Delete…</button>
 			</section>
@@ -693,5 +785,42 @@
 		background: var(--alert-bg);
 		color: var(--alert);
 		font-weight: 600;
+	}
+	.audit {
+		align-self: flex-start;
+		color: var(--accent);
+		font-size: 13px;
+		font-weight: 600;
+	}
+	.when {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		margin-top: var(--space-2);
+	}
+	.when .plain {
+		height: 32px;
+		padding: 0 12px;
+		border-radius: 16px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--ink);
+		font: inherit;
+		font-size: 13px;
+		font-weight: 600;
+	}
+	.instead {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-end;
+		gap: var(--space-2);
+		margin-top: var(--space-2);
+	}
+	.instead label {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		font-size: 13px;
+		color: var(--ink-muted);
 	}
 </style>

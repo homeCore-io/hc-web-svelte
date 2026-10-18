@@ -4,6 +4,7 @@
  */
 import { alertsAfter, byDevice, sortAlerts, type Alert } from './alerts.js';
 import { live } from './live.svelte.js';
+import { judgeBatteriesBy } from './card.js';
 
 class Alerts {
 	list = $state<Alert[]>([]);
@@ -33,3 +34,9 @@ class Alerts {
 }
 
 export const alerts = new Alerts();
+
+// A card's low battery is homeCore's: its threshold, its recovery band and
+// what's been ignored. Reading `list` here makes every card that asks follow it.
+judgeBatteriesBy((id) =>
+	alerts.known ? alerts.list.some((a) => a.device_id === id && a.kind === 'low_battery') : undefined
+);

@@ -49,6 +49,17 @@ export const ronOf = (id: string) => call<string>('GET', `${one(id)}/ron`);
 const atQuery = (at?: string) => (at ? `?at=${encodeURIComponent(at)}` : '');
 export const testRule = (id: string, at?: string) =>
 	call<TestResult>('POST', `${one(id)}/test${atQuery(at)}`);
+/** Every rule naming `from` names `to` instead (homeCore 0.1.82). */
+export const repointAll = (from: string, to: string) =>
+	call<{ changed: string[] }>('POST', '/automations/repoint', { from, to });
+
+/** The rules that name a device, as written or as the placeholder its deletion left. */
+export const rulesNaming = (rules: Rule[], deviceId: string) => {
+	const plain = deviceId.replace(/^DELETED:/, '');
+	const marks = [`"${plain}"`, `"DELETED:${plain}"`];
+	return rules.filter((r) => marks.some((m) => JSON.stringify(r).includes(m)));
+};
+
 /** Run a rule now; homeCore answers before it runs (homeCore with `run_now`). */
 export const runRule = (id: string, checks: boolean) =>
 	call<{ rule_id: string; checks: boolean }>('POST', `${one(id)}/run`, { checks });

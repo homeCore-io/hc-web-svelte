@@ -8,6 +8,7 @@
 		PER_MODE,
 		newCheck,
 		newOf,
+		buttonsOf,
 		readingsOf,
 		vocabFields,
 		withPickers,
@@ -37,7 +38,11 @@
 	// A part naming a device offers that device's readings for its attribute.
 	const lists = $derived(
 		typeof body?.device_id === 'string' && body.device_id
-			? { ...ctx.lists, attributes: readingsOf(ctx.house.device(body.device_id)) }
+			? {
+					...ctx.lists,
+					attributes: readingsOf(ctx.house.device(body.device_id)),
+					buttons: buttonsOf(ctx.house.device(body.device_id))
+				}
 			: ctx.lists
 	);
 	// A per-mode step's table covers its modes and its "any other mode".

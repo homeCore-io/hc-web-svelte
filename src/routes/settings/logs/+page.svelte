@@ -1,7 +1,11 @@
 <!--
 	Logs (A6): homeCore's and its plugins' log, live — by how serious, by
-	where it came from, searchable; a line opens to say where in the code
-	and what else it carried. Pausing holds the page still.
+	where it came from or a module, searchable; a line opens to say where in
+	the code and what else it carried. Pausing holds the page still and keeps
+	what arrives meanwhile.
+
+	Followed over homeCore's live log stream (the app's server adds the
+	session's token); if that won't open, asked for every two seconds.
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
@@ -21,6 +25,24 @@
 	let from = $state('');
 	let query = $state('');
 	let open = $state<number | null>(null);
+	/** A module, matched from its start: `hc_core::engine`. */
+	let module = $state('');
+
+	// ---- following: the live stream, else asking every two seconds ----
+	let streaming = $state(false);
+	/** What arrived while paused, shown on resuming. */
+	let held = $state.raw<LogLine[]>([]);
+	const add = (more: LogLine[]) => {
+		if (!more.length) return;
+		if (paused) held = [...held, ...more].slice(-KEEP);
+		else lines = [...lines, ...more].slice(-KEEP);
+	};
+	$effect(() => {
+		if (!paused && held.length) {
+			lines = [...lines, ...held].slice(-KEEP);
+			held = [];
+		}
+	});
 
 	let last: string | undefined;
 	async function poll() {
@@ -30,12 +52,58 @@
 		failed = null;
 		if (!r.data.lines.length) return;
 		last = r.data.lines[r.data.lines.length - 1]!.timestamp;
-		lines = [...lines, ...r.data.lines].slice(-KEEP);
+		add(r.data.lines);
 	}
 	onMount(() => {
-		void poll();
-		const every = setInterval(poll, 2000);
-		return () => clearInterval(every);
+		let socket: WebSocket | null = null;
+		let every: ReturnType<typeof setInterval> | undefined;
+		let retry: ReturnType<typeof setTimeout> | undefined;
+		let gone = false;
+		const fallBack = () => {
+			if (every || gone) return;
+			void poll();
+			every = setInterval(poll, 2000);
+		};
+		const follow = (backlog: number) => {
+			const url = new URL('/api/v1/logs/stream', location.href);
+			url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+			// Everything homeCore logs; this page picks what to show.
+			url.searchParams.set('level', 'trace');
+			url.searchParams.set('history', String(backlog));
+			const ws = new WebSocket(url);
+			socket = ws;
+			let opened = false;
+			ws.onopen = () => {
+				opened = true;
+				streaming = true;
+				failed = null;
+				if (every) {
+					clearInterval(every);
+					every = undefined;
+				}
+			};
+			ws.onmessage = (m) => {
+				try {
+					add([JSON.parse(String(m.data)) as LogLine]);
+				} catch {
+					// Not a line.
+				}
+			};
+			ws.onclose = () => {
+				if (socket !== ws || gone) return;
+				streaming = false;
+				// Never opened: ask instead. Dropped: ask meanwhile, and follow again soon.
+				fallBack();
+				if (opened) retry = setTimeout(() => follow(0), 5000);
+			};
+		};
+		follow(200);
+		return () => {
+			gone = true;
+			socket?.close();
+			clearInterval(every);
+			clearTimeout(retry);
+		};
 	});
 
 	const sources = $derived([...new Set(lines.map((l) => sourceOf(l)))].sort());
@@ -47,6 +115,7 @@
 				({ l, src }) =>
 					atLeast(l.level, min) &&
 					(!from || src === from) &&
+					(!module.trim() || l.target.startsWith(module.trim())) &&
 					(!q || `${l.message} ${src} ${l.target}`.toLowerCase().includes(q))
 			)
 			.reverse()
@@ -65,7 +134,15 @@
 {:else}
 	<div class="page">
 		<div class="tools">
-			<span class="live" class:paused>{paused ? 'Paused' : failed ? 'Not answering' : 'Live'}</span>
+			<span class="live" class:paused
+				>{paused
+					? `Paused${held.length ? ` · ${held.length} new` : ''}`
+					: failed
+						? 'Not answering'
+						: streaming
+							? 'Live'
+							: 'Every 2 s'}</span
+			>
 			<div class="chips" role="radiogroup" aria-label="How serious">
 				{#each LOG_LEVELS as l (l.id)}
 					<button role="radio" aria-checked={min === l.id} onclick={() => (min = l.id)}
@@ -80,6 +157,18 @@
 					{#each sources as s (s)}<option value={s}>{s}</option>{/each}
 				</select>
 			</label>
+			<input
+				class="module"
+				type="search"
+				placeholder="Module, e.g. hc_core::engine"
+				aria-label="Module"
+				list="log-modules"
+				bind:value={module}
+			/>
+			<datalist id="log-modules">
+				{#each [...new Set(lines.map((l) => l.target))].sort() as t (t)}<option value={t}
+					></option>{/each}
+			</datalist>
 			<input
 				type="search"
 				placeholder="Search the log"

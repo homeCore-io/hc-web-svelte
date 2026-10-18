@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cardFor, epochOf, type CardView } from './card.js';
+import { cardFor, epochOf, judgeBatteriesBy, type CardView } from './card.js';
 import { HOUSE, FIXTURE_NOW } from './fixtures/house.js';
 import type { CoreDevice } from './devices.js';
 
@@ -129,6 +129,22 @@ describe('cards for the kinds in this house (03 §3)', () => {
 		expect(card('yolink_leak')).toMatchObject({ stateLine: 'Dry', alarm: 'low battery' });
 	});
 
+	it('a low battery is homeCore’s to say, when it says', () => {
+		const leak = byId('yolink_leak');
+		const at = (battery: number) => ({
+			attributes: { ...leak.attributes, battery_low: false, battery }
+		});
+		judgeBatteriesBy(() => false);
+		expect(card('yolink_leak').alarm).toBeUndefined();
+		judgeBatteriesBy((id) => (id === 'yolink_leak' ? true : undefined));
+		expect(card('yolink_leak', at(90)).alarm).toBe('low battery');
+		// Not saying: homeCore's default line, 20 %.
+		judgeBatteriesBy(() => undefined);
+		expect(card('yolink_leak', at(19)).alarm).toBe('low battery');
+		expect(card('yolink_leak', at(21)).alarm).toBeUndefined();
+		judgeBatteriesBy(null);
+	});
+
 	it('motion and occupancy use the device’s own words', () => {
 		expect(card('hue_motion').stateLine).toBe('Clear for 40 min');
 		expect(card('lutron_occupancy').stateLine).toBe('Occupied');
@@ -247,4 +263,16 @@ it('reads Unix seconds named like a time as a moment, and nothing else', () => {
 	expect(epochOf('updated_at', 1792109048)).toBe(1792109048000);
 	expect(epochOf('strike_count', 1792109048)).toBeUndefined();
 	expect(epochOf('last_strike', '22')).toBeUndefined();
+});
+
+describe('a symbol a person chose', () => {
+	it('replaces the one for its kind, and still shows open and unlocked', () => {
+		expect(card('yolink_leak', { status_icon: 'thermometer' }).icon).toBe('thermometer');
+		expect(card('yolink_leak', { status_icon: 'not-a-symbol' }).icon).toBe(
+			card('yolink_leak').icon
+		);
+		const front = byId('yolink_front_lock');
+		const unlocked = { attributes: { ...front.attributes, locked: false } };
+		expect(card('yolink_front_lock', { ...unlocked, status_icon: 'lock' }).icon).toBe('unlock');
+	});
 });

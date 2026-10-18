@@ -58,10 +58,32 @@
 		}[];
 	}
 	let orphans = $state<Orphans | null>(null);
+	// Plugin devices someone removed, kept out until brought back (homeCore 0.1.82).
+	interface Removed {
+		device_id: string;
+		plugin_id: string;
+		name: string;
+		removed_at: string;
+	}
+	let removed = $state<Removed[] | null>(null);
+	const loadRemoved = async () => {
+		const res = await fetch('/api/v1/devices/removed').catch(() => null);
+		removed = res?.ok ? ((await res.json()) as Removed[]) : null;
+	};
 	onMount(async () => {
+		void loadRemoved();
 		const res = await fetch('/api/v1/devices/orphaned').catch(() => null);
 		if (res?.ok) orphans = (await res.json()) as Orphans;
 	});
+	async function bringBack(r: Removed) {
+		const res = await fetch(`/api/v1/devices/removed/${encodeURIComponent(r.device_id)}`, {
+			method: 'DELETE'
+		}).catch(() => null);
+		note = res?.ok
+			? `${r.name} comes back the next time ${pluginLabel(r.plugin_id)} reports it.`
+			: 'homeCore didn’t bring it back.';
+		await loadRemoved();
+	}
 	const selectOrphans = (ids: string[]) => {
 		const next = { ...picked };
 		for (const id of ids) next[id] = true;
@@ -105,7 +127,9 @@
 				'Their names and rooms in homeCore go; recorded history stays.',
 				...(fromPlugins.length > 0
 					? [
-							'A plugin that still reports one brings it back as new on its next report — remove it in the plugin (or its hub) first.'
+							removed !== null
+								? 'A plugin that still reports one doesn’t bring it back: it’s listed under Removed, to bring back.'
+								: 'A plugin that still reports one brings it back as new on its next report — remove it in the plugin (or its hub) first.'
 						]
 					: []),
 				'Rules that name them are turned off until someone changes them.'
@@ -262,6 +286,32 @@
 				? ''
 				: `, not counting ${sceneCount} plugin scenes`}.
 		</p>
+
+		{#if removed?.length}
+			<section class="removed" aria-label="Removed devices">
+				<h2>Removed</h2>
+				<p class="quiet">
+					Their plugins still report them, but they’re kept out. Bring one back and it returns the
+					next time its plugin reports it, with its history.
+				</p>
+				<ul>
+					{#each removed as r (r.device_id)}
+						<li>
+							<span class="text">
+								<span class="name">{r.name}</span>
+								<span class="sub"
+									>{pluginLabel(r.plugin_id)} · removed {new Date(r.removed_at).toLocaleDateString(
+										undefined,
+										{ day: 'numeric', month: 'short', year: 'numeric' }
+									)}</span
+								>
+							</span>
+							<button type="button" class="back" onclick={() => bringBack(r)}>Bring back</button>
+						</li>
+					{/each}
+				</ul>
+			</section>
+		{/if}
 	</div>
 
 	{#if selected.length > 0}
@@ -554,5 +604,51 @@
 		border: 1px solid color-mix(in srgb, var(--bg) 40%, transparent);
 		background: none;
 		color: var(--bg);
+	}
+	.removed {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		margin-top: var(--space-4);
+	}
+	.removed h2 {
+		margin: 0;
+		font-size: 13px;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--ink-muted);
+	}
+	.removed ul {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+	.removed li {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-2) var(--space-4);
+		border-radius: var(--radius);
+		background: var(--surface);
+		border: 1px solid var(--card-line);
+	}
+	.removed .text {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+	}
+	.removed .back {
+		height: 32px;
+		padding: 0 12px;
+		border-radius: 16px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--ink);
+		font: inherit;
+		font-size: 13px;
+		font-weight: 600;
 	}
 </style>

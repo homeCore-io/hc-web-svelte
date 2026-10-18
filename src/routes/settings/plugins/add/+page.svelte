@@ -10,8 +10,10 @@
 	import { session } from '#lib/me.svelte.js';
 	import { heading } from '#lib/heading.svelte.js';
 	import { wide } from '#lib/wide.svelte.js';
+	import { core } from '#lib/core.svelte.js';
 	import {
 		compareVersions,
+		needsCore,
 		sizeOf,
 		versionOf,
 		type PluginRecord,
@@ -54,11 +56,19 @@
 					.reverse()
 			: []
 	);
+	/** What a version needs that this homeCore isn't, or undefined. */
+	const needs = (v: string) =>
+		needsCore(
+			chosen?.versions.find((x) => x.version === v),
+			core.version
+		);
 	let version = $state('');
+	// The newest this homeCore runs; the newest of all when none do.
 	$effect(() => {
 		void chosen;
-		version = versions[0] ?? '';
+		version = versions.find((v) => needs(v) === undefined) ?? versions[0] ?? '';
 	});
+	const tooNew = $derived(version ? needs(version) : undefined);
 	const installed = $derived(chosen ? have.find((p) => p.plugin_id === chosen.id) : undefined);
 	const pick = (id: string) =>
 		void goto(`?id=${encodeURIComponent(id)}`, { replace: wide.current });
@@ -150,7 +160,9 @@
 					Version
 					<select bind:value={version}
 						>{#each versions as v, i (v)}<option value={v}
-								>{v}{i === 0 ? ' — the latest' : ''}</option
+								>{v}{i === 0 ? ' — the latest' : ''}{needs(v)
+									? ` — needs homeCore ${needs(v)}`
+									: ''}</option
 							>{/each}</select
 					>
 				</label>
@@ -182,7 +194,13 @@
 						{/each}
 					</fieldset>
 				{/if}
-				<button type="button" class="go" disabled={busy || !version} onclick={go}>
+				{#if tooNew}
+					<p class="quiet">
+						<strong>{version} needs homeCore {tooNew} or later; this is {core.version}.</strong> Choose
+						an earlier version, or update homeCore first.
+					</p>
+				{/if}
+				<button type="button" class="go" disabled={busy || !version || !!tooNew} onclick={go}>
 					{busy
 						? 'Installing…'
 						: choices.length

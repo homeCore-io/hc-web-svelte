@@ -100,7 +100,8 @@ export type Field =
 	/** One value of any type, typed plainly: words, 42, true. Objects stay JSON. */
 	| { kind: 'value'; name: string; label: string; optional?: boolean }
 	| { kind: 'bool'; name: string; label: string }
-	| { kind: 'duration'; name: string; label: string; optional?: boolean }
+	/** Seconds — or milliseconds, with `ms` — shown as h, min or s. */
+	| { kind: 'duration'; name: string; label: string; optional?: boolean; ms?: boolean }
 	| { kind: 'time'; name: string; label: string }
 	| { kind: 'days'; name: string; label: string }
 	| { kind: 'device'; name: string; label: string; optional?: boolean }
@@ -895,6 +896,11 @@ export function vocabFields(spec: VariantSpec): Field[] {
 		const label = cap(words(f.name));
 		const optional = !f.required;
 		if (f.name === 'device_id') return { kind: 'device', name: f.name, label: 'Device', optional };
+		// A length of time, however homeCore counts it: shown as h, min or s.
+		if (f.type === 'integer' && /_secs$/.test(f.name))
+			return { kind: 'duration', name: f.name, label: durationLabel(f.name), optional };
+		if (f.type === 'integer' && /_ms$/.test(f.name))
+			return { kind: 'duration', name: f.name, label: durationLabel(f.name), optional, ms: true };
 		if (f.type === 'integer' || f.type === 'number')
 			return { kind: 'number', name: f.name, label, optional };
 		if (f.type === 'boolean') return { kind: 'bool', name: f.name, label };
@@ -908,6 +914,36 @@ export function vocabFields(spec: VariantSpec): Field[] {
 			};
 		return { kind: 'json', name: f.name, label, optional };
 	});
+}
+
+/** "for_duration_secs" → "For", "poll_interval_ms" → "Poll interval". */
+function durationLabel(name: string): string {
+	const w = name
+		.replace(/_(secs|ms)$/, '')
+		.replace(/^for_duration$/, 'for')
+		.replace(/_duration$/, '')
+		.replace(/^default$/, 'otherwise wait');
+	return cap(words(w));
+}
+
+/**
+ * A device's buttons by number, with the names given them: a keypad's
+ * "button_3" readings, and the names in `button_names`.
+ */
+export function buttonsOf(d: CoreDevice | undefined): Choice[] {
+	if (!d) return [];
+	const nums = new Set<number>();
+	for (const n of Object.keys(d.button_names ?? {})) if (/^\d+$/.test(n)) nums.add(Number(n));
+	for (const a of [...Object.keys(d.schema?.attributes ?? {}), ...Object.keys(d.attributes)]) {
+		const m = /^button_?(\d+)$/.exec(a);
+		if (m) nums.add(Number(m[1]));
+	}
+	return [...nums]
+		.sort((a, b) => a - b)
+		.map((n) => {
+			const named = d.button_names?.[String(n)];
+			return { value: String(n), label: named ? `${n} — ${named}` : `Button ${n}` };
+		});
 }
 
 /** A new value of a vocabulary variant, with its required fields empty. */
@@ -1095,6 +1131,8 @@ export interface Lists {
 	variables: { hub: string[]; private: string[]; rule: string[] };
 	/** The readings of the device this part names, when it names one. */
 	attributes?: string[];
+	/** Its buttons, when it has some. */
+	buttons?: Choice[];
 }
 
 /** A device's readings by name, for a field that names one: its schema's, then what it reports. */
@@ -1144,7 +1182,7 @@ const SAME: Choice[] = [
 	{ value: 'Lt', label: 'is below' },
 	{ value: 'Lte', label: 'is at most' }
 ];
-const CHANGE_KIND: Choice[] = [
+export const CHANGE_KIND: Choice[] = [
 	{ value: 'homecore', label: 'homeCore (a rule, the app)' },
 	{ value: 'physical', label: 'by hand, at the device' },
 	{ value: 'external', label: 'another app or hub' },
@@ -1226,7 +1264,7 @@ export const CHOICES: Record<string, { options: Choice[]; optional?: boolean; la
 };
 
 /** Fields holding one value of any type: words, a number, yes or no. */
-const VALUE_FIELDS = new Set(['to', 'from', 'not_to', 'not_from', 'value', 'value_cmp']);
+const VALUE_FIELDS = new Set(['to', 'from', 'not_to', 'not_from', 'value', 'value_cmp', 'target']);
 
 /**
  * A vocabulary field, given a picker where it names something the house
@@ -1295,6 +1333,8 @@ export function withPickers(tag: string, f: Field, lists: Lists): Field {
 		return { kind: 'value', ...base, optional: 'optional' in f ? f.optional : undefined };
 	if (f.name === 'attribute' && lists.attributes)
 		return { kind: 'text', ...base, label: 'Reading', suggest: lists.attributes };
+	if (f.name === 'button_number' && lists.buttons?.length)
+		return { kind: 'choice', ...base, label: 'Button', options: lists.buttons, numeric: true };
 	return f;
 }
 

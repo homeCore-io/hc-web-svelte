@@ -90,8 +90,19 @@ export function compareVersions(a: string, b: string): number {
 	return 0;
 }
 
-export const latestOf = (r: RegistryPlugin | undefined) =>
+type Version = RegistryPlugin['versions'][number];
+
+/**
+ * What a version needs that this homeCore isn't: the `min_core` it names,
+ * when `core` is older. Undefined when it runs, or when either isn't known.
+ */
+export const needsCore = (v: Version | undefined, core: string | null | undefined) =>
+	v?.min_core && core && compareVersions(core, v.min_core) < 0 ? v.min_core : undefined;
+
+/** The newest version — the newest that runs on `core`, when it's known. */
+export const latestOf = (r: RegistryPlugin | undefined, core?: string | null) =>
 	r?.versions
+		.filter((v) => needsCore(v, core) === undefined)
 		.map((v) => v.version)
 		.sort(compareVersions)
 		.at(-1);
@@ -99,10 +110,14 @@ export const latestOf = (r: RegistryPlugin | undefined) =>
 /** The version it runs: what it says, else what was installed. */
 export const versionOf = (p: PluginRecord) => p.version ?? p.installed_version;
 
-/** A newer version in the registry, if there is one. */
-export function updateOf(p: PluginRecord, r: RegistryPlugin | undefined): string | undefined {
+/** A newer version in the registry that runs on `core`, if there is one. */
+export function updateOf(
+	p: PluginRecord,
+	r: RegistryPlugin | undefined,
+	core?: string | null
+): string | undefined {
 	const have = versionOf(p);
-	const latest = latestOf(r);
+	const latest = latestOf(r, core);
 	return have && latest && compareVersions(latest, have) > 0 ? latest : undefined;
 }
 
@@ -160,7 +175,8 @@ const NOTICE_RANK = { error: 0, warning: 1, info: 2 } as const;
 export function rowsOf(
 	list: PluginRecord[],
 	registry: RegistryPlugin[] = [],
-	now = Date.now()
+	now = Date.now(),
+	core?: string | null
 ): Row[] {
 	return list
 		.map((p) => {
@@ -173,7 +189,7 @@ export function rowsOf(
 				name: r?.name ?? pluginLabel(p.plugin_id),
 				what: r?.description ?? '',
 				version: versionOf(p),
-				update: updateOf(p, r),
+				update: updateOf(p, r, core),
 				devices: p.device_count,
 				state: stateOf(p, now),
 				notice: notices.find((n) => n.level !== 'info'),

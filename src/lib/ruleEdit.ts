@@ -709,7 +709,7 @@ export const momentful = (d: CoreDevice) =>
 
 // ---- the kinds offered by name ----
 
-export type WhenKind = 'device' | 'time' | 'sun' | 'mode' | 'start' | 'every' | 'other';
+export type WhenKind = 'device' | 'time' | 'sun' | 'mode' | 'start' | 'every' | 'webhook' | 'other';
 export type CheckKind = 'device' | 'mode' | 'time' | 'any' | 'other';
 export type StepKind =
 	'device' | 'scene' | 'wait' | 'notify' | 'if' | 'together' | 'mode' | 'other';
@@ -721,10 +721,11 @@ export const WHEN_KINDS: { kind: WhenKind; label: string; sub: string }[] = [
 	{ kind: 'mode', label: 'A mode changes', sub: 'Night, Away…' },
 	{ kind: 'start', label: 'homeCore starts', sub: '' },
 	{ kind: 'every', label: 'Every so often', sub: 'Every 5 minutes, every hour…' },
+	{ kind: 'webhook', label: 'A webhook is called', sub: 'Another service calls an address' },
 	{
 		kind: 'other',
 		label: 'Something else',
-		sub: 'A battery runs low, a webhook, a calendar event…'
+		sub: 'A battery runs low, a calendar event…'
 	}
 ];
 
@@ -755,6 +756,7 @@ export function whenKindOf(t: Json): WhenKind {
 	if (kind === 'ModeChanged') return 'mode';
 	if (kind === 'SystemStarted') return 'start';
 	if (kind === 'Periodic') return 'every';
+	if (kind === 'WebhookReceived') return 'webhook';
 	return 'other';
 }
 
@@ -779,6 +781,37 @@ export function stepKindOf(a: Json): StepKind {
 	return 'other';
 }
 
+// ---- webhooks ----
+
+/**
+ * A webhook's name — the last part of its address — hard to guess. homeCore
+ * asks nothing else of a caller (lib.rs: "the path segment acts as the shared
+ * secret"), so the name is the lock.
+ */
+export function webhookName(): string {
+	const bytes = crypto.getRandomValues(new Uint8Array(10));
+	return `hook-${[...bytes].map((b) => (b % 36).toString(36)).join('')}`;
+}
+
+/**
+ * What's wrong with a webhook's name, or null. homeCore matches it exactly
+ * against the one segment after `/webhooks/`, and the app passes on only a
+ * plain one (server/proxy.js), so: letters, digits, `-`, `_`, `.` — not first.
+ */
+export function webhookProblem(name: unknown): string | null {
+	if (typeof name !== 'string' || name === '') return 'It needs a name.';
+	if (name.startsWith('/')) return 'Leave out the “/” — homeCore matches the name exactly.';
+	if (!/^[A-Za-z0-9_-][A-Za-z0-9._-]*$/.test(name))
+		return 'Letters, digits, “-”, “_” and “.” only — no spaces or “/”.';
+	if (name.length < 12)
+		return 'Short names are easy to guess, and anyone who guesses it can run the rule.';
+	return null;
+}
+
+/** The address a service calls: this app's, which passes webhooks on to homeCore. */
+export const webhookAddress = (origin: string, name: string) =>
+	`${origin}/api/v1/webhooks/${encodeURIComponent(name)}`;
+
 /** A new part of the kind chosen, with nothing chosen yet. */
 export function newWhen(kind: WhenKind): Json {
 	switch (kind) {
@@ -794,6 +827,8 @@ export function newWhen(kind: WhenKind): Json {
 			return 'SystemStarted';
 		case 'every':
 			return { Periodic: { every_n: 5, unit: 'Minutes' } };
+		case 'webhook':
+			return { WebhookReceived: { path: webhookName() } };
 		default:
 			return 'ManualTrigger';
 	}
@@ -1003,6 +1038,11 @@ export function problemsOf(r: Rule, has: (id: string) => boolean): string[] {
 	const named = [...missing].filter((m) => m !== '');
 	if (named.length)
 		out.push(`It names ${named.map((m) => `“${m}”`).join(', ')}, which the house doesn’t have.`);
+	const hooks = [r.trigger, ...((r as Json).triggers ?? [])]
+		.filter((t) => tagOf(t)[0] === 'WebhookReceived')
+		.map((t) => webhookProblem(tagOf(t)[1].path))
+		.filter((p): p is string => p !== null && !p.startsWith('Short'));
+	if (hooks.length) out.push(`A webhook’s name: ${hooks[0]}`);
 	if (!(r.actions ?? []).length) out.push('It doesn’t do anything yet — add a step.');
 	const ifs = JSON.stringify(r.actions ?? []).includes('"Conditional":{"condition":""');
 	if (ifs) out.push('An if/otherwise doesn’t ask anything yet.');

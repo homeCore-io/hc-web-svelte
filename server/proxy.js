@@ -29,7 +29,7 @@ const PUBLIC = new Set(['/api/v1/auth/login', '/api/v1/auth/refresh', '/api/v1/h
 /**
  * Whether to pass a request on when it carries no credential at all.
  *
- * **Never, except to sign in.** homeCore treats some addresses as trusted
+ * **Never, except to sign in — and a webhook (below).** homeCore treats some addresses as trusted
  * (`[auth].whitelist`) and makes any request from them an admin, with no
  * token needed — and every request through the UI server comes from the UI
  * server's address. On the reference house that address is whitelisted, so a
@@ -38,12 +38,24 @@ const PUBLIC = new Set(['/api/v1/auth/login', '/api/v1/auth/refresh', '/api/v1/h
  * homeCore, so a request that carries one is judged as its own.
  * @param {string | undefined} url
  * @param {boolean} credentialed
+ * @param {string | undefined} [method]
  */
-export function mayForward(url, credentialed) {
+export function mayForward(url, credentialed, method = 'GET') {
 	if (credentialed) return true;
 	const path = (url ?? '').split('?')[0] ?? '';
-	return PUBLIC.has(path);
+	return PUBLIC.has(path) || (method === 'POST' && WEBHOOK.test(path));
 }
+
+/**
+ * A webhook: homeCore's one public write, made for services outside the
+ * house. Its handler reads no credential — it only announces a `webhook`
+ * event for rules to hear — so passing it on anonymously grants nothing, and
+ * a service can be given this server's address instead of homeCore's.
+ *
+ * One plain segment only: no `.` or `..` to climb out of `webhooks/`, no `%`
+ * to spell one, no second `/`. Anything else is judged as any other request.
+ */
+const WEBHOOK = /^\/api\/v1\/webhooks\/[A-Za-z0-9_-][A-Za-z0-9._-]*$/;
 
 /**
  * Whether a request may change something, judged by where it came from.
@@ -128,7 +140,13 @@ export async function proxyRequest(req, res, core) {
 		return;
 	}
 	const session = await resolveSession(req.headers.cookie, { core, secure: isSecure(req) });
-	if (!mayForward(req.url, session !== undefined || req.headers.authorization !== undefined)) {
+	if (
+		!mayForward(
+			req.url,
+			session !== undefined || req.headers.authorization !== undefined,
+			req.method
+		)
+	) {
 		res.writeHead(401, { 'content-type': 'application/json' });
 		res.end(JSON.stringify({ error: 'Not signed in.' }));
 		return;

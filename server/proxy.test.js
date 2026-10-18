@@ -67,4 +67,24 @@ describe('a request with no credential', () => {
 	it('is judged by homeCore once it carries one', () => {
 		expect(mayForward('/api/v1/devices', true)).toBe(true);
 	});
+
+	it('a webhook passes without a credential — POST, one plain segment, nothing else', () => {
+		expect(mayForward('/api/v1/webhooks/garage-k3x9', false, 'POST')).toBe(true);
+		expect(mayForward('/api/v1/webhooks/door.open?who=ifttt', false, 'POST')).toBe(true);
+		// Read, or anything but a webhook: refused as before.
+		expect(mayForward('/api/v1/webhooks/garage-k3x9', false, 'GET')).toBe(false);
+		expect(mayForward('/api/v1/devices', false, 'POST')).toBe(false);
+		// Nothing that climbs out of webhooks/ or spells it in escapes.
+		for (const sneaky of [
+			'/api/v1/webhooks/../system/restart',
+			'/api/v1/webhooks/..',
+			'/api/v1/webhooks/.',
+			'/api/v1/webhooks/a/../../system/restart',
+			'/api/v1/webhooks/%2e%2e/system/restart',
+			'/api/v1/webhooks/a%2F..%2Fsystem',
+			'/api/v1/webhooks/',
+			'/api/v1/webhooksx/a'
+		])
+			expect(mayForward(sneaky, false, 'POST'), sneaky).toBe(false);
+	});
 });

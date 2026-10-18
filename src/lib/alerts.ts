@@ -118,6 +118,30 @@ export function stateChoices(d: CoreDevice): StateChoice[] {
 	return out;
 }
 
+/** The same state, on any device: `open` is `true`. */
+export const sameState = (
+	a: Pick<StateChoice, 'attribute' | 'value'>,
+	b: Pick<StateChoice, 'attribute' | 'value'>
+) => a.attribute === b.attribute && JSON.stringify(a.value) === JSON.stringify(b.value);
+
+/**
+ * The devices that can share a rule's state: one rule watches several
+ * devices only by the same reading and value — every door "open", not one
+ * door open and one lock unlocked.
+ */
+export function devicesFor(
+	all: CoreDevice[],
+	state: Pick<StateChoice, 'attribute' | 'value'>
+): CoreDevice[] {
+	return all.filter((d) => stateChoices(d).some((c) => sameState(c, state)));
+}
+
+/** A rule's name when its maker gives none: "Garage Door, Back Door: Open after 22:00". */
+export function ruleName(names: string[], said: string): string {
+	const who = names.length <= 2 ? names.join(', ') : `${names[0]} and ${names.length - 1} more`;
+	return `${who}: ${said}`;
+}
+
 /** What a rule says, in a sentence: "Open after 22:00 for 10 min". */
 export function describeRule(
 	rule: Pick<AlertRule, 'after' | 'until' | 'for_minutes'>,

@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { alertsAfter, byDevice, describeRule, stateChoices, type Alert } from './alerts.js';
+import {
+	alertsAfter,
+	byDevice,
+	describeRule,
+	devicesFor,
+	ruleName,
+	sameState,
+	stateChoices,
+	type Alert
+} from './alerts.js';
 import type { CoreDevice } from './devices.js';
 
 const a = (id: string, severity: Alert['severity'], at: string, device = 'd'): Alert => ({
@@ -93,5 +102,37 @@ describe('writing a time rule', () => {
 		);
 		expect(describeRule({ after: '22:00' }, 'Open')).toBe('Open after 22:00');
 		expect(describeRule({ for_minutes: 30 }, 'Unlocked')).toBe('Unlocked for 30 min');
+	});
+});
+
+describe('one rule, several devices', () => {
+	const sensor = (device_id: string, attrs: Record<string, unknown>) =>
+		({
+			device_id,
+			name: device_id,
+			available: true,
+			attributes: {},
+			schema: { attributes: attrs }
+		}) as unknown as CoreDevice;
+	const doorA = sensor('door_a', { open: { kind: 'bool' } });
+	const doorB = sensor('door_b', { open: { kind: 'bool' } });
+	const lock = sensor('lock', { locked: { kind: 'bool' } });
+
+	it('shares a state only with devices that have the same reading and value', () => {
+		const open = { attribute: 'open', value: true };
+		expect(devicesFor([doorA, doorB, lock], open).map((d) => d.device_id)).toEqual([
+			'door_a',
+			'door_b'
+		]);
+		expect(sameState(open, { attribute: 'open', value: false })).toBe(false);
+		expect(
+			sameState({ attribute: 'mode', value: 'away' }, { attribute: 'mode', value: 'away' })
+		).toBe(true);
+	});
+
+	it('names itself from what it watches when its maker doesn’t', () => {
+		expect(ruleName(['Garage Door'], 'Open after 22:00')).toBe('Garage Door: Open after 22:00');
+		expect(ruleName(['Garage Door', 'Back Door'], 'Open')).toBe('Garage Door, Back Door: Open');
+		expect(ruleName(['A', 'B', 'C'], 'Open')).toBe('A and 2 more: Open');
 	});
 });

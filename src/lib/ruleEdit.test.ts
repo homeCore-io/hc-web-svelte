@@ -23,6 +23,10 @@ import {
 	withPickers,
 	PER_MODE,
 	variablesIn,
+	webhookAddress,
+	webhookName,
+	webhookProblem,
+	newWhen,
 	type Lists
 } from './ruleEdit.js';
 
@@ -396,5 +400,46 @@ describe('homeCore’s fixed lists, as choices', () => {
 		expect(
 			withPickers('TimeElapsed', text('attribute'), { ...lists, attributes: ['battery', 'on'] })
 		).toMatchObject({ kind: 'text', label: 'Reading', suggest: ['battery', 'on'] });
+	});
+});
+
+describe('a webhook', () => {
+	test('a new one gets a name hard to guess, which passes its own checks', () => {
+		const a = webhookName();
+		expect(a).toMatch(/^hook-[a-z0-9]{10}$/);
+		expect(webhookName()).not.toBe(a);
+		expect(webhookProblem(a)).toBeNull();
+		expect(newWhen('webhook')).toMatchObject({
+			WebhookReceived: { path: expect.stringMatching(/^hook-/) }
+		});
+		expect(whenKindOf({ WebhookReceived: { path: a } })).toBe('webhook');
+	});
+
+	test('a name homeCore wouldn’t match, or the app wouldn’t pass on, is said so', () => {
+		expect(webhookProblem('')).toBe('It needs a name.');
+		expect(webhookProblem('/garage-door-opener')).toMatch(/Leave out the “\/”/);
+		expect(webhookProblem('garage door')).toMatch(/no spaces/);
+		expect(webhookProblem('.hidden-name-here')).toMatch(/only/);
+		expect(webhookProblem('garage')).toMatch(/easy to guess/);
+	});
+
+	test('its address is this app’s, under homeCore’s webhooks', () => {
+		expect(webhookAddress('http://10.0.10.150:3001', 'hook-abc')).toBe(
+			'http://10.0.10.150:3001/api/v1/webhooks/hook-abc'
+		);
+	});
+
+	test('a rule with a broken webhook name can’t be saved; a short one only warns', () => {
+		const rule = (path: string) =>
+			({
+				name: 'Doorbell',
+				trigger: { WebhookReceived: { path } },
+				conditions: [],
+				actions: [{ action: { Comment: { text: 'x' } } }]
+			}) as never;
+		expect(problemsOf(rule('/doorbell-ring-x'), () => true)).toEqual([
+			'A webhook’s name: Leave out the “/” — homeCore matches the name exactly.'
+		]);
+		expect(problemsOf(rule('doorbell'), () => true)).toEqual([]);
 	});
 });

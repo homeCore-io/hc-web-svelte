@@ -134,7 +134,7 @@ describe('every kind homeCore has reads as words', () => {
 		],
 		['ManualTrigger', 'someone runs it'],
 		[{ Cron: { expression: '0 7 * * *' } }, 'on the schedule 0 7 * * *'],
-		[{ WebhookReceived: { path: 'doorbell' } }, 'the web address /webhooks/doorbell is called'],
+		[{ WebhookReceived: { path: 'doorbell' } }, 'the webhook doorbell is called'],
 		[{ SomethingNew: { a: 1 } }, 'Something new {"a":1}']
 	])('%j', (trigger, words) => {
 		expect(plain(whenPhrase(h, trigger))).toBe(words);

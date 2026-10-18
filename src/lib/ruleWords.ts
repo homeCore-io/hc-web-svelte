@@ -535,11 +535,7 @@ export function whenPhrase(h: House, trigger: Json): Phrase {
 			return out;
 		}
 		case 'WebhookReceived':
-			return [
-				t('the web address '),
-				code(`/webhooks/${String(f.path).replace(/^\//, '')}`),
-				t(' is called')
-			];
+			return [t('the webhook '), code(String(f.path ?? '')), t(' is called')];
 		case 'CalendarEvent': {
 			const what = f.title_contains
 				? `a calendar event titled “${f.title_contains}”`

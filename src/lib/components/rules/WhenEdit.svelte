@@ -13,6 +13,9 @@
 		momentOf,
 		momentsOf,
 		newWhen,
+		webhookAddress,
+		webhookName,
+		webhookProblem,
 		whenKindOf,
 		type WhenKind
 	} from '#lib/ruleEdit.js';
@@ -74,6 +77,22 @@
 		{ value: 'SolarNoon', label: 'solar noon' }
 	];
 	const set = (field: string, v: unknown) => onchange({ [tagOf(value)[0]]: { ...f, [field]: v } });
+
+	// ---- a webhook ----
+	const origin = typeof location === 'undefined' ? '' : location.origin;
+	const hookName = $derived(typeof f.path === 'string' ? f.path : '');
+	const hookProblem = $derived(webhookProblem(hookName));
+	const hookAddress = $derived(webhookAddress(origin, hookName));
+	let copied = $state(false);
+	async function copy() {
+		try {
+			await navigator.clipboard.writeText(hookAddress);
+			copied = true;
+			setTimeout(() => (copied = false), 1500);
+		} catch {
+			copied = false;
+		}
+	}
 </script>
 
 <Row words={whenPhrase(ctx.house, value)} bind:open {onremove}>
@@ -225,6 +244,46 @@
 			value={f.unit}
 			onchange={(v) => set('unit', v)}
 		/>
+	{:else if kind === 'webhook'}
+		<div class="hook">
+			<label class="kind name">
+				<span>Its name — the end of the address</span>
+				<span class="row">
+					<input
+						class="mono"
+						value={hookName}
+						spellcheck="false"
+						oninput={(e) => set('path', e.currentTarget.value.trim())}
+					/>
+					<button type="button" class="plain" onclick={() => set('path', webhookName())}
+						>New name</button
+					>
+				</span>
+			</label>
+			{#if hookProblem}<p class="warn" role="alert">{hookProblem}</p>{/if}
+			<div class="address">
+				<span>The address to call</span>
+				<code>{hookAddress}</code>
+				<button type="button" class="plain" onclick={copy} disabled={!!hookProblem && !hookName}
+					>{copied ? 'Copied' : 'Copy'}</button
+				>
+			</div>
+			<p class="quiet">
+				Anyone who can reach this address can start the rule — it asks for no password, so the name
+				is its secret. Give it only to the service that calls it; a new name stops the old address
+				working once you save.
+			</p>
+			<details>
+				<summary>How a service calls it</summary>
+				<pre class="mono">curl -X POST '{hookAddress}?who=doorbell' \
+  -H 'content-type: application/json' \
+  -d '&#123;"pressed": true&#125;'</pre>
+				<p class="quiet">
+					It must be a POST. What’s sent arrives as the trigger’s value, and anything after “?” as
+					its extras, for the rule’s steps to use.
+				</p>
+			</details>
+		</div>
 	{:else if kind === 'other'}
 		{#if ctx.vocab}
 			<Other {value} {onchange} specs={ctx.vocab.triggers} />
@@ -266,5 +325,89 @@
 		margin: 0;
 		color: var(--ink-muted);
 		font-size: 13px;
+	}
+	.hook {
+		flex-basis: 100%;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		min-width: 0;
+	}
+	.row {
+		display: flex;
+		gap: 8px;
+		align-items: center;
+		min-width: 0;
+	}
+	.name input {
+		flex: 1 1 auto;
+		min-width: 0;
+		height: 40px;
+		padding: 0 10px;
+		border-radius: 10px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--ink);
+		font-size: 14px;
+	}
+	.address {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 6px 10px;
+		font-size: 12px;
+		font-weight: 600;
+		color: var(--ink-muted);
+	}
+	.address span {
+		flex-basis: 100%;
+	}
+	.address code {
+		flex: 1 1 260px;
+		min-width: 0;
+		overflow-wrap: anywhere;
+		padding: 8px 10px;
+		border-radius: 10px;
+		background: var(--surface-2);
+		color: var(--ink);
+		font-family: var(--font-num);
+		font-size: 13px;
+		font-weight: 500;
+	}
+	.plain {
+		height: 36px;
+		padding: 0 14px;
+		border-radius: 18px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--ink);
+		font: inherit;
+		font-size: 13px;
+		font-weight: 700;
+		white-space: nowrap;
+	}
+	.warn {
+		margin: 0;
+		color: var(--alert);
+		font-size: 13px;
+		font-weight: 600;
+	}
+	details summary {
+		cursor: pointer;
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--accent);
+	}
+	pre {
+		margin: 6px 0;
+		padding: 10px;
+		border-radius: 10px;
+		background: var(--surface-2);
+		font-size: 12px;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+	}
+	.mono {
+		font-family: var(--font-num);
 	}
 </style>

@@ -3,9 +3,12 @@
 	door unlocked for 30 minutes". homeCore checks them whether or not any
 	screen is open, and raises and clears the alert (M6, H4). The built-in
 	ones — wet, smoke, offline, jammed, low battery — need no rule.
+
+	One form adds a rule or changes one (tap its row): several devices that
+	share the state, and a name of your own or one made from what it watches.
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import Trash from '@lucide/svelte/icons/trash-2';
 	import { devices } from '#lib/devices.svelte.js';
 	import { displayName } from '#lib/devices.js';
@@ -13,7 +16,15 @@
 	import { roomOf } from '#lib/summary.js';
 	import { session } from '#lib/me.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
-	import { describeRule, stateChoices, type AlertRule } from '#lib/alerts.js';
+	import {
+		describeRule,
+		devicesFor,
+		ruleName,
+		sameState,
+		stateChoices,
+		type AlertRule,
+		type StateChoice
+	} from '#lib/alerts.js';
 	import { alertRules, createAlertRule, deleteAlertRule, saveAlertRule } from '#lib/admin.js';
 
 	let rules = $state<AlertRule[] | null>(null);
@@ -30,28 +41,47 @@
 	);
 	const label = (d: (typeof all)[number]) =>
 		`${displayName(d)} — ${roomOf(d, rooms.list)?.name ?? 'no room'}`;
+	const nameOf = (id: string) => (devices.byId[id] ? displayName(devices.byId[id]) : id);
 
 	/** A rule's state, in the device's words. */
 	function stateOf(r: AlertRule): string {
 		if (r.state_label) return r.state_label;
 		const d = devices.byId[r.device_ids[0] ?? ''];
-		const c = d && stateChoices(d).find((c) => c.attribute === r.attribute && c.value === r.value);
+		const c = d && stateChoices(d).find((c) => sameState(c, r));
 		return c?.label ?? `${r.attribute} is ${String(r.value)}`;
 	}
-	const devicesOf = (r: AlertRule) =>
-		r.device_ids.map((id) => (devices.byId[id] ? displayName(devices.byId[id]) : id)).join(', ');
+	const devicesOf = (r: AlertRule) => r.device_ids.map(nameOf).join(', ');
 
-	// ---- a new rule ----
-	let device = $state('');
-	let choice = $state(-1);
+	// ---- the form: a new rule, or one being changed ----
+	let editing = $state<AlertRule | null>(null);
+	let name = $state('');
+	let ids = $state<string[]>(['']);
+	let stateKey = $state('');
 	let after = $state('');
 	let until = $state('');
 	let forMinutes = $state<number | null>(null);
 	let critical = $state(false);
-	const picked = $derived(devices.byId[device]);
-	const choices = $derived(picked ? stateChoices(picked) : []);
-	const chosen = $derived(choices[choice]);
-	const preview = $derived(
+	let saving = $state(false);
+	let form = $state<HTMLElement | undefined>(undefined);
+
+	const keyOf = (c: Pick<StateChoice, 'attribute' | 'value'>) =>
+		`${c.attribute}=${JSON.stringify(c.value)}`;
+	const first = $derived(devices.byId[ids[0] ?? '']);
+	// The first device's states — and, when changing a rule, its own state even
+	// if the device no longer reports it, so a save never quietly changes it.
+	const choices = $derived.by(() => {
+		const out = first ? stateChoices(first) : [];
+		const r = editing;
+		if (r && !out.some((c) => sameState(c, r)))
+			out.push({ attribute: r.attribute, value: r.value, label: stateOf(r) });
+		return out;
+	});
+	const chosen = $derived(choices.find((c) => keyOf(c) === stateKey));
+	// More devices: those with the same state that aren't in the rule yet.
+	const others = $derived(
+		chosen ? devicesFor(all, chosen).filter((d) => !ids.includes(d.device_id)) : []
+	);
+	const said = $derived(
 		chosen
 			? describeRule(
 					{ after: after || null, until: until || null, for_minutes: forMinutes },
@@ -59,29 +89,63 @@
 				)
 			: ''
 	);
+	const picked = $derived(ids.filter((id) => id !== ''));
+	const autoName = $derived(said ? ruleName(picked.map(nameOf), said) : '');
 
-	async function add(e: SubmitEvent) {
+	function reset() {
+		editing = null;
+		name = '';
+		ids = [''];
+		stateKey = '';
+		after = until = '';
+		forMinutes = null;
+		critical = false;
+	}
+	async function change(r: AlertRule) {
+		editing = r;
+		ids = r.device_ids.length ? [...r.device_ids] : [''];
+		stateKey = keyOf(r);
+		after = r.after ?? '';
+		until = r.until ?? '';
+		forMinutes = r.for_minutes ?? null;
+		critical = r.severity === 'critical';
+		// A name its maker typed stays theirs; one the app made follows the rule.
+		const made = [
+			ruleName(r.device_ids.map(nameOf), describeRule(r, stateOf(r))),
+			`${nameOf(r.device_ids[0] ?? '')}: ${describeRule(r, stateOf(r))}`
+		];
+		name = made.includes(r.name) ? '' : r.name;
+		trouble = null;
+		await tick();
+		form?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+	}
+	function firstDevice(id: string) {
+		// Another device with the same state keeps the rule; otherwise choose the state again.
+		const keep = chosen !== undefined && devicesFor(all, chosen).some((d) => d.device_id === id);
+		ids = keep ? [id, ...ids.slice(1).filter((x) => x !== id)] : [id];
+		if (!keep) stateKey = '';
+	}
+
+	async function submit(e: SubmitEvent) {
 		e.preventDefault();
-		if (!chosen) return;
-		const d = devices.byId[device]!;
-		trouble = await createAlertRule({
-			name: `${displayName(d)}: ${preview}`,
-			enabled: true,
-			device_ids: [device],
+		if (!chosen || picked.length === 0) return;
+		saving = true;
+		const body = {
+			name: name.trim() || autoName,
+			enabled: editing?.enabled ?? true,
+			device_ids: picked,
 			attribute: chosen.attribute,
 			value: chosen.value,
 			state_label: chosen.label,
 			after: after || null,
 			until: until || null,
 			for_minutes: forMinutes || null,
-			severity: critical ? 'critical' : 'warning'
-		});
+			severity: critical ? ('critical' as const) : ('warning' as const)
+		};
+		trouble = editing ? await saveAlertRule({ ...editing, ...body }) : await createAlertRule(body);
+		saving = false;
 		if (trouble === null) {
-			device = '';
-			choice = -1;
-			after = until = '';
-			forMinutes = null;
-			critical = false;
+			reset();
 			await reload();
 		}
 	}
@@ -93,6 +157,7 @@
 	async function remove(r: AlertRule) {
 		if (!(await ask({ title: `Delete “${r.name}”?`, go: 'Delete', danger: true }))) return;
 		trouble = await deleteAlertRule(r.id);
+		if (editing?.id === r.id) reset();
 		await reload();
 	}
 </script>
@@ -114,13 +179,15 @@
 				{#if rules.length === 0}<p class="quiet">None yet.</p>{/if}
 				<ul>
 					{#each rules as r (r.id)}
-						<li class:off={!r.enabled}>
-							<span class="text">
-								<span class="name">{devicesOf(r)}</span>
+						<li class:off={!r.enabled} class:now={editing?.id === r.id}>
+							<button type="button" class="text" onclick={() => change(r)}>
+								<span class="name">{r.name}</span>
 								<span class="what"
-									>{describeRule(r, stateOf(r))}{r.severity === 'critical' ? ' · urgent' : ''}</span
+									>{devicesOf(r)} · {describeRule(r, stateOf(r))}{r.severity === 'critical'
+										? ' · urgent'
+										: ''}</span
 								>
-							</span>
+							</button>
 							<button class="pill" aria-pressed={r.enabled} onclick={() => toggle(r)}
 								>{r.enabled ? 'On' : 'Off'}</button
 							>
@@ -132,23 +199,57 @@
 				</ul>
 			</section>
 
-			<section>
-				<h2 class="section-label">New rule</h2>
-				<form onsubmit={add}>
+			<section bind:this={form}>
+				<h2 class="section-label">{editing ? 'Change the rule' : 'New rule'}</h2>
+				<form onsubmit={submit}>
 					<label>
 						<span>When</span>
-						<select bind:value={device} onchange={() => (choice = -1)}>
+						<select value={ids[0]} onchange={(e) => firstDevice(e.currentTarget.value)}>
 							<option value="" disabled>Choose a device…</option>
+							{#if ids[0] && !devices.byId[ids[0]]}<option value={ids[0]}>{ids[0]} (gone)</option
+								>{/if}
 							{#each all as d (d.device_id)}<option value={d.device_id}>{label(d)}</option>{/each}
 						</select>
 					</label>
+					{#each ids.slice(1) as id, i (id)}
+						<div class="row">
+							<span class="lead">or</span>
+							<span class="also">{nameOf(id)}</span>
+							<button
+								type="button"
+								class="bin"
+								aria-label={`Not ${nameOf(id)}`}
+								onclick={() => (ids = ids.filter((_, j) => j !== i + 1))}
+								><Trash size={16} /></button
+							>
+						</div>
+					{/each}
 					<label>
 						<span>is</span>
-						<select bind:value={choice} disabled={choices.length === 0}>
-							<option value={-1} disabled>Choose a state…</option>
-							{#each choices as c, i (i)}<option value={i}>{c.label}</option>{/each}
+						<select bind:value={stateKey} disabled={choices.length === 0}>
+							<option value="" disabled>Choose a state…</option>
+							{#each choices as c (keyOf(c))}<option value={keyOf(c)}>{c.label}</option>{/each}
 						</select>
 					</label>
+					{#if chosen && others.length}
+						<label>
+							<span></span>
+							<select
+								value=""
+								aria-label="Another device"
+								onchange={(e) => {
+									ids = [...ids, e.currentTarget.value];
+									e.currentTarget.value = '';
+								}}
+							>
+								<option value="" disabled
+									>+ Another device that can be {chosen.label.toLowerCase()}…</option
+								>
+								{#each others as d (d.device_id)}<option value={d.device_id}>{label(d)}</option
+									>{/each}
+							</select>
+						</label>
+					{/if}
 					<div class="times">
 						<label><span>after</span><input type="time" bind:value={after} /></label>
 						<label><span>until</span><input type="time" bind:value={until} /></label>
@@ -165,8 +266,24 @@
 					<label class="check"
 						><input type="checkbox" bind:checked={critical} /> Urgent — show it first, in red</label
 					>
-					{#if preview}<p class="preview">Alert when it is {preview.toLowerCase()}.</p>{/if}
-					<button type="submit" class="add" disabled={!chosen}>Add rule</button>
+					<label>
+						<span>Name</span>
+						<input
+							type="text"
+							bind:value={name}
+							placeholder={autoName || 'Made from what it watches'}
+						/>
+					</label>
+					{#if said}<p class="preview">
+							Alert when {picked.length > 1 ? 'any of them is' : 'it is'}
+							{said.toLowerCase()}.
+						</p>{/if}
+					<div class="acts">
+						<button type="submit" class="add" disabled={!chosen || picked.length === 0 || saving}
+							>{saving ? 'Saving…' : editing ? 'Save' : 'Add rule'}</button
+						>
+						{#if editing}<button type="button" class="ghost" onclick={reset}>Cancel</button>{/if}
+					</div>
 				</form>
 			</section>
 		{/if}
@@ -208,12 +325,63 @@
 	li.off .text {
 		opacity: 0.5;
 	}
+	li.now {
+		border-color: var(--accent);
+	}
+	.text {
+		cursor: pointer;
+	}
+	.text:hover .name,
+	.text:focus-visible .name {
+		text-decoration: underline;
+	}
 	.text {
 		flex: 1;
 		min-width: 0;
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
+		padding: 0;
+		border: none;
+		background: none;
+		color: inherit;
+		font: inherit;
+		text-align: left;
+	}
+	.row {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+	.lead {
+		min-width: 3.5em;
+		color: var(--ink-muted);
+	}
+	.also {
+		flex: 1;
+		min-width: 0;
+		font-weight: 600;
+	}
+	input[type='text'] {
+		flex: 1;
+		min-width: 0;
+		min-height: var(--target);
+		border-radius: 10px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		padding: 0 10px;
+	}
+	.acts {
+		display: flex;
+		gap: 8px;
+	}
+	.ghost {
+		height: var(--target);
+		padding: 0 18px;
+		border-radius: 22px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		font-weight: 600;
 	}
 	.name {
 		font-weight: 600;
@@ -282,7 +450,6 @@
 		font-weight: 600;
 	}
 	.add {
-		align-self: flex-start;
 		height: var(--target);
 		padding: 0 18px;
 		border-radius: 22px;

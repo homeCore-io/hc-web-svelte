@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
 	addChange,
+	cardRef,
+	ref,
 	added,
 	apply,
 	asks,
@@ -261,5 +263,21 @@ describe('themes (D9a)', () => {
 			'plum'
 		);
 		expect(paletteOf({ version: 1, palette: 'neon' }, { version: 1 })).toBe('amber');
+	});
+});
+
+describe('plugin cards on a page', () => {
+	it('a card is added with its own ref, and its settings are the last ones given', () => {
+		const r = ref.card('plugin.wled', 'hc-wled-presets', 'a1');
+		expect(r).toBe('card:plugin.wled/hc-wled-presets/a1');
+		expect(cardRef(r)).toEqual({ pluginId: 'plugin.wled', element: 'hc-wled-presets', n: 'a1' });
+		expect(cardRef('device:x')).toBeUndefined();
+		let list = addChange([], { op: 'add', ref: r });
+		list = addChange(list, { op: 'config', ref: r, config: { presets: [1] } });
+		list = addChange(list, { op: 'config', ref: r, config: { presets: [14, 16] } });
+		expect(list.filter((c) => c.op === 'config')).toHaveLength(1);
+		const l = apply([r], (x) => x, list);
+		expect(l.config(r)).toEqual({ presets: [14, 16] });
+		expect(added(list)).toEqual([r]);
 	});
 });

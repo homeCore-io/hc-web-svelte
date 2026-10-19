@@ -1,7 +1,9 @@
 <!--
 	Add a card to the household's page (M2 `add`), in Edit mode: anything in
-	the house that isn't already generated on this page. On Home, added cards
-	appear under Pinned; on a room's page, under "Also here".
+	the house that isn't already generated on this page, and plugins' own cards
+	(a new one each time — the same card can be added twice, set differently).
+	On Home, added cards appear under Pinned; on a room's page, under "Also
+	here".
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
@@ -13,6 +15,12 @@
 	import { roomOf } from '#lib/summary.js';
 	import { added, ref } from '#lib/layers.js';
 	import { editing } from '#lib/edit.svelte.js';
+	import { pluginLabel } from '#lib/inventory.js';
+	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
+
+	pluginUis.ensure();
+	/** A plugin's card in the list: its ref is made when it is chosen. */
+	const CARD = 'card-kind:';
 
 	let { key, close }: { key: string; close: () => void } = $props();
 
@@ -42,7 +50,13 @@
 						where: 'Scene',
 						here: false
 					}))
-				: [])
+				: []),
+			...pluginUis.cards().map((c) => ({
+				ref: `${CARD}${c.pluginId}/${c.slot.element}`,
+				name: c.slot.label ?? c.slot.element,
+				where: `${pluginLabel(c.pluginId)} · card${c.slot.description ? ` — ${c.slot.description}` : ''}`,
+				here: false
+			}))
 		]
 			.filter((i) => !already.has(i.ref))
 			.sort((a, b) => a.name.localeCompare(b.name))
@@ -55,6 +69,10 @@
 	});
 
 	function choose(r: string) {
+		if (r.startsWith(CARD)) {
+			const [pluginId = '', element = ''] = r.slice(CARD.length).split('/');
+			r = ref.card(pluginId, element, Math.random().toString(36).slice(2, 10));
+		}
 		editing.changePage(key, { op: 'add', ref: r });
 		dialog?.close();
 	}

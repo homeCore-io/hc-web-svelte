@@ -9,9 +9,16 @@ import { live } from '../live.svelte.js';
 export const HOST_API = 1;
 
 export interface UiSlot {
-	slot: 'plugin.page' | 'device.panel' | string;
+	slot: 'plugin.page' | 'device.panel' | 'rule.step' | 'device.card' | 'dashboard.card' | string;
 	element: string;
 	device_types?: string[];
+	/** A dashboard card's name in "Add a card". */
+	label?: string;
+	description?: string;
+	/** A card's sizes; every size when absent. */
+	forms?: ('compact' | 'standard' | 'large')[];
+	/** A dashboard card's settings element. */
+	settings?: string;
 }
 export interface PluginUi {
 	host_api: number;
@@ -75,6 +82,20 @@ class PluginUis {
 			this.byPlugin = {};
 		}
 		this.loaded = true;
+	}
+
+	/** Every plugin's dashboard cards, for "Add a card". */
+	cards(): { pluginId: string; ui: PluginUi; slot: UiSlot }[] {
+		return Object.entries(this.byPlugin).flatMap(([pluginId, ui]) =>
+			ui.slots.filter((s) => s.slot === 'dashboard.card').map((slot) => ({ pluginId, ui, slot }))
+		);
+	}
+
+	/** A dashboard card by its plugin and element. */
+	card(pluginId: string, element: string): { ui: PluginUi; slot: UiSlot } | undefined {
+		const ui = this.byPlugin[pluginId];
+		const slot = ui?.slots.find((s) => s.slot === 'dashboard.card' && s.element === element);
+		return ui && slot ? { ui, slot } : undefined;
 	}
 
 	/** The element for a slot of a plugin, if it declared one. */

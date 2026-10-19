@@ -11,7 +11,7 @@
 	import { cardFor, kindOf } from '#lib/card.js';
 	import { displayName, type CoreDevice } from '#lib/devices.js';
 	import { byRoom, houseChips } from '#lib/summary.js';
-	import { added, apply, ref } from '#lib/layers.js';
+	import { added, apply, cardRef, ref, type Form } from '#lib/layers.js';
 	import { devices } from '#lib/devices.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { scenes } from '#lib/scenes.svelte.js';
@@ -30,6 +30,8 @@
 	import SceneCard from '#lib/components/SceneCard.svelte';
 	import ModeChips from '#lib/components/ModeChips.svelte';
 	import DeviceCard from '#lib/components/DeviceCard.svelte';
+	import PluginCard from '#lib/components/PluginCard.svelte';
+	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
 	import Arrange from '#lib/components/Arrange.svelte';
 	import CustomiseBar from '#lib/components/CustomiseBar.svelte';
 	import CustomiseButton from '#lib/components/CustomiseButton.svelte';
@@ -73,7 +75,8 @@
 	// ---- cards the household pinned to Home (M2 `add`) ----
 	type Pin =
 		| { ref: string; kind: 'device'; device: CoreDevice }
-		| { ref: string; kind: 'scene'; id: string; name: string };
+		| { ref: string; kind: 'scene'; id: string; name: string }
+		| { ref: string; kind: 'card'; name: string; forms?: Form[] };
 	const pins = $derived(
 		added(changes)
 			.map((r): Pin | undefined => {
@@ -85,6 +88,17 @@
 					const s = scenes.list.find((x) => x.id === r.slice(6));
 					return s ? { ref: r, kind: 'scene', id: s.id, name: s.name } : undefined;
 				}
+				const c = cardRef(r);
+				if (c) {
+					// Kept even while its plugin is away, so it can be taken off.
+					const found = pluginUis.card(c.pluginId, c.element);
+					return {
+						ref: r,
+						kind: 'card',
+						name: found?.slot.label ?? 'A plugin’s card',
+						forms: found?.slot.forms
+					};
+				}
 				return undefined;
 			})
 			.filter((p): p is Pin => p !== undefined)
@@ -94,6 +108,11 @@
 	const pinRefs = $derived(pinLayer.shown.map((p) => p.ref));
 	const pinName = (p: Pin) =>
 		pinLayer.name(p.ref) ?? (p.kind === 'device' ? displayName(p.device) : p.name);
+	/** A pin's size: what it was given, if its card can be that, else its first. */
+	const pinForm = (p: Pin): Form => {
+		const f = pinLayer.form(p.ref) ?? (p.kind === 'card' ? p.forms?.[0] : undefined) ?? 'standard';
+		return p.kind === 'card' && p.forms?.length && !p.forms.includes(f) ? p.forms[0]! : f;
+	};
 
 	// ---- scenes in no room, homeCore's and plugins' alike ----
 	type SceneItem = {
@@ -193,19 +212,24 @@
 				<h2 class="section-label">Pinned</h2>
 				<div class="grid">
 					{#each pinList as p (p.ref)}
-						{@const form = pinLayer.form(p.ref) ?? 'standard'}
+						{@const form = pinForm(p)}
 						<Arrange
 							page={HOME}
 							ref={p.ref}
 							name={pinName(p)}
 							shown={pinRefs}
 							hidden={pinLayer.hidden.includes(p)}
-							form={p.kind === 'device' && !isScene(p.device) ? form : undefined}
+							form={(p.kind === 'device' && !isScene(p.device)) || p.kind === 'card'
+								? form
+								: undefined}
 							wide={form === 'large'}
+							star={p.kind !== 'card'}
 							added
 							renamed={pinLayer.name(p.ref) !== undefined}
 						>
-							{#if p.kind === 'scene'}
+							{#if p.kind === 'card'}
+								<PluginCard cardId={p.ref} {form} config={pinLayer.config(p.ref)} />
+							{:else if p.kind === 'scene'}
 								<SceneCard name={pinName(p)} run={() => scenes.run(p.id)} />
 							{:else if isScene(p.device)}
 								<SceneCard

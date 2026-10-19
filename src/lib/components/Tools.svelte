@@ -15,6 +15,10 @@
 	import ArrowDown from '@lucide/svelte/icons/arrow-down';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import X from '@lucide/svelte/icons/x';
+	import Settings from '@lucide/svelte/icons/settings-2';
+	import { apply, cardRef } from '#lib/layers.js';
+	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
+	import CardSettings from './CardSettings.svelte';
 	import { nudge, nudgeFavourite, toggleFavourite, type Form } from '#lib/layers.js';
 	import { personal } from '#lib/personal.svelte.js';
 	import { view } from '#lib/view.svelte.js';
@@ -64,11 +68,22 @@
 		const change = by === -1 ? up : down;
 		if (change) view.change(page, change);
 	}
-	const FORMS: [Form, string][] = [
+	const ALL_FORMS: [Form, string][] = [
 		['compact', 'S'],
 		['standard', 'M'],
 		['large', 'L']
 	];
+	// A plugin's own card: only the sizes it can be, and its settings.
+	const card = $derived.by(() => {
+		const parts = cardRef(ref);
+		const found = parts ? pluginUis.card(parts.pluginId, parts.element) : undefined;
+		return parts && found ? { ...parts, ...found } : undefined;
+	});
+	const FORMS = $derived(
+		card?.slot.forms?.length ? ALL_FORMS.filter(([f]) => card.slot.forms!.includes(f)) : ALL_FORMS
+	);
+	const config = $derived(apply([ref], (r) => r, view.changes(page)).config(ref) ?? {});
+	let setting = $state(false);
 
 	let naming = $state(false);
 	let draft = $state('');
@@ -142,7 +157,12 @@
 			<button aria-label={`Move ${name} down`} disabled={!down} onclick={() => move(1)}
 				><ArrowDown size={18} /></button
 			>
-			{#if form}
+			{#if card?.slot.settings}
+				<button aria-label={`${name}: settings`} onclick={() => (setting = true)}
+					><Settings size={18} /></button
+				>
+			{/if}
+			{#if form && FORMS.length > 1}
 				<span class="forms" role="radiogroup" aria-label={`${name} size`}>
 					{#each FORMS as [f, letter] (f)}
 						<button
@@ -156,6 +176,18 @@
 			{/if}
 		{/if}
 	</div>
+{/if}
+{#if setting && card}
+	<CardSettings
+		{page}
+		cardId={ref}
+		pluginId={card.pluginId}
+		ui={card.ui}
+		slot={card.slot}
+		{config}
+		{name}
+		close={() => (setting = false)}
+	/>
 {/if}
 
 <style>

@@ -197,3 +197,42 @@ a {
 .hc-dot.bad {
 	background: var(--alert);
 }
+/* A card on Home or a room, the same frame as the app's own: `hc-tile`, with
+   `compact` for the small size and `lit` for something on. */
+.hc-tile {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	min-height: 116px;
+	padding: 12px 12px 14px 14px;
+	border-radius: var(--radius);
+	background: var(--surface);
+	border: 1px solid var(--card-line);
+	box-shadow: var(--shadow);
+	min-width: 0;
+	color: var(--ink);
+}
+.hc-tile.compact {
+	min-height: 56px;
+	padding: 8px 10px;
+	justify-content: center;
+}
+.hc-tile.lit {
+	background: var(--lit-bg);
+	border-color: var(--lit-card-line);
+}
+.hc-tile-name {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.25;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.hc-tile-state {
+	margin: 0;
+	font-size: 13px;
+	color: var(--ink-muted);
+}

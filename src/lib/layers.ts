@@ -3,7 +3,8 @@
  * pages, as lists of small changes named by stable ids — never a copy of a
  * page. So a new device still appears in its room, and the changes survive.
  *
- * Ids name what a card is about: `device:{id}`, `room:{id}`, `scene:{id}`.
+ * Ids name what a card is about: `device:{id}`, `room:{id}`, `scene:{id}`,
+ * or `card:{plugin}/{element}/{n}` for a plugin's own card, added to a page.
  * A change naming something that no longer exists is kept and skipped.
  *
  * Two owners, the same kind of list (04 §3): the household's edits, made in
@@ -24,7 +25,9 @@ export type Change =
 	| { op: 'rename'; ref: string; name: string }
 	/** A card for something that isn't generated here, added to the page. */
 	| { op: 'add'; ref: string }
-	| { op: 'remove'; ref: string };
+	| { op: 'remove'; ref: string }
+	/** A plugin card's settings on this page, as its settings element made them. */
+	| { op: 'config'; ref: string; config: Record<string, unknown> };
 
 export interface PersonDoc {
 	version: number;
@@ -61,8 +64,16 @@ export interface HouseDoc {
 export const ref = {
 	device: (id: string) => `device:${id}`,
 	room: (id: string) => `room:${id}`,
-	scene: (id: string) => `scene:${id}`
+	scene: (id: string) => `scene:${id}`,
+	/** A new plugin card: its own `n`, so the same card can be added twice. */
+	card: (pluginId: string, element: string, n: string) => `card:${pluginId}/${element}/${n}`
 };
+
+/** A plugin card's ref, read back. */
+export function cardRef(r: string): { pluginId: string; element: string; n: string } | undefined {
+	const m = /^card:([^/]+)\/([^/]+)\/([^/]+)$/.exec(r);
+	return m ? { pluginId: m[1]!, element: m[2]!, n: m[3]! } : undefined;
+}
 
 /**
  * Add a change to a page's list, dropping the earlier ones it supersedes so
@@ -85,6 +96,8 @@ export interface Layered<T> {
 	form: (ref: string) => Form | undefined;
 	/** The label a card was given on this page, if it was renamed. */
 	name: (ref: string) => string | undefined;
+	/** A plugin card's settings on this page. */
+	config: (ref: string) => Record<string, unknown> | undefined;
 }
 
 /**
@@ -101,6 +114,7 @@ export function apply<T>(
 	const hidden = new Set<string>();
 	const forms = new Map<string, Form>();
 	const names = new Map<string, string>();
+	const configs = new Map<string, Record<string, unknown>>();
 
 	for (const c of changes) {
 		switch (c.op) {
@@ -112,6 +126,9 @@ export function apply<T>(
 				break;
 			case 'form':
 				forms.set(c.ref, c.form);
+				break;
+			case 'config':
+				configs.set(c.ref, c.config);
 				break;
 			case 'rename':
 				if (c.name.trim() === '') names.delete(c.ref);
@@ -135,7 +152,13 @@ export function apply<T>(
 		const item = byRef.get(r)!;
 		(hidden.has(r) ? hid : shown).push(item);
 	}
-	return { shown, hidden: hid, form: (r) => forms.get(r), name: (r) => names.get(r) };
+	return {
+		shown,
+		hidden: hid,
+		form: (r) => forms.get(r),
+		name: (r) => names.get(r),
+		config: (r) => configs.get(r)
+	};
 }
 
 /** The refs added to a page and not taken off again, in the order added. */

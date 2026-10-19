@@ -14,7 +14,8 @@
 	import CardGrid from '#lib/components/CardGrid.svelte';
 	import CustomiseBar from '#lib/components/CustomiseBar.svelte';
 	import CustomiseButton from '#lib/components/CustomiseButton.svelte';
-	import { added, ref } from '#lib/layers.js';
+	import { added, cardRef, ref } from '#lib/layers.js';
+	import AddedCards from '#lib/components/AddedCards.svelte';
 	import type { CoreDevice } from '#lib/devices.js';
 	import { view } from '#lib/view.svelte.js';
 	import { editing } from '#lib/edit.svelte.js';
@@ -37,9 +38,14 @@
 			.map((r) => devices.byId[r.slice(7)])
 			.filter((d): d is CoreDevice => d !== undefined && !inRoom.includes(d))
 	);
+	// Plugins' own cards added here.
+	const cards = $derived(added(view.changes(key)).filter((r) => cardRef(r) !== undefined));
 	$effect(() => {
 		if (editing.on(key))
-			editing.present = new Set([...inRoom, ...extra].map((d) => ref.device(d.device_id)));
+			editing.present = new Set([
+				...[...inRoom, ...extra].map((d) => ref.device(d.device_id)),
+				...cards
+			]);
 	});
 </script>
 
@@ -51,7 +57,7 @@
 	<div class="room">
 		<CustomiseButton page={key} />
 		<CustomiseBar page={key} />
-		{#if sections.length === 0 && extra.length === 0}
+		{#if sections.length === 0 && extra.length === 0 && cards.length === 0}
 			<p class="quiet">Nothing in {name} yet.</p>
 		{/if}
 		{#each sections as s (s.key)}
@@ -60,10 +66,11 @@
 				<CardGrid devices={devicesOf(s.cards)} large={['media_player']} page={key} />
 			</section>
 		{/each}
-		{#if extra.length > 0}
+		{#if extra.length > 0 || cards.length > 0}
 			<section>
 				<h2 class="section-label">Also here</h2>
-				<CardGrid devices={extra} page={key} added />
+				{#if extra.length > 0}<CardGrid devices={extra} page={key} added />{/if}
+				{#if cards.length > 0}<AddedCards refs={cards} page={key} />{/if}
 			</section>
 		{/if}
 	</div>

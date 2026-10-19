@@ -14,13 +14,23 @@
 		ui,
 		slot,
 		deviceId,
-		onfail
+		element,
+		form,
+		config,
+		onfail,
+		onchange
 	}: {
 		pluginId: string;
 		ui: PluginUi;
 		slot: UiSlot;
 		deviceId?: string;
+		/** Another element of the same module than the slot's own (a card's settings). */
+		element?: string;
+		form?: 'compact' | 'standard' | 'large';
+		config?: Record<string, unknown>;
 		onfail?: (why: string) => void;
+		/** Its `change` event's detail. */
+		onchange?: (detail: Record<string, unknown>) => void;
 	} = $props();
 
 	let box = $state<HTMLDivElement | undefined>(undefined);
@@ -29,7 +39,9 @@
 
 	$effect(() => {
 		if (!box) return;
-		const tag = slot.element;
+		const tag = element ?? slot.element;
+		const listen = (e: Event) =>
+			onchange?.((e as CustomEvent<Record<string, unknown>>).detail ?? {});
 		let gone = false;
 		failed = '';
 		loadModule(pluginId, ui, tag)
@@ -38,6 +50,9 @@
 				const made = document.createElement(tag) as PluginElement;
 				made.host = createHost(pluginId);
 				if (deviceId !== undefined) made.deviceId = deviceId;
+				if (form !== undefined) made.form = form;
+				if (config !== undefined) made.config = config;
+				made.addEventListener('change', listen);
 				box.replaceChildren(made);
 				el = made;
 			})
@@ -48,13 +63,17 @@
 			});
 		return () => {
 			gone = true;
+			el?.removeEventListener('change', listen);
 			box?.replaceChildren();
 			el = undefined;
 		};
 	});
-	// A different device in the same panel: told, not recreated.
+	// A different device, size or settings: told, not recreated.
 	$effect(() => {
-		if (el && deviceId !== undefined && el.deviceId !== deviceId) el.deviceId = deviceId;
+		if (!el) return;
+		if (deviceId !== undefined && el.deviceId !== deviceId) el.deviceId = deviceId;
+		if (form !== undefined && el.form !== form) el.form = form;
+		if (config !== undefined && el.config !== config) el.config = config;
 	});
 </script>
 

@@ -3,6 +3,10 @@
 	them. A bottom bar on phones and on tablets held upright; a rail on tablets
 	held sideways; a sidebar with the rooms in it on laptops and desktops.
 	Chosen by CSS alone, so turning a tablet changes the frame without a reload.
+
+	The sidebar folds to the rail's icons for more room; this screen remembers
+	it (`hc.sidebar`, read before the first paint in `app.html`), as folding
+	suits a small laptop and not a big monitor.
 -->
 <script lang="ts">
 	import { untrack, type Snippet } from 'svelte';
@@ -13,9 +17,10 @@
 	import Search from '@lucide/svelte/icons/search';
 	import Bell from '@lucide/svelte/icons/bell';
 	import Settings from '@lucide/svelte/icons/settings';
-	import House from '@lucide/svelte/icons/house';
 	import { SIDEBAR, backFor, barFor, isAt, pageKey, titleFor, withEdit } from '#lib/nav.js';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
+	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
 	import { apply, barOf, ref } from '#lib/layers.js';
 	import { personal } from '#lib/personal.svelte.js';
 	import { household } from '#lib/household.svelte.js';
@@ -24,6 +29,7 @@
 	import { customise } from '#lib/customise.svelte.js';
 	import { view } from '#lib/view.svelte.js';
 	import EditBar from './EditBar.svelte';
+	import Mark from './Mark.svelte';
 	import UnlockedBar from './UnlockedBar.svelte';
 	import { alerts } from '#lib/alerts.svelte.js';
 	import RoomIcon from './RoomIcon.svelte';
@@ -84,6 +90,27 @@
 			void goto(`${to.pathname}${to.search}${to.hash}`);
 		});
 	});
+	let folded = $state(
+		typeof document !== 'undefined' && document.documentElement.dataset.sidebar === 'folded'
+	);
+	function fold() {
+		folded = !folded;
+		if (folded) document.documentElement.dataset.sidebar = 'folded';
+		else delete document.documentElement.dataset.sidebar;
+		try {
+			if (folded) localStorage.setItem('hc.sidebar', 'folded');
+			else localStorage.removeItem('hc.sidebar');
+		} catch {
+			// Folded for now; open again next time.
+		}
+	}
+	function foldKey(e: KeyboardEvent) {
+		if (e.key === '\\' && (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey) {
+			e.preventDefault();
+			fold();
+		}
+	}
+
 	const initial = $derived((session.me?.username ?? '?').slice(0, 1).toUpperCase());
 	const liveLabel = $derived(
 		live.state === 'live'
@@ -94,12 +121,29 @@
 	);
 </script>
 
+<svelte:window onkeydown={foldKey} />
+
 <div class="app">
 	<nav class="side" aria-label="Main">
-		<a class="brand" href="/">
-			<span class="mark"><House size={18} strokeWidth={2} aria-hidden="true" /></span>
-			<span class="label">homeCore</span>
-		</a>
+		<div class="top">
+			<a class="brand" href="/" title="Home">
+				<Mark />
+				<span class="label">homeCore</span>
+			</a>
+			<button
+				class="fold"
+				aria-label={folded ? 'Open the sidebar' : 'Fold the sidebar'}
+				aria-expanded={!folded}
+				title={folded ? 'Open the sidebar (Ctrl+\\)' : 'Fold the sidebar (Ctrl+\\)'}
+				onclick={fold}
+			>
+				{#if folded}
+					<PanelLeftOpen size={18} strokeWidth={1.8} aria-hidden="true" />
+				{:else}
+					<PanelLeftClose size={18} strokeWidth={1.8} aria-hidden="true" />
+				{/if}
+			</button>
+		</div>
 
 		{#each SIDEBAR as d (d.id)}
 			<a
@@ -385,8 +429,12 @@
 			border-right: 1px solid var(--line);
 		}
 		.label,
-		.rooms {
+		.rooms,
+		.fold {
 			display: none;
+		}
+		.top {
+			flex-direction: column;
 		}
 		.brand,
 		.dest {
@@ -425,10 +473,46 @@
 			display: flex;
 			flex-direction: column;
 		}
+		/* After the base rule below, so more specific than it. */
+		.side .fold {
+			display: inline-flex;
+		}
+		.top {
+			flex-direction: row;
+		}
 		.brand,
 		.dest {
 			width: auto;
 			justify-content: flex-start;
+		}
+		.brand {
+			flex: 1;
+			min-width: 0;
+		}
+		/* Folded: the rail's icons, the button to open it again under the mark. */
+		:global(html[data-sidebar='folded']) .side {
+			width: 76px;
+			align-items: center;
+			padding: 18px 10px;
+		}
+		:global(html[data-sidebar='folded']) .top {
+			flex-direction: column;
+		}
+		:global(html[data-sidebar='folded']) .label,
+		:global(html[data-sidebar='folded']) .rooms {
+			display: none;
+		}
+		:global(html[data-sidebar='folded']) .brand,
+		:global(html[data-sidebar='folded']) .dest {
+			flex: none;
+			width: var(--target);
+			justify-content: center;
+		}
+		:global(html[data-sidebar='folded']) .brand {
+			margin-bottom: 0;
+		}
+		:global(html[data-sidebar='folded']) .fold {
+			margin-bottom: var(--space-3);
 		}
 		header {
 			padding: 18px var(--space-6) 10px 28px;
@@ -441,6 +525,28 @@
 		}
 	}
 
+	.top {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+	}
+	.fold {
+		display: none;
+		flex: none;
+		align-items: center;
+		justify-content: center;
+		width: 36px;
+		height: 36px;
+		margin-bottom: var(--space-3);
+		border: none;
+		border-radius: 10px;
+		background: none;
+		color: var(--ink-muted);
+	}
+	.fold:hover {
+		background: var(--nav-on);
+		color: var(--ink);
+	}
 	.brand {
 		display: flex;
 		align-items: center;
@@ -451,17 +557,6 @@
 		text-decoration: none;
 		font-size: 17px;
 		font-weight: 700;
-	}
-	.mark {
-		width: 30px;
-		height: 30px;
-		flex: none;
-		border-radius: 9px;
-		background: var(--accent);
-		color: var(--accent-ink);
-		display: flex;
-		align-items: center;
-		justify-content: center;
 	}
 	.dest {
 		display: flex;

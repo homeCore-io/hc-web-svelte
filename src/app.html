@@ -5,6 +5,9 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 		<meta name="color-scheme" content="light dark" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.png" type="image/png" sizes="64x64" />
+		<link rel="apple-touch-icon" href="%sveltekit.assets%/apple-touch-icon.png" />
+		<link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
 		<title>homeCore</title>
 		<script>
 			// Light or dark before the first paint (V2): a person's own choice wins,
@@ -15,6 +18,9 @@
 				if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
 				var p = localStorage.getItem('hc.palette');
 				if (p && /^[a-z]+$/.test(p)) document.documentElement.dataset.palette = p;
+				// The sidebar folded to its icons on this screen, so it never opens and shuts on load.
+				if (localStorage.getItem('hc.sidebar') === 'folded')
+					document.documentElement.dataset.sidebar = 'folded';
 			} catch (e) {}
 		</script>
 		%sveltekit.head%

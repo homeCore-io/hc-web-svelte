@@ -18,7 +18,7 @@
 	import { devices } from '#lib/devices.svelte.js';
 	import { displayName } from '#lib/devices.js';
 	import { ago, kindOf } from '#lib/card.js';
-	import { kindLabel, pluginLabel } from '#lib/inventory.js';
+	import { kindLabel, knownPluginName, pluginLabel } from '#lib/inventory.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { roomOf } from '#lib/summary.js';
 	import {
@@ -106,7 +106,7 @@
 		runsOn = here ? { id: here.runtime_id, name: runtimeName(rt, here.runtime_id) } : null;
 	}
 
-	const name = $derived(reg?.name ?? pluginLabel(id));
+	const name = $derived(knownPluginName(id) ?? reg?.name ?? pluginLabel(id));
 	$effect(() => heading.show(name, { href: '/settings/plugins', label: 'Plugins' }));
 	const health = $derived(plugin ? stateOf(plugin, clock.now) : null);
 	const update = $derived(plugin ? updateOf(plugin, reg, core.version) : undefined);
@@ -121,6 +121,9 @@
 	);
 	const running = $derived(plugin?.status === 'active' || plugin?.status === 'starting');
 	let opened = $state<string | null>(null);
+	// A plugin with its own page (WLED) shows that instead of its raw
+	// actions, every one of which the page covers.
+	const ownPanel = $derived(id === WLED);
 
 	// ---- running ----
 	async function act(what: 'start' | 'stop' | 'restart') {
@@ -397,7 +400,9 @@
 				</div>
 			{/each}
 
-			{#if actions.length && canWrite}
+			{#if id === WLED}<WledControllers />{/if}
+
+			{#if actions.length && canWrite && !ownPanel}
 				<section class="actions">
 					<h2>Actions</h2>
 					{#each actions as a (a.id)}
@@ -429,7 +434,6 @@
 			{/if}
 
 			{#if mine.some((d) => d.device_id === 'matter_controller')}<MatterPanel />{/if}
-			{#if id === WLED}<WledControllers />{/if}
 
 			<section class="card facts">
 				<dl>

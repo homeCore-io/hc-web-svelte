@@ -8,7 +8,7 @@
  * `/plugins/{id}/capabilities`, the command stream) — only what the app reads.
  */
 import { cap, words, ago } from './card.js';
-import { pluginLabel } from './inventory.js';
+import { knownPluginName, pluginLabel } from './inventory.js';
 import type { Field } from './ruleEdit.js';
 
 export interface Notice {
@@ -240,7 +240,7 @@ export function rowsOf(
 			);
 			return {
 				id: p.plugin_id,
-				name: r?.name ?? pluginLabel(p.plugin_id),
+				name: knownPluginName(p.plugin_id) ?? r?.name ?? pluginLabel(p.plugin_id),
 				what: r?.description ?? '',
 				version: versionOf(p),
 				update: updateOf(p, r, core),

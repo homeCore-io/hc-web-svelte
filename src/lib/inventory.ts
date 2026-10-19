@@ -42,6 +42,10 @@ const PLUGIN_NAMES: Record<string, string> = {
 	matter: 'Matter'
 };
 
+/** The house's own spelling of a plugin it knows ("WLED", not "Wled"). */
+export const knownPluginName = (id: string): string | undefined =>
+	PLUGIN_NAMES[id.replace(/^plugin\./, '')];
+
 /** "plugin.zwave" → "Z-Wave"; homeCore's own (core.*) → "homeCore". */
 export function pluginLabel(id: string | undefined): string {
 	if (!id) return 'Unknown';

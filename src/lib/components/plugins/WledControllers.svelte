@@ -3,12 +3,14 @@
 	the plugin reaches it at (changed here), whether changes arrive pushed or
 	polled, its hardware and firmware; finding more on the network, adding one
 	by address, removing one; and what spans controllers — copying presets,
-	backing them all up, updating firmware one at a time.
+	backing them all up, updating firmware one at a time; and the plugin's
+	own few settings.
 
 	The plugin reads its controllers when it starts, so a change to the list
 	restarts it.
 -->
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import type { CoreDevice } from '#lib/devices.js';
 	import { displayName } from '#lib/devices.js';
@@ -19,7 +21,7 @@
 	import { session } from '#lib/me.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
 	import { deviceHref } from '#lib/popup.js';
-	import { lifecycle, runAction } from '#lib/pluginAdmin.js';
+	import { lifecycle, loadConfig, runAction, saveConfig } from '#lib/pluginAdmin.js';
 	import { isWled, WLED } from '#lib/wled.js';
 
 	const list = $derived(
@@ -181,6 +183,108 @@
 		busy = false;
 		note = 'Every controller is updated.';
 	}
+	// ---- the backups the plugin keeps ----
+	type Kept = { device_id: string; file: string; bytes: number };
+	let kept = $state<Kept[] | null>(null);
+	async function listKept() {
+		const r = await reply('list_backups', {});
+		if (r) kept = Array.isArray(r.backups) ? (r.backups as Kept[]) : [];
+	}
+	/** "20261018T235224Z-before-16.0.1.json" → "18 Oct 23:52 · before 16.0.1". */
+	function keptLabel(file: string): string {
+		const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z-?(.*)\.json$/.exec(file);
+		if (!m) return file;
+		const at = new Date(Date.UTC(+m[1]!, +m[2]! - 1, +m[3]!, +m[4]!, +m[5]!, +m[6]!));
+		const when = at.toLocaleString([], {
+			day: 'numeric',
+			month: 'short',
+			hour: '2-digit',
+			minute: '2-digit',
+			hour12: false
+		});
+		const why = (m[7] ?? '').replace(/-/g, ' ').replace(/^before (\d)/, 'before $1');
+		return why ? `${when} · ${why}` : when;
+	}
+	const whose = (k: Kept) => {
+		const d = devices.byId[k.device_id];
+		return d ? displayName(d) : k.device_id;
+	};
+	async function restoreKept(k: Kept, what: 'presets' | 'settings') {
+		if (
+			!(await ask({
+				title:
+					what === 'presets'
+						? `Put ${k.file}'s presets back on ${whose(k)}? Its presets now are replaced — and kept as a backup first.`
+						: `Put ${k.file}'s settings back on ${whose(k)}? Its Wi-Fi and other secrets stay as they are; some settings take effect after a restart.`,
+				go: 'Restore',
+				stay: 'Not now'
+			}))
+		)
+			return;
+		busy = true;
+		const r = await reply('restore', {
+			device_id: k.device_id,
+			file: k.file,
+			presets: what === 'presets',
+			settings: what === 'settings'
+		});
+		busy = false;
+		if (r) {
+			note = `${whose(k)}'s ${what} are restored from ${k.file}.`;
+			await listKept();
+		}
+	}
+	async function downloadKept(k: Kept) {
+		const r = await reply('get_backup', { device_id: k.device_id, file: k.file });
+		if (!r) return;
+		const a = document.createElement('a');
+		a.href = URL.createObjectURL(
+			new Blob([JSON.stringify(r.backup, null, 2)], { type: 'application/json' })
+		);
+		a.download = `${k.device_id}-${k.file}`;
+		a.click();
+		URL.revokeObjectURL(a.href);
+	}
+
+	// ---- its settings ----
+	let catalog = $state('controller');
+	let poll = $state(30);
+	let channel = $state('stable');
+	let others = $state('');
+	let loaded = $state('');
+	const current = $derived(JSON.stringify([catalog, poll, channel, others.trim()]));
+	onMount(async () => {
+		if (!admin) return;
+		const r = await loadConfig(WLED);
+		const w = (r.ok ? r.data.config?.wled : undefined) as Record<string, unknown> | undefined;
+		if (!w) return;
+		catalog = w.catalog === 'app' ? 'app' : 'controller';
+		poll = typeof w.poll_interval_secs === 'number' ? w.poll_interval_secs : 30;
+		channel = typeof w.firmware_channel === 'string' ? w.firmware_channel : 'stable';
+		others = Array.isArray(w.discovery_hosts) ? w.discovery_hosts.join('\n') : '';
+		loaded = current;
+	});
+	async function saveSettings() {
+		busy = true;
+		const r = await saveConfig(WLED, {
+			patch: {
+				wled: {
+					catalog,
+					poll_interval_secs: Math.max(5, Math.round(poll)),
+					firmware_channel: channel,
+					discovery_hosts: others
+						.split(/[\s,]+/)
+						.map((h) => h.trim())
+						.filter(Boolean)
+				}
+			}
+		});
+		busy = false;
+		if (!r.ok) return void (note = r.error);
+		loaded = current;
+		await restartPlugin('Settings saved.');
+	}
+
 	const signal = (d: CoreDevice) =>
 		typeof d.attributes.wifi_signal_pct === 'number' ? `${d.attributes.wifi_signal_pct}%` : '—';
 </script>
@@ -293,38 +397,114 @@
 	{/if}
 </section>
 
-{#if admin && list.length > 1}
-	<section class="card wled">
-		<h2>Across controllers</h2>
-		<div class="row">
-			<span>Copy presets</span>
-			<select bind:value={copyFrom} aria-label="From">
-				<option value="">from…</option>
-				{#each list as d (d.device_id)}<option value={d.device_id}>{displayName(d)}</option>{/each}
-			</select>
-			<select bind:value={copyTo} aria-label="To">
-				<option value="">to…</option>
-				{#each list.filter((d) => d.device_id !== copyFrom) as d (d.device_id)}<option
-						value={d.device_id}>{displayName(d)}</option
-					>{/each}
-			</select>
-			<button class="pill" disabled={!copyFrom || !copyTo || busy} onclick={copy}>Copy</button>
-		</div>
-		<div class="row">
-			<span>Back up every controller's presets and settings</span>
-			<button class="pill" disabled={busy} onclick={backupAll}>Back up</button>
-		</div>
-		<div class="row">
-			<span>Firmware: {waiting.length ? `${waiting.length} can be updated` : 'all up to date'}</span
-			>
-			{#if waiting.length}<button class="pill" disabled={busy} onclick={updateAll}
-					>Update all…</button
-				>{/if}
-		</div>
-		<p class="sub">
-			Update all goes one controller at a time and stops at the first that doesn't come back.
-		</p>
-	</section>
+{#if admin}
+	<div class="pair">
+		<section class="card wled">
+			<h2>Across controllers</h2>
+			{#if list.length > 1}
+				<div class="row copy">
+					<span>Copy presets</span>
+					<select bind:value={copyFrom} aria-label="From">
+						<option value="">from…</option>
+						{#each list as d (d.device_id)}<option value={d.device_id}>{displayName(d)}</option
+							>{/each}
+					</select>
+					<select bind:value={copyTo} aria-label="To">
+						<option value="">to…</option>
+						{#each list.filter((d) => d.device_id !== copyFrom) as d (d.device_id)}<option
+								value={d.device_id}>{displayName(d)}</option
+							>{/each}
+					</select>
+					<button class="pill" disabled={!copyFrom || !copyTo || busy} onclick={copy}>Copy</button>
+				</div>
+			{/if}
+			<div class="row">
+				<span
+					>Back up {list.length === 1 ? 'the controller’s' : 'every controller’s'} presets and settings</span
+				>
+				<button class="pill" disabled={busy || !list.length} onclick={backupAll}>Back up</button>
+			</div>
+			<div class="row">
+				<span
+					>Firmware: {waiting.length
+						? `${waiting.length} can be updated`
+						: list.length
+							? 'all up to date'
+							: '—'}</span
+				>
+				{#if waiting.length}<button class="pill" disabled={busy} onclick={updateAll}
+						>Update all…</button
+					>{/if}
+			</div>
+			<p class="sub">
+				Update all goes one controller at a time and stops at the first that doesn’t come back.
+			</p>
+			<div class="row">
+				<span>Backups kept with the plugin</span>
+				<button class="pill" disabled={busy} onclick={listKept}
+					>{kept ? 'Look again' : 'Show them'}</button
+				>
+			</div>
+			{#if kept}
+				{#if kept.length === 0}<p class="sub">None yet.</p>{:else}
+					<ul class="kept">
+						{#each kept as k (k.device_id + k.file)}
+							<li>
+								<span title={k.file}
+									>{#if list.length > 1}<b>{whose(k)}</b>{/if}<span class="sub"
+										>{keptLabel(k.file)}</span
+									></span
+								>
+								<button class="pill" disabled={busy} onclick={() => restoreKept(k, 'presets')}
+									>Presets back</button
+								>
+								<button class="pill" disabled={busy} onclick={() => restoreKept(k, 'settings')}
+									>Settings back</button
+								>
+								<button class="pill" onclick={() => downloadKept(k)}>Download</button>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			{/if}
+		</section>
+
+		<section class="card wled">
+			<h2>Settings</h2>
+			<label class="field">
+				<span class="lbl">Effect and palette catalogue, for new controllers</span>
+				<select bind:value={catalog}>
+					<option value="controller">Read from the controller</option>
+					<option value="app">Keep a copy in the app</option>
+				</select>
+			</label>
+			<label class="field">
+				<span class="lbl">When a controller can’t push, read it every (seconds)</span>
+				<input type="number" min="5" bind:value={poll} />
+			</label>
+			<label class="field">
+				<span class="lbl">Firmware to offer</span>
+				<select bind:value={channel}>
+					<option value="stable">Stable releases</option>
+					<option value="beta">Stable and betas</option>
+					<option value="nightly">Nightly builds too</option>
+				</select>
+			</label>
+			<label class="field">
+				<span class="lbl">Controllers on other networks</span>
+				<textarea
+					bind:value={others}
+					rows="2"
+					placeholder="Addresses, one per line — only for WLEDs on another VLAN"></textarea>
+			</label>
+			<div class="row">
+				<span class="sub">Saving restarts the plugin.</span>
+				<button class="pill" disabled={busy || !loaded || current === loaded} onclick={saveSettings}
+					>Save</button
+				>
+			</div>
+		</section>
+	</div>
 {/if}
 {#if note}<p class="note" role="status">{note}</p>{/if}
 
@@ -333,6 +513,11 @@
 		display: flex;
 		flex-direction: column;
 		gap: 12px;
+		min-width: 0;
+		padding: var(--space-4);
+		border-radius: var(--radius);
+		background: var(--surface);
+		border: 1px solid var(--card-line);
 	}
 	.head {
 		display: flex;
@@ -408,6 +593,63 @@
 	}
 	.row span {
 		flex: 1 1 240px;
+	}
+	.row.copy span {
+		flex: 0 0 auto;
+	}
+	.row.copy select {
+		flex: 1 1 140px;
+	}
+	.kept li > span b {
+		display: block;
+	}
+	.kept {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		max-height: 260px;
+		overflow: auto;
+	}
+	.kept li {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		align-items: center;
+		padding: 6px 0;
+		border-top: 1px solid var(--card-line);
+	}
+	.kept li > span {
+		flex: 1 1 200px;
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+	.pair {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+		gap: var(--space-4);
+		align-items: start;
+	}
+	.field {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+	.lbl {
+		font-size: 12px;
+		font-weight: 600;
+		color: var(--ink-muted);
+	}
+	.ok {
+		color: #2f8f4e;
+	}
+	textarea {
+		font: inherit;
+		border-radius: 9px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--ink);
+		padding: 8px 10px;
+		resize: vertical;
 	}
 	input,
 	select {

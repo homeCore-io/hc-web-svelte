@@ -28,15 +28,12 @@
 	import Toggle from './Toggle.svelte';
 	import { goAhead } from '#lib/ask.js';
 	import { core } from '#lib/core.svelte.js';
-	import { isWled } from '#lib/wled.js';
-	import WledPanel from './wled/WledPanel.svelte';
 	import PluginSlot from '#lib/pluginUi/PluginSlot.svelte';
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
 
 	let { device, onclose }: { device: CoreDevice; onclose: () => void } = $props();
 
 	const id = $derived(device.device_id);
-	const wled = $derived(isWled(device));
 	// The plugin's own panel for this device, when it ships one; the generic
 	// controls when it doesn't, or when it won't load.
 	pluginUis.ensure();
@@ -314,10 +311,7 @@
 		{/if}
 	{/each}
 
-	{#if wled}
-		<!-- A WLED controller: its own panel, every control it has. -->
-		<WledPanel {device} disabled={off} />
-	{:else if custom && !customFailed && device.plugin_id}
+	{#if custom && !customFailed && device.plugin_id}
 		<!-- The plugin's own panel, from its release. -->
 		<PluginSlot
 			pluginId={device.plugin_id}

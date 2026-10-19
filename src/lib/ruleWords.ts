@@ -14,15 +14,6 @@
  */
 import { cap, words } from './card.js';
 import { displayName, type AttributeSchema, type CoreDevice, type ParamSpec } from './devices.js';
-import {
-	effectNames,
-	isWled,
-	nameOf,
-	paletteNames,
-	presetsOf,
-	stepOf as wledStepOf,
-	stepSentence as wledSentence
-} from './wled.js';
 
 /** One piece of a phrase: plain words, a device by name, or text as written. */
 export interface Bit {
@@ -43,6 +34,11 @@ export interface House {
 	rule?(id: string): string | undefined;
 	/** A plugin's kind of alert by name: "Firmware update available". */
 	alertKind?(pluginId: string, topic: string): string | undefined;
+	/**
+	 * A step on a plugin's devices in the plugin's own words, with
+	 * `{devices}` where their names go — from its `rule.step` form.
+	 */
+	describeStep?(ids: string[], state: unknown): string | undefined;
 }
 
 /** A rule as homeCore sends it — only what the app reads. */
@@ -136,7 +132,12 @@ export function valueText(spec: AttributeSchema | undefined, v: Json): string {
 		const said = v ? spec?.states?.when_true.label : spec?.states?.when_false.label;
 		return said ?? (v ? 'on' : 'off');
 	}
-	if (typeof v === 'number') return `${fmtNum(v)}${spec?.unit ? ` ${spec.unit}` : ''}`;
+	if (typeof v === 'number') {
+		// A number the device names (a WLED preset, an effect): its name.
+		const opt = spec?.options?.find((o) => typeof o !== 'string' && o.value === String(v));
+		if (opt !== undefined && typeof opt !== 'string' && opt.label) return `“${opt.label}”`;
+		return `${fmtNum(v)}${spec?.unit ? ` ${spec.unit}` : ''}`;
+	}
 	if (typeof v === 'string') {
 		const opt = spec?.options?.find((o) => (typeof o === 'string' ? o : o.value) === v);
 		if (opt !== undefined && typeof opt !== 'string' && opt.label) return opt.label;
@@ -197,42 +198,12 @@ function isMain(h: House, id: string, attr: string): boolean {
 	return primary[0] === attr;
 }
 
-/** A WLED's preset, playlist, effect or palette by its name, if it has one. */
-function wledName(h: House, id: string, attr: string, v: Json): string | undefined {
-	const d = h.device(id);
-	if (!d || !isWled(d) || typeof v !== 'number') return undefined;
-	const list =
-		attr === 'preset_id' || attr === 'playlist_id'
-			? presetsOf(d)
-			: attr === 'effect_id'
-				? effectNames(d)
-				: attr === 'palette_id'
-					? paletteNames(d)
-					: undefined;
-	const name = list ? nameOf(list, v) : undefined;
-	return name ? `“${name}”` : undefined;
-}
-const WLED_WHAT: Record<string, string> = {
-	preset_id: 'preset',
-	playlist_id: 'playlist',
-	effect_id: 'effect',
-	palette_id: 'palette'
-};
-
 /** "opens", "turns off", "button 1 is pressed", "humidity becomes 35 %". */
 function becomes(h: House, ids: string[], f: Record<string, Json>): Phrase {
 	const many = ids.length > 1;
 	const who: Phrase = many ? [t('any of '), ...devicesPhrase(h, ids, 'or')] : devicesPhrase(h, ids);
 	const attr: string | undefined = f.attribute;
 	if (attr === undefined) return [...who, t(' changes')];
-	const wn = WLED_WHAT[attr] ? wledName(h, ids[0]!, attr, f.to) : undefined;
-	if (wn && (attr === 'preset_id' || attr === 'playlist_id') && f.from == null) {
-		const out: Phrase = [...who, t(` starts ${WLED_WHAT[attr]} ${wn}`)];
-		if (typeof f.for_duration_secs === 'number' && f.for_duration_secs > 0)
-			out.push(t(` and stays on it for ${duration(f.for_duration_secs)}`));
-		return out;
-	}
-	if (wn) return [...who, t(`’s ${WLED_WHAT[attr]} becomes ${wn}`)];
 	const spec = specOf(h, ids[0]!, attr);
 	const { to, from } = f;
 	const named = isMain(h, ids[0]!, attr) ? '' : ` ${attrName(spec, attr)}`;
@@ -293,10 +264,6 @@ function isNow(h: House, ids: string[], attr: string, op: string, value: Json): 
 		const v = op === 'Eq' ? value : !value;
 		return [...who, t(` ${be('is')} ${valueText(spec, v)}`)];
 	}
-	const wn = WLED_WHAT[attr] ? wledName(h, ids[0]!, attr, value) : undefined;
-	if (wn && (op === 'Eq' || op === 'Ne') && (attr === 'preset_id' || attr === 'playlist_id'))
-		return [...who, t(` ${be('is')}${op === 'Ne' ? ' not' : ''} running ${WLED_WHAT[attr]} ${wn}`)];
-	if (wn) return [...who, t(`’s ${WLED_WHAT[attr]} ${be(OP_IS[op] ?? 'is')} ${wn}`)];
 	const named = isMain(h, ids[0]!, attr) ? '' : ` ${attrName(spec, attr)}`;
 	return [...who, t(`${named} ${be(OP_IS[op] ?? `is ${op}`)} ${valueText(spec, value)}`)];
 }
@@ -360,19 +327,13 @@ export function setPhrase(h: House, ids: string[], state: Json): Phrase {
 	const actions = d?.schema?.actions ?? [];
 	const keys = Object.keys(state);
 
-	// A WLED step says what it does in WLED's terms, with its names.
-	const w = isWled(d) ? wledStepOf(state) : null;
-	if (d && w) {
-		const name = (list: { id: number; name: string }[]) => (id: number) => nameOf(list, id);
-		const said = wledSentence(w, '\u0000', {
-			preset: name(presetsOf(d)),
-			effect: name(effectNames(d)),
-			palette: name(paletteNames(d))
-		});
-		const [before = '', after = ''] = said.split('\u0000');
-		const lead = before.charAt(0).toLowerCase() + before.slice(1);
-		return [...(lead ? [t(lead)] : []), ...who, ...(after ? [t(after)] : [])];
+	// A plugin's step says what it does in the plugin's own words.
+	const said = h.describeStep?.(ids, state);
+	if (said && said.includes('{devices}')) {
+		const [before = '', after = ''] = said.split('{devices}');
+		return [...(before ? [t(before)] : []), ...who, ...(after ? [t(after)] : [])];
 	}
+	if (said) return [t(said)];
 
 	// A declared action, flat (`{action: "set_volume", volume: 15}`) or keyed (`{set_led: {…}}`).
 	let id: string | undefined;

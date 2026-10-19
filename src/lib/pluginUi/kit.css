@@ -4,6 +4,41 @@
 	custom properties, which reach into a shadow root as they are — so a
 	plugin's screen follows light and dark, and any theme, with the app.
 */
+/* The app's element defaults, which a shadow root doesn't inherit. */
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+button,
+input,
+select,
+textarea {
+	font: inherit;
+	color: inherit;
+}
+button {
+	cursor: pointer;
+}
+a {
+	color: inherit;
+}
+:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+.num {
+	font-family: var(--font-num);
+	font-variant-numeric: tabular-nums;
+}
+.section-label {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--ink-muted);
+}
 :host {
 	display: block;
 	color: var(--ink);
@@ -161,7 +196,4 @@
 }
 .hc-dot.bad {
 	background: var(--alert);
-}
-a {
-	color: var(--accent);
 }

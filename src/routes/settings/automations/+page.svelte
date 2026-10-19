@@ -36,6 +36,7 @@
 		type Row,
 		type Show
 	} from '#lib/ruleList.js';
+	import { describeStep } from '#lib/pluginUi/describe.js';
 	import { lastRuns } from '#lib/ruleRuns.js';
 	import { featuresOf } from '#lib/ruleEdit.js';
 	import {
@@ -158,7 +159,9 @@
 		};
 	});
 
-	const house = $derived(houseOf(devices.byId, scenes.list, rules ?? [], alertKinds.list));
+	const house = $derived(
+		houseOf(devices.byId, scenes.list, rules ?? [], alertKinds.list, describeStep)
+	);
 	$effect(() => alertKinds.ensure());
 	const rows = $derived(rules ? rowsOf(rules, house, runs, byMode) : []);
 	// A set chosen to look at narrows the list to its rules.

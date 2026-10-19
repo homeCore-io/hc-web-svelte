@@ -34,6 +34,7 @@
 		repoint,
 		rowsOf
 	} from '#lib/ruleList.js';
+	import { describeStep } from '#lib/pluginUi/describe.js';
 	import { runsOf, tested, type Record_, type Tested } from '#lib/ruleRuns.js';
 	import {
 		cloneRule,
@@ -128,7 +129,9 @@
 	});
 
 	const rule = $derived(all?.find((r) => r.id === id));
-	const house = $derived(houseOf(devices.byId, scenes.list, all ?? [], alertKinds.list));
+	const house = $derived(
+		houseOf(devices.byId, scenes.list, all ?? [], alertKinds.list, describeStep)
+	);
 	$effect(() => alertKinds.ensure());
 	const row = $derived(rule ? rowsOf([rule], house, {}, byMode)[0] : undefined);
 	const reading = $derived(rule ? readRule(house, rule) : null);

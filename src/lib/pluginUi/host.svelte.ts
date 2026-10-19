@@ -35,7 +35,8 @@ const view = (d: CoreDevice): Device => ({
 	available: d.available !== false,
 	room: roomOf(d, rooms.list)?.name ?? null,
 	attributes: { ...d.attributes },
-	last_seen: d.last_seen ?? null
+	last_seen: d.last_seen ?? null,
+	sw_version: (d.sw_version as string | undefined) ?? null
 });
 
 const mine = (pluginId: string) =>
@@ -43,6 +44,9 @@ const mine = (pluginId: string) =>
 		.filter((d) => d.plugin_id === pluginId)
 		.sort((a, b) => displayName(a).localeCompare(displayName(b)))
 		.map(view);
+
+const storeUrl = (pluginId: string, key: string) =>
+	`/ui/plugin-store/${encodeURIComponent(pluginId)}/${encodeURIComponent(key)}`;
 
 const fail = (error: string): { ok: false; error: string } => ({ ok: false, error });
 
@@ -126,6 +130,55 @@ export function createHost(pluginId: string): Host {
 					: fail(String(body.error ?? `homeCore said ${r.status}.`));
 			} catch {
 				return fail('homeCore is not answering.');
+			}
+		},
+		fetch: (path, init) => fetch(`/api/v1${path.startsWith('/') ? '' : '/'}${path}`, init),
+		async upload(action, file, params = {}, name) {
+			const q = new URLSearchParams(params);
+			if (name ?? (file as File).name) q.set('name', name ?? (file as File).name);
+			try {
+				const r = await fetch(
+					`/api/v1/plugins/${encodeURIComponent(pluginId)}/upload/${encodeURIComponent(action)}?${q}`,
+					{ method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: file }
+				);
+				const body = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+				if (!r.ok || body.status === 'error')
+					return fail(String(body.error ?? `homeCore said ${r.status}.`));
+				return { ok: true, data: body };
+			} catch {
+				return fail('homeCore is not answering.');
+			}
+		},
+		store: {
+			async get(key) {
+				try {
+					const r = await fetch(storeUrl(pluginId, key));
+					if (r.status === 404) return { ok: true, data: undefined };
+					const body = (await r.json().catch(() => ({}))) as { value?: unknown; error?: string };
+					return r.ok ? { ok: true, data: body.value as never } : fail(body.error ?? `${r.status}`);
+				} catch {
+					return fail('The app is not answering.');
+				}
+			},
+			async put(key, value) {
+				try {
+					const r = await fetch(storeUrl(pluginId, key), {
+						method: 'PUT',
+						headers: { 'content-type': 'application/json' },
+						body: JSON.stringify(value)
+					});
+					return r.ok ? { ok: true, data: undefined } : fail(`It wasn’t kept (${r.status}).`);
+				} catch {
+					return fail('The app is not answering.');
+				}
+			},
+			async remove(key) {
+				try {
+					const r = await fetch(storeUrl(pluginId, key), { method: 'DELETE' });
+					return r.ok ? { ok: true, data: undefined } : fail(`${r.status}`);
+				} catch {
+					return fail('The app is not answering.');
+				}
 			}
 		},
 		config: {

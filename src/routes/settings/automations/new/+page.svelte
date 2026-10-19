@@ -14,6 +14,7 @@
 	import { scenes } from '#lib/scenes.svelte.js';
 	import { plain, sentence, type Rule } from '#lib/ruleWords.js';
 	import { familiesOf, houseOf } from '#lib/ruleList.js';
+	import { describeStep } from '#lib/pluginUi/describe.js';
 	import { blankRule, featuresOf, type Features } from '#lib/ruleEdit.js';
 	import { PATTERNS, combine } from '#lib/ruleCombine.js';
 	import { createRule, loadRules, loadVocabulary, setManyEnabled } from '#lib/ruleAdmin.js';
@@ -67,7 +68,7 @@
 		})
 	);
 
-	const house = $derived(houseOf(devices.byId, scenes.list, rules));
+	const house = $derived(houseOf(devices.byId, scenes.list, rules, [], describeStep));
 	const kept = $derived(readDraft('new'));
 
 	async function save() {

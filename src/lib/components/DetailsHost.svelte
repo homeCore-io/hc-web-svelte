@@ -9,7 +9,6 @@
 	import { devices } from '#lib/devices.svelte.js';
 	import { closeDevice } from '#lib/popup.js';
 	import Details from './Details.svelte';
-	import { isWled } from '#lib/wled.js';
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
 
 	const id = $derived(page.url.searchParams.get('device'));
@@ -52,8 +51,7 @@
 
 <dialog
 	bind:this={dialog}
-	class:wide={isWled(device) ||
-		!!pluginUis.find(device?.plugin_id, 'device.panel', device?.device_type)}
+	class:wide={!!pluginUis.find(device?.plugin_id, 'device.panel', device?.device_type)}
 	aria-labelledby="details-title"
 	style:transform={pull > 0 ? `translateY(${pull}px)` : undefined}
 	oncancel={(e) => {
@@ -140,7 +138,7 @@
 			margin: auto;
 			width: min(520px, 92vw);
 		}
-		/* A WLED controller's panel: effects beside their controls. */
+		/* A plugin's own panel (a WLED controller's): room beside its controls. */
 		dialog.wide {
 			width: min(980px, 96vw);
 			max-height: 86dvh;

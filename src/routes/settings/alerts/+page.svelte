@@ -13,8 +13,6 @@
 -->
 <script lang="ts">
 	import { alertKinds, pluginName } from '#lib/alertKinds.svelte.js';
-	import { WLED } from '#lib/wled.js';
-	import WledAutoUpdate from '#lib/components/wled/WledAutoUpdate.svelte';
 	$effect(() => alertKinds.ensure());
 	import { onMount, tick } from 'svelte';
 	import { onReturn } from '#lib/refresh.js';
@@ -451,9 +449,6 @@
 							</li>
 						{/each}
 					</ul>
-					{#if session.isAdmin && alertKinds.list.some((k) => k.plugin_id === WLED)}
-						<WledAutoUpdate />
-					{/if}
 				</section>
 			{/if}
 

@@ -510,34 +510,38 @@ describe('a webhook', () => {
 	});
 });
 
-describe('alerts and WLED controllers in rules', () => {
+describe('alerts and named numbers in rules', () => {
 	const it = test;
+	// A WLED controller names its presets in its schema (hc-wled 0.1.19+).
 	const wled = {
 		device_id: 'wled_1',
 		name: 'Eaves lights',
 		plugin_id: 'plugin.wled',
 		available: true,
-		attributes: {
-			presets: [
-				{ id: 14, name: 'Halloween 1', kind: 'look' },
-				{ id: 20, name: 'Halloween night', kind: 'playlist' }
-			]
-		},
+		attributes: {},
 		schema: {
 			attributes: {
-				preset_id: { kind: 'integer', writable: true, display_name: 'Preset' },
+				preset_id: {
+					kind: 'integer',
+					writable: true,
+					display_name: 'Preset',
+					options: [
+						{ value: '14', label: 'Halloween 1' },
+						{ value: '20', label: 'Halloween night' }
+					]
+				},
 				on: { kind: 'bool', writable: true }
 			}
 		}
 	} as unknown as CoreDevice;
 
-	it('a WLED offers its presets and playlists by name, and never “preset rises above”', () => {
+	it('a number the device names is offered by name, and never “rises above”', () => {
 		const m = momentsOf(wled).map((x) => x.label);
-		expect(m).toContain('starts preset “Halloween 1”');
-		expect(m).toContain('starts playlist “Halloween night”');
-		expect(m.some((l) => l.startsWith('preset rises'))).toBe(false);
+		expect(m.some((l) => /becomes “Halloween 1”$/i.test(l))).toBe(true);
+		expect(m.some((l) => /becomes “Halloween night”$/i.test(l))).toBe(true);
+		expect(m.some((l) => /rises above/.test(l))).toBe(false);
 		const s = statesOf(wled);
-		const running = s.find((x) => x.label === 'is running preset “Halloween 1”')!;
+		const running = s.find((x) => /is “Halloween 1”$/i.test(x.label))!;
 		const c = running.build('wled_1', {});
 		expect(c).toEqual({
 			DeviceState: { device_id: 'wled_1', attribute: 'preset_id', op: 'Eq', value: 14 }

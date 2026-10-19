@@ -14,6 +14,7 @@ import { roomOf } from '../../summary.js';
 import { loadConfig } from '../../config.js';
 import { channelsOf } from '../../notify.js';
 import { houseOf } from '../../ruleList.js';
+import { describeStep } from '#lib/pluginUi/describe.js';
 import { alertKinds } from '../../alertKinds.svelte.js';
 import { featuresOf, variablesIn, type Lists, type Vocabulary } from '../../ruleEdit.js';
 import { displayName } from '../../devices.js';
@@ -45,7 +46,9 @@ export function provideHouse(rules: () => Rule[]): EditorContext {
 		}
 	});
 	const all = $derived(Object.values(devices.byId));
-	const house = $derived(houseOf(devices.byId, scenes.list, rules(), alertKinds.list));
+	const house = $derived(
+		houseOf(devices.byId, scenes.list, rules(), alertKinds.list, describeStep)
+	);
 	const features = $derived(featuresOf(vocab));
 	const usedChannels = $derived(
 		[...JSON.stringify(rules().map((r) => r.actions)).matchAll(/"channel":"([^"]+)"/g)].map(

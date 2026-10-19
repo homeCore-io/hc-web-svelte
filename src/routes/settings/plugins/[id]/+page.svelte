@@ -52,10 +52,8 @@
 	import ActionRun from '#lib/components/plugins/ActionRun.svelte';
 	import PluginSettings from '#lib/components/plugins/PluginSettings.svelte';
 	import MatterPanel from '#lib/components/plugins/MatterPanel.svelte';
-	import WledControllers from '#lib/components/plugins/WledControllers.svelte';
 	import PluginSlot from '#lib/pluginUi/PluginSlot.svelte';
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
-	import { WLED } from '#lib/wled.js';
 
 	const id = $derived(page.params.id ?? '');
 	const tab = $derived(page.url.searchParams.get('tab') ?? 'overview');
@@ -123,12 +121,12 @@
 	);
 	const running = $derived(plugin?.status === 'active' || plugin?.status === 'starting');
 	let opened = $state<string | null>(null);
-	// A plugin with its own page shows that instead of its raw actions: WLED's
-	// is the app's; any other plugin's comes with its release.
+	// A plugin with its own page shows that instead of its raw actions; the
+	// page comes with the plugin's release.
 	pluginUis.ensure();
 	const page_ = $derived(pluginUis.find(id, 'plugin.page'));
 	let pageFailed = $state(false);
-	const ownPanel = $derived(id === WLED || (!!page_ && !pageFailed));
+	const ownPanel = $derived(!!page_ && !pageFailed);
 
 	// ---- running ----
 	async function act(what: 'start' | 'stop' | 'restart') {
@@ -405,8 +403,7 @@
 				</div>
 			{/each}
 
-			{#if id === WLED}<WledControllers />{/if}
-			{#if page_ && !pageFailed && id !== WLED}
+			{#if page_ && !pageFailed}
 				<PluginSlot
 					pluginId={id}
 					ui={page_.ui}

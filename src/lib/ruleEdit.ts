@@ -12,7 +12,6 @@
 import { cap, words } from './card.js';
 import { displayName, type AttributeSchema, type CoreDevice, type ParamSpec } from './devices.js';
 import { tagOf, type Rule } from './ruleWords.js';
-import { isWled, presetsOf } from './wled.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Json = any;
@@ -201,25 +200,21 @@ const dsc0 = (ids: string[], attribute: string | undefined, to: unknown, f?: num
 	}
 });
 
-/** A WLED's preset, playlist, effect and palette are named, not numbered. */
-const WLED_IDS = new Set(['preset_id', 'playlist_id', 'effect_id', 'palette_id', 'main_segment']);
-const idAttr = (d: CoreDevice, name: string) => isWled(d) && WLED_IDS.has(name);
+/**
+ * A number the device names (a WLED preset, an effect): its options, as
+ * numbers with their names. A choice, not a quantity — no "rises above".
+ */
+const named = (s: AttributeSchema): { value: number; label: string }[] =>
+	(s.options ?? [])
+		.map((o) =>
+			typeof o === 'string' ? { value: o, label: o } : { value: o.value, label: o.label ?? o.value }
+		)
+		.map((o) => ({ value: Number(o.value), label: o.label }))
+		.filter((o) => Number.isFinite(o.value));
 
 /** Every moment a device offers, in its own words; the first is the likeliest. */
 export function momentsOf(d: CoreDevice): Moment[] {
 	const out: Moment[] = [];
-	if (isWled(d)) {
-		for (const p of presetsOf(d)) {
-			const attr = p.kind === 'playlist' ? 'playlist_id' : 'preset_id';
-			const what = p.kind === 'playlist' ? 'playlist' : 'preset';
-			out.push({
-				key: `to:${attr}:${key(p.id)}`,
-				label: `starts ${what} “${p.name}”`,
-				lasting: true,
-				build: (ids, f) => dsc0(ids, attr, p.id, f.for)
-			});
-		}
-	}
 	const dsc = (ids: string[], attribute: string | undefined, to: unknown, f?: number): Json => ({
 		DeviceStateChanged: {
 			device_id: ids[0] ?? '',
@@ -268,7 +263,15 @@ export function momentsOf(d: CoreDevice): Moment[] {
 					label: `${a.label} ${said}`,
 					build: (ids) => dsc(ids, a.name, v)
 				});
-		} else if (isNum(s) && !idAttr(d, a.name)) {
+		} else if (isNum(s) && named(s).length) {
+			for (const o of named(s))
+				out.push({
+					key: `to:${a.name}:${key(o.value)}`,
+					label: `${a.label} becomes “${o.label}”`,
+					lasting: true,
+					build: (ids, f) => dsc(ids, a.name, o.value, f.for)
+				});
+		} else if (isNum(s)) {
 			for (const [op, said] of [
 				['CrossesAbove', 'rises above'],
 				['CrossesBelow', 'falls below']
@@ -387,16 +390,6 @@ const OPS: [string, string][] = [
 export function statesOf(d: CoreDevice): State[] {
 	const out: State[] = [];
 	const mode = d.plugin_id === 'core.mode' || d.device_id.startsWith('mode_');
-	if (isWled(d)) {
-		for (const p of presetsOf(d)) {
-			const attr = p.kind === 'playlist' ? 'playlist_id' : 'preset_id';
-			out.push({
-				key: `is:${attr}:${key(p.id)}`,
-				label: `is running ${p.kind === 'playlist' ? 'playlist' : 'preset'} “${p.name}”`,
-				build: (id) => ({ DeviceState: { device_id: id, attribute: attr, op: 'Eq', value: p.id } })
-			});
-		}
-	}
 	for (const a of attrsOf(d)) {
 		const s = a.spec;
 		if (s.kind === 'bool') {
@@ -424,7 +417,16 @@ export function statesOf(d: CoreDevice): State[] {
 						DeviceState: { device_id: id, attribute: a.name, op: 'Eq', value: o.value }
 					})
 				});
-		} else if (isNum(s) && !idAttr(d, a.name)) {
+		} else if (isNum(s) && named(s).length) {
+			for (const o of named(s))
+				out.push({
+					key: `is:${a.name}:${key(o.value)}`,
+					label: `${a.label} is “${o.label}”`,
+					build: (id) => ({
+						DeviceState: { device_id: id, attribute: a.name, op: 'Eq', value: o.value }
+					})
+				});
+		} else if (isNum(s)) {
 			for (const [op, said] of OPS)
 				out.push({
 					key: `${op}:${a.name}`,
@@ -446,12 +448,8 @@ export function stateOf(c: Json): { key: string; id: string; value?: number } | 
 	if (kind !== 'DeviceState') return undefined;
 	if (f.op === 'Eq' && (typeof f.value === 'boolean' || typeof f.value === 'string'))
 		return { key: `is:${f.attribute}:${key(f.value)}`, id: f.device_id };
-	// A WLED's running preset or playlist, by its number.
-	if (
-		f.op === 'Eq' &&
-		typeof f.value === 'number' &&
-		(f.attribute === 'preset_id' || f.attribute === 'playlist_id')
-	)
+	// A number the device names (a WLED preset), by its number.
+	if (f.op === 'Eq' && typeof f.value === 'number')
 		return { key: `is:${f.attribute}:${key(f.value)}`, id: f.device_id };
 	if (typeof f.value === 'number' && f.op !== 'Eq' && f.op !== 'Ne')
 		return { key: `${f.op}:${f.attribute}`, id: f.device_id, value: f.value };

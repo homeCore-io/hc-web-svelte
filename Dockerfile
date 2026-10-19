@@ -15,8 +15,9 @@ RUN npm run build && npm run budget
 
 FROM node:24-alpine
 WORKDIR /app
-# BODY_SIZE_LIMIT: a WLED firmware image (a megabyte or two) is the largest
-# thing anyone sends the UI server — `/ui/wled/firmware/…` passes it on.
+# BODY_SIZE_LIMIT: the largest thing sent to the UI server's own routes is a
+# plugin screen's stored document (2 MB, `/ui/plugin-store/…`). Files for a
+# plugin (a firmware image) go to homeCore through the `/api` proxy instead.
 ENV NODE_ENV=production \
     HC_DATA_DIR=/data \
     BODY_SIZE_LIMIT=8M \

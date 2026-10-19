@@ -230,7 +230,12 @@ export function houseOf(
 	byId: Record<string, CoreDevice>,
 	scenes: { id: string; name: string }[] = [],
 	rules: { id: string; name: string }[] = [],
-	alertKinds: { plugin_id: string; topic: string; label: string }[] = []
+	alertKinds: { plugin_id: string; topic: string; label: string }[] = [],
+	describeStep?: (
+		device: (id: string) => CoreDevice | undefined,
+		ids: string[],
+		state: unknown
+	) => string | undefined
 ): House {
 	const byCanonical = new Map<string, CoreDevice>();
 	const byName = new Map<string, CoreDevice | null>();
@@ -243,8 +248,11 @@ export function houseOf(
 		note(d.name, d);
 		if (d.name_override) note(d.name_override, d);
 	}
+	const device = (id: string) =>
+		byId[id] ?? byCanonical.get(id) ?? byName.get(nameKey(id)) ?? undefined;
 	return {
-		device: (id) => byId[id] ?? byCanonical.get(id) ?? byName.get(nameKey(id)) ?? undefined,
+		device,
+		describeStep: describeStep ? (ids, state) => describeStep(device, ids, state) : undefined,
 		scene: (id) => scenes.find((s) => s.id === id)?.name,
 		rule: (id) => rules.find((r) => r.id === id)?.name,
 		alertKind: (plugin, topic) =>

@@ -29,8 +29,8 @@
 	import CheckEdit from './CheckEdit.svelte';
 	import Other from './Other.svelte';
 	import AlertPart from './AlertPart.svelte';
-	import WledStepEdit from './WledStepEdit.svelte';
-	import { isWled, stepOf as wledStepOf } from '#lib/wled.js';
+	import PluginStep from '#lib/pluginUi/PluginStep.svelte';
+	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	type Json = any;
@@ -84,24 +84,38 @@
 		onchange({ SetDeviceState: { ...f, device_id: id, state } });
 	}
 
-	// ---- WLED: its own form, on one controller or several at once ----
-	const wled = $derived(device && isWled(device) ? wledStepOf(f.state) : null);
-	/** Steps that run together, each a WLED step on its own controller. */
-	const wledGroup = $derived.by(() => {
+	// ---- a plugin's own form, on one of its devices or several at once ----
+	pluginUis.ensure();
+	/** Set when the plugin's form declines this step: the generic one shows. */
+	let rejected = $state(false);
+	$effect(() => {
+		void f.device_id;
+		void kind;
+		rejected = false;
+	});
+	const custom = $derived(
+		device && !f.track_event_value
+			? pluginUis.find(device.plugin_id, 'rule.step', device.device_type)
+			: undefined
+	);
+	/** Steps that run together, each setting one of the same plugin's devices. */
+	const group = $derived.by(() => {
 		if (kind !== 'together') return null;
 		const acts: Json[] = f.actions ?? [];
 		if (acts.length < 2) return null;
 		const parts = acts.map((a) => tagOf(a));
-		if (
-			!parts.every(
-				([k, x]) =>
-					k === 'SetDeviceState' && isWled(ctx.house.device(x.device_id)) && !x.track_event_value
-			)
-		)
-			return null;
-		const steps = parts.map(([, x]) => wledStepOf(x.state));
-		if (steps.some((w) => w === null || w.kind !== steps[0]!.kind)) return null;
-		return { ids: parts.map(([, x]) => x.device_id as string), step: steps[0]! };
+		if (!parts.every(([k, x]) => k === 'SetDeviceState' && !x.track_event_value)) return null;
+		const devs = parts.map(([, x]) => ctx.house.device(x.device_id));
+		const pluginId = devs[0]?.plugin_id;
+		if (!pluginId || !devs.every((d) => d?.plugin_id === pluginId)) return null;
+		const found = pluginUis.find(pluginId, 'rule.step', devs[0]!.device_type);
+		if (!found) return null;
+		return {
+			pluginId,
+			found,
+			ids: parts.map(([, x]) => x.device_id as string),
+			value: parts[0]![1].state as Record<string, unknown>
+		};
 	});
 
 	// ---- if / otherwise ----
@@ -173,18 +187,17 @@
 
 	{#if kind === 'device'}
 		<Pick value={f.device_id ?? ''} only={commandable} onchange={setDevice} />
-		{#if device && wled && !f.track_event_value}
-			<WledStepEdit ids={[f.device_id]} step={wled} {onchange} />
-		{:else if device && isWled(device) && !f.track_event_value}
-			<p class="quiet">
-				This step says something the WLED form doesn't — it's kept as written (see the JSON tab).
-				<button
-					type="button"
-					class="link"
-					onclick={() => onchange({ SetDeviceState: { ...f, state: { on: true } } })}
-					>Start it again with the WLED form</button
-				>
-			</p>
+		{#if device && custom && !rejected && device.plugin_id}
+			<!-- The plugin's own form for its device, from its release. -->
+			<PluginStep
+				pluginId={device.plugin_id}
+				ui={custom.ui}
+				slot={custom.slot}
+				deviceIds={[f.device_id]}
+				value={f.state ?? {}}
+				{onchange}
+				onreject={() => (rejected = true)}
+			/>
 		{:else if device}
 			<label class="kind">
 				<span>{displayName(device)}: what to do</span>
@@ -293,8 +306,16 @@
 			value={f.command}
 			onchange={(v) => set('command', v)}
 		/>
-	{:else if kind === 'together' && wledGroup}
-		<WledStepEdit ids={wledGroup.ids} step={wledGroup.step} {onchange} />
+	{:else if kind === 'together' && group && !rejected}
+		<PluginStep
+			pluginId={group.pluginId}
+			ui={group.found.ui}
+			slot={group.found.slot}
+			deviceIds={group.ids}
+			value={group.value ?? {}}
+			{onchange}
+			onreject={() => (rejected = true)}
+		/>
 	{:else if kind === 'together'}
 		<StepList
 			steps={f.actions ?? []}
@@ -435,11 +456,6 @@
 		font: inherit;
 		font-weight: 600;
 		font-size: 13px;
-	}
-	.quiet {
-		margin: 0;
-		font-size: 13px;
-		color: var(--ink-muted);
 	}
 	.link {
 		align-self: flex-start;

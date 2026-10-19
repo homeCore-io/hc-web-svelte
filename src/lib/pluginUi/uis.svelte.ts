@@ -22,9 +22,17 @@ export interface PluginUi {
 	slots: UiSlot[];
 }
 
+/** What a plugin's `rule.step` element class offers the editor. */
+export interface StepClass {
+	accepts?(value: Record<string, unknown>): boolean;
+	describe?(host: unknown, deviceIds: string[], value: Record<string, unknown>): string | undefined;
+}
+
 class PluginUis {
 	byPlugin = $state<Record<string, PluginUi>>({});
 	loaded = $state(false);
+	/** Each plugin's `rule.step` class, once its module has loaded. */
+	steps = $state<Record<string, StepClass>>({});
 	#started = false;
 
 	ensure(): void {
@@ -51,6 +59,18 @@ class PluginUis {
 			this.byPlugin = Object.fromEntries(
 				list.filter((x) => x.ui.host_api === HOST_API).map((x) => [x.plugin_id, x.ui])
 			);
+			// A step's words are needed wherever an automation is shown, so a
+			// plugin with its own step form is loaded now, not when one opens.
+			for (const [id, ui] of Object.entries(this.byPlugin)) {
+				const slot = ui.slots.find((x) => x.slot === 'rule.step');
+				if (slot)
+					void loadModule(id, ui, slot.element)
+						.then(() => {
+							const cls = customElements.get(slot.element) as unknown as StepClass | undefined;
+							if (cls) this.steps = { ...this.steps, [id]: cls };
+						})
+						.catch(() => {});
+			}
 		} catch {
 			this.byPlugin = {};
 		}
@@ -67,7 +87,7 @@ class PluginUis {
 		const s = ui?.slots.find(
 			(x) =>
 				x.slot === slot &&
-				(slot !== 'device.panel' ||
+				(slot === 'plugin.page' ||
 					!x.device_types?.length ||
 					x.device_types.includes(deviceType ?? ''))
 		);
@@ -99,4 +119,16 @@ export function loadModule(pluginId: string, ui: PluginUi, element: string): Pro
 		loading.set(url, p);
 	}
 	return p.then(() => customElements.whenDefined(element)).then(() => undefined);
+}
+
+/** Every device a step sets — a SetDeviceState, or a Parallel of them — or null. */
+export function stepTargets(action: unknown): string[] | null {
+	if (!action || typeof action !== 'object') return null;
+	const a = action as Record<string, unknown>;
+	const one = a.SetDeviceState as Record<string, unknown> | undefined;
+	if (one && typeof one.device_id === 'string') return [one.device_id];
+	const many = (a.Parallel as { actions?: unknown[] } | undefined)?.actions;
+	if (!Array.isArray(many) || !many.length) return null;
+	const ids = many.map((x) => stepTargets(x));
+	return ids.every((x) => x?.length === 1) ? ids.map((x) => x![0]!) : null;
 }

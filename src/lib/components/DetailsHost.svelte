@@ -10,6 +10,7 @@
 	import { closeDevice } from '#lib/popup.js';
 	import Details from './Details.svelte';
 	import { isWled } from '#lib/wled.js';
+	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
 
 	const id = $derived(page.url.searchParams.get('device'));
 	const device = $derived(id === null ? undefined : devices.byId[id]);
@@ -51,7 +52,8 @@
 
 <dialog
 	bind:this={dialog}
-	class:wide={isWled(device)}
+	class:wide={isWled(device) ||
+		!!pluginUis.find(device?.plugin_id, 'device.panel', device?.device_type)}
 	aria-labelledby="details-title"
 	style:transform={pull > 0 ? `translateY(${pull}px)` : undefined}
 	oncancel={(e) => {

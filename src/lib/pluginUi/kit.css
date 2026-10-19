@@ -1,0 +1,167 @@
+/*
+	The app's parts, as classes, for a plugin's components to adopt into their
+	shadow root (host.theme.sheet). Colours and type come from the app's own
+	custom properties, which reach into a shadow root as they are — so a
+	plugin's screen follows light and dark, and any theme, with the app.
+*/
+:host {
+	display: block;
+	color: var(--ink);
+	font-family: var(--font, inherit);
+	font-size: 15px;
+	line-height: 1.45;
+}
+.hc-card {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 16px;
+	border-radius: var(--radius, 14px);
+	background: var(--surface);
+	border: 1px solid var(--card-line);
+	min-width: 0;
+}
+.hc-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+.hc-head h2,
+.hc-head h3 {
+	margin: 0;
+	font-size: 17px;
+}
+.hc-label {
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	color: var(--ink-muted);
+}
+.hc-num {
+	font-family: var(--font-num, ui-monospace, monospace);
+	font-variant-numeric: tabular-nums;
+}
+.hc-quiet {
+	margin: 0;
+	font-size: 13px;
+	color: var(--ink-muted);
+}
+.hc-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+.hc-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+	gap: 16px;
+	align-items: start;
+}
+.hc-pill {
+	font: inherit;
+	font-size: 14px;
+	min-height: 38px;
+	padding: 0 14px;
+	border-radius: var(--radius-chip, 11px);
+	border: 1px solid var(--line);
+	background: var(--surface);
+	color: var(--ink);
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	text-decoration: none;
+}
+.hc-pill.go {
+	border: none;
+	background: var(--accent);
+	color: var(--accent-ink);
+	font-weight: 600;
+}
+.hc-pill.danger {
+	color: var(--alert);
+	border-color: var(--alert-line, var(--line));
+}
+.hc-pill:disabled {
+	opacity: 0.55;
+	cursor: default;
+}
+.hc-field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+.hc-field input,
+.hc-field select,
+.hc-field textarea {
+	font: inherit;
+	min-height: 38px;
+	border-radius: 9px;
+	border: 1px solid var(--line);
+	background: var(--surface);
+	color: var(--ink);
+	padding: 0 10px;
+	min-width: 0;
+	box-sizing: border-box;
+}
+.hc-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 14px;
+}
+.hc-table th {
+	text-align: left;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--ink-muted);
+	padding: 6px 8px;
+}
+.hc-table td {
+	padding: 8px;
+	border-top: 1px solid var(--card-line);
+	vertical-align: middle;
+}
+.hc-tag {
+	display: inline-block;
+	font-size: 12px;
+	font-weight: 600;
+	border-radius: 6px;
+	padding: 2px 8px;
+	background: var(--surface-2);
+	color: var(--ink);
+}
+.hc-tag.good {
+	background: light-dark(#dcefe0, #1f3a26);
+	color: light-dark(#2f6b3a, #8fd19e);
+}
+.hc-tag.warn {
+	background: var(--lit-bg);
+	color: var(--lit-ink);
+}
+.hc-tag.bad {
+	background: var(--alert-bg, var(--lit-bg));
+	color: var(--alert);
+}
+.hc-dot {
+	display: inline-block;
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: var(--line);
+}
+.hc-dot.good {
+	background: #2f8f4e;
+}
+.hc-dot.warn {
+	background: var(--track-on);
+}
+.hc-dot.bad {
+	background: var(--alert);
+}
+a {
+	color: var(--accent);
+}

@@ -64,6 +64,8 @@
 	}
 	.arrange > .quiet {
 		display: grid;
+		/* A card's one-line text must not set its width (a room's summary). */
+		grid-template-columns: minmax(0, 1fr);
 		outline: 2px dashed var(--line);
 		outline-offset: 2px;
 		border-radius: var(--radius);

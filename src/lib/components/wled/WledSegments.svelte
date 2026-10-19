@@ -58,6 +58,76 @@
 		const start = end < leds ? end : Math.max(0, leds - Math.floor(leds / 4));
 		void commands.send(id, { add_segment: { start, stop: leds } });
 	}
+	// ---- dragging a boundary ----
+	type Move = { id: number; key: 'start' | 'stop' };
+	type Edge = { at: number; moves: Move[]; min: number; max: number; label: string };
+	const edges = $derived.by(() => {
+		const sorted = [...segs].sort((a, b) => a.start - b.start);
+		const out: Edge[] = [];
+		sorted.forEach((s, i) => {
+			const prev = sorted[i - 1];
+			const next = sorted[i + 1];
+			if (!prev || prev.stop !== s.start)
+				out.push({
+					at: s.start,
+					moves: [{ id: s.id, key: 'start' }],
+					min: prev ? prev.stop : 0,
+					max: s.stop - 1,
+					label: `Start of segment ${s.id}`
+				});
+			const shared = next && next.start === s.stop;
+			out.push({
+				at: s.stop,
+				moves: shared
+					? [
+							{ id: s.id, key: 'stop' },
+							{ id: next.id, key: 'start' }
+						]
+					: [{ id: s.id, key: 'stop' }],
+				min: s.start + 1,
+				max: shared ? next.stop - 1 : next ? next.start : leds,
+				label: shared ? `Between segments ${s.id} and ${next.id}` : `End of segment ${s.id}`
+			});
+		});
+		return out;
+	});
+	let drag = $state<{ edge: Edge; at: number } | null>(null);
+	let mapEl = $state<HTMLDivElement | undefined>(undefined);
+	/** The segments as they are, or as a drag is making them. */
+	const shown = $derived(
+		drag
+			? segs.map((s) => {
+					const m = drag!.edge.moves.filter((x) => x.id === s.id);
+					return m.reduce((acc, x) => ({ ...acc, [x.key]: drag!.at }), s);
+				})
+			: segs
+	);
+	const ledAt = (clientX: number, e: Edge) => {
+		const r = mapEl!.getBoundingClientRect();
+		const v = Math.round(((clientX - r.left) / Math.max(1, r.width)) * leds);
+		return Math.max(e.min, Math.min(e.max, v));
+	};
+	function commit() {
+		if (!drag) return;
+		const { edge, at } = drag;
+		drag = null;
+		if (at === edge.at) return;
+		void commands.send(id, { segments: edge.moves.map((m) => ({ id: m.id, [m.key]: at })) });
+	}
+	function grab(e: PointerEvent, edge: Edge) {
+		if (disabled) return;
+		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+		drag = { edge, at: edge.at };
+	}
+	function nudge(e: KeyboardEvent, edge: Edge) {
+		const step = e.shiftKey ? 10 : 1;
+		const d = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+		if (!d || disabled) return;
+		e.preventDefault();
+		const from = drag?.edge.label === edge.label ? drag.at : edge.at;
+		drag = { edge, at: Math.max(edge.min, Math.min(edge.max, from + d)) };
+	}
+
 	const width = (s: Segment) => `${Math.max(2, ((s.stop - s.start) / Math.max(1, leds)) * 100)}%`;
 	const left = (s: Segment) => `${(s.start / Math.max(1, leds)) * 100}%`;
 	const BLEND = [
@@ -85,8 +155,8 @@
 			<span class="label">The strip, LED 0 to {leds - 1}</span>
 			<span class="num">{segs.length} of {max}</span>
 		</div>
-		<div class="map" aria-hidden="true">
-			{#each segs as s (s.id)}
+		<div class="map" bind:this={mapEl}>
+			{#each shown as s (s.id)}
 				<button
 					class="part"
 					class:on={s.id === seg?.id}
@@ -100,8 +170,34 @@
 					onclick={() => (open = s.id)}
 				></button>
 			{/each}
+			{#each edges as e (e.label)}
+				{@const at = drag?.edge.label === e.label ? drag.at : e.at}
+				<span
+					class="edge"
+					class:moving={drag?.edge.label === e.label}
+					style:left={`${(at / Math.max(1, leds)) * 100}%`}
+					role="slider"
+					tabindex={disabled ? -1 : 0}
+					aria-label={e.label}
+					aria-valuemin={e.min}
+					aria-valuemax={e.max}
+					aria-valuenow={at}
+					aria-disabled={disabled}
+					onpointerdown={(ev) => grab(ev, e)}
+					onpointermove={(ev) =>
+						drag?.edge.label === e.label && (drag = { edge: e, at: ledAt(ev.clientX, e) })}
+					onpointerup={commit}
+					onpointercancel={() => (drag = null)}
+					onkeydown={(ev) => nudge(ev, e)}
+					onkeyup={(ev) => (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') && commit()}
+					onblur={commit}
+				>
+					{#if drag?.edge.label === e.label}<span class="at num">{at}</span>{/if}
+				</span>
+			{/each}
 		</div>
 		<div class="ends num"><span>0</span><span>{leds}</span></div>
+		<p class="quiet small">Drag a boundary to move it; gaps between segments stay dark.</p>
 		<div class="row-buttons">
 			<button class="pill" disabled={disabled || segs.length >= max} onclick={addAfter}
 				>Add a segment</button
@@ -314,6 +410,45 @@
 		border: none;
 		border-right: 2px solid var(--sheet);
 		padding: 0;
+	}
+	.edge {
+		user-select: none;
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		width: 16px;
+		margin-left: -8px;
+		cursor: ew-resize;
+		touch-action: none;
+		z-index: 1;
+	}
+	.edge::after {
+		content: '';
+		position: absolute;
+		left: 6px;
+		top: 6px;
+		bottom: 6px;
+		width: 4px;
+		border-radius: 2px;
+		background: var(--sheet);
+		box-shadow: 0 0 0 1px var(--ink-muted);
+	}
+	.edge.moving::after,
+	.edge:focus-visible::after {
+		background: var(--accent);
+	}
+	.edge[aria-disabled='true'] {
+		cursor: default;
+	}
+	.at {
+		position: absolute;
+		top: 2px;
+		left: 14px;
+		padding: 0 4px;
+		border-radius: 4px;
+		background: var(--sheet);
+		color: var(--ink);
+		font-size: 11px;
 	}
 	.part.on {
 		outline: 3px solid var(--accent);

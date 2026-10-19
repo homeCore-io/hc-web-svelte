@@ -23,6 +23,7 @@
 	import { deviceHref } from '#lib/popup.js';
 	import { lifecycle, loadConfig, runAction, saveConfig } from '#lib/pluginAdmin.js';
 	import { isWled, WLED } from '#lib/wled.js';
+	import WledAutoUpdate from '#lib/components/wled/WledAutoUpdate.svelte';
 
 	const list = $derived(
 		Object.values(devices.byId)
@@ -439,6 +440,7 @@
 			<p class="sub">
 				Update all goes one controller at a time and stops at the first that doesn’t come back.
 			</p>
+			<WledAutoUpdate />
 			<div class="row">
 				<span>Backups kept with the plugin</span>
 				<button class="pill" disabled={busy} onclick={listKept}

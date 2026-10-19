@@ -12,6 +12,10 @@
 	import { lifecycle, runAction } from '#lib/pluginAdmin.js';
 	import { wledCatalogs } from '#lib/wledCatalog.svelte.js';
 	import { catalogStorage, presetsOf, WLED } from '#lib/wled.js';
+	import type { Timer } from '#lib/wledSettings.js';
+	import WledSound from './WledSound.svelte';
+	import WledTimers from './WledTimers.svelte';
+	import WledSetup from './WledSetup.svelte';
 
 	let { device, disabled }: { device: CoreDevice; disabled: boolean } = $props();
 
@@ -145,75 +149,7 @@
 	$effect(() => {
 		if (admin) void loadSettings();
 	});
-	type Timer = { en: number; hour: number; min: number; macro: number; dow?: number };
-	const timers = $derived(
-		((sections?.timers as Timer[] | undefined) ?? []).map((t, i) => ({ ...t, i }))
-	);
-	const when = (t: Timer) =>
-		t.hour === 255
-			? 'At sunrise'
-			: t.hour === 254
-				? 'At sunset'
-				: `${String(t.hour).padStart(2, '0')}:${String(t.min).padStart(2, '0')}`;
-	async function saveTimers(list: Timer[]) {
-		const r = await runAction(WLED, 'apply_settings', {
-			device_id: id,
-			settings: { timers: { ins: list } }
-		});
-		settingsError = r.ok ? '' : r.error;
-		await loadSettings();
-	}
-	type Output = {
-		pin?: number[];
-		type?: number;
-		len?: number;
-		start?: number;
-		order?: number;
-		rev?: boolean;
-	};
-	const outputs = $derived((sections?.led_outputs as Output[] | undefined) ?? []);
-	const ORDER = ['GRB', 'RGB', 'BRG', 'RBG', 'BGR', 'GBR'];
-	const powerOnDef = $derived(
-		(sections?.power_on ?? {}) as { ps?: number; on?: boolean; bri?: number }
-	);
-	type Btn = { pin?: number[]; type?: number };
-	const buttons = $derived(
-		((sections?.buttons as Btn[] | undefined) ?? []).filter((b) => (b.type ?? 0) !== 0)
-	);
-	const BUTTON = [
-		'',
-		'',
-		'Push button',
-		'Push button (inverted)',
-		'Switch',
-		'PIR sensor',
-		'Touch',
-		'Analog',
-		'Analog (inverted)',
-		'Touch (switch)',
-		'PIR (inverted)'
-	];
-	type Net = { ins?: { ssid?: string; ip?: number[] }[] };
-	const ssid = $derived(((sections?.network as Net | undefined)?.ins ?? [])[0]?.ssid);
-	const mdns = $derived((sections?.identity as { mdns?: string } | undefined)?.mdns);
-	async function setOutput(i: number, change: Partial<Output>) {
-		const list = outputs.map((o, j) => (j === i ? { ...o, ...change } : o));
-		if (
-			!(await ask({
-				title: 'Change the LED outputs? The controller restarts to take it.',
-				go: 'Change and restart',
-				stay: 'Not now'
-			}))
-		)
-			return;
-		const r = await runAction(WLED, 'apply_settings', {
-			device_id: id,
-			settings: { hw: { led: { ins: list } } },
-			restart: true
-		});
-		settingsError = r.ok ? '' : r.error;
-	}
-
+	const timers = $derived((sections?.timers as Timer[] | undefined) ?? []);
 	// ---- catalogue (admins) ----
 	let catMsg = $state('');
 	async function setCatalog(where: 'controller' | 'app') {
@@ -424,11 +360,7 @@
 						onchange={(e) => commands.act(id, 'set_audio', { audio: e.currentTarget.checked })}
 					/></label
 				>
-				<p class="quiet small">
-					For the effects marked “sound”.{admin && sections?.audio
-						? ' Gain and the microphone are in its setup.'
-						: ''}
-				</p>
+				<p class="quiet small">For the effects marked “sound”.</p>
 			</section>
 		{/if}
 
@@ -453,45 +385,6 @@
 				>{/if}
 			{#if catMsg}<p class="quiet small" role="status">{catMsg}</p>{/if}
 		</section>
-
-		{#if admin}
-			<section class="card">
-				<div class="head"><h3>Timers on the controller</h3></div>
-				<p class="quiet small">
-					These run even when homeCore is down. Automations are usually the better place.
-				</p>
-				{#each timers as t (t.i)}
-					<div class="timer">
-						<label class="check"
-							><input
-								type="checkbox"
-								checked={t.en === 1}
-								onchange={(e) =>
-									saveTimers(
-										timers.map(({ i, ...x }) =>
-											i === t.i ? { ...x, en: e.currentTarget.checked ? 1 : 0 } : x
-										)
-									)}
-							/>{when(t)}</label
-						>
-						<select
-							aria-label="Preset"
-							value={t.macro}
-							onchange={(e) =>
-								saveTimers(
-									timers.map(({ i, ...x }) =>
-										i === t.i ? { ...x, macro: Number(e.currentTarget.value) } : x
-									)
-								)}
-						>
-							<option value={0}>No preset</option>
-							{#each presets as p (p.id)}<option value={p.id}>{p.name}</option>{/each}
-						</select>
-					</div>
-				{/each}
-				{#if !sections}<p class="quiet small">{settingsError || 'Reading its settings…'}</p>{/if}
-			</section>
-		{/if}
 	</div>
 
 	{#if admin}
@@ -562,87 +455,17 @@
 			{#if fwMsg}<p class="quiet small" role="status">{fwMsg}</p>{/if}
 		</section>
 
-		<section class="card">
-			<div class="head">
-				<h3>Setup</h3>
-				<span class="num">changes restart the controller</span>
-			</div>
-			{#if sections}
-				<div class="table">
-					<div class="tr label">
-						<span>Pin</span><span>LEDs</span><span>Starts at</span><span>Colour order</span><span
-							>Reversed</span
-						>
-					</div>
-					{#each outputs as o, i (i)}
-						<div class="tr">
-							<span class="num">{(o.pin ?? []).join(', ')}</span>
-							<input
-								type="number"
-								min="1"
-								value={o.len ?? 0}
-								onchange={(e) => setOutput(i, { len: Number(e.currentTarget.value) })}
-							/>
-							<input
-								type="number"
-								min="0"
-								value={o.start ?? 0}
-								onchange={(e) => setOutput(i, { start: Number(e.currentTarget.value) })}
-							/>
-							<select
-								value={o.order ?? 0}
-								onchange={(e) => setOutput(i, { order: Number(e.currentTarget.value) })}
-							>
-								{#each ORDER as name, n (name)}<option value={n}>{name}</option>{/each}
-							</select>
-							<input
-								type="checkbox"
-								checked={o.rev === true}
-								onchange={(e) => setOutput(i, { rev: e.currentTarget.checked })}
-							/>
-						</div>
-					{/each}
-				</div>
-				<dl>
-					<div>
-						<dt>Power limit</dt>
-						<dd>
-							{Number(sections.power_limit_ma ?? 0) > 0 ? `${sections.power_limit_ma} mA` : 'None'}
-						</dd>
-					</div>
-					<div>
-						<dt>At power-on</dt>
-						<dd>
-							{powerOnDef.on ? 'Comes on' : 'Stays off'}{powerOnDef.ps
-								? `, ready with ${presets.find((p) => p.id === powerOnDef.ps)?.name ?? `preset ${powerOnDef.ps}`}`
-								: ''}
-						</dd>
-					</div>
-					<div>
-						<dt>Buttons</dt>
-						<dd>
-							{buttons.length
-								? buttons
-										.map(
-											(b) => `${BUTTON[b.type ?? 0] ?? 'Button'} on pin ${(b.pin ?? []).join(', ')}`
-										)
-										.join('; ')
-								: 'None'}
-						</dd>
-					</div>
-					<div>
-						<dt>WiFi</dt>
-						<dd>{ssid ?? '—'} · {a.wifi_signal_pct ?? '—'}% · channel {a.wifi_channel ?? '—'}</dd>
-					</div>
-					<div>
-						<dt>Address</dt>
-						<dd>{a.ip ?? '—'}{mdns ? ` · ${mdns}.local` : ''}</dd>
-					</div>
-				</dl>
-			{:else}
-				<p class="quiet small">{settingsError || 'Reading its settings…'}</p>
+		{#if sections}
+			{#if a.has_audio === true && sections.audio}
+				<WledSound deviceId={id} audio={sections.audio as never} reload={loadSettings} />
 			{/if}
-		</section>
+			<WledTimers deviceId={id} {timers} {presets} reload={loadSettings} />
+			<WledSetup deviceId={id} {sections} {presets} attrs={a} reload={loadSettings} />
+		{:else}
+			<section class="card">
+				<p class="quiet small">{settingsError || 'Reading its settings…'}</p>
+			</section>
+		{/if}
 
 		<section class="card">
 			<div class="head">
@@ -836,13 +659,6 @@
 		border: 2px solid var(--accent);
 		background: var(--lit-bg);
 	}
-	.timer {
-		display: flex;
-		justify-content: space-between;
-		gap: 10px;
-		align-items: center;
-		border-top: 1px solid var(--card-line);
-	}
 	.facts {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -855,37 +671,6 @@
 	}
 	.facts b {
 		font-size: 18px;
-	}
-	.table {
-		display: flex;
-		flex-direction: column;
-		gap: 6px;
-		overflow-x: auto;
-	}
-	.tr {
-		display: grid;
-		grid-template-columns: 60px repeat(3, minmax(80px, 1fr)) 70px;
-		gap: 8px;
-		align-items: center;
-		min-width: 460px;
-	}
-	dl {
-		margin: 0;
-		display: grid;
-		gap: 6px;
-	}
-	dl div {
-		display: flex;
-		justify-content: space-between;
-		gap: 12px;
-		font-size: 14px;
-	}
-	dt {
-		color: var(--ink-muted);
-	}
-	dd {
-		margin: 0;
-		text-align: right;
 	}
 	.row-buttons {
 		display: flex;

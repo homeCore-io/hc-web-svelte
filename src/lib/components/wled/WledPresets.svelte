@@ -143,6 +143,26 @@
 		});
 		message = r.ok ? 'Presets restored.' : r.error;
 	}
+	// One preset: a duplicate here, or onto another controller.
+	let oneTo = $state('');
+	let oneMsg = $state('');
+	async function copyOne() {
+		if (!chosen || !oneTo) return;
+		const here = oneTo === id;
+		const to = here ? device : others.find((o) => o.device_id === oneTo);
+		if (!to) return;
+		const r = await runAction(WLED, 'copy_preset', {
+			from_device_id: id,
+			to_device_id: to.device_id,
+			preset_id: chosen.id
+		});
+		if (!r.ok) return void (oneMsg = r.error);
+		const at = r.data.kind === 'reply' ? (r.data.reply as { preset_id?: number }).preset_id : '';
+		oneMsg = here
+			? `Duplicated “${chosen.name}” into slot ${at}.`
+			: `Copied “${chosen.name}” to ${to.name_override ?? to.name}, slot ${at}.`;
+		oneTo = '';
+	}
 	async function copy() {
 		const to = others.find((o) => o.device_id === copyTo);
 		if (!to) return;
@@ -288,7 +308,20 @@
 					{#if usedBy.length === 0}<span class="quiet small">No automation applies it.</span>{/if}
 					{#each usedBy as r (r.id)}<a href={`/settings/automations/${r.id}`}>{r.name}</a>{/each}
 				</div>
-				<button class="pill danger" {disabled} onclick={remove}>Delete</button>
+				<div class="row-buttons">
+					{#if session.isAdmin}
+						<select bind:value={oneTo} aria-label="Copy this preset">
+							<option value="">Copy it…</option>
+							<option value={id}>Duplicate it here</option>
+							{#each others as o (o.device_id)}<option value={o.device_id}
+									>To {o.name_override ?? o.name}</option
+								>{/each}
+						</select>
+						<button class="pill" disabled={!oneTo} onclick={copyOne}>Copy</button>
+					{/if}
+					<button class="pill danger" {disabled} onclick={remove}>Delete</button>
+				</div>
+				{#if oneMsg}<p class="quiet small" role="status">{oneMsg}</p>{/if}
 			</section>
 		{/if}
 	</div>

@@ -6,6 +6,7 @@
 	editor's (A3).
 -->
 <script lang="ts">
+	import { alertKinds } from '#lib/alertKinds.svelte.js';
 	import { onMount } from 'svelte';
 	import { core } from '#lib/core.svelte.js';
 	import { page } from '$app/state';
@@ -127,7 +128,8 @@
 	});
 
 	const rule = $derived(all?.find((r) => r.id === id));
-	const house = $derived(houseOf(devices.byId, scenes.list, all ?? []));
+	const house = $derived(houseOf(devices.byId, scenes.list, all ?? [], alertKinds.list));
+	$effect(() => alertKinds.ensure());
 	const row = $derived(rule ? rowsOf([rule], house, {}, byMode)[0] : undefined);
 	const reading = $derived(rule ? readRule(house, rule) : null);
 	const words = $derived(rule ? sentence(house, rule) : []);

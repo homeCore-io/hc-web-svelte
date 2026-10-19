@@ -28,10 +28,13 @@
 	import Toggle from './Toggle.svelte';
 	import { goAhead } from '#lib/ask.js';
 	import { core } from '#lib/core.svelte.js';
+	import { isWled } from '#lib/wled.js';
+	import WledPanel from './wled/WledPanel.svelte';
 
 	let { device, onclose }: { device: CoreDevice; onclose: () => void } = $props();
 
 	const id = $derived(device.device_id);
+	const wled = $derived(isWled(device));
 	const view = $derived(detailsFor(device, Object.values(devices.byId), clock.now));
 	const pending = $derived(commands.pending[id]);
 	const card = $derived(withPending(view.card, pending));
@@ -304,252 +307,261 @@
 		{/if}
 	{/each}
 
-	<!-- Everything else it can be set to. -->
-	{#each view.controls as c (c.attr)}
-		{#if c.kind === 'toggle'}
-			<div class="row">
-				<span>{c.label}</span>
-				<Toggle
-					on={want(c.attr, c.value) === true}
-					label={c.label}
-					disabled={off}
-					onchange={(on) => set({ [c.attr]: on })}
-				/>
-			</div>
-		{:else if c.kind === 'slider'}
-			<BigBar
-				label={c.label}
-				value={Number(want(c.attr, c.value))}
-				min={c.min}
-				max={c.max}
-				step={c.step}
-				unit={c.unit}
-				disabled={off}
-				oncommit={(v) => set({ [c.attr]: v })}
-			/>
-		{:else if c.kind === 'choice'}
-			<div class="field">
-				<span class="label">{c.label}</span>
-				{#if c.options.length <= 5}
-					<div class="steps" role="radiogroup" aria-label={c.label}>
-						{#each c.options as o (o.value)}
-							<button
-								role="radio"
-								aria-checked={want(c.attr, c.value) === o.value}
-								disabled={off}
-								onclick={() => set({ [c.attr]: o.value })}
-								>{#if drawn(o.icon)}<Icon name={o.icon} size={16} />{/if}{o.label}</button
-							>
-						{/each}
-					</div>
-				{:else}
-					<select
-						aria-label={c.label}
+	{#if wled}
+		<!-- A WLED controller: its own panel, every control it has. -->
+		<WledPanel {device} disabled={off} />
+	{:else}
+		<!-- Everything else it can be set to. -->
+		{#each view.controls as c (c.attr)}
+			{#if c.kind === 'toggle'}
+				<div class="row">
+					<span>{c.label}</span>
+					<Toggle
+						on={want(c.attr, c.value) === true}
+						label={c.label}
 						disabled={off}
-						value={String(want(c.attr, c.value))}
-						onchange={(ev) => set({ [c.attr]: ev.currentTarget.value })}
-					>
-						{#each c.options as o (o.value)}<option value={o.value}>{o.label}</option>{/each}
-					</select>
-				{/if}
-			</div>
-		{:else if c.kind === 'colour'}
-			<div class="field">
-				<span class="label">{c.label}</span>
-				<div class="swatches">
-					{#each SWATCHES as [label, css, xy] (label)}
-						<button
-							class="swatch"
-							style:background={css}
-							aria-label={label}
-							aria-pressed={near(c.value, xy)}
-							disabled={off}
-							onclick={() => set({ [c.attr]: xy, on: true })}
-						></button>
-					{/each}
+						onchange={(on) => set({ [c.attr]: on })}
+					/>
 				</div>
-			</div>
-		{:else if c.kind === 'rgb'}
-			<label class="field inline">
-				<span class="label">{c.label}</span>
-				<input
-					type="color"
-					value={c.hex}
-					disabled={off}
-					onchange={(ev) => set({ [c.attr]: rgbValue(ev.currentTarget.value, c.shape) })}
-				/>
-			</label>
-		{:else if c.kind === 'number'}
-			<form
-				class="field inline"
-				onsubmit={(ev) => {
-					ev.preventDefault();
-					const v = new FormData(ev.currentTarget).get('v');
-					if (v !== null && String(v) !== '') set({ [c.attr]: Number(v) });
-				}}
-			>
-				<label class="label" for={`n-${c.attr}`}>{c.label}</label>
-				<input
-					id={`n-${c.attr}`}
-					name="v"
-					type="number"
+			{:else if c.kind === 'slider'}
+				<BigBar
+					label={c.label}
+					value={Number(want(c.attr, c.value))}
 					min={c.min}
 					max={c.max}
-					step={c.step ?? 'any'}
-					value={c.value ?? ''}
+					step={c.step}
+					unit={c.unit}
 					disabled={off}
+					oncommit={(v) => set({ [c.attr]: v })}
 				/>
-				{#if c.unit}<span class="unit">{c.unit}</span>{/if}
-				<button class="pill" disabled={off}>Set</button>
-			</form>
-		{:else if c.kind === 'text'}
-			<form
-				class="field inline"
-				onsubmit={(ev) => {
-					ev.preventDefault();
-					const v = new FormData(ev.currentTarget).get('v');
-					set({ [c.attr]: String(v ?? '') });
-				}}
-			>
-				<label class="label" for={`t-${c.attr}`}>{c.label}</label>
-				<input id={`t-${c.attr}`} name="v" value={c.value} disabled={off} />
-				<button class="pill" disabled={off}>Set</button>
-			</form>
-		{/if}
-	{/each}
-
-	<!-- What it can do, by the plugin's own grouping. -->
-	{#snippet group(g: (typeof view.groups)[number])}
-		<div class="actions">
-			{#each g.actions as a (a.id)}
-				{#if a.switch}
-					{@const sw = a.switch}
-					<label class="check switch"
-						><input
-							type="checkbox"
+			{:else if c.kind === 'choice'}
+				<div class="field">
+					<span class="label">{c.label}</span>
+					{#if c.options.length <= 5}
+						<div class="steps" role="radiogroup" aria-label={c.label}>
+							{#each c.options as o (o.value)}
+								<button
+									role="radio"
+									aria-checked={want(c.attr, c.value) === o.value}
+									disabled={off}
+									onclick={() => set({ [c.attr]: o.value })}
+									>{#if drawn(o.icon)}<Icon name={o.icon} size={16} />{/if}{o.label}</button
+								>
+							{/each}
+						</div>
+					{:else}
+						<select
+							aria-label={c.label}
 							disabled={off}
-							checked={Boolean(values[a.id]?.[sw.name] ?? sw.on)}
-							onchange={async (ev) => {
-								field(a.id, sw.name, ev.currentTarget.checked);
-								await run(a);
-								// Back to showing the reading, which the device now reports.
-								const { [a.id]: _done, ...rest } = values;
-								values = rest;
-							}}
-						/>
-						{a.label}</label
-					>
-				{:else if a.fields.every((f) => f.optional) && !opened[a.id]}
-					<span class="plainact">
-						<button class="pill" disabled={off} title={a.description} onclick={() => run(a)}
-							>{ran === a.id ? 'Done' : a.label}</button
+							value={String(want(c.attr, c.value))}
+							onchange={(ev) => set({ [c.attr]: ev.currentTarget.value })}
 						>
-						{#if a.fields.length}<button
-								type="button"
-								class="more"
-								aria-label={`${a.label}: its settings`}
-								onclick={() => (opened = { ...opened, [a.id]: true })}>⋯</button
-							>{/if}
-					</span>
-				{:else}
-					<form
-						class="action"
-						onsubmit={(ev) => {
-							ev.preventDefault();
-							void run(a);
-						}}
-					>
-						{#each a.fields.filter((f) => !f.optional || opened[a.id]) as f (f.name)}
-							{#if f.kind === 'choice'}
-								<select
-									aria-label={f.label}
-									value={String(values[a.id]?.[f.name] ?? f.value)}
-									onchange={(ev) => field(a.id, f.name, ev.currentTarget.value)}
-								>
-									{#if f.optional}<option value="">{f.label}: as it sees fit</option>{/if}
-									{#each f.options as o (o.value)}<option value={o.value}>{o.label}</option>{/each}
-								</select>
-							{:else if f.kind === 'number'}
-								{@const n = Number(values[a.id]?.[f.name] ?? f.value)}
-								{@const per = f.duration ? (units[`${a.id}.${f.name}`] ?? 1) : 1}
-								<input
-									type="number"
-									aria-label={f.label}
-									placeholder={f.optional ? `${f.label} (optional)` : f.label}
-									min={f.min === undefined ? undefined : f.min / per}
-									max={f.max === undefined ? undefined : f.max / per}
-									step="any"
-									value={Number.isNaN(n) ? '' : n / per}
-									oninput={(ev) =>
-										field(
-											a.id,
-											f.name,
-											ev.currentTarget.value === ''
-												? Number.NaN
-												: Math.round(Number(ev.currentTarget.value) * per)
-										)}
-								/>
-								{#if f.duration}
-									<select
-										aria-label={`${f.label}: unit`}
-										value={String(per)}
-										onchange={(ev) =>
-											(units = { ...units, [`${a.id}.${f.name}`]: Number(ev.currentTarget.value) })}
-									>
-										<option value="1">s</option>
-										<option value="60">min</option>
-										<option value="3600">h</option>
-									</select>
-								{/if}
-							{:else if f.kind === 'toggle'}
-								<label class="check"
-									><input
-										type="checkbox"
-										checked={Boolean(values[a.id]?.[f.name] ?? f.value)}
-										onchange={(ev) => field(a.id, f.name, ev.currentTarget.checked)}
-									/>
-									{f.label}</label
-								>
-							{:else}
-								<input
-									aria-label={f.label}
-									placeholder={f.optional ? `${f.label} (optional)` : f.label}
-									value={String(values[a.id]?.[f.name] ?? f.value)}
-									oninput={(ev) => field(a.id, f.name, ev.currentTarget.value)}
-								/>
-							{/if}
+							{#each c.options as o (o.value)}<option value={o.value}>{o.label}</option>{/each}
+						</select>
+					{/if}
+				</div>
+			{:else if c.kind === 'colour'}
+				<div class="field">
+					<span class="label">{c.label}</span>
+					<div class="swatches">
+						{#each SWATCHES as [label, css, xy] (label)}
+							<button
+								class="swatch"
+								style:background={css}
+								aria-label={label}
+								aria-pressed={near(c.value, xy)}
+								disabled={off}
+								onclick={() => set({ [c.attr]: xy, on: true })}
+							></button>
 						{/each}
-						<button class="pill" disabled={off || !ready(a, values[a.id] ?? {})}
-							>{ran === a.id ? 'Done' : a.label}</button
-						>
-						{#if a.fields.some((f) => f.optional) && !opened[a.id]}<button
-								type="button"
-								class="more"
-								aria-label={`${a.label}: more settings`}
-								onclick={() => (opened = { ...opened, [a.id]: true })}>⋯</button
-							>{/if}
-						{#if a.description}<p class="what">{a.description}</p>{/if}
-					</form>
-				{/if}
-			{/each}
-		</div>
-	{/snippet}
+					</div>
+				</div>
+			{:else if c.kind === 'rgb'}
+				<label class="field inline">
+					<span class="label">{c.label}</span>
+					<input
+						type="color"
+						value={c.hex}
+						disabled={off}
+						onchange={(ev) => set({ [c.attr]: rgbValue(ev.currentTarget.value, c.shape) })}
+					/>
+				</label>
+			{:else if c.kind === 'number'}
+				<form
+					class="field inline"
+					onsubmit={(ev) => {
+						ev.preventDefault();
+						const v = new FormData(ev.currentTarget).get('v');
+						if (v !== null && String(v) !== '') set({ [c.attr]: Number(v) });
+					}}
+				>
+					<label class="label" for={`n-${c.attr}`}>{c.label}</label>
+					<input
+						id={`n-${c.attr}`}
+						name="v"
+						type="number"
+						min={c.min}
+						max={c.max}
+						step={c.step ?? 'any'}
+						value={c.value ?? ''}
+						disabled={off}
+					/>
+					{#if c.unit}<span class="unit">{c.unit}</span>{/if}
+					<button class="pill" disabled={off}>Set</button>
+				</form>
+			{:else if c.kind === 'text'}
+				<form
+					class="field inline"
+					onsubmit={(ev) => {
+						ev.preventDefault();
+						const v = new FormData(ev.currentTarget).get('v');
+						set({ [c.attr]: String(v ?? '') });
+					}}
+				>
+					<label class="label" for={`t-${c.attr}`}>{c.label}</label>
+					<input id={`t-${c.attr}`} name="v" value={c.value} disabled={off} />
+					<button class="pill" disabled={off}>Set</button>
+				</form>
+			{/if}
+		{/each}
 
-	<!-- The first two groups open; the rest folded, so a TV's thirty actions
+		<!-- What it can do, by the plugin's own grouping. -->
+		{#snippet group(g: (typeof view.groups)[number])}
+			<div class="actions">
+				{#each g.actions as a (a.id)}
+					{#if a.switch}
+						{@const sw = a.switch}
+						<label class="check switch"
+							><input
+								type="checkbox"
+								disabled={off}
+								checked={Boolean(values[a.id]?.[sw.name] ?? sw.on)}
+								onchange={async (ev) => {
+									field(a.id, sw.name, ev.currentTarget.checked);
+									await run(a);
+									// Back to showing the reading, which the device now reports.
+									const { [a.id]: _done, ...rest } = values;
+									values = rest;
+								}}
+							/>
+							{a.label}</label
+						>
+					{:else if a.fields.every((f) => f.optional) && !opened[a.id]}
+						<span class="plainact">
+							<button class="pill" disabled={off} title={a.description} onclick={() => run(a)}
+								>{ran === a.id ? 'Done' : a.label}</button
+							>
+							{#if a.fields.length}<button
+									type="button"
+									class="more"
+									aria-label={`${a.label}: its settings`}
+									onclick={() => (opened = { ...opened, [a.id]: true })}>⋯</button
+								>{/if}
+						</span>
+					{:else}
+						<form
+							class="action"
+							onsubmit={(ev) => {
+								ev.preventDefault();
+								void run(a);
+							}}
+						>
+							{#each a.fields.filter((f) => !f.optional || opened[a.id]) as f (f.name)}
+								{#if f.kind === 'choice'}
+									<select
+										aria-label={f.label}
+										value={String(values[a.id]?.[f.name] ?? f.value)}
+										onchange={(ev) => field(a.id, f.name, ev.currentTarget.value)}
+									>
+										{#if f.optional}<option value="">{f.label}: as it sees fit</option>{/if}
+										{#each f.options as o (o.value)}<option value={o.value}>{o.label}</option
+											>{/each}
+									</select>
+								{:else if f.kind === 'number'}
+									{@const n = Number(values[a.id]?.[f.name] ?? f.value)}
+									{@const per = f.duration ? (units[`${a.id}.${f.name}`] ?? 1) : 1}
+									<input
+										type="number"
+										aria-label={f.label}
+										placeholder={f.optional ? `${f.label} (optional)` : f.label}
+										min={f.min === undefined ? undefined : f.min / per}
+										max={f.max === undefined ? undefined : f.max / per}
+										step="any"
+										value={Number.isNaN(n) ? '' : n / per}
+										oninput={(ev) =>
+											field(
+												a.id,
+												f.name,
+												ev.currentTarget.value === ''
+													? Number.NaN
+													: Math.round(Number(ev.currentTarget.value) * per)
+											)}
+									/>
+									{#if f.duration}
+										<select
+											aria-label={`${f.label}: unit`}
+											value={String(per)}
+											onchange={(ev) =>
+												(units = {
+													...units,
+													[`${a.id}.${f.name}`]: Number(ev.currentTarget.value)
+												})}
+										>
+											<option value="1">s</option>
+											<option value="60">min</option>
+											<option value="3600">h</option>
+										</select>
+									{/if}
+								{:else if f.kind === 'toggle'}
+									<label class="check"
+										><input
+											type="checkbox"
+											checked={Boolean(values[a.id]?.[f.name] ?? f.value)}
+											onchange={(ev) => field(a.id, f.name, ev.currentTarget.checked)}
+										/>
+										{f.label}</label
+									>
+								{:else}
+									<input
+										aria-label={f.label}
+										placeholder={f.optional ? `${f.label} (optional)` : f.label}
+										value={String(values[a.id]?.[f.name] ?? f.value)}
+										oninput={(ev) => field(a.id, f.name, ev.currentTarget.value)}
+									/>
+								{/if}
+							{/each}
+							<button class="pill" disabled={off || !ready(a, values[a.id] ?? {})}
+								>{ran === a.id ? 'Done' : a.label}</button
+							>
+							{#if a.fields.some((f) => f.optional) && !opened[a.id]}<button
+									type="button"
+									class="more"
+									aria-label={`${a.label}: more settings`}
+									onclick={() => (opened = { ...opened, [a.id]: true })}>⋯</button
+								>{/if}
+							{#if a.description}<p class="what">{a.description}</p>{/if}
+						</form>
+					{/if}
+				{/each}
+			</div>
+		{/snippet}
+
+		<!-- The first two groups open; the rest folded, so a TV's thirty actions
 	     are all there without being a wall of buttons. -->
-	{#each view.groups as g, i (g.title)}
-		{#if i < 2}
-			<section>
-				<h3 class="section-label">{g.title}</h3>
-				{@render group(g)}
-			</section>
-		{:else}
-			<details class="group">
-				<summary>{g.title}</summary>
-				{@render group(g)}
-			</details>
-		{/if}
-	{/each}
+		{#each view.groups as g, i (g.title)}
+			{#if i < 2}
+				<section>
+					<h3 class="section-label">{g.title}</h3>
+					{@render group(g)}
+				</section>
+			{:else}
+				<details class="group">
+					<summary>{g.title}</summary>
+					{@render group(g)}
+				</details>
+			{/if}
+		{/each}
+	{/if}
 
 	{#if view.readings.length > 0}
 		<section>

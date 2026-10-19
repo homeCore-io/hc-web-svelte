@@ -4,7 +4,7 @@
 -->
 <script lang="ts">
 	import StepEdit from './StepEdit.svelte';
-	import { STEP_KINDS, newStep, type StepKind } from '#lib/ruleEdit.js';
+	import { STEP_KINDS, newStep, offered, type StepKind } from '#lib/ruleEdit.js';
 	import { editor } from './context.js';
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -58,7 +58,7 @@
 	{/each}
 	{#if adding}
 		<div class="menu" role="group" aria-label="What the step does">
-			{#each STEP_KINDS as k (k.kind)}
+			{#each offered(STEP_KINDS, ctx.features) as k (k.kind)}
 				<button type="button" onclick={() => add(k.kind)}
 					><strong>{k.label}</strong>{#if k.sub}<span>{k.sub}</span>{/if}</button
 				>

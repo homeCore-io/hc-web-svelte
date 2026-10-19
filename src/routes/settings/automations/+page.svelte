@@ -5,6 +5,7 @@
 	once — on, off, tag, export, delete; import and export.
 -->
 <script lang="ts">
+	import { alertKinds } from '#lib/alertKinds.svelte.js';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -157,7 +158,8 @@
 		};
 	});
 
-	const house = $derived(houseOf(devices.byId, scenes.list, rules ?? []));
+	const house = $derived(houseOf(devices.byId, scenes.list, rules ?? [], alertKinds.list));
+	$effect(() => alertKinds.ensure());
 	const rows = $derived(rules ? rowsOf(rules, house, runs, byMode) : []);
 	// A set chosen to look at narrows the list to its rules.
 	const setId = $derived(page.url.searchParams.get('set'));

@@ -9,6 +9,7 @@
 	import { stepLine, tagOf } from '#lib/ruleWords.js';
 	import {
 		STEP_KINDS,
+		offered,
 		commandOf,
 		commandable,
 		commandsOf,
@@ -27,6 +28,9 @@
 	import FieldInput from './FieldInput.svelte';
 	import CheckEdit from './CheckEdit.svelte';
 	import Other from './Other.svelte';
+	import AlertPart from './AlertPart.svelte';
+	import WledStepEdit from './WledStepEdit.svelte';
+	import { isWled, stepOf as wledStepOf } from '#lib/wled.js';
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	type Json = any;
@@ -79,6 +83,26 @@
 		const state = keep ? keep.build(current!.values) : (next[0]?.build({}) ?? f.state);
 		onchange({ SetDeviceState: { ...f, device_id: id, state } });
 	}
+
+	// ---- WLED: its own form, on one controller or several at once ----
+	const wled = $derived(device && isWled(device) ? wledStepOf(f.state) : null);
+	/** Steps that run together, each a WLED step on its own controller. */
+	const wledGroup = $derived.by(() => {
+		if (kind !== 'together') return null;
+		const acts: Json[] = f.actions ?? [];
+		if (acts.length < 2) return null;
+		const parts = acts.map((a) => tagOf(a));
+		if (
+			!parts.every(
+				([k, x]) =>
+					k === 'SetDeviceState' && isWled(ctx.house.device(x.device_id)) && !x.track_event_value
+			)
+		)
+			return null;
+		const steps = parts.map(([, x]) => wledStepOf(x.state));
+		if (steps.some((w) => w === null || w.kind !== steps[0]!.kind)) return null;
+		return { ids: parts.map(([, x]) => x.device_id as string), step: steps[0]! };
+	});
 
 	// ---- if / otherwise ----
 	const asked = $derived(kind === 'if' ? ifChecks(f.condition) : undefined);
@@ -136,7 +160,9 @@
 			onchange={(e) =>
 				onchange(newStep(e.currentTarget.value as StepKind, ctx.scenes[0]?.id ?? ''))}
 		>
-			{#each STEP_KINDS as k (k.kind)}<option value={k.kind}>{k.label}</option>{/each}
+			{#each offered(STEP_KINDS, ctx.features, kind) as k (k.kind)}<option value={k.kind}
+					>{k.label}</option
+				>{/each}
 		</select>
 	</label>
 	{#if ontoggle}
@@ -147,7 +173,19 @@
 
 	{#if kind === 'device'}
 		<Pick value={f.device_id ?? ''} only={commandable} onchange={setDevice} />
-		{#if device}
+		{#if device && wled && !f.track_event_value}
+			<WledStepEdit ids={[f.device_id]} step={wled} {onchange} />
+		{:else if device && isWled(device) && !f.track_event_value}
+			<p class="quiet">
+				This step says something the WLED form doesn't — it's kept as written (see the JSON tab).
+				<button
+					type="button"
+					class="link"
+					onclick={() => onchange({ SetDeviceState: { ...f, state: { on: true } } })}
+					>Start it again with the WLED form</button
+				>
+			</p>
+		{:else if device}
 			<label class="kind">
 				<span>{displayName(device)}: what to do</span>
 				<select
@@ -255,6 +293,8 @@
 			value={f.command}
 			onchange={(v) => set('command', v)}
 		/>
+	{:else if kind === 'together' && wledGroup}
+		<WledStepEdit ids={wledGroup.ids} step={wledGroup.step} {onchange} />
 	{:else if kind === 'together'}
 		<StepList
 			steps={f.actions ?? []}
@@ -316,6 +356,8 @@
 				addLabel="+ Add a step for otherwise"
 			/>
 		</div>
+	{:else if kind === 'alert'}
+		<AlertPart part="step" {value} {onchange} />
 	{:else if ctx.vocab}
 		<Other {value} {onchange} specs={ctx.vocab.actions} label="Step" />
 	{/if}
@@ -393,6 +435,11 @@
 		font: inherit;
 		font-weight: 600;
 		font-size: 13px;
+	}
+	.quiet {
+		margin: 0;
+		font-size: 13px;
+		color: var(--ink-muted);
 	}
 	.link {
 		align-self: flex-start;

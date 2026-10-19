@@ -52,6 +52,8 @@
 	import ActionRun from '#lib/components/plugins/ActionRun.svelte';
 	import PluginSettings from '#lib/components/plugins/PluginSettings.svelte';
 	import MatterPanel from '#lib/components/plugins/MatterPanel.svelte';
+	import WledControllers from '#lib/components/plugins/WledControllers.svelte';
+	import { WLED } from '#lib/wled.js';
 
 	const id = $derived(page.params.id ?? '');
 	const tab = $derived(page.url.searchParams.get('tab') ?? 'overview');
@@ -427,6 +429,7 @@
 			{/if}
 
 			{#if mine.some((d) => d.device_id === 'matter_controller')}<MatterPanel />{/if}
+			{#if id === WLED}<WledControllers />{/if}
 
 			<section class="card facts">
 				<dl>

@@ -20,6 +20,7 @@
 	import Pick from './Pick.svelte';
 	import FieldInput from './FieldInput.svelte';
 	import Other from './Other.svelte';
+	import AlertPart from './AlertPart.svelte';
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	type Json = any;
@@ -61,7 +62,13 @@
 	const inner = $derived<Json[]>(kind === 'any' ? (f.conditions ?? []) : []);
 	const setInner = (list: Json[]) => onchange({ Or: { conditions: list } });
 	const set = (field: string, v: unknown) => onchange({ [tagOf(value)[0]]: { ...f, [field]: v } });
-	const offered = $derived(CHECK_KINDS.filter((k) => kinds.includes(k.kind) || k.kind === kind));
+	const offered = $derived(
+		CHECK_KINDS.filter(
+			(k) =>
+				(kinds.includes(k.kind) && (k.kind !== 'alert' || ctx.features.alertRules)) ||
+				k.kind === kind
+		)
+	);
 </script>
 
 <Row words={checkPhrase(ctx.house, value)} bind:open {onremove}>
@@ -129,6 +136,8 @@
 			value={f.end}
 			onchange={(v) => set('end', v)}
 		/>
+	{:else if kind === 'alert'}
+		<AlertPart part="check" {value} {onchange} />
 	{:else if kind === 'any'}
 		<div class="inner">
 			{#each inner as c, i (i)}

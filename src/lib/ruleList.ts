@@ -229,7 +229,8 @@ export function onlyTells(r: Rule): boolean {
 export function houseOf(
 	byId: Record<string, CoreDevice>,
 	scenes: { id: string; name: string }[] = [],
-	rules: { id: string; name: string }[] = []
+	rules: { id: string; name: string }[] = [],
+	alertKinds: { plugin_id: string; topic: string; label: string }[] = []
 ): House {
 	const byCanonical = new Map<string, CoreDevice>();
 	const byName = new Map<string, CoreDevice | null>();
@@ -245,7 +246,9 @@ export function houseOf(
 	return {
 		device: (id) => byId[id] ?? byCanonical.get(id) ?? byName.get(nameKey(id)) ?? undefined,
 		scene: (id) => scenes.find((s) => s.id === id)?.name,
-		rule: (id) => rules.find((r) => r.id === id)?.name
+		rule: (id) => rules.find((r) => r.id === id)?.name,
+		alertKind: (plugin, topic) =>
+			alertKinds.find((k) => k.plugin_id === plugin && k.topic === topic)?.label
 	};
 }
 

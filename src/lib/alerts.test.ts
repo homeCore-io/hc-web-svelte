@@ -211,3 +211,53 @@ describe('levels, ignores and acknowledgements (0.1.81)', () => {
 		expect(list[0]!.acknowledged?.by).toBe('sam');
 	});
 });
+
+describe('a plugin’s alerts (homeCore 0.1.85)', () => {
+	const update = {
+		id: 'plugin:plugin.wled:firmware_update:wled_1:17.0.0',
+		kind: 'plugin',
+		device_id: 'wled_1',
+		message: 'Eaves lights: firmware 17.0.0 is out',
+		reason: 'Firmware 17.0.0 is out',
+		severity: 'info',
+		raised_at: '2026-10-18T22:00:00Z',
+		plugin_id: 'plugin.wled',
+		topic: 'firmware_update',
+		key: '17.0.0'
+	} as const;
+
+	it('is ignored by its kind, on its device, or skipped by its key', () => {
+		expect(ignoreFor(update, 'key')).toEqual({
+			kind: 'plugin',
+			plugin_id: 'plugin.wled',
+			topic: 'firmware_update',
+			device_id: 'wled_1',
+			key: '17.0.0'
+		});
+		expect(ignoreFor(update, 'kind')).toEqual({
+			kind: 'plugin',
+			plugin_id: 'plugin.wled',
+			topic: 'firmware_update'
+		});
+		expect(ignoreFor(update, 'device')).toEqual({ device_id: 'wled_1' });
+	});
+
+	it('is described in the plugin’s own words', () => {
+		const label = () => 'Firmware update available';
+		expect(
+			describeIgnore(
+				{
+					id: 'i',
+					plugin_id: 'plugin.wled',
+					topic: 'firmware_update',
+					key: '17.0.0',
+					device_id: 'wled_1'
+				},
+				() => 'Eaves lights',
+				() => undefined,
+				undefined,
+				label
+			)
+		).toBe('Firmware update available about 17.0.0 on Eaves lights');
+	});
+});

@@ -19,6 +19,8 @@
 	import { clock } from '#lib/clock.svelte.js';
 	import { deviceHref, openDevice } from '#lib/popup.js';
 	import Icon from './Icon.svelte';
+	import { alertKinds } from '#lib/alertKinds.svelte.js';
+	import { ask } from '#lib/confirm.svelte.js';
 
 	let { list, act = false }: { list: Alert[]; act?: boolean } = $props();
 
@@ -51,17 +53,23 @@
 		span = '';
 	}
 	const scopes = (a: Alert): { id: IgnoreScope; label: string }[] =>
-		a.kind === 'rule'
+		a.kind === 'plugin'
 			? [
-					{ id: 'this', label: `This rule on ${name(a)}` },
-					{ id: 'kind', label: 'This rule, on every device' },
+					{ id: 'this', label: `${cap(kindLabel(a))} on ${name(a)}` },
+					{ id: 'kind', label: `Every “${kindLabel(a)}”` },
 					{ id: 'device', label: `Everything about ${name(a)}` }
 				]
-			: [
-					{ id: 'this', label: `${cap(KIND_WORDS[a.kind])} on ${name(a)}` },
-					{ id: 'kind', label: `Every ${KIND_WORDS[a.kind]}` },
-					{ id: 'device', label: `Everything about ${name(a)}` }
-				];
+			: a.kind === 'rule'
+				? [
+						{ id: 'this', label: `This rule on ${name(a)}` },
+						{ id: 'kind', label: 'This rule, on every device' },
+						{ id: 'device', label: `Everything about ${name(a)}` }
+					]
+				: [
+						{ id: 'this', label: `${cap(KIND_WORDS[a.kind])} on ${name(a)}` },
+						{ id: 'kind', label: `Every ${KIND_WORDS[a.kind]}` },
+						{ id: 'device', label: `Everything about ${name(a)}` }
+					];
 	const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 	async function ignore(a: Alert) {
 		const until = span ? new Date(clock.now + Number(span) * 86_400_000).toISOString() : undefined;
@@ -90,14 +98,61 @@
 		offline: 'router',
 		jammed: 'lock',
 		low_battery: 'alert',
-		rule: 'alert'
+		rule: 'alert',
+		plugin: 'alert'
 	} as const;
+
+	// ---- a plugin's alerts (homeCore 0.1.85): its button, skipping this one ----
+	const kindLabel = (a: Alert) =>
+		(a.plugin_id && a.topic && alertKinds.label(a.plugin_id, a.topic)) ||
+		(a.topic ?? '').replace(/_/g, ' ');
+	async function press(a: Alert) {
+		if (!a.action) return;
+		if (
+			a.action.confirm &&
+			!(await ask({
+				title: `${a.action.label.replace(/…$/, '')} — ${a.message}?`,
+				go: a.action.label.replace(/…$/, ''),
+				stay: 'Not now'
+			}))
+		)
+			return;
+		try {
+			const r = await fetch(`/api/v1/alerts/${encodeURIComponent(a.id)}/press`, { method: 'POST' });
+			note = r.ok
+				? null
+				: r.status === 403
+					? "You aren't allowed to do this."
+					: `homeCore said ${r.status}.`;
+		} catch {
+			note = 'homeCore is not answering.';
+		}
+	}
+	async function skip(a: Alert) {
+		note = await ignoreAlerts(ignoreFor(a, 'key'));
+	}
+	async function quiet(a: Alert) {
+		if (!a.plugin_id || !a.topic) return;
+		if (
+			!(await ask({
+				title: `Stop alerting about “${kindLabel(a)}”? It stays on the device's own page; turn it back on in Settings › Alerts.`,
+				go: 'Stop',
+				stay: 'Keep them'
+			}))
+		)
+			return;
+		note = await alertKinds.put(a.plugin_id, a.topic, { enabled: false });
+	}
 </script>
 
 {#if note}<p class="note" role="alert">{note}</p>{/if}
 <ul>
 	{#each list as a (a.id)}
-		<li class:critical={a.severity === 'critical'} class:seen={!!a.acknowledged}>
+		<li
+			class:critical={a.severity === 'critical'}
+			class:info={a.severity === 'info'}
+			class:seen={!!a.acknowledged}
+		>
 			<a
 				href={deviceHref(a.device_id, page.url)}
 				onclick={(e) => {
@@ -119,6 +174,15 @@
 			</a>
 			{#if canSee || canIgnore}
 				<div class="acts">
+					{#if a.action && canSee}
+						<button type="button" class="go" onclick={() => press(a)}>{a.action.label}</button>
+					{/if}
+					{#if a.kind === 'plugin' && a.key && canIgnore}
+						<button type="button" onclick={() => skip(a)}>Skip this one</button>
+					{/if}
+					{#if a.kind === 'plugin' && a.topic && canIgnore && session.can('automations:write')}
+						<button type="button" onclick={() => quiet(a)}>Don’t tell me about these</button>
+					{/if}
 					{#if canSee && !a.acknowledged}
 						<button type="button" onclick={() => seen(a)}>Seen</button>
 					{/if}
@@ -280,6 +344,17 @@
 	.critical .icon {
 		background: var(--alert);
 		color: var(--alert-ink);
+	}
+	/* News, not a problem: never red. */
+	.info .icon {
+		background: var(--lit-bg);
+		color: var(--lit-ink);
+	}
+	.acts .go {
+		background: var(--accent);
+		color: var(--accent-ink);
+		border-color: var(--accent);
+		font-weight: 600;
 	}
 	.text {
 		flex: 1;

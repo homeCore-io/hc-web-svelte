@@ -12,6 +12,7 @@
 import { cap, words } from './card.js';
 import { displayName, type AttributeSchema, type CoreDevice, type ParamSpec } from './devices.js';
 import { tagOf, type Rule } from './ruleWords.js';
+import { isWled, presetsOf } from './wled.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Json = any;
@@ -50,6 +51,8 @@ export interface Features {
 	testAt: boolean;
 	/** An if/otherwise can ask any check a rule can (0.1.84). */
 	ifAnyCheck: boolean;
+	/** Alerts start, gate and are acted on by rules (0.1.85). */
+	alertRules: boolean;
 }
 
 export function featuresOf(v: Vocabulary | null | undefined): Features {
@@ -61,7 +64,8 @@ export function featuresOf(v: Vocabulary | null | undefined): Features {
 		ruleEvents: f.has('rule_events'),
 		runNow: f.has('run_now'),
 		testAt: f.has('test_at'),
-		ifAnyCheck: f.has('if_any_check')
+		ifAnyCheck: f.has('if_any_check'),
+		alertRules: f.has('alert_rules')
 	};
 }
 
@@ -187,9 +191,35 @@ export interface Moment {
 
 const key = (v: unknown) => JSON.stringify(v);
 
+const dsc0 = (ids: string[], attribute: string | undefined, to: unknown, f?: number): Json => ({
+	DeviceStateChanged: {
+		device_id: ids[0] ?? '',
+		...(ids.length > 1 ? { device_ids: ids.slice(1) } : {}),
+		...(attribute !== undefined ? { attribute } : {}),
+		...(to !== undefined ? { to } : {}),
+		...(f ? { for_duration_secs: f } : {})
+	}
+});
+
+/** A WLED's preset, playlist, effect and palette are named, not numbered. */
+const WLED_IDS = new Set(['preset_id', 'playlist_id', 'effect_id', 'palette_id', 'main_segment']);
+const idAttr = (d: CoreDevice, name: string) => isWled(d) && WLED_IDS.has(name);
+
 /** Every moment a device offers, in its own words; the first is the likeliest. */
 export function momentsOf(d: CoreDevice): Moment[] {
 	const out: Moment[] = [];
+	if (isWled(d)) {
+		for (const p of presetsOf(d)) {
+			const attr = p.kind === 'playlist' ? 'playlist_id' : 'preset_id';
+			const what = p.kind === 'playlist' ? 'playlist' : 'preset';
+			out.push({
+				key: `to:${attr}:${key(p.id)}`,
+				label: `starts ${what} “${p.name}”`,
+				lasting: true,
+				build: (ids, f) => dsc0(ids, attr, p.id, f.for)
+			});
+		}
+	}
 	const dsc = (ids: string[], attribute: string | undefined, to: unknown, f?: number): Json => ({
 		DeviceStateChanged: {
 			device_id: ids[0] ?? '',
@@ -238,7 +268,7 @@ export function momentsOf(d: CoreDevice): Moment[] {
 					label: `${a.label} ${said}`,
 					build: (ids) => dsc(ids, a.name, v)
 				});
-		} else if (isNum(s)) {
+		} else if (isNum(s) && !idAttr(d, a.name)) {
 			for (const [op, said] of [
 				['CrossesAbove', 'rises above'],
 				['CrossesBelow', 'falls below']
@@ -357,6 +387,16 @@ const OPS: [string, string][] = [
 export function statesOf(d: CoreDevice): State[] {
 	const out: State[] = [];
 	const mode = d.plugin_id === 'core.mode' || d.device_id.startsWith('mode_');
+	if (isWled(d)) {
+		for (const p of presetsOf(d)) {
+			const attr = p.kind === 'playlist' ? 'playlist_id' : 'preset_id';
+			out.push({
+				key: `is:${attr}:${key(p.id)}`,
+				label: `is running ${p.kind === 'playlist' ? 'playlist' : 'preset'} “${p.name}”`,
+				build: (id) => ({ DeviceState: { device_id: id, attribute: attr, op: 'Eq', value: p.id } })
+			});
+		}
+	}
 	for (const a of attrsOf(d)) {
 		const s = a.spec;
 		if (s.kind === 'bool') {
@@ -384,7 +424,7 @@ export function statesOf(d: CoreDevice): State[] {
 						DeviceState: { device_id: id, attribute: a.name, op: 'Eq', value: o.value }
 					})
 				});
-		} else if (isNum(s)) {
+		} else if (isNum(s) && !idAttr(d, a.name)) {
 			for (const [op, said] of OPS)
 				out.push({
 					key: `${op}:${a.name}`,
@@ -405,6 +445,13 @@ export function stateOf(c: Json): { key: string; id: string; value?: number } | 
 	if (kind === 'ModeIs') return { key: `is:on:${key(f.on)}`, id: f.mode_id };
 	if (kind !== 'DeviceState') return undefined;
 	if (f.op === 'Eq' && (typeof f.value === 'boolean' || typeof f.value === 'string'))
+		return { key: `is:${f.attribute}:${key(f.value)}`, id: f.device_id };
+	// A WLED's running preset or playlist, by its number.
+	if (
+		f.op === 'Eq' &&
+		typeof f.value === 'number' &&
+		(f.attribute === 'preset_id' || f.attribute === 'playlist_id')
+	)
 		return { key: `is:${f.attribute}:${key(f.value)}`, id: f.device_id };
 	if (typeof f.value === 'number' && f.op !== 'Eq' && f.op !== 'Ne')
 		return { key: `${f.op}:${f.attribute}`, id: f.device_id, value: f.value };
@@ -760,10 +807,18 @@ export const momentful = (d: CoreDevice) =>
 
 // ---- the kinds offered by name ----
 
-export type WhenKind = 'device' | 'time' | 'sun' | 'mode' | 'start' | 'every' | 'webhook' | 'other';
-export type CheckKind = 'device' | 'mode' | 'time' | 'any' | 'other';
+export type WhenKind =
+	'device' | 'time' | 'sun' | 'mode' | 'start' | 'every' | 'webhook' | 'alert' | 'other';
+export type CheckKind = 'device' | 'mode' | 'time' | 'any' | 'alert' | 'other';
 export type StepKind =
-	'device' | 'scene' | 'wait' | 'notify' | 'if' | 'together' | 'mode' | 'other';
+	'device' | 'scene' | 'wait' | 'notify' | 'if' | 'together' | 'mode' | 'alert' | 'other';
+
+/** The kinds this homeCore offers: the alert ones need `alert_rules`. */
+export const offered = <K extends { kind: string }>(
+	kinds: K[],
+	f: Features,
+	current?: string
+): K[] => kinds.filter((k) => k.kind !== 'alert' || f.alertRules || current === 'alert');
 
 export const WHEN_KINDS: { kind: WhenKind; label: string; sub: string }[] = [
 	{ kind: 'device', label: 'A device changes', sub: 'Opens, turns on, is pressed…' },
@@ -773,6 +828,7 @@ export const WHEN_KINDS: { kind: WhenKind; label: string; sub: string }[] = [
 	{ kind: 'start', label: 'homeCore starts', sub: '' },
 	{ kind: 'every', label: 'Every so often', sub: 'Every 5 minutes, every hour…' },
 	{ kind: 'webhook', label: 'A webhook is called', sub: 'Another service calls an address' },
+	{ kind: 'alert', label: 'An alert', sub: 'Is raised, clears, is seen, lasts…' },
 	{
 		kind: 'other',
 		label: 'Something else',
@@ -785,6 +841,7 @@ export const CHECK_KINDS: { kind: CheckKind; label: string }[] = [
 	{ kind: 'mode', label: 'A mode is on or off' },
 	{ kind: 'time', label: 'It’s between two times' },
 	{ kind: 'any', label: 'Any of these' },
+	{ kind: 'alert', label: 'An alert is (or isn’t) active' },
 	{ kind: 'other', label: 'Something else' }
 ];
 
@@ -796,6 +853,7 @@ export const STEP_KINDS: { kind: StepKind; label: string; sub: string }[] = [
 	{ kind: 'notify', label: 'Tell someone', sub: 'Through a notification channel' },
 	{ kind: 'together', label: 'At the same time', sub: 'Steps that run together' },
 	{ kind: 'mode', label: 'Turn a mode on or off', sub: '' },
+	{ kind: 'alert', label: 'Act on alerts', sub: 'Press its button, wait for it to clear…' },
 	{ kind: 'other', label: 'Something else', sub: 'Repeat, wait for, a script…' }
 ];
 
@@ -808,8 +866,25 @@ export function whenKindOf(t: Json): WhenKind {
 	if (kind === 'SystemStarted') return 'start';
 	if (kind === 'Periodic') return 'every';
 	if (kind === 'WebhookReceived') return 'webhook';
+	if (ALERT_WHENS.has(kind)) return 'alert';
 	return 'other';
 }
+
+export const ALERT_WHENS = new Set([
+	'AlertRaised',
+	'AlertCleared',
+	'AlertAcknowledged',
+	'AlertActiveFor'
+]);
+export const ALERT_CHECKS = new Set(['AlertActive', 'NoAlertActive', 'TriggerAlertActive']);
+export const ALERT_STEPS = new Set([
+	'ForEachAlert',
+	'PressAlert',
+	'WaitAlertCleared',
+	'AcknowledgeAlert',
+	'SkipAlert',
+	'IgnoreAlerts'
+]);
 
 export function checkKindOf(c: Json): CheckKind {
 	const [kind] = tagOf(c);
@@ -817,6 +892,7 @@ export function checkKindOf(c: Json): CheckKind {
 	if (kind === 'DeviceState' && stateOf(c)) return 'device';
 	if (kind === 'TimeWindow') return 'time';
 	if (kind === 'Or') return 'any';
+	if (ALERT_CHECKS.has(kind)) return 'alert';
 	return 'other';
 }
 
@@ -829,6 +905,7 @@ export function stepKindOf(a: Json): StepKind {
 	if (kind === 'Conditional') return 'if';
 	if (kind === 'Parallel') return 'together';
 	if (kind === 'SetMode') return 'mode';
+	if (ALERT_STEPS.has(kind)) return 'alert';
 	return 'other';
 }
 
@@ -880,6 +957,8 @@ export function newWhen(kind: WhenKind): Json {
 			return { Periodic: { every_n: 5, unit: 'Minutes' } };
 		case 'webhook':
 			return { WebhookReceived: { path: webhookName() } };
+		case 'alert':
+			return { AlertRaised: { filter: {} } };
 		default:
 			return 'ManualTrigger';
 	}
@@ -895,6 +974,8 @@ export function newCheck(kind: CheckKind): Json {
 			return { TimeWindow: { start: '22:00:00', end: '06:00:00' } };
 		case 'any':
 			return { Or: { conditions: [] } };
+		case 'alert':
+			return { NoAlertActive: { filter: {} } };
 		default:
 			return { ScriptExpression: { script: 'true' } };
 	}
@@ -916,6 +997,8 @@ export function newStep(kind: StepKind, firstScene = ''): Json {
 			return { Parallel: { actions: [] } };
 		case 'mode':
 			return { SetMode: { mode_id: 'mode_night', command: 'On' } };
+		case 'alert':
+			return { PressAlert: {} };
 		default:
 			return { Comment: { text: '' } };
 	}
@@ -1074,7 +1157,14 @@ function fromRhai(s: string): Json | undefined {
 /** Which kinds of check an if/otherwise can ask on this homeCore. */
 export const ifKinds = (f: Features): CheckKind[] =>
 	f.ifAnyCheck
-		? ['device', 'mode', 'time', 'any', 'other']
+		? [
+				'device',
+				'mode',
+				'time',
+				'any',
+				...(f.alertRules ? (['alert'] as CheckKind[]) : []),
+				'other'
+			]
 		: f.ifChecks
 			? ['device', 'mode', 'time', 'any']
 			: ['device', 'mode'];

@@ -28,9 +28,14 @@ import {
 	webhookName,
 	webhookProblem,
 	newWhen,
+	newStep,
+	offered,
+	checkKindOf,
+	WHEN_KINDS,
 	type Lists,
 	type VariantSpec
 } from './ruleEdit.js';
+import type { CoreDevice } from './devices.js';
 
 const d = (id: string) => DEVICES.find((x) => x.device_id === id)!;
 const labels = (xs: { label: string }[]) => xs.map((x) => x.label);
@@ -229,11 +234,17 @@ test('the rest of the vocabulary, as fields', () => {
 		ruleEvents: true,
 		runNow: false,
 		testAt: false,
-		ifAnyCheck: false
+		ifAnyCheck: false,
+		alertRules: false
 	});
 	expect(
-		featuresOf({ triggers: [], conditions: [], actions: [], features: ['run_now', 'test_at'] })
-	).toMatchObject({ runNow: true, testAt: true });
+		featuresOf({
+			triggers: [],
+			conditions: [],
+			actions: [],
+			features: ['run_now', 'test_at', 'alert_rules']
+		})
+	).toMatchObject({ runNow: true, testAt: true, alertRules: true });
 });
 
 describe('pickers for what a field names', () => {
@@ -496,5 +507,54 @@ describe('a webhook', () => {
 			'A webhook’s name: Leave out the “/” — homeCore matches the name exactly.'
 		]);
 		expect(problemsOf(rule('doorbell'), () => true)).toEqual([]);
+	});
+});
+
+describe('alerts and WLED controllers in rules', () => {
+	const it = test;
+	const wled = {
+		device_id: 'wled_1',
+		name: 'Eaves lights',
+		plugin_id: 'plugin.wled',
+		available: true,
+		attributes: {
+			presets: [
+				{ id: 14, name: 'Halloween 1', kind: 'look' },
+				{ id: 20, name: 'Halloween night', kind: 'playlist' }
+			]
+		},
+		schema: {
+			attributes: {
+				preset_id: { kind: 'integer', writable: true, display_name: 'Preset' },
+				on: { kind: 'bool', writable: true }
+			}
+		}
+	} as unknown as CoreDevice;
+
+	it('a WLED offers its presets and playlists by name, and never “preset rises above”', () => {
+		const m = momentsOf(wled).map((x) => x.label);
+		expect(m).toContain('starts preset “Halloween 1”');
+		expect(m).toContain('starts playlist “Halloween night”');
+		expect(m.some((l) => l.startsWith('preset rises'))).toBe(false);
+		const s = statesOf(wled);
+		const running = s.find((x) => x.label === 'is running preset “Halloween 1”')!;
+		const c = running.build('wled_1', {});
+		expect(c).toEqual({
+			DeviceState: { device_id: 'wled_1', attribute: 'preset_id', op: 'Eq', value: 14 }
+		});
+		expect(stateOf(c)?.key).toBe(running.key);
+	});
+
+	it('the alert kinds are only offered by a homeCore that has them', () => {
+		const on = featuresOf({ triggers: [], conditions: [], actions: [], features: ['alert_rules'] });
+		const off = featuresOf({ triggers: [], conditions: [], actions: [], features: [] });
+		expect(offered(WHEN_KINDS, on).some((k) => k.kind === 'alert')).toBe(true);
+		expect(offered(WHEN_KINDS, off).some((k) => k.kind === 'alert')).toBe(false);
+		// …unless the rule already has one.
+		expect(offered(WHEN_KINDS, off, 'alert').some((k) => k.kind === 'alert')).toBe(true);
+		expect(whenKindOf({ AlertCleared: { filter: {} } })).toBe('alert');
+		expect(checkKindOf('TriggerAlertActive')).toBe('alert');
+		expect(stepKindOf({ ForEachAlert: { filter: {}, actions: [] } })).toBe('alert');
+		expect(newStep('alert')).toEqual({ PressAlert: {} });
 	});
 });

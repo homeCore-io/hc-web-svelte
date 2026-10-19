@@ -14,7 +14,16 @@
 import type { Frame } from './house.js';
 import type { CoreDevice } from './devices.js';
 
-export type AlertKind = 'wet' | 'smoke' | 'offline' | 'jammed' | 'low_battery' | 'rule';
+export type AlertKind = 'wet' | 'smoke' | 'offline' | 'jammed' | 'low_battery' | 'rule' | 'plugin';
+
+/** A plugin alert's button (homeCore 0.1.85): one of the device's actions, or the plugin's. */
+export interface AlertAction {
+	label: string;
+	id: string;
+	target?: 'device' | 'plugin';
+	params?: Record<string, unknown>;
+	confirm?: boolean;
+}
 
 export interface Alert {
 	/** Stable while the condition lasts: `wet:{device}`, `rule:{rule}:{device}`. */
@@ -26,10 +35,16 @@ export interface Alert {
 	message: string;
 	/** The same without the device's name, for its card: "Open after 22:00". */
 	reason: string;
-	severity: 'critical' | 'warning';
+	/** Time rules raise warning or critical; plugins info, warning or error. */
+	severity: 'info' | 'warning' | 'error' | 'critical';
 	raised_at: string;
 	/** Someone has seen it; it stays until it clears. */
 	acknowledged?: { by: string; at: string };
+	/** A plugin's alert: which plugin, which of its kinds, what it's about. */
+	plugin_id?: string;
+	topic?: string;
+	key?: string;
+	action?: AlertAction;
 }
 
 /** Alerts not to show: a kind, a device's, a rule's — or a kind on one device. */
@@ -38,6 +53,10 @@ export interface AlertIgnore {
 	kind?: AlertKind;
 	device_id?: string;
 	rule_id?: string;
+	plugin_id?: string;
+	topic?: string;
+	/** The plugin alert about this (a version): "skip this one". */
+	key?: string;
 	/** Until then; for good when missing. */
 	until?: string;
 	note?: string;
@@ -52,10 +71,11 @@ export const KIND_WORDS: Record<AlertKind, string> = {
 	offline: 'offline',
 	jammed: 'a jammed lock',
 	low_battery: 'low battery',
-	rule: 'a rule’s alert'
+	rule: 'a rule’s alert',
+	plugin: 'a plugin’s alert'
 };
 
-export type IgnoreScope = 'this' | 'kind' | 'device';
+export type IgnoreScope = 'this' | 'kind' | 'device' | 'key';
 
 /**
  * An ignore for an alert: just this (its kind on its device — its rule on
@@ -63,6 +83,22 @@ export type IgnoreScope = 'this' | 'kind' | 'device';
  * rule), or everything about its device.
  */
 export function ignoreFor(a: Alert, scope: IgnoreScope, until?: string): Omit<AlertIgnore, 'id'> {
+	if (a.kind === 'plugin' && a.plugin_id) {
+		const kindOf = {
+			kind: 'plugin' as const,
+			plugin_id: a.plugin_id,
+			...(a.topic ? { topic: a.topic } : {})
+		};
+		const base =
+			scope === 'device'
+				? { device_id: a.device_id }
+				: scope === 'kind'
+					? kindOf
+					: scope === 'key' && a.key
+						? { ...kindOf, device_id: a.device_id, key: a.key }
+						: { ...kindOf, device_id: a.device_id };
+		return until ? { ...base, until } : base;
+	}
 	const by = a.kind === 'rule' && a.rule_id ? { rule_id: a.rule_id } : ({ kind: a.kind } as const);
 	const base =
 		scope === 'device'
@@ -78,13 +114,20 @@ export function describeIgnore(
 	i: AlertIgnore,
 	nameOf: (deviceId: string) => string,
 	ruleOf: (ruleId: string) => string | undefined,
-	untilText?: (iso: string) => string
+	untilText?: (iso: string) => string,
+	topicLabel?: (pluginId: string, topic: string) => string | undefined
 ): string {
 	const device = i.device_id ? nameOf(i.device_id) : undefined;
 	const rule = i.rule_id ? (ruleOf(i.rule_id) ?? 'a deleted rule') : undefined;
 	let s: string;
 	if (rule) s = device ? `“${rule}” on ${device}` : `Everything “${rule}” raises`;
-	else if (i.kind) {
+	else if (i.plugin_id) {
+		const what = i.topic
+			? (topicLabel?.(i.plugin_id, i.topic) ?? i.topic.replace(/_/g, ' '))
+			: `${i.plugin_id.replace(/^plugin\./, '')} alerts`;
+		const W = what.charAt(0).toUpperCase() + what.slice(1);
+		s = `${W}${i.key ? ` about ${i.key}` : ''}${device ? ` on ${device}` : ''}`;
+	} else if (i.kind) {
 		const k = KIND_WORDS[i.kind];
 		const K = k.charAt(0).toUpperCase() + k.slice(1);
 		s = device ? `${K} on ${device}` : `Every ${k === 'smoke' ? 'smoke alert' : k}`;

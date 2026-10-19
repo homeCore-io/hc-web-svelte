@@ -9,6 +9,7 @@
 	import { devices } from '#lib/devices.svelte.js';
 	import { closeDevice } from '#lib/popup.js';
 	import Details from './Details.svelte';
+	import { isWled } from '#lib/wled.js';
 
 	const id = $derived(page.url.searchParams.get('device'));
 	const device = $derived(id === null ? undefined : devices.byId[id]);
@@ -50,6 +51,7 @@
 
 <dialog
 	bind:this={dialog}
+	class:wide={isWled(device)}
 	aria-labelledby="details-title"
 	style:transform={pull > 0 ? `translateY(${pull}px)` : undefined}
 	oncancel={(e) => {
@@ -135,6 +137,10 @@
 		dialog {
 			margin: auto;
 			width: min(520px, 92vw);
+		}
+		/* A WLED controller's panel: effects beside their controls. */
+		dialog.wide {
+			width: min(980px, 96vw);
 			max-height: 86dvh;
 			border-radius: var(--radius-sheet);
 			box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);

@@ -8,6 +8,7 @@
 	import { whenPhrase } from '#lib/ruleWords.js';
 	import {
 		WHEN_KINDS,
+		offered,
 		CHANGE_KIND,
 		keepExtras,
 		momentful,
@@ -26,6 +27,7 @@
 	import Pick from './Pick.svelte';
 	import FieldInput from './FieldInput.svelte';
 	import Other from './Other.svelte';
+	import AlertPart from './AlertPart.svelte';
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	type Json = any;
@@ -100,7 +102,9 @@
 	<label class="kind">
 		<span>When</span>
 		<select value={kind} onchange={(e) => onchange(newWhen(e.currentTarget.value as WhenKind))}>
-			{#each WHEN_KINDS as k (k.kind)}<option value={k.kind}>{k.label}</option>{/each}
+			{#each offered(WHEN_KINDS, ctx.features, kind) as k (k.kind)}<option value={k.kind}
+					>{k.label}</option
+				>{/each}
 		</select>
 	</label>
 
@@ -304,6 +308,8 @@
 				</p>
 			</details>
 		</div>
+	{:else if kind === 'alert'}
+		<AlertPart part="when" {value} {onchange} />
 	{:else if kind === 'other'}
 		{#if ctx.vocab}
 			<Other {value} {onchange} specs={ctx.vocab.triggers} />

@@ -40,6 +40,12 @@ class Commands {
 		return this.#send(id, { action, ...params });
 	}
 
+	/** A command in the device's own words, sent as it is (a WLED look). */
+	async send(id: string, body: Record<string, unknown>): Promise<boolean> {
+		this.#clearNote(id);
+		return this.#send(id, body);
+	}
+
 	/** A homeCore timer's own commands: start, cancel. */
 	async timer(id: string, body: Record<string, unknown>): Promise<boolean> {
 		this.#clearNote(id);

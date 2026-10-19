@@ -15,8 +15,11 @@ RUN npm run build && npm run budget
 
 FROM node:24-alpine
 WORKDIR /app
+# BODY_SIZE_LIMIT: a WLED firmware image (a megabyte or two) is the largest
+# thing anyone sends the UI server — `/ui/wled/firmware/…` passes it on.
 ENV NODE_ENV=production \
     HC_DATA_DIR=/data \
+    BODY_SIZE_LIMIT=8M \
     PORT=3000
 # Everything the app needs is bundled into build/ (all packages are
 # devDependencies), so the runtime is the build plus the UI server's own files.

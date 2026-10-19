@@ -12,6 +12,8 @@
 	is listed here to show again.
 -->
 <script lang="ts">
+	import { alertKinds, pluginName } from '#lib/alertKinds.svelte.js';
+	$effect(() => alertKinds.ensure());
 	import { onMount, tick } from 'svelte';
 	import { onReturn } from '#lib/refresh.js';
 	import Trash from '@lucide/svelte/icons/trash-2';
@@ -388,6 +390,68 @@
 				</form>
 			</section>
 
+			{#if alertKinds.list.length}
+				<section>
+					<h2 class="section-label">Alerts from plugins</h2>
+					<p class="quiet">
+						What each plugin can raise, and what the house does with it: shown as an alert, and sent
+						somewhere. A plugin never raises one as critical.
+					</p>
+					<ul>
+						{#each alertKinds.list as k (k.plugin_id + k.topic)}
+							<li class="kind-row">
+								<span class="text static">
+									<span class="name">{pluginName(k.plugin_id)} · {k.label}</span>
+									<span class="what"
+										>{k.severity === 'info'
+											? 'Information'
+											: k.severity === 'error'
+												? 'Error'
+												: 'Warning'}{k.description ? ` — ${k.description}` : ''}</span
+									>
+								</span>
+								<label class="mini">
+									<span>Show it</span>
+									<select
+										value={k.enabled ? 'on' : 'off'}
+										disabled={!session.can('automations:write')}
+										onchange={async (e) =>
+											(trouble =
+												(await alertKinds.put(k.plugin_id, k.topic, {
+													enabled: e.currentTarget.value === 'on',
+													notify: k.notify ?? null
+												})) ?? '')}
+									>
+										<option value="on">As an alert</option>
+										<option value="off">Off</option>
+									</select>
+								</label>
+								<label class="mini">
+									<span>Also send to</span>
+									<select
+										value={k.notify ?? ''}
+										disabled={!session.can('automations:write')}
+										onchange={async (e) =>
+											(trouble =
+												(await alertKinds.put(k.plugin_id, k.topic, {
+													enabled: k.enabled,
+													notify: e.currentTarget.value || null
+												})) ?? '')}
+									>
+										<option value="">No channel</option>
+										<option value="all">Every channel</option>
+										{#each channels as c (c)}<option value={c}>{c}</option>{/each}
+										{#if k.notify && k.notify !== 'all' && !channels.includes(k.notify)}<option
+												value={k.notify}>{k.notify}</option
+											>{/if}
+									</select>
+								</label>
+							</li>
+						{/each}
+					</ul>
+				</section>
+			{/if}
+
 			{#if ignores !== null}
 				<section>
 					<h2 class="section-label">Ignored</h2>
@@ -403,7 +467,9 @@
 							<li class:off={out}>
 								<span class="text static">
 									<span class="name"
-										>{describeIgnore(i, nameOf, ruleNameOf, day)}{out ? ' — ran out' : ''}</span
+										>{describeIgnore(i, nameOf, ruleNameOf, day, (p, t) =>
+											alertKinds.label(p, t)
+										)}{out ? ' — ran out' : ''}</span
 									>
 									<span class="what"
 										>{[i.note, i.by ? `by ${i.by}` : '', i.created_at ? day(i.created_at) : '']
@@ -429,6 +495,29 @@
 {/if}
 
 <style>
+	.kind-row {
+		flex-wrap: wrap;
+		gap: 10px;
+	}
+	.mini {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		font-size: 12px;
+		font-weight: 600;
+		color: var(--ink-muted);
+	}
+	.mini select {
+		font: inherit;
+		font-size: 14px;
+		font-weight: 400;
+		min-height: 38px;
+		border-radius: 9px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--ink);
+		padding: 0 8px;
+	}
 	.stack {
 		max-width: 640px;
 		display: flex;

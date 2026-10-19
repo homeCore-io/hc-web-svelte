@@ -4,6 +4,12 @@
 	versions, and restarting it.
 -->
 <script lang="ts">
+	import { page } from '$app/state';
+	import { deviceHref } from '#lib/popup.js';
+	import { displayName, type CoreDevice } from '#lib/devices.js';
+	import { commands } from '#lib/commands.svelte.js';
+	import { alertIgnores, ignoreAlerts } from '#lib/admin.js';
+	import type { AlertIgnore } from '#lib/alerts.js';
 	import { onMount } from 'svelte';
 	import { session } from '#lib/me.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
@@ -177,6 +183,49 @@
 		][]
 	);
 
+	// ---- device firmware: what plugins say is out for their devices ----
+	let fwIgnores = $state<AlertIgnore[]>([]);
+	$effect(() => {
+		void alertIgnores().then((l) => (fwIgnores = l ?? []));
+	});
+	const skipped = (d: CoreDevice) =>
+		fwIgnores.some(
+			(i) =>
+				i.topic === 'firmware_update' &&
+				i.key === d.attributes.firmware_latest &&
+				(!i.device_id || i.device_id === d.device_id)
+		);
+	const firmware = $derived(
+		Object.values(devices.byId).filter(
+			(d) => d.attributes.firmware_update_available === true && !skipped(d)
+		)
+	);
+	let fwNote = $state('');
+	async function installFirmware(d: CoreDevice) {
+		const v = String(d.attributes.firmware_latest ?? '');
+		if (
+			!(await ask({
+				title: `Install firmware ${v} on ${displayName(d)}? It goes dark for about a minute; a backup is taken first.`,
+				go: 'Install'
+			}))
+		)
+			return;
+		fwNote = (await commands.act(d.device_id, 'install_firmware', { version: v }))
+			? `Installing ${v} on ${displayName(d)} — its alert says when it's done.`
+			: "It couldn't be asked.";
+	}
+	async function skipFirmware(d: CoreDevice) {
+		const r = await ignoreAlerts({
+			kind: 'plugin',
+			plugin_id: d.plugin_id,
+			topic: 'firmware_update',
+			device_id: d.device_id,
+			key: String(d.attributes.firmware_latest ?? '')
+		});
+		fwNote = r ?? '';
+		fwIgnores = (await alertIgnores()) ?? fwIgnores;
+	}
+
 	// ---- restart ----
 	let restarting = $state<string | null>(null);
 	async function restartNow() {
@@ -338,10 +387,63 @@
 				<span class="sub">Updating is done where homeCore runs, not from here.</span>
 			</p>
 		{/if}
+		{#if firmware.length}
+			<section class="fw">
+				<h2 class="section-label">Device firmware</h2>
+				<ul>
+					{#each firmware as d (d.device_id)}
+						{@const a = d.attributes}
+						<li>
+							<span class="text">
+								<a href={deviceHref(d.device_id, page.url)}>{displayName(d)}</a>
+								<span class="sub mono"
+									>{d.sw_version ?? '?'} → {a.firmware_latest}{a.firmware_status === 'installing'
+										? ' · installing…'
+										: a.firmware_status === 'failed'
+											? ' · the last try failed'
+											: ''}</span
+								>
+							</span>
+							<button
+								class="go"
+								disabled={a.firmware_status === 'installing'}
+								onclick={() => installFirmware(d)}>Update…</button
+							>
+							<button class="plain" onclick={() => skipFirmware(d)}>Skip {a.firmware_latest}</button
+							>
+						</li>
+					{/each}
+				</ul>
+				{#if fwNote}<p class="sub" role="status">{fwNote}</p>{/if}
+			</section>
+		{/if}
 	</div>
 {/if}
 
 <style>
+	.fw ul {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+	.fw li {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 10px;
+		align-items: center;
+		padding: 10px 12px;
+		border: 1px solid var(--card-line);
+		border-radius: var(--radius);
+		background: var(--surface);
+	}
+	.fw .text {
+		flex: 1 1 200px;
+		display: flex;
+		flex-direction: column;
+	}
 	.page {
 		display: flex;
 		flex-direction: column;

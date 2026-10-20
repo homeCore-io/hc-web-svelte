@@ -15,6 +15,7 @@
 	import { rgbValue, actionBody, detailsFor, ready, type ActionView } from '#lib/details.js';
 	import { activityOf, type StateEvent } from '#lib/activity.js';
 	import { withPending } from '#lib/pending.js';
+	import { fromShown, toShown } from '#lib/units.js';
 	import { roomOf } from '#lib/summary.js';
 	import { commands } from '#lib/commands.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
@@ -47,6 +48,13 @@
 	// Offline, or someone who may only look: every control here is still.
 	const off = $derived(!device.available || !session.mayUse);
 	const want = (attr: string, value: unknown) => pending?.want[attr] ?? value;
+	// A number in the person's units (°F) is sent in the schema's (°C), and
+	// one waiting to be confirmed shows back in theirs.
+	const back = (c: { from?: string }, v: number) => (c.from ? fromShown(v, c.from) : v);
+	const wantShown = (c: { attr: string; value: number; from?: string }) => {
+		const w = pending?.want[c.attr];
+		return typeof w === 'number' ? (c.from ? toShown(w, c.from) : w) : c.value;
+	};
 
 	const brightness = $derived(
 		card.extras.find((e) => e.kind === 'slider' && e.attr === 'brightness_pct')
@@ -292,7 +300,7 @@
 				step={e.step}
 				unit={e.unit}
 				disabled={off}
-				oncommit={(v) => set({ [e.attr]: v })}
+				oncommit={(v) => set({ [e.attr]: back(e, v) })}
 			/>
 		{:else if e.kind === 'steps'}
 			<div class="field">
@@ -336,13 +344,13 @@
 			{:else if c.kind === 'slider'}
 				<BigBar
 					label={c.label}
-					value={Number(want(c.attr, c.value))}
+					value={wantShown(c)}
 					min={c.min}
 					max={c.max}
 					step={c.step}
 					unit={c.unit}
 					disabled={off}
-					oncommit={(v) => set({ [c.attr]: v })}
+					oncommit={(v) => set({ [c.attr]: back(c, v) })}
 				/>
 			{:else if c.kind === 'choice'}
 				<div class="field">
@@ -402,7 +410,7 @@
 					onsubmit={(ev) => {
 						ev.preventDefault();
 						const v = new FormData(ev.currentTarget).get('v');
-						if (v !== null && String(v) !== '') set({ [c.attr]: Number(v) });
+						if (v !== null && String(v) !== '') set({ [c.attr]: back(c, Number(v)) });
 					}}
 				>
 					<label class="label" for={`n-${c.attr}`}>{c.label}</label>
@@ -504,9 +512,13 @@
 												f.name,
 												ev.currentTarget.value === ''
 													? Number.NaN
-													: Math.round(Number(ev.currentTarget.value) * per)
+													: f.duration
+														? Math.round(Number(ev.currentTarget.value) * per)
+														: // 70.5 °F stays 70.5: only seconds are whole.
+															Number(ev.currentTarget.value)
 											)}
 									/>
+									{#if f.unit && !f.duration}<span class="unit">{f.unit}</span>{/if}
 									{#if f.duration}
 										<select
 											aria-label={`${f.label}: unit`}
@@ -861,6 +873,9 @@
 		background: var(--surface-2);
 		font-size: 14px;
 		font-weight: 600;
+	}
+	.unit {
+		color: var(--ink-muted);
 	}
 	.action {
 		display: flex;

@@ -32,7 +32,8 @@ const sensor: CoreDevice = {
 it('lists readings primary first and diagnostics last, in words', () => {
 	const r = readingsOf(sensor);
 	expect(r.map((x) => x.attr)).toEqual(['temperature', 'humidity', 'battery_low', 'rssi']);
-	expect(r[0]!.value).toBe('72.3°F');
+	// Reported in °F, read in the person's °C.
+	expect(r[0]!.value).toBe('22.4°C');
 	expect(r[2]).toMatchObject({ label: 'Battery', value: 'Low' });
 });
 

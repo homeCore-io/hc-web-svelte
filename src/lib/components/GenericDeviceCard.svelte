@@ -16,6 +16,7 @@
 	import SkipForward from '@lucide/svelte/icons/skip-forward';
 	import { cardFor, type Control, type Extra } from '#lib/card.js';
 	import { withPending } from '#lib/pending.js';
+	import { fromShown } from '#lib/units.js';
 	import { commands } from '#lib/commands.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import type { CoreDevice } from '#lib/devices.js';
@@ -126,7 +127,9 @@
 		const rest = { ...dragging };
 		delete rest[e.attr];
 		dragging = rest;
-		set({ [e.attr]: value, ...(e.attr === 'brightness_pct' ? { on: true } : {}) });
+		// Shown in the person's unit, sent in the schema's: 70 °F as 21.111 °C.
+		const sent = e.from ? fromShown(value, e.from) : value;
+		set({ [e.attr]: sent, ...(e.attr === 'brightness_pct' ? { on: true } : {}) });
 	}
 </script>
 
@@ -296,7 +299,11 @@
 							onchange={(ev) => release(e, Number(ev.currentTarget.value))}
 						/>
 						<span class="num"
-							>{Math.round(dragging[e.attr] ?? e.value)}{e.unit === '%' ? '%' : ''}</span
+							>{Math.round(dragging[e.attr] ?? e.value)}{e.unit === '%'
+								? '%'
+								: e.unit?.startsWith('°')
+									? e.unit
+									: ''}</span
 						>
 					</label>
 				{:else if e.kind === 'steps'}

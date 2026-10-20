@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { cardFor, epochOf, judgeBatteriesBy, type CardView } from './card.js';
+import { cardFor, epochOf, judgeBatteriesBy, reading, type CardView } from './card.js';
+import { followUnits } from './units.js';
 import { HOUSE, FIXTURE_NOW } from './fixtures/house.js';
-import type { CoreDevice } from './devices.js';
+import type { CoreDevice, Schema } from './devices.js';
 
 const byId = (id: string): CoreDevice => {
 	const d = HOUSE.find((x) => x.device_id === id);
@@ -151,8 +152,34 @@ describe('cards for the kinds in this house (03 §3)', () => {
 	});
 
 	it('readings carry their units, from the schema or a _unit sibling', () => {
-		expect(card('ecowitt_den').stateLine).toBe('70.5°F · 45%');
+		// A device reporting °F reads in °C for someone who reads °C (the tests do).
+		expect(card('ecowitt_den').stateLine).toBe('21.4°C · 45%');
 		expect(card('ecowitt_station').stateLine).toBe('57.7° · 94%');
+	});
+
+	it('readings, and a setpoint’s slider, are in the person’s units', () => {
+		followUnits(() => ({ temperature: 'F', measures: 'us' }));
+		try {
+			expect(card('ecowitt_den').stateLine).toBe('70.5°F · 45%');
+			const s: Schema = {
+				attributes: {
+					temperature: { kind: 'float', writable: false, unit: '°C' },
+					pressure: { kind: 'float', writable: false, unit: 'hPa' },
+					setpoint: { kind: 'float', writable: true, unit: '°C', min: 5, max: 30, step: 0.5 }
+				}
+			};
+			const a = { temperature: 21.5, pressure: 1013.2, setpoint: 21 };
+			expect(reading(a, s, 'temperature')).toBe('70.7°F');
+			expect(reading(a, s, 'pressure')).toBe('29.92 inHg');
+			const c = cardFor(
+				{ ...byId('ecowitt_den'), device_type: 'thermostat', attributes: a, schema: s },
+				FIXTURE_NOW
+			);
+			expect(c.extras[0]).toMatchObject({ min: 41, max: 86, step: 1, unit: '°F', from: '°C' });
+			expect((c.extras[0] as { value: number }).value).toBeCloseTo(69.8);
+		} finally {
+			followUnits(() => ({ temperature: 'C', measures: 'metric' }));
+		}
 	});
 
 	it('a keypad names its last button, by the person’s name for it', () => {

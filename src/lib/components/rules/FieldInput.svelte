@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
 	import type { Field } from '#lib/ruleEdit.js';
+	import { fromShown, shown, shownRange } from '#lib/units.js';
 	import Pick from './Pick.svelte';
 
 	let { field, value, onchange }: { field: Field; value: unknown; onchange: (v: unknown) => void } =
@@ -22,6 +23,11 @@
 	const secs = $derived(typeof value === 'number' ? value / scale : 0);
 	let unit = $state<number | null>(null);
 	const shownUnit = $derived(unit ?? unitOf(secs).secs);
+
+	// A number in a unit the person reads in another — a threshold in °C — is
+	// typed in theirs and kept in the field's: 70 °F is kept as 21.111 °C.
+	const numberUnit = $derived(field.kind === 'number' ? field.unit : undefined);
+	const range = $derived(field.kind === 'number' ? shownRange(field, numberUnit) : {});
 
 	let jsonText = $state<string | null>(null);
 	let jsonError = $state<string | null>(null);
@@ -92,20 +98,20 @@
 			<span class="row">
 				<input
 					type="number"
-					value={typeof value === 'number' ? value : ''}
-					min={field.min}
-					max={field.max}
-					step={field.step ?? 'any'}
+					value={typeof value === 'number' ? shown(value, numberUnit).value : ''}
+					min={range.min}
+					max={range.max}
+					step={range.step ?? 'any'}
 					oninput={(e) =>
 						onchange(
 							e.currentTarget.value === ''
 								? field.optional
 									? undefined
 									: 0
-								: Number(e.currentTarget.value)
+								: fromShown(Number(e.currentTarget.value), numberUnit)
 						)}
 				/>
-				{#if field.unit}<em>{field.unit}</em>{/if}
+				{#if field.unit}<em>{shown(0, numberUnit).unit}</em>{/if}
 			</span>
 		{:else if field.kind === 'duration'}
 			<span class="row">

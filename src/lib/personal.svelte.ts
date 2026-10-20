@@ -5,6 +5,7 @@
  */
 import { addChange, type Change, type PersonDoc } from './layers.js';
 import { Synced } from './synced.svelte.js';
+import { followUnits, unitsOf, type UnitsChoice } from './units.js';
 
 class Personal extends Synced<PersonDoc> {
 	constructor() {
@@ -31,9 +32,24 @@ class Personal extends Synced<PersonDoc> {
 		});
 	}
 
+	/** °F or °C, or US measures or metric; `undefined` back to the browser's. */
+	setUnits(choice: UnitsChoice): Promise<void> {
+		return this.change((d) => {
+			const next = { ...d.units, ...choice };
+			for (const k of Object.keys(next) as (keyof UnitsChoice)[])
+				if (next[k] === undefined) delete next[k];
+			const { units: _drop, ...rest } = d;
+			return Object.keys(next).length > 0 ? { ...rest, units: next } : rest;
+		});
+	}
+
 	isFavourite(ref: string): boolean {
 		return this.doc.favourites?.includes(ref) ?? false;
 	}
 }
 
 export const personal = new Personal();
+
+// Every reading shown reads the person's units from here — and, read inside
+// a component, changes with their choice.
+followUnits(() => unitsOf(personal.doc.units));

@@ -13,6 +13,7 @@
  */
 import type { Frame } from './house.js';
 import type { CoreDevice } from './devices.js';
+import { fromShown, shown, shownUnit } from './units.js';
 
 export type AlertKind = 'wet' | 'smoke' | 'offline' | 'jammed' | 'low_battery' | 'rule' | 'plugin';
 
@@ -263,9 +264,20 @@ export const sameState = (a: Same, b: Same) => {
 	return a.attribute === b.attribute && JSON.stringify(a.value) === JSON.stringify(b.value);
 };
 
-/** A level rule's state in words: "Temperature above 30 °F". */
-export const levelLabel = (c: Pick<StateChoice, 'label' | 'unit'>, n: number) =>
-	`${c.label} ${n}${c.unit ? ` ${c.unit}` : ''}`;
+/**
+ * A level rule's state in words: "Temperature above 86 °F" — `n` as the
+ * person typed it, in their units (`toLevel` keeps it in the schema's).
+ */
+export const levelLabel = (c: Pick<StateChoice, 'label' | 'unit'>, n: number) => {
+	const unit = shownUnit(c.unit);
+	return `${c.label} ${n}${unit ? ` ${unit}` : ''}`;
+};
+
+/** A level rule's line as the person reads it: 30 °C → 86 °F. */
+export const fromLevel = (c: Pick<StateChoice, 'unit'>, value: number) =>
+	shown(value, c.unit).value;
+/** The line they typed, as the rule keeps it: 86 °F → 30 °C. */
+export const toLevel = (c: Pick<StateChoice, 'unit'>, typed: number) => fromShown(typed, c.unit);
 
 /**
  * The devices that can share a rule's state: one rule watches several

@@ -14,6 +14,7 @@ import { session } from '../me.svelte.js';
 import { ask } from '../confirm.svelte.js';
 import { openDevice } from '../popup.js';
 import { lifecycle, loadConfig, runAction, saveConfig } from '../pluginAdmin.js';
+import { fromShown, readingText, shown, units } from '../units.js';
 import type { Device, Host, Result } from './types.js';
 import kit from './kit.css?raw';
 
@@ -193,6 +194,28 @@ export function createHost(pluginId: string): Host {
 			async restartPlugin() {
 				const r = await lifecycle(pluginId, 'restart');
 				return r.ok ? { ok: true, data: undefined } : fail(r.error);
+			}
+		},
+		units: {
+			get temperature() {
+				return units().temperature;
+			},
+			get measures() {
+				return units().measures;
+			},
+			show(value, unit) {
+				const s = shown(value, unit);
+				return { value: s.value, unit: s.unit, text: readingText(value, unit) };
+			},
+			toCore: (value, unit) => fromShown(value, unit),
+			subscribe(f) {
+				// As `devices.subscribe`: now, and whenever the person's choice changes.
+				return $effect.root(() => {
+					$effect(() => {
+						const { temperature, measures } = units();
+						f({ temperature, measures });
+					});
+				});
 			}
 		},
 		ui: {

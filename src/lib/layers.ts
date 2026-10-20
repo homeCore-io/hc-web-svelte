@@ -14,6 +14,8 @@
  * again what the household hid (M3).
  */
 
+import type { UnitsChoice } from './units.js';
+
 export type Form = 'compact' | 'standard' | 'large';
 
 export type Change =
@@ -41,6 +43,8 @@ export interface PersonDoc {
 	theme?: 'system' | 'light' | 'dark';
 	/** A theme other than the house's (D9a). */
 	palette?: string;
+	/** °F or °C, US measures or metric; unset, the browser's (`units.ts`). */
+	units?: UnitsChoice;
 }
 
 /** Whether to ask before a command: always, never, or as the device declares (D2). */

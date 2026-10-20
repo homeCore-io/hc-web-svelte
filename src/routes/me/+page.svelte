@@ -13,6 +13,7 @@
 	import { onMount } from 'svelte';
 	import { core } from '#lib/core.svelte.js';
 	import { browserOf } from '#lib/systemAdmin.js';
+	import { units, type Measures, type TemperatureUnit } from '#lib/units.js';
 
 	// ---- where you're signed in (homeCore 0.1.83) ----
 	interface SignedIn {
@@ -95,6 +96,17 @@
 			return id === undefined ? rest : { ...rest, palette: id };
 		});
 	}
+
+	// ---- units: theirs, else this browser's language says ----
+	const myUnits = $derived(units());
+	const temperatures: { value: TemperatureUnit; label: string }[] = [
+		{ value: 'F', label: '°F' },
+		{ value: 'C', label: '°C' }
+	];
+	const measures: { value: Measures; label: string }[] = [
+		{ value: 'us', label: 'inHg · mph · in' },
+		{ value: 'metric', label: 'hPa · m/s · mm' }
+	];
 
 	const choices: { value: ThemeChoice; label: string }[] = [
 		{ value: 'system', label: 'Like this device' },
@@ -188,6 +200,38 @@
 				</button>
 			{/each}
 		</div>
+	</section>
+
+	<section>
+		<h2 class="section-label" id="units">Units</h2>
+		<p class="note">
+			How readings are shown to you. Only yours — homeCore keeps them in °C and metric.
+		</p>
+		<div class="segmented two" role="radiogroup" aria-label="Temperature">
+			{#each temperatures as c (c.value)}
+				<button
+					role="radio"
+					aria-checked={myUnits.temperature === c.value}
+					onclick={() => void personal.setUnits({ temperature: c.value })}>{c.label}</button
+				>
+			{/each}
+		</div>
+		<div class="segmented two" role="radiogroup" aria-label="Pressure, wind and rain">
+			{#each measures as c (c.value)}
+				<button
+					role="radio"
+					aria-checked={myUnits.measures === c.value}
+					onclick={() => void personal.setUnits({ measures: c.value })}>{c.label}</button
+				>
+			{/each}
+		</div>
+		{#if personal.doc.units !== undefined}
+			<button
+				class="link"
+				onclick={() => void personal.setUnits({ temperature: undefined, measures: undefined })}
+				>Back to this device's language</button
+			>
+		{/if}
 	</section>
 
 	<section>
@@ -360,6 +404,9 @@
 		padding: 4px;
 		border-radius: 26px;
 		background: var(--surface-2);
+	}
+	.segmented.two {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 	.segmented button {
 		height: 40px;

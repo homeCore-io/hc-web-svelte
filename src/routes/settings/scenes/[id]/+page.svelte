@@ -30,9 +30,11 @@
 		settingsOf,
 		shownSettings,
 		stateNow,
-		stepsOf
+		stepsOf,
+		valueText
 	} from '#lib/sceneEdit.js';
 	import { commandsOf } from '#lib/ruleEdit.js';
+	import { fromShown, shownRange, toShown } from '#lib/units.js';
 	import StateEdit from '#lib/components/rules/StateEdit.svelte';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -364,21 +366,24 @@
 										>
 									</div>
 								{:else if s.kind === 'range'}
+									<!-- In the person's units, kept in the schema's: 70 °F set as 21.111 °C. -->
+									{@const r = shownRange(s, s.unit)}
 									<label class="range">
 										<span>{s.label}</span>
 										<input
 											type="range"
-											min={s.min}
-											max={s.max}
-											step={s.step}
-											value={Number(st[s.attr] ?? c.d.attributes[s.attr] ?? s.max)}
+											min={r.min}
+											max={r.max}
+											step={r.step}
+											value={toShown(Number(st[s.attr] ?? c.d.attributes[s.attr] ?? s.max), s.unit)}
 											disabled={st.on === false}
-											oninput={(e) => put(c.id, s.attr, Number(e.currentTarget.value))}
+											oninput={(e) =>
+												put(c.id, s.attr, fromShown(Number(e.currentTarget.value), s.unit))}
 										/>
 										<span class="val"
 											>{st.on === false || st[s.attr] === undefined
 												? '—'
-												: `${st[s.attr]}${s.unit ? ` ${s.unit}` : ''}`}</span
+												: valueText(s, st[s.attr])}</span
 										>
 									</label>
 									{#if st[s.attr] !== undefined && st.on !== false}

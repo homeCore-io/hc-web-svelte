@@ -4,6 +4,8 @@
 	reads at most so many rows; when it stops short, the chart says so.
 -->
 <script lang="ts">
+	import { placesOf, shownUnit, toShown } from '#lib/units.js';
+
 	const DAY = 24 * 3600_000;
 	let {
 		deviceId,
@@ -91,7 +93,9 @@
 			points.length > 0 || !Number.isFinite(now) || end !== undefined
 				? points
 				: [{ t: until - span, v: now }];
-		return series.length === 0 ? null : draw(series);
+		if (series.length === 0) return null;
+		// In the person's units: a day of °C drawn and labelled in °F.
+		return draw(bool ? series : series.map((p) => ({ t: p.t, v: toShown(p.v, unit) })));
 	});
 
 	function draw(points: Point[]) {
@@ -124,7 +128,11 @@
 		d += `H${W}`;
 		return { bands: [], line: d, min: Math.min(...vs), max: Math.max(...vs) };
 	}
-	const fmt = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
+	const shownAs = $derived(shownUnit(unit));
+	const fmt = (v: number) => {
+		const p = placesOf(shownAs) ?? 1;
+		return Number.isInteger(v) ? String(v) : v.toFixed(Math.max(1, p));
+	};
 	/** An end that isn't now, as a day: "Tue 14 Oct". */
 	const day = (t: number) =>
 		new Date(t).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
@@ -138,10 +146,10 @@
 			<span class="num range"
 				>{fmt(shape.min) === fmt(shape.max)
 					? fmt(shape.min)
-					: `${fmt(shape.min)}–${fmt(shape.max)}`}{unit === '%'
+					: `${fmt(shape.min)}–${fmt(shape.max)}`}{shownAs === '%'
 					? '%'
-					: unit
-						? ` ${unit}`
+					: shownAs
+						? ` ${shownAs}`
 						: ''}</span
 			>
 		{/if}

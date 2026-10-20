@@ -14,6 +14,7 @@
 <script lang="ts">
 	import { alertKinds, pluginName } from '#lib/alertKinds.svelte.js';
 	$effect(() => alertKinds.ensure());
+	import { readingText, shownUnit } from '#lib/units.js';
 	import { onMount, tick } from 'svelte';
 	import { onReturn } from '#lib/refresh.js';
 	import Trash from '@lucide/svelte/icons/trash-2';
@@ -29,6 +30,8 @@
 		devicesFor,
 		levelChoices,
 		levelLabel,
+		fromLevel,
+		toLevel,
 		ranOut,
 		ruleName,
 		sameState,
@@ -162,7 +165,9 @@
 		until = r.until ?? '';
 		forMinutes = r.for_minutes ?? null;
 		critical = r.severity === 'critical';
-		level = r.op === 'above' || r.op === 'below' ? Number(r.value) : null;
+		// The line in the person's units: a rule kept at 30 °C is changed as 86 °F.
+		const unit = devices.byId[r.device_ids[0] ?? '']?.schema?.attributes?.[r.attribute]?.unit;
+		level = r.op === 'above' || r.op === 'below' ? fromLevel({ unit }, Number(r.value)) : null;
 		notify = r.notify ?? '';
 		// A name its maker typed stays theirs; one the app made follows the rule.
 		const made = [
@@ -190,7 +195,7 @@
 			enabled: editing?.enabled ?? true,
 			device_ids: picked,
 			attribute: chosen.attribute,
-			value: chosen.op ? level : chosen.value,
+			value: chosen.op && level !== null ? toLevel(chosen, level) : chosen.value,
 			// Only a level says how it compares: an older homeCore never sees `op`.
 			...(chosen.op ? { op: chosen.op } : {}),
 			...(newer ? { notify: notify || null } : {}),
@@ -241,7 +246,7 @@
 		<p class="quiet">
 			Something wet, smoke, a device offline, a lock jammed or a battery low is always an alert.
 			Rules add the ones that depend on the time or a reading — a door open at night, a lock left
-			open{newer ? ', a freezer warmer than −10 °C' : ''}.
+			open{newer ? `, a freezer warmer than ${readingText(-10, '°C').replace('-', '−')}` : ''}.
 		</p>
 
 		{#if rules === null}
@@ -313,7 +318,7 @@
 								type="number"
 								step="any"
 								bind:value={level}
-								placeholder={chosen.unit ?? 'a number'}
+								placeholder={shownUnit(chosen.unit) ?? 'a number'}
 								aria-label="The line"
 							/>
 						</label>

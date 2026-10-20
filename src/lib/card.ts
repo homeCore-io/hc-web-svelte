@@ -10,6 +10,7 @@
  * data — including that no card offers a control a device doesn't declare.
  */
 import { remaining } from './helpers.js';
+import { isTemperature, numberText, shown, shownRange, toShown } from './units.js';
 import { displayName, type AttributeSchema, type CoreDevice, type Schema } from './devices.js';
 
 export type IconName =
@@ -91,7 +92,10 @@ export type Extra =
 			min: number;
 			max: number;
 			step: number;
+			/** The unit shown — the person's, e.g. °F. */
 			unit?: string;
+			/** The schema's unit when the slider is in another: what it sends is turned back. */
+			from?: string;
 	  }
 	| { kind: 'steps'; attr: string; label: string; value: string; options: string[] }
 	| { kind: 'transport'; previous?: string; next?: string }
@@ -551,17 +555,27 @@ function pushSlider(
 ): void {
 	const spec = s.attributes[attr];
 	if (!spec?.writable) return;
-	const min = spec.min ?? 0;
-	const max = spec.max ?? 100;
+	// In the person's units: a setpoint in °F, sent back in °C.
+	const r = shownRange(
+		{
+			min: spec.min ?? 0,
+			max: spec.max ?? 100,
+			step: spec.step ?? (spec.kind === 'color_temp' ? 50 : 1)
+		},
+		spec.unit
+	);
+	const at = shown(0, spec.unit);
+	const value = num(a[attr]);
 	v.extras.push({
 		kind: 'slider',
 		attr,
 		label: name,
-		value: num(a[attr]) ?? min,
-		min,
-		max,
-		step: spec.step ?? (spec.kind === 'color_temp' ? 50 : 1),
-		unit: spec.unit
+		value: value === undefined ? r.min! : toShown(value, spec.unit),
+		min: r.min!,
+		max: r.max!,
+		step: r.step!,
+		unit: at.unit,
+		...(at.converted ? { from: spec.unit } : {})
 	});
 }
 
@@ -615,11 +629,13 @@ export function reading(a: Record<string, unknown>, s: Schema, name: string): st
 		return cap(said ?? (value ? words(name) : `Not ${words(name).toLowerCase()}`));
 	}
 	if (typeof value === 'number') {
-		const unit = spec?.unit ?? str(a[`${name}_unit`]);
-		if (name === 'temperature' || name.endsWith('_temperature'))
-			return `${fmt(value)}°${unitLetter(unit)}`;
-		if (unit === '%') return `${fmt(value)}%`;
-		return unit ? `${fmt(value)} ${unit}` : fmt(value);
+		// In the person's units: °F or °C, inHg or hPa.
+		const r = shown(value, spec?.unit ?? str(a[`${name}_unit`]));
+		const n = numberText(r, fmt);
+		if (name === 'temperature' || name.endsWith('_temperature') || isTemperature(r.unit))
+			return `${n}°${unitLetter(r.unit)}`;
+		if (r.unit === '%') return `${n}%`;
+		return r.unit ? `${n} ${r.unit}` : n;
 	}
 	if (typeof value === 'string')
 		// An address is said as it is, never capitalised or split into words.

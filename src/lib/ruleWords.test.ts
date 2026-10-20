@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { DEVICES, RULES } from './fixtures/rules.js';
 import { houseOf } from './ruleList.js';
+import { followUnits } from './units.js';
 import {
 	checkPhrase,
 	duration,
@@ -182,6 +183,17 @@ test('scripts it can’t read stay as written', () => {
 	expect(plain(readScript(h, 'device_state("zz_air")["temperature"] > 21.5')!)).toBe(
 		'Den Air is above 21.5 °C'
 	);
+});
+
+test('a threshold kept in °C reads in the person’s units', () => {
+	followUnits(() => ({ temperature: 'F', measures: 'us' }));
+	try {
+		expect(plain(readScript(h, 'device_state("zz_air")["temperature"] > 21.111')!)).toBe(
+			'Den Air is above 70 °F'
+		);
+	} finally {
+		followUnits(() => ({ temperature: 'C', measures: 'metric' }));
+	}
 });
 
 test('durations', () => {

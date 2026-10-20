@@ -22,5 +22,8 @@ export default defineConfig({
 		sveltekit({ adapter: adapter({ out: 'build' }) })
 	],
 	server: { port: 5180, strictPort: true },
-	test: { include: ['src/**/*.test.ts', 'server/**/*.test.js'] }
+	test: {
+		include: ['src/**/*.test.ts', 'server/**/*.test.js'],
+		setupFiles: ['src/lib/testSetup.ts']
+	}
 });

@@ -14,6 +14,7 @@
  */
 import { cap, words } from './card.js';
 import { displayName, type AttributeSchema, type CoreDevice, type ParamSpec } from './devices.js';
+import { numberText, shown } from './units.js';
 
 /** One piece of a phrase: plain words, a device by name, or text as written. */
 export interface Bit {
@@ -136,7 +137,9 @@ export function valueText(spec: AttributeSchema | undefined, v: Json): string {
 		// A number the device names (a WLED preset, an effect): its name.
 		const opt = spec?.options?.find((o) => typeof o !== 'string' && o.value === String(v));
 		if (opt !== undefined && typeof opt !== 'string' && opt.label) return `“${opt.label}”`;
-		return `${fmtNum(v)}${spec?.unit ? ` ${spec.unit}` : ''}`;
+		// In the person's units: a threshold kept in °C reads in °F.
+		const s = shown(v, spec?.unit);
+		return `${numberText(s, fmtNum)}${s.unit ? ` ${s.unit}` : ''}`;
 	}
 	if (typeof v === 'string') {
 		const opt = spec?.options?.find((o) => (typeof o === 'string' ? o : o.value) === v);
@@ -292,8 +295,10 @@ function paramText(p: ParamSpec | undefined, v: Json): string {
 	if (v === undefined) return '…';
 	const opt = p?.options?.find((o) => String(o.value) === String(v));
 	if (opt?.label) return opt.label;
-	if (typeof v === 'number')
-		return `${fmtNum(v)}${p?.unit && p.unit !== '%' ? ` ${p.unit}` : p?.unit === '%' ? ' %' : ''}`;
+	if (typeof v === 'number') {
+		const s = shown(v, p?.unit);
+		return `${numberText(s, fmtNum)}${s.unit ? ` ${s.unit}` : ''}`;
+	}
 	if (typeof v === 'string') return p?.kind === 'enum' ? words(v) : `“${v}”`;
 	return JSON.stringify(v);
 }

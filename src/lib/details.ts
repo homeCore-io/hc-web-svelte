@@ -16,6 +16,7 @@
  * would choose and order these parts rather than replace the generator.
  */
 import { cardFor, kindOf, reading, type CardView } from './card.js';
+import { fromShown, placesOf, shown, shownRange, toShown } from './units.js';
 import {
 	displayName,
 	type AttributeSchema,
@@ -41,7 +42,10 @@ export type DetailControl =
 			min: number;
 			max: number;
 			step: number;
+			/** The unit shown — the person's, e.g. °F. */
 			unit?: string;
+			/** The schema's unit when shown in another: what is sent is turned back. */
+			from?: string;
 	  }
 	| { kind: 'choice'; attr: string; label: string; value: string; options: Option[] }
 	| { kind: 'colour'; attr: string; label: string; value: { x: number; y: number } | null }
@@ -57,6 +61,7 @@ export type DetailControl =
 			max?: number;
 			step?: number;
 			unit?: string;
+			from?: string;
 	  }
 	| { kind: 'text'; attr: string; label: string; value: string };
 
@@ -81,6 +86,8 @@ export type Field = Optional &
 				min?: number;
 				max?: number;
 				unit?: string;
+				/** The parameter's unit when shown in the person's: what is sent is turned back. */
+				from?: string;
 				/** Seconds, entered as s, min or h. */
 				duration?: boolean;
 		  }
@@ -238,30 +245,44 @@ function controlFor(
 			return { kind: 'toggle', attr: name, label, value: value === true };
 		case 'integer':
 		case 'float':
-		case 'color_temp':
-			if (spec.min === undefined || spec.max === undefined)
-				return spec.kind === 'color_temp'
-					? undefined
-					: {
-							kind: 'number',
-							attr: name,
-							label,
-							value: typeof value === 'number' ? value : null,
-							min: spec.min,
-							max: spec.max,
-							step: spec.step,
-							unit: spec.unit
-						};
+		case 'color_temp': {
+			// In the person's units — a setpoint in °F — and sent back in the schema's.
+			const at = shown(0, spec.unit);
+			const unit = { unit: at.unit, ...(at.converted ? { from: spec.unit } : {}) };
+			const now = typeof value === 'number' ? toShown(value, spec.unit) : undefined;
+			if (spec.min === undefined || spec.max === undefined) {
+				if (spec.kind === 'color_temp') return undefined;
+				const r = shownRange(spec, spec.unit);
+				return {
+					kind: 'number',
+					attr: name,
+					label,
+					value: typeof value === 'number' ? shown(value, spec.unit).value : null,
+					min: r.min,
+					max: r.max,
+					step: r.step,
+					...unit
+				};
+			}
+			const r = shownRange(
+				{
+					min: spec.min,
+					max: spec.max,
+					step: spec.step ?? (spec.kind === 'color_temp' ? 50 : spec.kind === 'integer' ? 1 : 0.1)
+				},
+				spec.unit
+			);
 			return {
 				kind: 'slider',
 				attr: name,
 				label: spec.kind === 'color_temp' ? 'Warmth' : label,
-				value: typeof value === 'number' ? value : spec.min,
-				min: spec.min,
-				max: spec.max,
-				step: spec.step ?? (spec.kind === 'color_temp' ? 50 : spec.kind === 'integer' ? 1 : 0.1),
-				unit: spec.unit
+				value: now ?? r.min!,
+				min: r.min!,
+				max: r.max!,
+				step: r.step!,
+				...unit
 			};
+		}
 		case 'enum':
 			return {
 				kind: 'choice',
@@ -331,7 +352,11 @@ function groupsOf(d: CoreDevice, s: Schema, all: CoreDevice[]): ActionGroup[] {
 						: d.schema?.attributes?.[p.name] !== undefined
 							? d.attributes[p.name]
 							: undefined;
-				const valued = now === undefined ? f : withValue(f, now);
+				// In the person's units: a parameter standing in for a °C reading
+				// is in °C too, though only the reading says so.
+				const stands = action.writes && (params.length === 1 || p.name === action.writes);
+				const unit = p.unit ?? (stands ? s.attributes[action.writes!]?.unit : undefined);
+				const valued = inShown(now === undefined ? f : withValue(f, now), unit);
 				if (p.required) return valued;
 				// Optional with nothing to start from: empty, so it isn't sent.
 				const empty =
@@ -370,6 +395,23 @@ function groupsOf(d: CoreDevice, s: Schema, all: CoreDevice[]): ActionGroup[] {
 	return [...groups.entries()]
 		.sort(([x], [y]) => rank(x) - rank(y) || x.localeCompare(y))
 		.map(([title, actions]) => ({ title, actions }));
+}
+
+/** A number field in the person's units, when `unit` is one they read in another. */
+function inShown(f: Field, unit: string | undefined): Field {
+	if (f.kind !== 'number' || f.duration || placesOf(unit) === undefined) return f;
+	// Its own unit: only read to its places — 21.111 °C, kept from 70 °F, as 21.1.
+	if (!shown(0, unit).converted)
+		return Number.isNaN(f.value) ? f : { ...f, value: shown(f.value, unit).value };
+	const r = shownRange(f, unit);
+	return {
+		...f,
+		value: Number.isNaN(f.value) ? f.value : shown(f.value, unit).value,
+		min: r.min,
+		max: r.max,
+		unit: shown(0, unit).unit,
+		from: unit
+	};
 }
 
 /** A field holding a device's current value, where it can. */
@@ -468,7 +510,12 @@ export function actionBody(
 			(v === '' || v === undefined || v === null || (typeof v === 'number' && Number.isNaN(v)))
 		)
 			continue;
-		body[f.name] = f.kind === 'choice' && f.numeric ? Number(v) : v;
+		body[f.name] =
+			f.kind === 'choice' && f.numeric
+				? Number(v)
+				: f.kind === 'number' && f.from && typeof v === 'number'
+					? fromShown(v, f.from)
+					: v;
 	}
 	return body;
 }

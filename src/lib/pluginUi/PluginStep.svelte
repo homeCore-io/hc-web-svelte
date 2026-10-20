@@ -7,6 +7,7 @@
 	shown instead (`onreject`).
 -->
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { devices } from '#lib/devices.svelte.js';
 	import { createHost } from './host.svelte.js';
 	import {
@@ -40,8 +41,21 @@
 	let box = $state<HTMLDivElement | undefined>(undefined);
 	let el = $state<PluginElement | undefined>(undefined);
 
+	// Made again only for another plugin, element or build (see PluginSlot);
+	// the step and its devices are told to the element below.
+	const tag = $derived(slot.element);
+	const build = $derived(ui.build);
+	// A prop reads through to what the caller built it from (a whole device);
+	// a derived only changes when the value does.
+	const plugin = $derived(pluginId);
+
 	$effect(() => {
 		if (!box) return;
+		void [plugin, tag, build];
+		return untrack(mount);
+	});
+
+	function mount() {
 		let gone = false;
 		const listen = (e: Event) => {
 			const action = (e as CustomEvent<{ action?: Json }>).detail?.action;
@@ -74,7 +88,7 @@
 			box?.replaceChildren();
 			el = undefined;
 		};
-	});
+	}
 	// A change made here, or elsewhere: told, not recreated.
 	$effect(() => {
 		if (!el) return;
@@ -86,7 +100,12 @@
 <div class="slot" bind:this={box}></div>
 
 <style>
+	/* A plugin's form has a row of its own in the step, under the step's
+	   kind and device, whatever lays those out. */
 	.slot {
 		min-width: 0;
+		flex: 1 0 100%;
+		grid-column: 1 / -1;
+		width: 100%;
 	}
 </style>

@@ -5,6 +5,7 @@
 	instead.
 -->
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { createHost } from './host.svelte.js';
 	import { loadModule, type PluginUi, type UiSlot } from './uis.svelte.js';
 	import type { PluginElement } from './types.js';
@@ -37,9 +38,22 @@
 	let el = $state<PluginElement | undefined>(undefined);
 	let failed = $state('');
 
+	// Made again only for another plugin, element or build — not each time
+	// the list of plugin screens is read again, which hands over equal but
+	// new objects; anything else is told to the element below.
+	const tag = $derived(element ?? slot.element);
+	const build = $derived(ui.build);
+	// A prop reads through to what the caller built it from (a whole device);
+	// a derived only changes when the value does.
+	const plugin = $derived(pluginId);
+
 	$effect(() => {
 		if (!box) return;
-		const tag = element ?? slot.element;
+		void [plugin, tag, build];
+		return untrack(() => mount(tag));
+	});
+
+	function mount(tag: string) {
 		const listen = (e: Event) =>
 			onchange?.((e as CustomEvent<Record<string, unknown>>).detail ?? {});
 		let gone = false;
@@ -67,7 +81,7 @@
 			box?.replaceChildren();
 			el = undefined;
 		};
-	});
+	}
 	// A different device, size or settings: told, not recreated.
 	$effect(() => {
 		if (!el) return;

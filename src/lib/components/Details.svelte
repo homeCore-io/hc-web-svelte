@@ -41,6 +41,14 @@
 	const custom = $derived(pluginUis.find(device.plugin_id, 'device.panel', device.device_type));
 	let customFailed = $state(false);
 	const view = $derived(detailsFor(device, Object.values(devices.byId), clock.now));
+	// A media player's own panel draws what is playing, its transport and
+	// its volume itself; the generic cover, buttons and bars above it would
+	// say them twice. Any other panel sits under the generic main control.
+	const panelPlays = $derived(
+		!!custom &&
+			!customFailed &&
+			(view.card.control?.kind === 'play' || view.card.extras.some((e) => e.kind === 'transport'))
+	);
 	const pending = $derived(commands.pending[id]);
 	const card = $derived(withPending(view.card, pending));
 	const note = $derived(commands.notes[id]);
@@ -149,7 +157,7 @@
 </header>
 
 <div class="body">
-	{#if card.art}
+	{#if card.art && !panelPlays}
 		<!-- Made afresh per track, so one that wouldn't load doesn't hide the next. -->
 		{#key card.art}
 			<img
@@ -242,7 +250,7 @@
 		>
 	{/if}
 
-	{#if card.control?.kind === 'play' || card.extras.some((e) => e.kind === 'transport')}
+	{#if !panelPlays && (card.control?.kind === 'play' || card.extras.some((e) => e.kind === 'transport'))}
 		{@const tr = card.extras.find((e) => e.kind === 'transport')}
 		<div class="transport">
 			{#if tr?.kind === 'transport' && tr.previous}
@@ -290,7 +298,7 @@
 		</div>
 	{/each}
 
-	{#each card.extras as e ('attr' in e ? e.attr : e.kind)}
+	{#each panelPlays ? [] : card.extras as e ('attr' in e ? e.attr : e.kind)}
 		{#if e.kind === 'slider' && e.attr !== 'brightness_pct'}
 			<BigBar
 				label={e.label}

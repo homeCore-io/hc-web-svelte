@@ -28,7 +28,10 @@
 		note = null,
 		onsave,
 		ondiscard,
-		banner
+		banner,
+		whenMark,
+		whenHint,
+		starters
 	}: {
 		draft: Rule;
 		/** The rule as homeCore has it; none for a new one. */
@@ -40,6 +43,12 @@
 		onsave: () => void;
 		ondiscard: () => void;
 		banner?: import('svelte').Snippet;
+		/** A word beside a trigger: "from the alert". */
+		whenMark?: (when: Json, i: number) => string | undefined;
+		/** A line under When. */
+		whenHint?: string;
+		/** Shown in Do while it has no steps: a few to start from, each adding one. */
+		starters?: import('svelte').Snippet<[(step: Json) => void]>;
 	} = $props();
 
 	// ---- what the parts read ----
@@ -55,6 +64,11 @@
 	const words = $derived(sentence(house, draft));
 	const steps = $derived((draft.actions ?? []).map((a) => a.action));
 	const enabled = $derived((draft.actions ?? []).map((a) => a.enabled !== false));
+	let started = $state(false);
+	const startWith = (step: Json) => {
+		started = true;
+		setSteps([step]);
+	};
 	function setSteps(list: Json[]) {
 		const before = draft.actions ?? [];
 		// A step keeps its on/off as it moves; a new one is on.
@@ -244,6 +258,7 @@
 			{#each whens as w, i (i)}
 				<WhenEdit
 					value={w}
+					badge={whenMark?.(w, i)}
 					open={i === whens.length - 1 && tagOf(w)[1].device_id === ''}
 					onchange={(v) => setWhens(whens.map((x, j) => (j === i ? v : x)))}
 					onremove={whens.length > 1 ? () => setWhens(whens.filter((_, j) => j !== i)) : undefined}
@@ -254,6 +269,7 @@
 					>+ Or when…</button
 				>
 			{/if}
+			{#if whenHint}<p class="hint">{whenHint}</p>{/if}
 		</section>
 
 		<section class="part">
@@ -282,7 +298,17 @@
 
 		<section class="part">
 			<h2>Do</h2>
-			<StepList {steps} {enabled} onchange={setSteps} onenabled={setEnabled} />
+			{#if starters && steps.length === 0}
+				{@render starters(startWith)}
+			{:else}
+				<StepList
+					{steps}
+					{enabled}
+					openFirst={started}
+					onchange={setSteps}
+					onenabled={setEnabled}
+				/>
+			{/if}
 		</section>
 
 		<details class="more" bind:open={moreOpen}>
@@ -611,6 +637,11 @@
 		text-transform: none;
 		letter-spacing: 0;
 		font-weight: 500;
+	}
+	.hint {
+		margin: 0;
+		font-size: 13px;
+		color: var(--ink-muted);
 	}
 	.add {
 		align-self: flex-start;

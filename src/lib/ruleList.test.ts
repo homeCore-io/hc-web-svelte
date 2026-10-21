@@ -74,8 +74,31 @@ describe('the list', () => {
 	});
 
 	test('chips count what the search leaves', () => {
-		expect(counts(rows, '')).toEqual({ all: 10, attention: 2, off: 2, families: 6 });
+		expect(counts(rows, '')).toEqual({ all: 10, attention: 2, off: 2, families: 6, alerts: 0 });
 		expect(counts(rows, 'pantry').attention).toBe(1);
+	});
+
+	test('started by alerts: its own chip, and a kept rule whose alert was deleted says so', () => {
+		const started = {
+			id: 'r-door',
+			name: 'Door',
+			enabled: true,
+			links: [],
+			other_triggers: 0,
+			waiting: false,
+			alert_deleted: false
+		};
+		const kept = {
+			...RULES[0]!,
+			id: 'r-kept',
+			enabled: false,
+			error: 'its alert was deleted — choose another trigger or delete it'
+		};
+		const list = rowsOf([...RULES, kept], h, {}, {}, { 'r-door': started });
+		expect(list.filter((r) => shows(r, '', 'alerts')).map((r) => r.rule.id)).toEqual(['r-door']);
+		expect(list.find((r) => r.rule.id === 'r-kept')!.trouble).toEqual([
+			'Its alert was deleted — choose another trigger or delete it'
+		]);
 	});
 
 	test('by tag, rooms first, a family in one place, untagged last', () => {

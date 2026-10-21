@@ -35,6 +35,10 @@ export interface House {
 	rule?(id: string): string | undefined;
 	/** A plugin's kind of alert by name: "Firmware update available". */
 	alertKind?(pluginId: string, topic: string): string | undefined;
+	/** A plugin by its name: "YoLink". */
+	plugin?(pluginId: string): string | undefined;
+	/** An alert rule by its name: "Freezer warming up". */
+	alertRule?(id: string): string | undefined;
 	/**
 	 * A step on a plugin's devices in the plugin's own words, with
 	 * `{devices}` where their names go — from its `rule.step` form.
@@ -509,20 +513,34 @@ export function alertFilterPhrase(
 	const many = det === 'many';
 	const filter = (f ?? {}) as Record<string, Json>;
 	const sev = SEVERITY[String(filter.min_severity ?? '')] ?? '';
+	const pname = (id: string) => h.plugin?.(id) ?? id.replace(/^plugin\./, '');
 	let what = '';
 	if (typeof filter.topic === 'string') {
 		const plugin = typeof filter.plugin_id === 'string' ? filter.plugin_id : '';
 		what = (h.alertKind?.(plugin, filter.topic) ?? words(filter.topic)).toLowerCase();
-		if (plugin && !h.alertKind?.(plugin, filter.topic))
-			what = `${plugin.replace(/^plugin\./, '')} ${what}`;
-	} else if (typeof filter.plugin_id === 'string') {
-		what = `${filter.plugin_id.replace(/^plugin\./, '')}`;
-	} else if (typeof filter.kind === 'string') {
+		if (plugin && !h.alertKind?.(plugin, filter.topic)) what = `${pname(plugin)} ${what}`;
+	} else if (typeof filter.rule_id === 'string' && h.alertRule?.(filter.rule_id)) {
+		// One alert rule's: by its name, which says more than "a time-rule alert".
+		what = `“${h.alertRule(filter.rule_id)}”`;
+	} else if (typeof filter.kind === 'string' && filter.kind !== 'plugin') {
 		what = ALERT_KIND[filter.kind] ?? words(filter.kind);
+	} else if (typeof filter.plugin_id === 'string') {
+		what = pname(filter.plugin_id);
 	}
-	const noun = `${sev}${what ? `${what} ` : ''}alert${many ? 's' : ''}`;
+	// homeCore's own kind on one plugin's devices: "an offline alert from YoLink".
+	const from =
+		typeof filter.topic !== 'string' &&
+		typeof filter.kind === 'string' &&
+		filter.kind !== 'plugin' &&
+		typeof filter.plugin_id === 'string'
+			? ` from ${pname(filter.plugin_id)}`
+			: '';
+	const named = what.startsWith('“');
+	const noun = named
+		? `the alert ${what}`
+		: `${sev}${what ? `${what} ` : ''}alert${many ? 's' : ''}${from}`;
 	const article = det === 'no' ? 'no' : /^[aeiou]/i.test(noun) ? 'an' : 'a';
-	const out: Phrase = [t(many || det === 'bare' ? noun : `${article} ${noun}`)];
+	const out: Phrase = [t(named || many || det === 'bare' ? noun : `${article} ${noun}`)];
 	const ids = Array.isArray(filter.device_ids) ? (filter.device_ids as string[]) : [];
 	if (ids.length) out.push(t(' on '), ...devicesPhrase(h, ids, 'or'));
 	if (typeof filter.key === 'string') out.push(t(` about ${filter.key}`));

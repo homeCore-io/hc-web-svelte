@@ -46,6 +46,8 @@ export interface Alert {
 	topic?: string;
 	key?: string;
 	action?: AlertAction;
+	/** The plugin its device belongs to, for every kind (homeCore 0.1.91). */
+	device_plugin_id?: string;
 }
 
 /** Alerts not to show: a kind, a device's, a rule's — or a kind on one device. */

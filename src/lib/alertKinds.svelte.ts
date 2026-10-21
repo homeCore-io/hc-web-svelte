@@ -3,6 +3,8 @@
  * house decided about each — on or off, sent where. Read once while the app
  * is open; the settings that change them reload it.
  */
+import { knownPluginName } from './inventory.js';
+
 export interface AlertKindSetting {
 	plugin_id: string;
 	topic: string;
@@ -27,14 +29,7 @@ export const BUILT_IN_KINDS: { value: string; label: string }[] = [
 /** A plugin's name for a person, from its id. */
 export const pluginName = (id: string): string => {
 	const bare = id.replace(/^plugin\./, '').replace(/^hc-/, '');
-	const known: Record<string, string> = {
-		wled: 'WLED',
-		hue: 'Hue',
-		zwave: 'Z-Wave',
-		roku: 'Roku',
-		sonos: 'Sonos'
-	};
-	return known[bare] ?? bare.charAt(0).toUpperCase() + bare.slice(1);
+	return knownPluginName(bare) ?? bare.charAt(0).toUpperCase() + bare.slice(1);
 };
 
 class AlertKinds {

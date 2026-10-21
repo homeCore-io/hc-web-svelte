@@ -3,6 +3,7 @@
 	"at the same time". Add one by what it does.
 -->
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import StepEdit from './StepEdit.svelte';
 	import { STEP_KINDS, newStep, offered, type StepKind } from '#lib/ruleEdit.js';
 	import { editor } from './context.js';
@@ -14,7 +15,8 @@
 		onchange,
 		enabled,
 		onenabled,
-		addLabel = '+ Add a step'
+		addLabel = '+ Add a step',
+		openFirst = false
 	}: {
 		steps: Json[];
 		onchange: (steps: Json[]) => void;
@@ -22,11 +24,13 @@
 		enabled?: boolean[];
 		onenabled?: (i: number, on: boolean) => void;
 		addLabel?: string;
+		/** Open the first step's form at once: one just chosen to start from. */
+		openFirst?: boolean;
 	} = $props();
 
 	const ctx = editor();
 	let adding = $state(false);
-	let opened = $state<number | null>(null);
+	let opened = $state<number | null>(untrack(() => openFirst) ? 0 : null);
 
 	const move = (i: number, by: number) => {
 		const next = [...steps];

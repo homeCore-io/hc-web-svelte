@@ -6,6 +6,12 @@
 -->
 <script lang="ts">
 	import { alertKinds } from '#lib/alertKinds.svelte.js';
+	import Bell from '@lucide/svelte/icons/bell';
+	import { alertLinks } from '#lib/alertLinks.svelte.js';
+	import { houseNames } from '#lib/alertNames.svelte.js';
+	import { cardLine } from '#lib/alertStarts.js';
+	import { alertRules } from '#lib/admin.js';
+	import type { AlertRule } from '#lib/alerts.js';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -121,8 +127,11 @@
 	// Combining needs several moments per rule and checks in if/otherwise (E2, E3).
 	let canCombine = $state(false);
 
+	let rulesOfAlerts = $state<AlertRule[]>([]);
 	onMount(() => {
 		void load();
+		void alertLinks.load();
+		void alertRules().then((r) => (rulesOfAlerts = r ?? []));
 		void loadVocabulary().then((v) => {
 			const f = featuresOf(v);
 			canCombine = f.triggers && f.ifChecks;
@@ -160,10 +169,12 @@
 	});
 
 	const house = $derived(
-		houseOf(devices.byId, scenes.list, rules ?? [], alertKinds.list, describeStep)
+		houseOf(devices.byId, scenes.list, rules ?? [], alertKinds.list, describeStep, rulesOfAlerts)
 	);
 	$effect(() => alertKinds.ensure());
-	const rows = $derived(rules ? rowsOf(rules, house, runs, byMode) : []);
+	const linksById = $derived(Object.fromEntries(alertLinks.list.map((x) => [x.id, x])));
+	const alertNames = $derived(houseNames(rulesOfAlerts));
+	const rows = $derived(rules ? rowsOf(rules, house, runs, byMode, linksById) : []);
 	// A set chosen to look at narrows the list to its rules.
 	const setId = $derived(page.url.searchParams.get('set'));
 	const lookingAt = $derived(groups.find((g) => g.id === setId));
@@ -185,7 +196,8 @@
 		{ id: 'all', label: 'All' },
 		{ id: 'attention', label: 'Needs attention' },
 		{ id: 'off', label: 'Off' },
-		{ id: 'families', label: 'Families' }
+		{ id: 'families', label: 'Families' },
+		{ id: 'alerts', label: 'Started by alerts' }
 	];
 
 	// Families start folded, unless searching found something in one.
@@ -464,6 +476,7 @@
 			<span class="meta">
 				<span class="name">{r.name}</span>
 				{#if !wide.current && !r.enabled}<span>· off</span>{/if}
+				{#if row.byAlert?.waiting}<span class="waitingby">· waiting</span>{/if}
 				{#if row.byMode}<span>· made by {row.byMode}</span>{/if}
 				{#if paused.has(r.id)}<span class="pausedby">· paused by a rule</span>{/if}
 			</span>
@@ -476,9 +489,18 @@
 		>
 		{#if !wide.current}<ChevronRight size={18} aria-hidden="true" />{/if}
 	</div>
-	{#if row.trouble.length > 0}
-		<a class="trouble bad" {href}>{row.trouble.join(' · ')}</a>
-	{:else if row.alertish && r.enabled !== false && show !== 'off'}
+	{@const trouble = row.byAlert?.alert_deleted
+		? row.trouble.filter((t) => !t.startsWith('Its alert was deleted'))
+		: row.trouble}
+	{#if row.byAlert}
+		{@const said = cardLine(row.byAlert, alertNames)}
+		<a class="trouble by {said.tone}" {href}
+			><Bell size={14} aria-hidden="true" /><span>{said.text}</span></a
+		>
+	{/if}
+	{#if trouble.length > 0}
+		<a class="trouble bad" {href}>{trouble.join(' · ')}</a>
+	{:else if row.alertish && !row.byAlert && r.enabled !== false && show !== 'off'}
 		<p class="trouble lit">
 			It only sends a message. If it’s about something staying open or on, an
 			<a href="/settings/alerts">alert</a> does that without a rule.
@@ -585,7 +607,7 @@
 				/>
 			</label>
 			<div class="chips" role="group" aria-label="Show">
-				{#each CHIPS as c (c.id)}
+				{#each CHIPS.filter((c) => c.id !== 'alerts' || alertLinks.known) as c (c.id)}
 					<button
 						type="button"
 						aria-pressed={show === c.id}
@@ -998,6 +1020,27 @@
 	}
 	.trouble.bad {
 		color: var(--alert);
+	}
+	.trouble.by {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		font-weight: 500;
+		color: var(--lit-ink);
+	}
+	.trouble.by :global(svg) {
+		flex: none;
+	}
+	.trouble.by.wait {
+		font-weight: 600;
+	}
+	.trouble.by.bad {
+		color: var(--alert);
+		font-weight: 600;
+	}
+	.waitingby {
+		color: var(--lit-ink);
+		font-weight: 600;
 	}
 	.trouble.lit {
 		color: var(--lit-ink);

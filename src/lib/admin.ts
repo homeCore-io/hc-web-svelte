@@ -59,6 +59,53 @@ export const saveAlertRule = (rule: AlertRule) =>
 export const deleteAlertRule = (id: string) =>
 	send('DELETE', `/alert-rules/${encodeURIComponent(id)}`, {});
 
+/** An automation a rule starts, and whether it has another trigger to run on. */
+export interface RuleStarts {
+	id: string;
+	name: string;
+	enabled: boolean;
+	keeps_running: boolean;
+}
+
+/** What deleting a rule would touch; null when this homeCore can't say. */
+export async function alertRuleStarts(id: string): Promise<RuleStarts[] | null> {
+	try {
+		const res = await fetch(`/api/v1/alert-rules/${encodeURIComponent(id)}/automations`);
+		return res.ok ? ((await res.json()) as RuleStarts[]) : null;
+	} catch {
+		return null;
+	}
+}
+
+export interface Deleted {
+	deleted: { id: string; name: string }[];
+	disabled: { id: string; name: string }[];
+	kept: { id: string; name: string }[];
+}
+
+/**
+ * Delete a rule that starts automations: they go too (`delete`), or stay
+ * turned off (`disable`). One with another trigger keeps running on it.
+ */
+export async function deleteAlertRuleWith(
+	id: string,
+	automations: 'delete' | 'disable'
+): Promise<Deleted | string> {
+	let res: Response;
+	try {
+		res = await fetch(`/api/v1/alert-rules/${encodeURIComponent(id)}?automations=${automations}`, {
+			method: 'DELETE'
+		});
+	} catch {
+		return 'homeCore is not answering.';
+	}
+	if (res.status === 204) return { deleted: [], disabled: [], kept: [] };
+	if (res.ok) return (await res.json()) as Deleted;
+	if (res.status === 401 || res.status === 403) return "You aren't allowed to change this.";
+	const said = (await res.json().catch(() => ({}))) as { error?: unknown };
+	return typeof said.error === 'string' ? said.error : `homeCore said no (${res.status}).`;
+}
+
 // ---- seen and ignored (homeCore 0.1.81) ----
 
 /** Say an alert has been seen; it stays until it clears. */

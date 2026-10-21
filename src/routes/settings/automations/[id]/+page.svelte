@@ -8,6 +8,7 @@
 <script lang="ts">
 	import { alertKinds } from '#lib/alertKinds.svelte.js';
 	import { onMount } from 'svelte';
+	import { alertRules } from '#lib/admin.js';
 	import { core } from '#lib/core.svelte.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -129,8 +130,11 @@
 	});
 
 	const rule = $derived(all?.find((r) => r.id === id));
+	// Alert rules by name, so a trigger on one reads as “Freezer warming up”.
+	let alertRuleNames = $state<{ id: string; name: string }[]>([]);
+	onMount(() => void alertRules().then((r) => (alertRuleNames = r ?? [])));
 	const house = $derived(
-		houseOf(devices.byId, scenes.list, all ?? [], alertKinds.list, describeStep)
+		houseOf(devices.byId, scenes.list, all ?? [], alertKinds.list, describeStep, alertRuleNames)
 	);
 	$effect(() => alertKinds.ensure());
 	const row = $derived(rule ? rowsOf([rule], house, {}, byMode)[0] : undefined);

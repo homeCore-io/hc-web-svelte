@@ -4,7 +4,9 @@
 
 	With `act`, each can be marked seen (it stays, dimmed, until it clears)
 	or ignored — just this, every one like it, or the whole device; for good
-	or a while (homeCore 0.1.81).
+	or a while (homeCore 0.1.81) — and "Do something…" makes an automation
+	that starts when it (or one like it) happens. What each already starts is
+	said under it.
 -->
 <script lang="ts">
 	import { page } from '$app/state';
@@ -21,6 +23,20 @@
 	import Icon from './Icon.svelte';
 	import { alertKinds } from '#lib/alertKinds.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
+	import { onMount } from 'svelte';
+	import { alertLinks } from '#lib/alertLinks.svelte.js';
+	import { houseNames } from '#lib/alertNames.svelte.js';
+	import { alertRules } from '#lib/admin.js';
+	import {
+		placeOf,
+		scopesForAlert,
+		startedBy,
+		startsText,
+		tieOf,
+		type Scope
+	} from '#lib/alertStarts.js';
+	import type { AlertRule } from '#lib/alerts.js';
+	import DoSomething from './DoSomething.svelte';
 
 	let { list, act = false }: { list: Alert[]; act?: boolean } = $props();
 
@@ -31,6 +47,19 @@
 		const d = devices.byId[a.device_id];
 		return d ? displayName(d) : a.device_id;
 	};
+
+	// ---- what each starts, and "Do something…" ----
+	const canDo = $derived(act && alertLinks.known && session.can('automations:write'));
+	onMount(() => {
+		if (act) alertKinds.ensure();
+		if (act && session.can('automations:read')) void alertLinks.load();
+	});
+	let rulesOfAlerts = $state<AlertRule[]>([]);
+	let doing = $state<{ a: Alert; scopes: Scope[] } | null>(null);
+	async function doSomething(a: Alert) {
+		if (a.kind === 'rule') rulesOfAlerts = (await alertRules()) ?? [];
+		doing = { a, scopes: scopesForAlert(a, houseNames(rulesOfAlerts)) };
+	}
 
 	let note = $state<string | null>(null);
 	async function seen(a: Alert) {
@@ -146,6 +175,15 @@
 </script>
 
 {#if note}<p class="note" role="alert">{note}</p>{/if}
+{#if doing}
+	<DoSomething
+		title={doing.a.message}
+		scopes={doing.scopes}
+		tie={tieOf(doing.a.kind)}
+		href={placeOf(doing.a)}
+		onclose={() => (doing = null)}
+	/>
+{/if}
 <ul>
 	{#each list as a (a.id)}
 		<li
@@ -172,8 +210,22 @@
 				</span>
 				<span class="since">{since(a.raised_at)}</span>
 			</a>
-			{#if canSee || canIgnore}
+			{#if canSee || canIgnore || canDo}
 				<div class="acts">
+					{#if act && alertLinks.known}
+						{@const starts = startedBy(a, alertLinks.list)}
+						{#if starts.length}
+							<a
+								class="starts"
+								href={starts.length === 1
+									? `/settings/automations/${encodeURIComponent(starts[0]!.id)}`
+									: '/settings/automations?show=alerts'}>{startsText(starts)}</a
+							>
+						{/if}
+					{/if}
+					{#if canDo}
+						<button type="button" class="do" onclick={() => doSomething(a)}>Do something…</button>
+					{/if}
 					{#if a.action && canSee}
 						<button type="button" class="go" onclick={() => press(a)}>{a.action.label}</button>
 					{/if}
@@ -258,8 +310,26 @@
 	}
 	.acts {
 		display: flex;
+		flex-wrap: wrap;
 		justify-content: flex-end;
+		align-items: center;
 		gap: 6px;
+	}
+	.acts .starts {
+		display: inline;
+		margin-right: auto;
+		min-height: 0;
+		padding: 0 0 0 4px;
+		border: none;
+		border-radius: 0;
+		background: none;
+		font-size: 13px;
+		color: var(--accent);
+	}
+	.acts .do {
+		border-color: color-mix(in srgb, var(--lit-ink) 40%, transparent);
+		background: var(--lit-bg);
+		color: var(--lit-ink);
 	}
 	.acts button,
 	.ignore button {

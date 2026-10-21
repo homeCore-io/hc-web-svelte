@@ -10,6 +10,12 @@
 	From homeCore 0.1.81 a rule can watch a reading go over or under a line
 	and tell a notification channel, and what's been ignored (from Alerts)
 	is listed here to show again.
+
+	Under each rule, each of homeCore's own kinds and each plugin's kind of
+	alert, "When it happens:" names the automations it starts — worked out
+	by homeCore from their triggers, so ones made by hand are there too — and
+	"+ Do something…" makes another. Deleting a rule that starts some asks
+	what becomes of them.
 -->
 <script lang="ts">
 	import { alertKinds, pluginName } from '#lib/alertKinds.svelte.js';
@@ -52,6 +58,26 @@
 	import { clock } from '#lib/clock.svelte.js';
 	import { loadConfig } from '#lib/config.js';
 	import { channelsOf } from '#lib/notify.js';
+	import { alertLinks } from '#lib/alertLinks.svelte.js';
+	import { houseNames } from '#lib/alertNames.svelte.js';
+	import {
+		OWN,
+		OWN_KINDS,
+		bySource,
+		kindSource,
+		linkName,
+		pluginKey,
+		pluginSource,
+		ruleSource,
+		scopesForKind,
+		scopesForPluginKind,
+		scopesForRule,
+		type AutomationAlerts,
+		type Scope,
+		type Start
+	} from '#lib/alertStarts.js';
+	import { alertRuleStarts, deleteAlertRuleWith, type RuleStarts } from '#lib/admin.js';
+	import DoSomething from '#lib/components/DoSomething.svelte';
 
 	let rules = $state<AlertRule[] | null>(null);
 	let ignores = $state<AlertIgnore[] | null>(null);
@@ -65,7 +91,11 @@
 	let channels = $state<string[]>([]);
 	onMount(() => {
 		void reload();
-		const stop = onReturn(reload);
+		void alertLinks.load();
+		const stop = onReturn(() => {
+			void alertLinks.load();
+			return reload();
+		});
 		if (session.isAdmin)
 			void loadConfig().then((got) => {
 				if (typeof got !== 'string') channels = channelsOf(got.config.parsed).map((c) => c.name);
@@ -231,13 +261,170 @@
 			minute: '2-digit'
 		});
 
+	// ---- what each alert starts ----
+	const names = $derived(houseNames(rules ?? []));
+	const starts = $derived(bySource(alertLinks.list));
+	const startsOf = (key: string) => starts.get(key) ?? [];
+	const automationHref = (x: AutomationAlerts) =>
+		`/settings/automations/${encodeURIComponent(x.id)}`;
+	let doing = $state<{
+		title: string;
+		scopes: Scope[];
+		tie: Start['tie'];
+		href: string;
+	} | null>(null);
+
+	// ---- deleting a rule that starts automations ----
+	let deleting = $state<{ rule: AlertRule; list: (RuleStarts & { also: string })[] } | null>(null);
+	let deleteDialog = $state<HTMLDialogElement>();
+	let done = $state<{ title: string; text: string } | null>(null);
+	$effect(() => {
+		if (deleting && deleteDialog && !deleteDialog.open) deleteDialog.showModal();
+	});
+	/** What else starts an automation besides this rule: "also starts on “Power cut”". */
+	function alsoOf(id: string, ruleId: string): string {
+		const x = alertLinks.byId(id);
+		if (!x) return 'it has another trigger';
+		const others = x.links
+			.filter((l) => l.filter.rule_id !== ruleId)
+			.map((l) => linkName(l, names));
+		if (x.other_triggers > 0) others.push('something else');
+		return others.length ? `also starts on ${[...new Set(others)].join(', or ')}` : '';
+	}
+
 	async function remove(r: AlertRule) {
+		const list = await alertRuleStarts(r.id);
+		if (list && list.length) {
+			done = null;
+			deleting = {
+				rule: r,
+				list: list.map((x) => ({ ...x, also: x.keeps_running ? alsoOf(x.id, r.id) : '' }))
+			};
+			return;
+		}
 		if (!(await ask({ title: `Delete “${r.name}”?`, go: 'Delete', danger: true }))) return;
 		trouble = await deleteAlertRule(r.id);
 		if (editing?.id === r.id) reset();
 		await reload();
 	}
+
+	async function deleteWith(mode: 'delete' | 'disable') {
+		if (!deleting) return;
+		const { rule, list } = deleting;
+		const got = await deleteAlertRuleWith(rule.id, mode);
+		deleteDialog?.close();
+		deleting = null;
+		if (typeof got === 'string') {
+			trouble = got;
+			return;
+		}
+		const q = (xs: { name: string }[]) => xs.map((x) => `“${x.name}”`).join(', ');
+		const stays = got.kept
+			.map((k) => {
+				const also = list.find((x) => x.id === k.id)?.also ?? '';
+				return `“${k.name}” stays: it ${also || 'has another trigger'}, so only its “${rule.name}” trigger was removed.`;
+			})
+			.join(' ');
+		done =
+			mode === 'delete'
+				? {
+						title: got.deleted.length
+							? `Deleted the rule and ${q(got.deleted)}`
+							: 'Deleted the rule',
+						text: stays
+					}
+				: {
+						title: got.disabled.length
+							? 'Deleted the rule; kept its automations, turned off'
+							: 'Deleted the rule',
+						text: [
+							got.disabled.length
+								? 'They keep their steps, so a new trigger brings them back.'
+								: '',
+							stays
+						]
+							.filter(Boolean)
+							.join(' ')
+					};
+		if (editing?.id === rule.id) reset();
+		await Promise.all([reload(), alertLinks.load()]);
+	}
 </script>
+
+{#snippet strip(
+	linked: AutomationAlerts[],
+	start: { title: string; scopes: Scope[]; tie: Start['tie']; href: string } | null,
+	waiting: string
+)}
+	{#if linked.length || start}
+		<div class="strip">
+			<span class="what">When it happens:</span>
+			{#each linked as x (x.id)}
+				<a class="chip" class:muted={!x.enabled || !!waiting} href={automationHref(x)}>{x.name}</a>
+			{/each}
+			{#if waiting && linked.length}<span class="waiting">{waiting}</span>{/if}
+			{#if start}
+				<button type="button" class="do" onclick={() => (doing = start)}>+ Do something…</button>
+			{/if}
+		</div>
+	{/if}
+{/snippet}
+
+{#if doing}
+	<DoSomething
+		title={doing.title}
+		scopes={doing.scopes}
+		tie={doing.tie}
+		href={doing.href}
+		onclose={() => (doing = null)}
+	/>
+{/if}
+
+{#if deleting}
+	<dialog
+		class="ask"
+		bind:this={deleteDialog}
+		aria-labelledby="del-title"
+		oncancel={(e) => {
+			e.preventDefault();
+			deleteDialog?.close();
+		}}
+		onclose={() => (deleting = null)}
+	>
+		<div class="ask-body">
+			<h2 id="del-title">Delete “{deleting.rule.name}”?</h2>
+			<p>
+				It starts {deleting.list.length === 1
+					? 'an automation'
+					: `${deleting.list.length} automations`}. Without the rule {deleting.list.length === 1
+					? 'it'
+					: 'they'} can never run.
+			</p>
+			<ul class="starts">
+				{#each deleting.list as x (x.id)}
+					<li>
+						<span>{x.name}</span>{#if x.also}<small>{x.also}</small>{/if}
+					</li>
+				{/each}
+			</ul>
+			{#if deleting.list.some((x) => x.keeps_running)}
+				<p class="quiet">
+					An automation with another trigger keeps running on that one; only its “{deleting.rule
+						.name}” trigger goes.
+				</p>
+			{/if}
+			<div class="choices">
+				<button type="button" class="danger" onclick={() => deleteWith('delete')}
+					>Delete the rule and its automations</button
+				>
+				<button type="button" class="ghost" onclick={() => deleteWith('disable')}
+					>Delete the rule, keep the automations turned off</button
+				>
+				<button type="button" class="cancel" onclick={() => deleteDialog?.close()}>Cancel</button>
+			</div>
+		</div>
+	</dialog>
+{/if}
 
 {#if !session.can('automations:write')}
 	<p class="quiet">Settings are for people who may change the house.</p>
@@ -253,27 +440,56 @@
 			<p class="quiet">This homeCore doesn't check alert rules yet — it needs v0.1.76 or later.</p>
 		{:else}
 			<section>
-				<h2 class="section-label">Rules</h2>
+				<h2 class="section-label">Your rules</h2>
+				{#if done}
+					<div class="done" role="status">
+						<strong>{done.title}</strong>
+						{#if done.text}<span>{done.text}</span>{/if}
+						<button type="button" class="ghost" onclick={() => (done = null)}>OK</button>
+					</div>
+				{/if}
 				{#if rules.length === 0}<p class="quiet">None yet.</p>{/if}
 				<ul>
 					{#each rules as r (r.id)}
-						<li class:off={!r.enabled} class:now={editing?.id === r.id}>
-							<button type="button" class="text" onclick={() => change(r)}>
-								<span class="name">{r.name}</span>
-								<span class="what"
-									>{devicesOf(r)} · {describeRule(r, stateOf(r))}{r.severity === 'critical'
-										? ' · urgent'
-										: ''}{r.notify
-										? ` · tells ${r.notify === 'all' ? 'every channel' : r.notify}`
-										: ''}</span
+						{@const linked = startsOf(ruleSource(r.id))}
+						<li
+							id={`rule-${r.id}`}
+							class="has-strip"
+							class:off={!r.enabled}
+							class:now={editing?.id === r.id}
+						>
+							<div class="line">
+								<button type="button" class="text" onclick={() => change(r)}>
+									<span class="name">{r.name}</span>
+									<span class="what"
+										>{devicesOf(r)} · {describeRule(r, stateOf(r))}{r.severity === 'critical'
+											? ' · urgent'
+											: ''}{r.notify
+											? ` · tells ${r.notify === 'all' ? 'every channel' : r.notify}`
+											: ''}</span
+									>
+								</button>
+								<button class="pill" aria-pressed={r.enabled} onclick={() => toggle(r)}
+									>{r.enabled ? 'On' : 'Off'}</button
 								>
-							</button>
-							<button class="pill" aria-pressed={r.enabled} onclick={() => toggle(r)}
-								>{r.enabled ? 'On' : 'Off'}</button
-							>
-							<button class="bin" aria-label={`Delete ${r.name}`} onclick={() => remove(r)}
-								><Trash size={16} /></button
-							>
+								<button class="bin" aria-label={`Delete ${r.name}`} onclick={() => remove(r)}
+									><Trash size={16} /></button
+								>
+							</div>
+							{#if alertLinks.known}
+								{@render strip(
+									linked,
+									r.enabled
+										? {
+												title: r.name,
+												scopes: scopesForRule(r, names),
+												tie: 'rule',
+												href: `/settings/alerts#rule-${r.id}`
+											}
+										: null,
+									r.enabled ? '' : 'waiting while the rule is off'
+								)}
+							{/if}
 						</li>
 					{/each}
 				</ul>
@@ -395,6 +611,35 @@
 				</form>
 			</section>
 
+			{#if alertLinks.known}
+				<section>
+					<h2 class="section-label">homeCore’s own</h2>
+					<ul class="own">
+						{#each OWN_KINDS as k (k)}
+							{@const linked = startsOf(kindSource(k))}
+							<li id={`kind-${k}`} class="own-row">
+								<span class="name own-name">{OWN[k].label}</span>
+								{#each linked as x (x.id)}
+									<a class="chip" class:muted={!x.enabled} href={automationHref(x)}>{x.name}</a>
+								{/each}
+								{#if linked.length === 0}<span class="what">Starts nothing</span>{/if}
+								<button
+									type="button"
+									class="do"
+									onclick={() =>
+										(doing = {
+											title: `${OWN[k].label} — homeCore’s own`,
+											scopes: scopesForKind(k, names),
+											tie: 'own',
+											href: `/settings/alerts#kind-${k}`
+										})}>+ Do something…</button
+								>
+							</li>
+						{/each}
+					</ul>
+				</section>
+			{/if}
+
 			{#if alertKinds.list.length}
 				<section>
 					<h2 class="section-label">Alerts from plugins</h2>
@@ -404,56 +649,79 @@
 					</p>
 					<ul>
 						{#each alertKinds.list as k (k.plugin_id + k.topic)}
-							<li class="kind-row">
-								<span class="text static">
-									<span class="name">{pluginName(k.plugin_id)} · {k.label}</span>
-									<span class="what"
-										>{k.severity === 'info'
-											? 'Information'
-											: k.severity === 'error'
-												? 'Error'
-												: 'Warning'}{k.description ? ` — ${k.description}` : ''}</span
-									>
-								</span>
-								<label class="mini">
-									<span>Show it</span>
-									<select
-										value={k.enabled ? 'on' : 'off'}
-										disabled={!session.can('automations:write')}
-										onchange={async (e) =>
-											(trouble =
-												(await alertKinds.put(k.plugin_id, k.topic, {
-													enabled: e.currentTarget.value === 'on',
-													notify: k.notify ?? null
-												})) ?? '')}
-									>
-										<option value="on">As an alert</option>
-										<option value="off">Off</option>
-									</select>
-								</label>
-								<label class="mini">
-									<span>Also send to</span>
-									<select
-										value={k.notify ?? ''}
-										disabled={!session.can('automations:write')}
-										onchange={async (e) =>
-											(trouble =
-												(await alertKinds.put(k.plugin_id, k.topic, {
-													enabled: k.enabled,
-													notify: e.currentTarget.value || null
-												})) ?? '')}
-									>
-										<option value="">No channel</option>
-										<option value="all">Every channel</option>
-										{#each channels as c (c)}<option value={c}>{c}</option>{/each}
-										{#if k.notify && k.notify !== 'all' && !channels.includes(k.notify)}<option
-												value={k.notify}>{k.notify}</option
-											>{/if}
-									</select>
-								</label>
+							{@const linked = startsOf(pluginSource(k.plugin_id, k.topic))}
+							<li class="kind-row has-strip" id={pluginKey(k.plugin_id, k.topic)}>
+								<div class="line">
+									<span class="text static">
+										<span class="name">{pluginName(k.plugin_id)} · {k.label}</span>
+										<span class="what"
+											>{k.severity === 'info'
+												? 'Information'
+												: k.severity === 'error'
+													? 'Error'
+													: 'Warning'}{k.description ? ` — ${k.description}` : ''}</span
+										>
+									</span>
+									<label class="mini">
+										<span>Show it</span>
+										<select
+											value={k.enabled ? 'on' : 'off'}
+											disabled={!session.can('automations:write')}
+											onchange={async (e) =>
+												(trouble =
+													(await alertKinds.put(k.plugin_id, k.topic, {
+														enabled: e.currentTarget.value === 'on',
+														notify: k.notify ?? null
+													})) ?? '')}
+										>
+											<option value="on">As an alert</option>
+											<option value="off">Off</option>
+										</select>
+									</label>
+									<label class="mini">
+										<span>Also send to</span>
+										<select
+											value={k.notify ?? ''}
+											disabled={!session.can('automations:write')}
+											onchange={async (e) =>
+												(trouble =
+													(await alertKinds.put(k.plugin_id, k.topic, {
+														enabled: k.enabled,
+														notify: e.currentTarget.value || null
+													})) ?? '')}
+										>
+											<option value="">No channel</option>
+											<option value="all">Every channel</option>
+											{#each channels as c (c)}<option value={c}>{c}</option>{/each}
+											{#if k.notify && k.notify !== 'all' && !channels.includes(k.notify)}<option
+													value={k.notify}>{k.notify}</option
+												>{/if}
+										</select>
+									</label>
+								</div>
+								{#if alertLinks.known}
+									{@render strip(
+										linked,
+										k.enabled
+											? {
+													title: `${pluginName(k.plugin_id)} · ${k.label}`,
+													scopes: scopesForPluginKind(k.plugin_id, k.topic, names),
+													tie: 'plugin',
+													href: `/settings/alerts#${pluginKey(k.plugin_id, k.topic)}`
+												}
+											: null,
+										k.enabled ? '' : 'waiting while it is off'
+									)}
+								{/if}
 							</li>
 						{/each}
 					</ul>
+					{#if alertLinks.known}
+						<p class="quiet">
+							Automations made by hand that start from an alert are found and shown too. Ones that
+							watch a device directly aren’t listed.
+						</p>
+					{/if}
 				</section>
 			{/if}
 
@@ -500,9 +768,185 @@
 {/if}
 
 <style>
-	.kind-row {
+	.kind-row .line {
 		flex-wrap: wrap;
 		gap: 10px;
+	}
+	li.has-strip {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 0;
+		padding: 0;
+	}
+	li.has-strip .line {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 8px 6px 8px 12px;
+	}
+	li.off.has-strip .strip {
+		opacity: 1;
+	}
+	.strip {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px;
+		padding: 10px 14px;
+		border-top: 1px solid var(--card-line);
+		background: color-mix(in srgb, var(--surface-2) 35%, var(--surface));
+		border-radius: 0 0 12px 12px;
+	}
+	.chip {
+		font-size: 13px;
+		text-decoration: none;
+		color: var(--accent);
+		background: var(--surface);
+		border: 1px solid var(--card-line);
+		border-radius: 999px;
+		padding: 5px 10px;
+	}
+	.chip.muted {
+		color: var(--ink-muted);
+	}
+	.waiting {
+		font-size: 13px;
+		color: var(--lit-ink);
+	}
+	.do {
+		min-height: 32px;
+		padding: 0 12px;
+		border-radius: 999px;
+		border: 1px dashed var(--line);
+		background: transparent;
+		color: var(--accent);
+		font: inherit;
+		font-size: 13px;
+		cursor: pointer;
+	}
+	ul.own {
+		gap: 0;
+		border-radius: 12px;
+		border: 1px solid var(--card-line);
+		background: var(--surface);
+		overflow: hidden;
+	}
+	li.own-row {
+		flex-wrap: wrap;
+		min-height: 52px;
+		padding: 8px 14px;
+		border: none;
+		border-radius: 0;
+		border-top: 1px solid var(--card-line);
+	}
+	li.own-row:first-child {
+		border-top: none;
+	}
+	.own-name {
+		width: 150px;
+	}
+	li.own-row .do {
+		margin-left: auto;
+	}
+	.done {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		padding: var(--space-3) var(--space-4);
+		border-radius: 12px;
+		background: var(--surface);
+		border: 1px solid var(--card-line);
+	}
+	.done span {
+		font-size: 14px;
+		color: var(--ink-muted);
+	}
+	.done .ghost {
+		align-self: flex-start;
+	}
+	dialog.ask {
+		width: min(480px, calc(100vw - 32px));
+		margin: auto;
+		padding: 0;
+		border: 1px solid var(--card-line);
+		border-radius: var(--radius-sheet);
+		background: var(--sheet);
+		color: var(--ink);
+		box-shadow: var(--shadow);
+	}
+	dialog.ask::backdrop {
+		background: var(--scrim);
+	}
+	.ask-body {
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+		padding: var(--space-5);
+	}
+	.ask-body h2 {
+		margin: 0;
+		font-size: 18px;
+		font-weight: 600;
+	}
+	.ask-body p {
+		margin: 0;
+		font-size: 15px;
+		color: var(--ink-muted);
+	}
+	.ask-body p.quiet {
+		font-size: 13px;
+	}
+	ul.starts {
+		gap: 0;
+		border-radius: 12px;
+		border: 1px solid var(--card-line);
+		background: var(--surface);
+	}
+	ul.starts li {
+		justify-content: space-between;
+		min-height: 44px;
+		padding: 0 14px;
+		border: none;
+		border-radius: 0;
+		border-top: 1px solid var(--card-line);
+		background: none;
+		font-size: 15px;
+	}
+	ul.starts li:first-child {
+		border-top: none;
+	}
+	ul.starts small {
+		font-size: 12px;
+		color: var(--ink-muted);
+		text-align: right;
+	}
+	.choices {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+	.choices button {
+		min-height: 44px;
+		border-radius: 11px;
+		font: inherit;
+		font-weight: 600;
+		cursor: pointer;
+	}
+	.choices .danger {
+		border: none;
+		background: var(--alert);
+		color: var(--alert-ink);
+	}
+	.choices .ghost {
+		height: auto;
+		font-weight: 400;
+		color: var(--ink);
+	}
+	.choices .cancel {
+		border: none;
+		background: transparent;
+		color: var(--ink-muted);
+		font-weight: 400;
 	}
 	.mini {
 		display: flex;

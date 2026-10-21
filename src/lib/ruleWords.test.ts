@@ -3,6 +3,7 @@ import { DEVICES, RULES } from './fixtures/rules.js';
 import { houseOf } from './ruleList.js';
 import { followUnits } from './units.js';
 import {
+	type House,
 	checkPhrase,
 	duration,
 	moreOf,
@@ -291,4 +292,36 @@ test('a timer is given more time', () => {
 	expect(plain(setPhrase(h, ['timer_den_fan'], { command: 'extend', duration_secs: 600 }))).toBe(
 		'add 10 min to Den Fan Timer'
 	);
+});
+
+describe('alert triggers', () => {
+	test('homeCore’s own kind on one plugin’s devices says which plugin', () => {
+		const w = (filter: object) => plain(whenPhrase(h, { AlertRaised: { filter } }));
+		expect(w({ kind: 'offline', plugin_id: 'plugin.yolink' })).toBe(
+			'an offline alert from YoLink is raised'
+		);
+		expect(w({ kind: 'wet' })).toBe('a water alert is raised');
+		expect(w({ plugin_id: 'plugin.wled' })).toBe('a WLED alert is raised');
+	});
+});
+
+describe('alert triggers by name', () => {
+	const named: House = {
+		...h,
+		plugin: (id) => (id === 'plugin.yolink' ? 'YoLink' : undefined),
+		alertRule: (id) => (id === 'r1' ? 'Freezer warming up' : undefined)
+	};
+	const w = (filter: object) => plain(whenPhrase(named, { AlertRaised: { filter } }));
+	test('a plugin by its own spelling', () => {
+		expect(w({ kind: 'offline', plugin_id: 'plugin.yolink' })).toBe(
+			'an offline alert from YoLink is raised'
+		);
+	});
+	test('one alert rule by its name', () => {
+		expect(w({ kind: 'rule', rule_id: 'r1' })).toBe('the alert “Freezer warming up” is raised');
+		expect(w({ rule_id: 'r1' })).toBe('the alert “Freezer warming up” is raised');
+	});
+	test('a rule the house no longer has falls back to its kind', () => {
+		expect(w({ kind: 'rule', rule_id: 'gone' })).toBe('a time-rule alert is raised');
+	});
 });

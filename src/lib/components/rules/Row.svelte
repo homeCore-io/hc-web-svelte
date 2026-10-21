@@ -18,6 +18,7 @@
 		onremove,
 		onup,
 		ondown,
+		badge,
 		children
 	}: {
 		words: Phrase;
@@ -27,6 +28,8 @@
 		onremove?: () => void;
 		onup?: () => void;
 		ondown?: () => void;
+		/** A word beside it: "from the alert". */
+		badge?: string;
 		children: Snippet;
 	} = $props();
 </script>
@@ -37,6 +40,7 @@
 		<button type="button" class="say" aria-expanded={open} onclick={() => (open = !open)}>
 			<Words {words} />{#if off}<em> — turned off</em>{/if}
 		</button>
+		{#if badge}<span class="badge">{badge}</span>{/if}
 		<span class="tools">
 			{#if onup}<button type="button" aria-label="Move up" onclick={onup}
 					><ArrowUp size={16} aria-hidden="true" /></button
@@ -55,6 +59,17 @@
 </div>
 
 <style>
+	.badge {
+		flex: none;
+		align-self: center;
+		font-size: 12px;
+		color: var(--lit-ink);
+		background: var(--lit-bg);
+		border: 1px solid color-mix(in srgb, var(--lit-ink) 40%, transparent);
+		padding: 3px 8px;
+		border-radius: 8px;
+		white-space: nowrap;
+	}
 	.row {
 		border-radius: 12px;
 		background: var(--surface);

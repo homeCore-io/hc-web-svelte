@@ -51,6 +51,10 @@
 	);
 	const pending = $derived(commands.pending[id]);
 	const card = $derived(withPending(view.card, pending));
+	// A lock's own panel draws its lock control (and asks before unlocking),
+	// its door, bolt and battery, and what it last did; the generic button
+	// and readings would say them twice.
+	const panelLocks = $derived(!!custom && !customFailed && card.control?.kind === 'lock');
 	const note = $derived(commands.notes[id]);
 	const room = $derived(roomOf(device, rooms.list));
 	// Offline, or someone who may only look: every control here is still.
@@ -208,7 +212,7 @@
 				}}
 			/>
 		</div>
-	{:else if card.control?.kind === 'lock'}
+	{:else if card.control?.kind === 'lock' && !panelLocks}
 		{@const lk = card.control}
 		<button
 			class="wide"
@@ -593,7 +597,7 @@
 		{/each}
 	{/if}
 
-	{#if view.readings.length > 0}
+	{#if view.readings.length > 0 && !panelLocks}
 		<section>
 			<h3 class="section-label">Readings</h3>
 			<dl>

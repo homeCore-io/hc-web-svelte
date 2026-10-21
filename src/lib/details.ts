@@ -586,7 +586,7 @@ function ordered(s: Schema): string[] {
 
 function labelOf(name: string, spec: AttributeSchema): string {
 	if (spec.display_name) return spec.display_name;
-	const w = words(name.replace(/_(pct|secs|w|kwh)$/, ''));
+	const w = words(name.replace(/_(pct|secs|w|kwh)$|(?<=^current)_a$/, ''));
 	return w[0]!.toUpperCase() + w.slice(1);
 }
 

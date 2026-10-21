@@ -56,6 +56,6 @@ export function byWhom(c: Change | undefined): string {
 }
 
 function label(name: string): string {
-	const w = name.replace(/_(pct|secs|w)$/, '').replace(/[_.]+/g, ' ');
+	const w = name.replace(/_(pct|secs|w|kwh)$|(?<=^current)_a$/, '').replace(/[_.]+/g, ' ');
 	return w[0]!.toUpperCase() + w.slice(1);
 }

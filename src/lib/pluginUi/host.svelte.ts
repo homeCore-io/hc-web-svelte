@@ -27,7 +27,8 @@ function theSheet(): CSSStyleSheet {
 	return sheet;
 }
 
-const view = (d: CoreDevice): Device => ({
+/** A device as a plugin's screens are given it. */
+export const deviceView = (d: CoreDevice): Device => ({
 	device_id: d.device_id,
 	name: d.name,
 	name_override: d.name_override ?? null,
@@ -44,7 +45,7 @@ const mine = (pluginId: string) =>
 	Object.values(devices.byId)
 		.filter((d) => d.plugin_id === pluginId)
 		.sort((a, b) => displayName(a).localeCompare(displayName(b)))
-		.map(view);
+		.map(deviceView);
 
 const storeUrl = (pluginId: string, key: string) =>
 	`/ui/plugin-store/${encodeURIComponent(pluginId)}/${encodeURIComponent(key)}`;
@@ -81,7 +82,7 @@ export function createHost(pluginId: string): Host {
 		},
 		devices: {
 			list: () => mine(pluginId),
-			get: (id) => (owns(id) ? view(devices.byId[id]!) : undefined),
+			get: (id) => (owns(id) ? deviceView(devices.byId[id]!) : undefined),
 			label: (d) => d.name_override || d.name,
 			subscribe(f) {
 				// Svelte's own reactivity, outside any component: called now

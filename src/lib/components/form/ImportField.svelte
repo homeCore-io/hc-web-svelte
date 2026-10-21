@@ -2,11 +2,13 @@
 	An `import` field (Caséta's, Lutron's integration report): pasted text is
 	handed to the plugin's own action, which knows the format, and what it
 	returns is added to the tables it names (`targets`) — unsaved, so it can
-	be looked over first. Rows already there (by their key) are left as they are.
+	be looked over first. Rows already there (by their key) are filled in where
+	they have nothing yet, and otherwise left as they are (`mergeRows`).
 -->
 <script lang="ts">
 	import type { Field } from '#lib/descriptor.js';
 	import type { FormState } from '#lib/form.svelte.js';
+	import { mergeRows } from '#lib/importRows.js';
 	import { follow, runAction } from '#lib/pluginAdmin.js';
 
 	let { field, form, pluginId }: { field: Field; form: FormState; pluginId: string | undefined } =
@@ -31,17 +33,14 @@
 			const have = Array.isArray(form.draft[key])
 				? (form.draft[key] as Record<string, unknown>[])
 				: [];
-			const fresh = rows.filter(
-				(r) =>
-					r &&
-					typeof r === 'object' &&
-					(!by ||
-						!have.some(
-							(h) => JSON.stringify(h[by]) === JSON.stringify((r as Record<string, unknown>)[by])
-						))
-			) as Record<string, unknown>[];
-			if (fresh.length) form.set(key, [...have, ...fresh]);
-			counts.push(`${fresh.length} ${(table?.label ?? key).toLowerCase()}`);
+			const merged = mergeRows(have, rows as Record<string, unknown>[], by);
+			if (merged.added || merged.updated) form.set(key, merged.rows);
+			const what = (table?.label ?? key).toLowerCase();
+			counts.push(
+				merged.updated
+					? `${merged.added} ${what} (${merged.updated} already there filled in)`
+					: `${merged.added} ${what}`
+			);
 		}
 		const summary = typeof out.summary === 'string' ? ` ${out.summary}` : '';
 		note = {

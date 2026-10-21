@@ -22,6 +22,7 @@
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import type { CoreDevice } from '#lib/devices.js';
+	import { kindOf } from '#lib/card.js';
 	import BigBar from './BigBar.svelte';
 	import Chart from './Chart.svelte';
 	import Icon, { drawn } from './Icon.svelte';
@@ -55,6 +56,12 @@
 	// its door, bolt and battery, and what it last did; the generic button
 	// and readings would say them twice.
 	const panelLocks = $derived(!!custom && !customFailed && card.control?.kind === 'lock');
+	// A remote's or keypad's own panel draws its buttons, the last press and
+	// what each starts; its button readings, a chart of "last button" and a
+	// list of raw presses would only repeat it.
+	const panelButtons = $derived(
+		!!custom && !customFailed && ['pico_remote', 'keypad'].includes(kindOf(device))
+	);
 	const note = $derived(commands.notes[id]);
 	const room = $derived(roomOf(device, rooms.list));
 	// Offline, or someone who may only look: every control here is still.
@@ -597,7 +604,7 @@
 		{/each}
 	{/if}
 
-	{#if view.readings.length > 0 && !panelLocks}
+	{#if view.readings.length > 0 && !panelLocks && !panelButtons}
 		<section>
 			<h3 class="section-label">Readings</h3>
 			<dl>
@@ -611,7 +618,7 @@
 		</section>
 	{/if}
 
-	{#if view.chart}
+	{#if view.chart && !panelButtons}
 		<Chart
 			deviceId={id}
 			attr={view.chart.attr}
@@ -622,20 +629,22 @@
 		/>
 	{/if}
 
-	<section>
-		<h3 class="section-label">Activity</h3>
-		{#if activity === null}
-			<p class="quiet">…</p>
-		{:else if lines.length === 0}
-			<p class="quiet">Nothing since homeCore last started.</p>
-		{:else}
-			<ul class="activity">
-				{#each lines as l (l.at + l.text)}
-					<li><span class="num when">{time(l.at)}</span><span>{l.text}</span></li>
-				{/each}
-			</ul>
-		{/if}
-	</section>
+	{#if !panelButtons}
+		<section>
+			<h3 class="section-label">Activity</h3>
+			{#if activity === null}
+				<p class="quiet">…</p>
+			{:else if lines.length === 0}
+				<p class="quiet">Nothing since homeCore last started.</p>
+			{:else}
+				<ul class="activity">
+					{#each lines as l (l.at + l.text)}
+						<li><span class="num when">{time(l.at)}</span><span>{l.text}</span></li>
+					{/each}
+				</ul>
+			{/if}
+		</section>
+	{/if}
 
 	{#if view.more.length > 0}
 		<details>

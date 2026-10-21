@@ -135,6 +135,12 @@ export function createHost(pluginId: string): Host {
 			}
 		},
 		fetch: (path, init) => fetch(`/api/v1${path.startsWith('/') ? '' : '/'}${path}`, init),
+		fileUrl: (path) =>
+			`/api/v1/plugins/${encodeURIComponent(pluginId)}/files/${path
+				.replace(/^\/+/, '')
+				.split('/')
+				.map(encodeURIComponent)
+				.join('/')}`,
 		async upload(action, file, params = {}, name) {
 			const q = new URLSearchParams(params);
 			if (name ?? (file as File).name) q.set('name', name ?? (file as File).name);

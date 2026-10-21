@@ -42,13 +42,16 @@
 	const custom = $derived(pluginUis.find(device.plugin_id, 'device.panel', device.device_type));
 	let customFailed = $state(false);
 	const view = $derived(detailsFor(device, Object.values(devices.byId), clock.now));
-	// A media player's own panel draws what is playing, its transport and
-	// its volume itself; the generic cover, buttons and bars above it would
-	// say them twice. Any other panel sits under the generic main control.
+	// A media player's own panel draws what is playing, its transport, its
+	// volume and its power itself; the generic cover, buttons, bars and the
+	// power switch it shows while off would say them twice. Any other panel
+	// sits under the generic main control.
 	const panelPlays = $derived(
 		!!custom &&
 			!customFailed &&
-			(view.card.control?.kind === 'play' || view.card.extras.some((e) => e.kind === 'transport'))
+			(device.device_type === 'media_player' ||
+				view.card.control?.kind === 'play' ||
+				view.card.extras.some((e) => e.kind === 'transport'))
 	);
 	const pending = $derived(commands.pending[id]);
 	const card = $derived(withPending(view.card, pending));
@@ -205,7 +208,7 @@
 				}}><Power size={22} /></button
 			>
 		</div>
-	{:else if card.control?.kind === 'switch'}
+	{:else if card.control?.kind === 'switch' && !panelPlays}
 		{@const sw = card.control}
 		<div class="row big">
 			<span>{sw.on ? 'On' : 'Off'}</span>

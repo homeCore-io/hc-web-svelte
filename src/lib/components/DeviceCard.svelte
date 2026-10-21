@@ -48,7 +48,9 @@
 	});
 	const declined = $derived.by(() => {
 		void loaded;
-		const cls = tag ? (customElements.get(tag) as unknown as CardElementClass | undefined) : undefined;
+		const cls = tag
+			? (customElements.get(tag) as unknown as CardElementClass | undefined)
+			: undefined;
 		if (typeof cls?.accepts !== 'function') return false;
 		try {
 			return !cls.accepts(deviceView(device));

@@ -65,6 +65,10 @@
 	const panelButtons = $derived(
 		!!custom && !customFailed && ['pico_remote', 'keypad'].includes(kindOf(device))
 	);
+	// A thermostat's own panel draws the room's temperature, the target and its
+	// modes, what it reads and a chart of the day; the generic target bar,
+	// readings and chart would say them twice.
+	const panelClimate = $derived(!!custom && !customFailed && kindOf(device) === 'thermostat');
 	const note = $derived(commands.notes[id]);
 	const room = $derived(roomOf(device, rooms.list));
 	// Offline, or someone who may only look: every control here is still.
@@ -312,7 +316,7 @@
 		</div>
 	{/each}
 
-	{#each panelPlays ? [] : card.extras as e ('attr' in e ? e.attr : e.kind)}
+	{#each panelPlays || panelClimate ? [] : card.extras as e ('attr' in e ? e.attr : e.kind)}
 		{#if e.kind === 'slider' && e.attr !== 'brightness_pct'}
 			<BigBar
 				label={e.label}
@@ -607,7 +611,7 @@
 		{/each}
 	{/if}
 
-	{#if view.readings.length > 0 && !panelLocks && !panelButtons}
+	{#if view.readings.length > 0 && !panelLocks && !panelButtons && !panelClimate}
 		<section>
 			<h3 class="section-label">Readings</h3>
 			<dl>
@@ -621,7 +625,7 @@
 		</section>
 	{/if}
 
-	{#if view.chart && !panelButtons}
+	{#if view.chart && !panelButtons && !panelClimate}
 		<Chart
 			deviceId={id}
 			attr={view.chart.attr}

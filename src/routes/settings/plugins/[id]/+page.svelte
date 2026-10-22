@@ -397,8 +397,7 @@
 			{#each plugin.notices ?? [] as n (n.code)}
 				<div class="banner {n.level === 'error' ? 'bad' : n.level === 'warning' ? 'lit' : 'info'}">
 					<span
-						><strong>{n.message}</strong>{#if n.remedy}
-							{n.remedy}{/if}</span
+						><strong>{n.message}</strong>{#if n.remedy}{' '}{n.remedy}{/if}</span
 					>
 				</div>
 			{/each}

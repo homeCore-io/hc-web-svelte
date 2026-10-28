@@ -69,6 +69,16 @@
 		removed_at: string;
 	}
 	let removed = $state<Removed[] | null>(null);
+	// Deleted devices follow the search too (#81).
+	const shownRemoved = $derived(
+		(removed ?? []).filter((r) =>
+			query.trim()
+				? `${r.name} ${pluginLabel(r.plugin_id)} ${r.device_id}`
+						.toLowerCase()
+						.includes(query.trim().toLowerCase())
+				: true
+		)
+	);
 	const loadRemoved = async () => {
 		const res = await fetch('/api/v1/devices/removed').catch(() => null);
 		removed = res?.ok ? ((await res.json()) as Removed[]) : null;
@@ -217,8 +227,16 @@
 
 		{#if note}<p class="note" role="status">{note}</p>{/if}
 
-		{#if orphans && orphans.total_orphans > 0}
-			<section class="orphans" aria-label="Devices plugins no longer report">
+		{#if orphans && orphans.total_orphans > 0 && !query.trim()}
+			<!-- One line, opened to read (#80): it used to take a phone's first two screens. -->
+			<details class="orphans" aria-label="Devices plugins no longer report">
+				<summary
+					>{orphans.total_orphans === 1
+						? 'One device may be gone'
+						: `${orphans.total_orphans} devices may be gone`} — {orphans.plugins
+						.map((p) => `${pluginLabel(p.plugin_id)} ${p.suspects.length}`)
+						.join(', ')}</summary
+				>
 				{#each orphans.plugins as p (p.plugin_id)}
 					<div>
 						<strong
@@ -235,13 +253,24 @@
 						>
 					</div>
 				{/each}
-			</section>
+			</details>
 		{/if}
 
 		{#if !devices.loaded}
 			<p class="quiet">Loading devices…</p>
 		{:else if shown.length === 0}
-			<p class="quiet">No device matches.</p>
+			<p class="quiet empty">
+				No device matches{query.trim() ? ` “${query.trim()}”` : ' this filter'}.
+				<button
+					type="button"
+					class="clear"
+					onclick={() => {
+						query = '';
+						set('q', null);
+						set('show', null);
+					}}>Show them all</button
+				>
+			</p>
 		{:else if wide.current}
 			<div class="table" role="table" aria-label="Devices">
 				<div class="row head" role="row">
@@ -298,13 +327,15 @@
 				{/each}
 			</ul>
 		{/if}
-		<p class="quiet">
-			{shown.length} of {tally.all} shown{scenes || sceneCount === 0
-				? ''
-				: `, not counting ${sceneCount} plugin scenes`}.
-		</p>
+		{#if shown.length > 0}
+			<p class="quiet">
+				{shown.length} of {tally.all} shown{scenes || sceneCount === 0
+					? ''
+					: `, not counting ${sceneCount} plugin scenes`}.
+			</p>
+		{/if}
 
-		{#if removed?.length}
+		{#if shownRemoved.length}
 			<section class="removed" aria-label="Deleted devices">
 				<h2>Deleted</h2>
 				<p class="quiet">
@@ -312,7 +343,7 @@
 					next time its plugin reports it, with its history.
 				</p>
 				<ul>
-					{#each removed as r (r.device_id)}
+					{#each shownRemoved as r (r.device_id)}
 						<li>
 							<span class="text">
 								<span class="name">{r.name}</span>
@@ -446,6 +477,27 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-2);
+		padding: var(--space-2) var(--space-3);
+		border-radius: var(--radius);
+		background: var(--lit-bg);
+		color: var(--lit-ink);
+		border: 1px solid var(--lit-card-line);
+	}
+	.orphans summary {
+		cursor: pointer;
+		font-weight: 600;
+	}
+	.orphans[open] summary {
+		margin-bottom: var(--space-2);
+	}
+	.empty .clear {
+		margin-left: 6px;
+		padding: 0;
+		border: none;
+		background: none;
+		color: var(--accent);
+		font: inherit;
+		font-weight: 600;
 	}
 	.orphans div {
 		display: flex;

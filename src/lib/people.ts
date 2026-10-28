@@ -190,10 +190,8 @@ export const LEVEL_WORDS: Record<KeyLevel, { name: string; what: string }> = {
 const READS = [
 	'devices:read',
 	'automations:read',
-	'dashboards:read',
 	'scenes:read',
 	'areas:read',
-	'skins:read',
 	'content:read'
 ];
 

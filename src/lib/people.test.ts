@@ -17,18 +17,14 @@ import {
 const READ = [
 	'devices:read',
 	'automations:read',
-	'dashboards:read',
 	'scenes:read',
 	'areas:read',
-	'skins:read',
 	'content:read'
 ];
 const AUTHOR = [
 	'automations:write',
-	'dashboards:write',
 	'scenes:write',
 	'areas:write',
-	'skins:write',
 	'content:write'
 ];
 const MEMBER = [...READ, 'devices:command', 'scenes:run'];

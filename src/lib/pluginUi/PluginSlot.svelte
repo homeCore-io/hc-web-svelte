@@ -7,7 +7,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { createHost } from './host.svelte.js';
-	import { loadModule, type PluginUi, type UiSlot } from './uis.svelte.js';
+	import { isStale, loadModule, type PluginUi, type UiSlot } from './uis.svelte.js';
 	import type { PluginElement } from './types.js';
 
 	let {
@@ -37,6 +37,8 @@
 	let box = $state<HTMLDivElement | undefined>(undefined);
 	let el = $state<PluginElement | undefined>(undefined);
 	let failed = $state('');
+	// The plugin was updated while the app was open: its old screens stay until a reload.
+	const stale = $derived(isStale(element ?? slot.element, ui) && !!el);
 
 	// Made again only for another plugin, element or build — not each time
 	// the list of plugin screens is read again, which hands over equal but
@@ -91,12 +93,35 @@
 	});
 </script>
 
+{#if stale}
+	<p class="updated" role="status">
+		This plugin was updated. <button type="button" onclick={() => location.reload()}
+			>Reload to see its new screens</button
+		>
+	</p>
+{/if}
 <div class="slot" bind:this={box}></div>
 {#if failed}<p class="quiet" role="status">{failed}</p>{/if}
 
 <style>
 	.slot {
 		min-width: 0;
+	}
+	.updated {
+		margin: 0 0 8px;
+		padding: 8px 12px;
+		border-radius: 10px;
+		background: var(--lit-bg);
+		color: var(--lit-ink);
+		font-size: 13px;
+	}
+	.updated button {
+		padding: 0;
+		border: none;
+		background: none;
+		color: var(--accent);
+		font: inherit;
+		font-weight: 600;
 	}
 	.quiet {
 		margin: 0;

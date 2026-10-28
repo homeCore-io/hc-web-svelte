@@ -130,12 +130,30 @@ export const moduleUrl = (pluginId: string, ui: PluginUi) =>
 		.join('/')}`;
 
 const loading = new Map<string, Promise<void>>();
+/**
+ * Which build defined each element. A page can define an element only once:
+ * when a plugin is updated while the app is open, its new build can't replace
+ * the elements the old one defined until the app is reloaded.
+ */
+const definedBy = new Map<string, string>();
+
+/** Whether `element` is still the one an older build of this plugin defined. */
+export const isStale = (element: string, ui: PluginUi): boolean => {
+	const was = definedBy.get(element);
+	return was !== undefined && was !== ui.build;
+};
+
 /** Import a plugin's module once; resolved when its element is defined. */
 export function loadModule(pluginId: string, ui: PluginUi, element: string): Promise<void> {
+	// Updated while open: keep the element the old build defined (importing the
+	// new one would throw, and the screen would fall back to the generic page).
+	if (isStale(element, ui) && customElements.get(element)) return Promise.resolve();
 	const url = moduleUrl(pluginId, ui);
 	let p = loading.get(url);
 	if (!p) {
-		p = import(/* @vite-ignore */ url).then(() => undefined);
+		p = import(/* @vite-ignore */ url).then(() => {
+			for (const s of ui.slots) if (!definedBy.has(s.element)) definedBy.set(s.element, ui.build);
+		});
 		p.catch(() => loading.delete(url));
 		loading.set(url, p);
 	}

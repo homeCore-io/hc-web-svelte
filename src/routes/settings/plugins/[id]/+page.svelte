@@ -70,6 +70,29 @@
 	let failed = $state<string | null>(null);
 	let reg = $state<RegistryPlugin | undefined>(undefined);
 	let note = $state<string | null>(null);
+	// A note about a change on its way ("…is restarting") goes once it has
+	// happened, instead of staying up while the status underneath moves on.
+	// "Running" here means running again: a new start, or the new version —
+	// the old process can still read as active for a moment.
+	let until = $state<{ want: 'running' | 'stopped'; since?: string; version?: string } | null>(
+		null
+	);
+	$effect(() => {
+		if (!until || !plugin) return;
+		const running = plugin.enabled && plugin.status === 'active';
+		const again =
+			running &&
+			(until.version ? versionOf(plugin) === until.version : plugin.uptime_started !== until.since);
+		if (until.want === 'running' ? again : !running) {
+			note = null;
+			until = null;
+		}
+	});
+	const expect = (want: 'running' | 'stopped', version?: string) => {
+		until = { want, since: plugin?.uptime_started, version };
+		// While it changes, look again often — events can be missed on a reconnect.
+		for (const ms of [1500, 4000, 8000, 15000]) setTimeout(load, ms);
+	};
 	let busy = $state(false);
 
 	async function load() {
@@ -144,7 +167,8 @@
 					? `${name} is stopping.`
 					: `${name} is starting.`
 			: r.error;
-		setTimeout(load, 1500);
+		if (r.ok) expect(what === 'stop' ? 'stopped' : 'running');
+		else setTimeout(load, 1500);
 	}
 
 	async function doUpdate() {
@@ -165,6 +189,7 @@
 			: wasPlaced(r.data)
 				? `${name} ${r.data.version} is going to ${runsOn?.name ?? r.data.placed_on}, which updates it the next time it checks in.`
 				: `${name} ${r.data.version} is installed${r.data.activated ? ' and starting' : ' (it’s turned off, so it isn’t running)'}.`;
+		if (r.ok && !wasPlaced(r.data) && r.data.activated) expect('running', r.data.version);
 		await load();
 	}
 
@@ -189,6 +214,7 @@
 		if (!r.ok) return void (note = r.error);
 		plugin = r.data;
 		note = on ? `${name} is on and starting.` : `${name} is off.`;
+		if (on) expect('running');
 	}
 
 	async function remove() {
@@ -334,9 +360,19 @@
 		</header>
 
 		{#if note}<p class="note" role="status">{note}</p>{/if}
+		{#if page_ && pageFailed}
+			<!-- Never a silent swap: this generic page stands in only when its own didn't load. -->
+			<p class="note" role="alert">
+				{name}’s own page didn’t load, so this is the general one.
+				<button type="button" class="reload" onclick={() => location.reload()}>Reload</button>
+			</p>
+		{/if}
 
 		{#if tab === 'settings' && canWrite}
-			<PluginSettings pluginId={id} {name} running={plugin.enabled} />
+			<!-- Read again when it restarts: a new version can bring a new form. -->
+			{#key plugin.uptime_started}
+				<PluginSettings pluginId={id} {name} running={plugin.enabled} />
+			{/key}
 		{:else if tab === 'logs' && session.isAdmin}
 			<section class="logs">
 				<label class="lvl">
@@ -799,5 +835,13 @@
 		margin: 0;
 		color: var(--ink-muted);
 		font-size: 13px;
+	}
+	.reload {
+		padding: 0;
+		border: none;
+		background: none;
+		color: var(--accent);
+		font: inherit;
+		font-weight: 600;
 	}
 </style>

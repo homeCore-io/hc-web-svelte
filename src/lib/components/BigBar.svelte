@@ -13,6 +13,7 @@
 		step = 1,
 		unit,
 		disabled = false,
+		resting = false,
 		oncommit
 	}: {
 		label: string;
@@ -23,6 +24,8 @@
 		unit?: string;
 		disabled?: boolean;
 		oncommit: (value: number) => void;
+		/** Shown, but not in effect — a light's level while it's off. */
+		resting?: boolean;
 	} = $props();
 
 	let held = $state<number | null>(null);
@@ -35,11 +38,11 @@
 	);
 </script>
 
-<div class="bar" class:disabled>
+<div class="bar" class:disabled class:resting>
 	<div class="fill" style:width={`${Math.max(0, Math.min(100, pct))}%`}></div>
 	<div class="words" aria-hidden="true">
 		<span>{label}</span>
-		<span class="num">{text}</span>
+		<span class="figure">{text}</span>
 	</div>
 	<input
 		type="range"
@@ -98,6 +101,13 @@
 	}
 	.disabled {
 		opacity: 0.5;
+	}
+	.resting .fill {
+		opacity: 0.35;
+	}
+	/* The body face with even digits, like readings elsewhere (#30). */
+	.figure {
+		font-variant-numeric: tabular-nums;
 	}
 	.disabled input {
 		cursor: default;

@@ -190,9 +190,11 @@
 	{#if brightness && brightness.kind === 'slider' && card.control?.kind === 'switch'}
 		{@const sw = card.control}
 		<div class="hero-row">
+			<!-- Off keeps its level, shown resting: turning it on returns there (#29). -->
 			<BigBar
-				label="Brightness"
-				value={sw.on ? brightness.value : 0}
+				label={sw.on ? 'Brightness' : 'Brightness · off'}
+				value={brightness.value}
+				resting={!sw.on}
 				min={0}
 				max={brightness.max}
 				unit="%"

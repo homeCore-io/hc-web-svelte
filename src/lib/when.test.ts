@@ -23,6 +23,7 @@ describe('times and dates, one way everywhere', () => {
 		expect(momentOf(y, now)).toBe(`Yesterday, ${timeOf(y)}`);
 		const before = new Date(2026, 9, 20, 9, 0);
 		expect(momentOf(before, now)).toBe(`${dateOf(before, now)}, ${timeOf(before)}`);
+		expect(momentOf(t, now, true)).toBe(`today, ${timeOf(t)}`);
 	});
 
 	it('says how long ago in days past two', () => {

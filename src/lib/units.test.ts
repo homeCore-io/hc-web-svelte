@@ -65,7 +65,7 @@ describe('a reading in the person’s units', () => {
 	});
 
 	it('the caller’s own rounding stands when nothing changed', () => {
-		expect(readingText(21.25, '°C', (n) => n.toFixed(1), METRIC)).toBe('21.3 °C');
+		expect(readingText(21.25, '°C', (n) => n.toFixed(1), METRIC)).toBe('21.3°C');
 	});
 });
 

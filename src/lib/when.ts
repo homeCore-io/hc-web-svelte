@@ -21,6 +21,13 @@ export const timeOf = (x: When, seconds = false): string =>
 		...(seconds ? { second: '2-digit' } : {})
 	});
 
+/** A time of day given as minutes after midnight, in the person's clock. */
+export const minutesOf = (m: number, hourOnly = false): string =>
+	new Date(2000, 0, 1, Math.floor(m / 60), m % 60).toLocaleTimeString(
+		[],
+		hourOnly ? { hour: 'numeric' } : { hour: 'numeric', minute: '2-digit' }
+	);
+
 /** "Oct 27"; "Oct 27, 2025" when it isn't this year. */
 export const dateOf = (x: When, now: When = Date.now()): string => {
 	const d = at(x);
@@ -41,11 +48,21 @@ const daysBack = (x: Date, now: Date): number => {
 	return day(now) - day(x);
 };
 
-/** "Today, 2:04 PM", "Yesterday, 2:04 PM", "Oct 27, 2:04 PM". */
-export function momentOf(x: When, now: When = Date.now()): string {
+/** "Today, 2:04 PM", "Yesterday, 2:04 PM", "Oct 27, 2:04 PM" — `inline`
+ *  for the middle of a sentence: "since today, 2:04 PM". */
+export function momentOf(x: When, now: When = Date.now(), inline = false): string {
 	const d = at(x);
 	const back = daysBack(d, at(now));
-	const day = back === 0 ? 'Today' : back === 1 ? 'Yesterday' : dateOf(d, now);
+	const day =
+		back === 0
+			? inline
+				? 'today'
+				: 'Today'
+			: back === 1
+				? inline
+					? 'yesterday'
+					: 'Yesterday'
+				: dateOf(d, now);
 	return `${day}, ${timeOf(d)}`;
 }
 

@@ -212,7 +212,7 @@
 	}
 	.at {
 		white-space: nowrap;
-		font-family: var(--font-num);
+		font-variant-numeric: tabular-nums;
 		font-size: 12.5px;
 		color: var(--ink-muted);
 	}

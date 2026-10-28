@@ -413,7 +413,7 @@
 	}
 	.n {
 		opacity: 0.7;
-		font-family: var(--font-num);
+		font-variant-numeric: tabular-nums;
 	}
 	.plugin,
 	.check {

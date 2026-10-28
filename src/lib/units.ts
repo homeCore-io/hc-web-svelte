@@ -231,7 +231,8 @@ export function numberText(s: Shown, fmt: (n: number) => string = String): strin
 	return s.converted ? String(s.value) : fmt(s.value);
 }
 
-/** A reading with its unit: "70.5 °F", "29.92 inHg", "45%". */
+/** A reading with its unit: "70.5°F", "29.92 inHg", "45%" — degrees and
+ *  percent against the number, every other unit after a space (#127). */
 export function readingText(
 	value: number,
 	unit: string | undefined,
@@ -241,7 +242,7 @@ export function readingText(
 	const s = shown(value, unit, u);
 	const n = numberText(s, fmt);
 	if (!s.unit) return n;
-	return s.unit === '%' ? `${n}%` : `${n} ${s.unit}`;
+	return s.unit === '%' || s.unit.startsWith('°') ? `${n}${s.unit}` : `${n} ${s.unit}`;
 }
 
 /**

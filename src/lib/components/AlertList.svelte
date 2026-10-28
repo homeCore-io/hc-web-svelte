@@ -538,7 +538,7 @@
 		color: var(--ink-muted);
 	}
 	.since {
-		font-family: var(--font-num);
+		font-variant-numeric: tabular-nums;
 		font-size: 12px;
 		flex: none;
 	}

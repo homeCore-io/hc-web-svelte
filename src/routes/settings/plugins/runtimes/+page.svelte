@@ -154,7 +154,7 @@
 			>
 			{#if token}
 				<code>{token.token}</code>
-				<span class="quiet">Good until {momentOf(token.expires_at)}.</span>
+				<span class="quiet">Good until {momentOf(token.expires_at, Date.now(), true)}.</span>
 			{:else}
 				<button type="button" class="plain" onclick={makeToken}>Make a token</button>
 			{/if}

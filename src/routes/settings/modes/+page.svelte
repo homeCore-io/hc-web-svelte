@@ -8,6 +8,7 @@
 	before 0.1.81. Renaming keeps its id, so rules naming it carry on.
 -->
 <script lang="ts">
+	import { minutesOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { onReturn } from '#lib/refresh.js';
 	import { live as stream } from '#lib/live.svelte.js';
@@ -217,8 +218,12 @@
 		}
 	}
 
-	const hh = (m: number) =>
-		`${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+	const hh = (m: number) => minutesOf(m);
+	/** Sunrise and sunset come as "07:31": said in the person's clock. */
+	const clockOf = (v: unknown) => {
+		const m = typeof v === 'string' ? /^(\d{1,2}):(\d{2})/.exec(v) : null;
+		return m ? minutesOf(Number(m[1]) * 60 + Number(m[2])) : String(v ?? '—');
+	};
 </script>
 
 {#if !session.can('devices:write')}
@@ -403,13 +408,12 @@
 									{/each}
 								</div>
 								<div class="ticks">
-									<span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span
-										>24:00</span
-									>
+									{#each [0, 360, 720, 1080, 1440] as m (m)}<span>{minutesOf(m % 1440, true)}</span
+										>{/each}
 								</div>
 								<span class="sub"
-									>Shaded: {c.name} on today. Sunrise {String(a.sunrise_today ?? '—')}, sunset {String(
-										a.sunset_today ?? '—'
+									>Shaded: {c.name} on today. Sunrise {clockOf(a.sunrise_today)}, sunset {clockOf(
+										a.sunset_today
 									)}.</span
 								>
 							</div>
@@ -472,6 +476,12 @@
 		display: flex;
 		flex-direction: column;
 		gap: 6px;
+	}
+	/* The rules that use it: links like everywhere else, not black underlines. */
+	.uses a {
+		color: var(--accent);
+		font-weight: 600;
+		text-decoration: none;
 	}
 	.items a {
 		display: flex;
@@ -671,11 +681,11 @@
 	.off {
 		min-width: 70px;
 		text-align: center;
-		font-family: var(--font-num);
+		font-variant-numeric: tabular-nums;
 		font-size: 13px;
 	}
 	.at {
-		font-family: var(--font-num);
+		font-variant-numeric: tabular-nums;
 		font-weight: 600;
 	}
 	.day {
@@ -700,7 +710,7 @@
 	.ticks {
 		display: flex;
 		justify-content: space-between;
-		font-family: var(--font-num);
+		font-variant-numeric: tabular-nums;
 		font-size: 11px;
 		color: var(--ink-muted);
 	}

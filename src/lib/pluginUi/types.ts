@@ -212,7 +212,8 @@ export interface Units {
 	/**
 	 * A reading in `unit` — the schema's: `°C`, `hPa`, `m/s`, `mm`, `mm/h`,
 	 * `km` — as the person reads it: `{ value: 70.7, unit: '°F', text:
-	 * '70.7 °F' }`, rounded as that unit reads. Any other unit (`%`, `lux`)
+	 * '70.7°F' }` (degrees and % against the number, other units after a
+	 * space), rounded as that unit reads. Any other unit (`%`, `lux`)
 	 * comes back as it was, the value untouched.
 	 */
 	show(

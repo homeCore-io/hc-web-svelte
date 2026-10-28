@@ -43,7 +43,8 @@
 	let versions = $state<Record<string, unknown>>({});
 	let level = $state<string | null>(null);
 	let levelMissing = $state(false);
-	let plugins = $state<{ running: number; all: number } | null>(null);
+	// Turned off on purpose isn't trouble: counted apart from the ones meant to run.
+	let plugins = $state<{ running: number; all: number; off: number } | null>(null);
 
 	let connections = $state<Connection[] | null>(null);
 	async function load() {
@@ -64,7 +65,8 @@
 		if (p.ok)
 			plugins = {
 				running: p.data.filter(isRunning).length,
-				all: p.data.length
+				all: p.data.filter((x) => x.enabled).length,
+				off: p.data.filter((x) => !x.enabled).length
 			};
 	}
 	let updates = $state.raw<{ core?: Latest; app?: Latest }>({});
@@ -107,7 +109,10 @@
 				value: plugins
 					? `${plugins.running} of ${plugins.all} running`
 					: `${status.plugins_active} running`,
-				detail: plugins && plugins.running < plugins.all ? 'Some aren’t running' : 'All well',
+				detail:
+					plugins && plugins.running < plugins.all
+						? 'Some aren’t running'
+						: `All well${plugins?.off ? ` · ${plugins.off} turned off` : ''}`,
 				href: '/settings/plugins',
 				bad: !!plugins && plugins.running < plugins.all
 			},
@@ -354,7 +359,7 @@
 							<span class="sub"
 								>{c.endpoint === 'logs_stream' ? 'the log' : 'the house'} · {browserOf(
 									c.user_agent
-								)} · since {momentOf(c.connected_at)}</span
+								)} · since {momentOf(c.connected_at, Date.now(), true)}</span
 							>
 						</li>
 					{/each}

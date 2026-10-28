@@ -37,7 +37,7 @@
 	onMount(() => {
 		if (!session.isDisplay && !session.me?.unlocked_on) void loadSessions();
 	});
-	const day = (iso: string) => momentOf(iso);
+	const day = (iso: string) => momentOf(iso, Date.now(), true);
 	async function endSession(x: SignedIn) {
 		const res = await fetch(`/api/v1/auth/sessions/${encodeURIComponent(x.id)}`, {
 			method: 'DELETE'

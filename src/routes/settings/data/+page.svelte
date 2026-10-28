@@ -138,7 +138,7 @@
 		if (!file || !plan) return;
 		const ok = await ask({
 			title: 'Put the house back as this backup has it?',
-			body: `Everything changed since ${plan.taken_at ? momentOf(plan.taken_at) : 'the backup was taken'} is lost. homeCore restarts to do it.`,
+			body: `Everything changed since ${plan.taken_at ? momentOf(plan.taken_at, Date.now(), true) : 'the backup was taken'} is lost. homeCore restarts to do it.`,
 			lost: [
 				'Devices, rooms, scenes, rules and people as they are now',
 				'History since the backup',
@@ -388,7 +388,9 @@
 				{:else}
 					<div class="plan">
 						<strong
-							>A backup from {plan.taken_at ? momentOf(plan.taken_at) : 'an unknown time'}</strong
+							>A backup from {plan.taken_at
+								? momentOf(plan.taken_at, Date.now(), true)
+								: 'an unknown time'}</strong
 						>
 						<ul>
 							{#each counts as c (c)}<li>{c}</li>{/each}

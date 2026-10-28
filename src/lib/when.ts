@@ -28,6 +28,12 @@ export const minutesOf = (m: number, hourOnly = false): string =>
 		hourOnly ? { hour: 'numeric' } : { hour: 'numeric', minute: '2-digit' }
 	);
 
+/** A time of day kept as "HH:MM" ("23:00"), in the person's clock ("11:00 PM"). */
+export const hhmmOf = (v: unknown): string => {
+	const m = typeof v === 'string' ? /^(\d{1,2}):(\d{2})/.exec(v) : null;
+	return m ? minutesOf(Number(m[1]) * 60 + Number(m[2])) : String(v ?? '—');
+};
+
 /** "Oct 27"; "Oct 27, 2025" when it isn't this year. */
 export const dateOf = (x: When, now: When = Date.now()): string => {
 	const d = at(x);

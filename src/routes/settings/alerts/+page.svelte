@@ -115,7 +115,8 @@
 
 	/** A rule's state, in the device's words. */
 	function stateOf(r: AlertRule): string {
-		if (r.state_label) return r.state_label;
+		// Saved wording, tidied: "14 °F" from before degrees sat against the number.
+		if (r.state_label) return r.state_label.replace(/(\d) °([CF])\b/g, '$1°$2');
 		if (r.op === 'above' || r.op === 'below') return `${r.attribute} ${r.op} ${String(r.value)}`;
 		if (r.op === 'ne') return `${r.attribute} isn’t ${String(r.value)}`;
 		const d = devices.byId[r.device_ids[0] ?? ''];
@@ -600,6 +601,16 @@
 							disabled={!chosen || picked.length === 0 || saving || (!!chosen.op && level === null)}
 							>{saving ? 'Saving…' : editing ? 'Save' : 'Add rule'}</button
 						>
+						{#if !saving && (!chosen || picked.length === 0 || (!!chosen.op && level === null))}
+							<!-- Says what's missing instead of a faded button with no reason (#83). -->
+							<span class="missing"
+								>{!chosen
+									? 'Choose what to watch.'
+									: picked.length === 0
+										? 'Pick at least one device.'
+										: 'Give it a level.'}</span
+							>
+						{/if}
 						{#if editing}<button type="button" class="ghost" onclick={reset}>Cancel</button>{/if}
 					</div>
 				</form>
@@ -1144,5 +1155,9 @@
 	.trouble {
 		margin: 0;
 		color: var(--alert);
+	}
+	.missing {
+		font-size: 13px;
+		color: var(--ink-muted);
 	}
 </style>

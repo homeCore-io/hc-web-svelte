@@ -8,7 +8,7 @@
 	before 0.1.81. Renaming keeps its id, so rules naming it carry on.
 -->
 <script lang="ts">
-	import { minutesOf } from '#lib/when.js';
+	import { hhmmOf, minutesOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { onReturn } from '#lib/refresh.js';
 	import { live as stream } from '#lib/live.svelte.js';
@@ -220,10 +220,7 @@
 
 	const hh = (m: number) => minutesOf(m);
 	/** Sunrise and sunset come as "07:31": said in the person's clock. */
-	const clockOf = (v: unknown) => {
-		const m = typeof v === 'string' ? /^(\d{1,2}):(\d{2})/.exec(v) : null;
-		return m ? minutesOf(Number(m[1]) * 60 + Number(m[2])) : String(v ?? '—');
-	};
+	const clockOf = hhmmOf;
 </script>
 
 {#if !session.can('devices:write')}

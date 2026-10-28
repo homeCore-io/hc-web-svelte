@@ -14,6 +14,7 @@
 import type { Frame } from './house.js';
 import type { CoreDevice } from './devices.js';
 import { fromShown, shown, shownUnit } from './units.js';
+import { hhmmOf } from './when.js';
 
 export type AlertKind = 'wet' | 'smoke' | 'offline' | 'jammed' | 'low_battery' | 'rule' | 'plugin';
 
@@ -272,7 +273,8 @@ export const sameState = (a: Same, b: Same) => {
  */
 export const levelLabel = (c: Pick<StateChoice, 'label' | 'unit'>, n: number) => {
 	const unit = shownUnit(c.unit);
-	return `${c.label} ${n}${unit ? ` ${unit}` : ''}`;
+	// Degrees against the number ("86°F"), other units after a space.
+	return `${c.label} ${n}${unit ? (unit.startsWith('°') ? unit : ` ${unit}`) : ''}`;
 };
 
 /** A level rule's line as the person reads it: 30 °C → 86 °F. */
@@ -304,9 +306,9 @@ export function describeRule(
 	state: string
 ): string {
 	let s = state;
-	if (rule.after && rule.until) s += ` between ${rule.after} and ${rule.until}`;
-	else if (rule.after) s += ` after ${rule.after}`;
-	else if (rule.until) s += ` before ${rule.until}`;
+	if (rule.after && rule.until) s += ` between ${hhmmOf(rule.after)} and ${hhmmOf(rule.until)}`;
+	else if (rule.after) s += ` after ${hhmmOf(rule.after)}`;
+	else if (rule.until) s += ` before ${hhmmOf(rule.until)}`;
 	if (rule.for_minutes) s += ` for ${rule.for_minutes} min`;
 	return s;
 }

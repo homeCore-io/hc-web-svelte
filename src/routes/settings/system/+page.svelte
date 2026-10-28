@@ -80,6 +80,25 @@
 	});
 
 	// Counted as the Devices page counts them, plugin scenes left out.
+	/** Connections grouped by who, where and which browser — a person's tabs, once. */
+	const sameAs = (list: Connection[]) => {
+		const by = new Map<
+			string,
+			{ key: string; user: string; where: string; browser: string; since: string; count: number }
+		>();
+		for (const c of list) {
+			const user = c.user.replace(/^api_key:/, '');
+			const where = c.endpoint === 'logs_stream' ? 'the log' : 'the house';
+			const browser = browserOf(c.user_agent);
+			const key = `${user}|${where}|${browser}`;
+			const g = by.get(key);
+			if (g) {
+				g.count++;
+				if (c.connected_at < g.since) g.since = c.connected_at;
+			} else by.set(key, { key, user, where, browser, since: c.connected_at, count: 1 });
+		}
+		return [...by.values()];
+	};
 	const deviceList = $derived(houseDevices(devices.byId));
 	const offline = $derived(deviceList.filter((d) => !d.available).length);
 	const since = (iso: string) => {
@@ -345,21 +364,24 @@
 		</section>
 
 		{#if connections}
-			<section class="card">
+			<section class="card connected">
 				<h2>Connected now</h2>
 				<p class="sub">
 					Screens following the house live — each tab of the app, each display — and anyone reading
 					the log.
 				</p>
 				{#if connections.length === 0}<p class="sub">Nobody.</p>{/if}
+				<!-- The same person, place and browser said once, with how many (#88). -->
 				<ul class="conns">
-					{#each connections as c (c.connection_id)}
+					{#each sameAs(connections) as g (g.key)}
 						<li>
-							<strong>{c.user.replace(/^api_key:/, '')}</strong>
+							<strong>{g.user}</strong>
 							<span class="sub"
-								>{c.endpoint === 'logs_stream' ? 'the log' : 'the house'} · {browserOf(
-									c.user_agent
-								)} · since {momentOf(c.connected_at, Date.now(), true)}</span
+								>{g.where} · {g.browser}{g.count > 1 ? ` × ${g.count}` : ''} · since {momentOf(
+									g.since,
+									Date.now(),
+									true
+								)}</span
 							>
 						</li>
 					{/each}
@@ -639,6 +661,14 @@
 		margin: 0;
 		color: var(--ink-muted);
 		font-size: 13px;
+	}
+	/* Sized as the other cards' headings, without the browser's margins (#88). */
+	.connected h2 {
+		margin: 0;
+		font-size: 16px;
+	}
+	.connected > p {
+		margin: 0;
 	}
 	.conns {
 		list-style: none;

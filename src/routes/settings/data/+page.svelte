@@ -378,7 +378,8 @@
 					Put the house back as a backup has it. You’re told what it brings before anything happens.
 				</p>
 				{#if !plan}
-					<label class="plain bad file"
+					<!-- Neutral: choosing a file risks nothing; the danger is asked at Restore (#68). -->
+					<label class="plain file"
 						>Choose a backup file…<input
 							type="file"
 							accept=".zip,application/zip"

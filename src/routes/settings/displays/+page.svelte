@@ -138,7 +138,11 @@
 		</p>
 
 		<form class="new" onsubmit={create}>
-			<input bind:value={name} placeholder="Kitchen panel" aria-label="New display's name" />
+			<input
+				bind:value={name}
+				placeholder="A name — Hall tablet, say"
+				aria-label="New display's name"
+			/>
 			<button type="submit" disabled={name.trim() === ''}>Make a display</button>
 		</form>
 

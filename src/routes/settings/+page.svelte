@@ -322,7 +322,7 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
-		max-width: 520px;
+		max-width: 1100px;
 		height: 44px;
 		padding: 0 var(--space-3);
 		border-radius: 22px;

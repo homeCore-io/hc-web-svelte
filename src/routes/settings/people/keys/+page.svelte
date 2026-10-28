@@ -241,7 +241,7 @@
 							>{/if}
 						<span class="mono">hc_sk_{k.prefix}…</span>
 						<div class="acts">
-							<button class="plain" onclick={() => edit(k)}>Edit</button>
+							<button class="plain" onclick={() => edit(k)}>Change</button>
 							<button class="plain" onclick={() => rotate(k)}>New secret</button>
 							<button class="plain bad" onclick={() => revoke(k)}>Revoke</button>
 						</div>

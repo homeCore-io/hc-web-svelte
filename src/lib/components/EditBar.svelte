@@ -1,7 +1,7 @@
 <!--
 	Edit mode's bar (N6): it says plainly that everyone sees these changes, and
 	holds Undo, Add a card, Cancel and Done. Changes that name something the
-	page no longer has are counted here and can be cleared (M2).
+	page no longer has do nothing; Done tidies them away without asking (#4).
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
@@ -23,6 +23,8 @@
 
 	const leave = () => goto(withEdit(page.url, false), { replace: true });
 	async function done() {
+		// Only once the page knows what it has — never because a plugin hasn't reported yet.
+		if (stale.length > 0 && editing.present.size > 0) editing.forget(key, stale);
 		const saving = editing.done();
 		await leave();
 		await saving;
@@ -50,12 +52,6 @@
 		<button class="done" onclick={done}>Done</button>
 	</div>
 </div>
-{#if stale.length > 0}
-	<p class="note">
-		{stale.length === 1 ? 'One change refers' : `${stale.length} changes refer`} to something that's gone.
-		<button class="link" onclick={() => editing.forget(key, stale)}>Clear</button>
-	</p>
-{/if}
 {#if changed}
 	<p class="note">
 		<button

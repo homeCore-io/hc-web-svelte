@@ -433,7 +433,7 @@
 						>Delete…</button
 					>{/if}
 			</div>
-			<p class="sentence"><Words {words} /></p>
+			<!-- The When / Do below says it, with its structure; the list keeps the sentence (#54). -->
 
 			{#if note}<p class="note" role="status">{note}</p>{/if}
 			{#if madeBy}

@@ -727,7 +727,20 @@
 		{:else if rules === null}
 			<p class="quiet">Loading rules…</p>
 		{:else if shown.length === 0}
-			<p class="quiet">{rows.length === 0 ? 'The house has no rules yet.' : 'No rule matches.'}</p>
+			<p class="quiet">
+				{#if rows.length === 0}The house has no rules yet.{:else}No rule matches{query.trim()
+						? ` “${query.trim()}”`
+						: ' this filter'}.
+					<button
+						type="button"
+						class="link"
+						onclick={() => {
+							query = '';
+							set('q', null);
+							set('show', null);
+						}}>Show them all</button
+					>{/if}
+			</p>
 		{:else}
 			{#each grouped as g (g.tag)}
 				<section class="group">
@@ -750,7 +763,7 @@
 				</section>
 			{/each}
 		{/if}
-		{#if rules}
+		{#if rules && shown.length > 0}
 			<p class="quiet">
 				{rows.length === 1 ? 'One rule' : `${rows.length} rules`}, {onCount} on. A rule with two tags
 				is under both.
@@ -834,6 +847,22 @@
 	.spacer {
 		flex: 1;
 	}
+	/* On a phone the buttons start the line under the filters, not off to one side (#59),
+	   and the filters scroll in one row, as on Devices. */
+	@media (max-width: 699px) {
+		.spacer {
+			display: none;
+		}
+		.tools .chips {
+			flex-wrap: nowrap;
+			overflow-x: auto;
+			width: 100%;
+			scrollbar-width: none;
+		}
+		.tools .chips button {
+			flex: none;
+		}
+	}
 	.search {
 		display: flex;
 		align-items: center;
@@ -909,10 +938,12 @@
 		font-size: 13px;
 		text-decoration: none;
 	}
+	/* One link style for the list's small actions — Combine… was underlined (#56). */
 	.link {
 		border: none;
 		background: none;
 		padding: 0 4px;
+		text-decoration: none;
 		color: var(--accent);
 		font: inherit;
 		font-size: 12px;

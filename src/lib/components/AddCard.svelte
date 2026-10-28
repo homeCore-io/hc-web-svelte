@@ -149,7 +149,7 @@
 							<span class="words">
 								<b>{c.name}</b>
 								{#if c.description}<small>{c.description}</small>{/if}
-								<em>{c.plugin} · add as many as you like</em>
+								<em>{c.plugin}</em>
 							</span>
 						</button>
 					{/each}
@@ -231,6 +231,8 @@
 		overflow-x: auto;
 		flex: none;
 		scrollbar-width: none;
+		/* Fade at the edge, so chips past it read as more to scroll to (#116). */
+		mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
 	}
 	.chip {
 		flex: none;

@@ -419,7 +419,8 @@
 							</li>
 						{/each}
 					</ul>
-					<button type="button" class="plain danger" onclick={clearDevices}
+					<!-- Its own size, at the end — not a full-width red bar over the list (#113). -->
+					<button type="button" class="plain danger end" onclick={clearDevices}
 						>Delete all its devices…</button
 					>
 				{/if}
@@ -847,5 +848,9 @@
 		color: var(--accent);
 		font: inherit;
 		font-weight: 600;
+	}
+	.end {
+		align-self: flex-start;
+		margin-top: var(--space-2);
 	}
 </style>

@@ -210,7 +210,9 @@
 									runOn
 								)}`
 							: installed
-								? `Install ${version}`
+								? compareVersions(version, versionOf(installed) ?? '0') > 0
+									? `Update to ${version}`
+									: `Install ${version}`
 								: `Install ${chosen.name}`}
 				</button>
 				{#if placed}

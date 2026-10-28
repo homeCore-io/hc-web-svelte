@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { DEVICES, RULES } from './fixtures/rules.js';
+import { newCheck, newWhen } from './ruleEdit.js';
 import { houseOf } from './ruleList.js';
 import { followUnits } from './units.js';
 import {
@@ -323,5 +324,21 @@ describe('alert triggers by name', () => {
 	});
 	test('a rule the house no longer has falls back to its kind', () => {
 		expect(w({ kind: 'rule', rule_id: 'gone' })).toBe('a time-rule alert is raised');
+	});
+});
+
+describe('a rule still being made', () => {
+	test('says what is still to choose, never "When changes"', () => {
+		const r = {
+			id: 'new',
+			name: '',
+			enabled: true,
+			trigger: newWhen('device'),
+			conditions: [newCheck('device')]
+		} as Rule;
+		const said = say2(r);
+		expect(said).toMatch(/^When \(choose a device\) /);
+		expect(said).toContain('only if (choose a device)');
+		expect(sentence(h, r).some((b) => b.todo)).toBe(true);
 	});
 });

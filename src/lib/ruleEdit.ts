@@ -823,7 +823,7 @@ export const WHEN_KINDS: { kind: WhenKind; label: string; sub: string }[] = [
 	{ kind: 'time', label: 'A time of day', sub: 'On the days you choose' },
 	{ kind: 'sun', label: 'Sunrise or sunset', sub: 'With an offset' },
 	{ kind: 'mode', label: 'A mode changes', sub: 'Night, Away…' },
-	{ kind: 'start', label: 'homeCore starts', sub: '' },
+	{ kind: 'start', label: 'homeCore starts', sub: 'After a restart or an update' },
 	{ kind: 'every', label: 'Every so often', sub: 'Every 5 minutes, every hour…' },
 	{ kind: 'webhook', label: 'A webhook is called', sub: 'Another service calls an address' },
 	{ kind: 'alert', label: 'An alert', sub: 'Is raised, clears, is seen, lasts…' },
@@ -834,13 +834,13 @@ export const WHEN_KINDS: { kind: WhenKind; label: string; sub: string }[] = [
 	}
 ];
 
-export const CHECK_KINDS: { kind: CheckKind; label: string }[] = [
-	{ kind: 'device', label: 'A device is…' },
-	{ kind: 'mode', label: 'A mode is on or off' },
-	{ kind: 'time', label: 'It’s between two times' },
-	{ kind: 'any', label: 'Any of these' },
-	{ kind: 'alert', label: 'An alert is (or isn’t) active' },
-	{ kind: 'other', label: 'Something else' }
+export const CHECK_KINDS: { kind: CheckKind; label: string; sub: string }[] = [
+	{ kind: 'device', label: 'A device is…', sub: 'Open, on, above a level…' },
+	{ kind: 'mode', label: 'A mode is on or off', sub: 'Night, Away…' },
+	{ kind: 'time', label: 'It’s between two times', sub: 'Or before or after one' },
+	{ kind: 'any', label: 'Any of these', sub: 'One of several checks is enough' },
+	{ kind: 'alert', label: 'An alert is (or isn’t) active', sub: 'On a device, or any' },
+	{ kind: 'other', label: 'Something else', sub: 'A calendar event, a value…' }
 ];
 
 export const STEP_KINDS: { kind: StepKind; label: string; sub: string }[] = [
@@ -850,7 +850,7 @@ export const STEP_KINDS: { kind: StepKind; label: string; sub: string }[] = [
 	{ kind: 'if', label: 'If / otherwise', sub: 'Do one thing or another' },
 	{ kind: 'notify', label: 'Tell someone', sub: 'Through a notification channel' },
 	{ kind: 'together', label: 'At the same time', sub: 'Steps that run together' },
-	{ kind: 'mode', label: 'Turn a mode on or off', sub: '' },
+	{ kind: 'mode', label: 'Turn a mode on or off', sub: 'Night, Away…' },
 	{ kind: 'alert', label: 'Act on alerts', sub: 'Press its button, wait for it to clear…' },
 	{ kind: 'other', label: 'Something else', sub: 'Repeat, wait for, a script…' }
 ];

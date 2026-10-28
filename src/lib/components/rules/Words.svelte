@@ -11,12 +11,16 @@
 {#each words as b, i (i)}{#if b.missing}<strong
 			class="missing"
 			title="The house has no device by this name">{b.t}</strong
-		>{:else if b.device}<strong>{b.t}</strong>{:else if b.code}<code>{b.t}</code
-		>{:else}{b.t}{/if}{/each}
+		>{:else if b.todo}<em class="todo">{b.t}</em>{:else if b.device}<strong>{b.t}</strong
+		>{:else if b.code}<code>{b.t}</code>{:else}{b.t}{/if}{/each}
 
 <style>
 	strong {
 		font-weight: 700;
+	}
+	.todo {
+		color: var(--ink-muted);
+		font-style: normal;
 	}
 	.missing {
 		color: var(--alert);

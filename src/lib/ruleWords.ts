@@ -25,6 +25,8 @@ export interface Bit {
 	missing?: boolean;
 	/** A script, a topic, an expression: shown as written. */
 	code?: boolean;
+	/** A part not filled in yet: "(choose a device)", said quietly (#48). */
+	todo?: boolean;
 }
 export type Phrase = Bit[];
 
@@ -104,6 +106,7 @@ export const plain = (p: Phrase) => p.map((b) => b.t).join('');
 
 /** A device by its name, or marked when the house has no such device. */
 export function deviceBit(h: House, id: string): Bit {
+	if (id === '') return { t: '(choose a device)', todo: true };
 	if (id.startsWith('DELETED:')) return { t: 'a deleted device', device: id, missing: true };
 	const d = h.device(id);
 	return d ? { t: displayName(d), device: d.device_id } : { t: id, device: id, missing: true };
@@ -208,7 +211,9 @@ function isMain(h: House, id: string, attr: string): boolean {
 /** "opens", "turns off", "button 1 is pressed", "humidity becomes 35 %". */
 function becomes(h: House, ids: string[], f: Record<string, Json>): Phrase {
 	const many = ids.length > 1;
-	const who: Phrase = many ? [t('any of '), ...devicesPhrase(h, ids, 'or')] : devicesPhrase(h, ids);
+	const who: Phrase = many
+		? [t('any of '), ...devicesPhrase(h, ids, 'or')]
+		: devicesPhrase(h, ids.length ? ids : ['']);
 	const attr: string | undefined = f.attribute;
 	if (attr === undefined) return [...who, t(' changes')];
 	const spec = specOf(h, ids[0]!, attr);

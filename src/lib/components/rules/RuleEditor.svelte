@@ -8,7 +8,18 @@
 <script lang="ts">
 	import { moreOf, sentence, tagOf, type Rule } from '#lib/ruleWords.js';
 	import { tested, type Tested } from '#lib/ruleRuns.js';
-	import { newCheck, newWhen, problemsOf, whensOf, withWhens } from '#lib/ruleEdit.js';
+	import {
+		CHECK_KINDS,
+		WHEN_KINDS,
+		newCheck,
+		newWhen,
+		offered,
+		problemsOf,
+		whensOf,
+		withWhens
+	} from '#lib/ruleEdit.js';
+	import { momentOf } from '#lib/when.js';
+	import KindPicker from './KindPicker.svelte';
 	import { testDraft, testRule } from '#lib/ruleAdmin.js';
 	import { same } from '#lib/ruleDraft.js';
 	import { provideHouse } from './house.svelte.js';
@@ -59,6 +70,12 @@
 	// ---- the draft ----
 	const changed = $derived(!saved || !same($state.snapshot(draft), saved));
 	const problems = $derived(problemsOf(draft, (id) => !!house.device(id)));
+	// A new rule's to-do list waits for the first Save, not its first moment (#49);
+	// "Saved." is said only after saving, never on a rule nobody touched (#51).
+	let tried = $state(false);
+	let pressed = $state(false);
+	const showProblems = $derived(problems.length > 0 && changed && (tried || !!saved));
+	let adding = $state<'when' | 'check' | null>(null);
 	const whens = $derived(whensOf(draft));
 	const setWhens = (list: Json[]) => (draft = withWhens(draft, list));
 	const words = $derived(sentence(house, draft));
@@ -159,11 +176,13 @@
 				house,
 				snap,
 				res.data,
-				at ? `at ${at.slice(11, 16)} on ${at.slice(0, 10)}` : undefined
+				at ? `at ${momentOf(new Date(at), Date.now(), true)}` : undefined
 			);
 	}
 	function save() {
 		if (tab === 'json' && !readJson()) return;
+		if (problems.length > 0) return void (tried = true);
+		pressed = true;
 		onsave();
 	}
 </script>
@@ -182,15 +201,12 @@
 				onclick={showJson}>JSON</button
 			>
 		</div>
-		<span class="state">{changed ? 'Draft — not saved yet.' : 'Saved.'}</span>
+		<span class="state">{changed ? 'Draft — not saved yet.' : pressed ? 'Saved.' : ''}</span>
 		{#if features.testAt}
-			<input
-				class="at"
-				type="datetime-local"
-				bind:value={testAt}
-				title="Test as if it were this time; empty is now"
-				aria-label="Test at (empty is now)"
-			/>
+			<label class="at-label"
+				>Test as if at
+				<input class="at" type="datetime-local" bind:value={testAt} title="Empty is now" /></label
+			>
 		{/if}
 		<button type="button" class="plain" disabled={testing} onclick={runTest}
 			>{testing ? 'Testing…' : 'Test'}</button
@@ -198,17 +214,14 @@
 		<button type="button" class="plain" disabled={busy} onclick={ondiscard}
 			>{changed ? 'Discard' : 'Close'}</button
 		>
-		<button
-			type="button"
-			class="go"
-			disabled={busy || !changed || problems.length > 0}
-			onclick={save}>{busy ? 'Saving…' : 'Save'}</button
+		<button type="button" class="go" disabled={busy || !changed} onclick={save}
+			>{busy ? 'Saving…' : 'Save'}</button
 		>
 	</div>
 
 	{#if banner}{@render banner()}{/if}
 	{#if note}<p class="note bad" role="alert">{note}</p>{/if}
-	{#if problems.length > 0 && changed}
+	{#if showProblems}
 		<ul class="problems">
 			{#each problems as p (p)}<li>{p}</li>{/each}
 		</ul>
@@ -265,9 +278,19 @@
 				/>
 			{/each}
 			{#if features.triggers}
-				<button type="button" class="add" onclick={() => setWhens([...whens, newWhen('device')])}
-					>+ Or when…</button
-				>
+				{#if adding === 'when'}
+					<KindPicker
+						kinds={offered(WHEN_KINDS, features)}
+						label="What starts it"
+						onpick={(k) => {
+							setWhens([...whens, newWhen(k)]);
+							adding = null;
+						}}
+						oncancel={() => (adding = null)}
+					/>
+				{:else}
+					<button type="button" class="add" onclick={() => (adding = 'when')}>+ Or when…</button>
+				{/if}
 			{/if}
 			{#if whenHint}<p class="hint">{whenHint}</p>{/if}
 		</section>
@@ -287,13 +310,19 @@
 						(draft = { ...draft, conditions: (draft.conditions ?? []).filter((_, j) => j !== i) })}
 				/>
 			{/each}
-			<button
-				type="button"
-				class="add"
-				onclick={() =>
-					(draft = { ...draft, conditions: [...(draft.conditions ?? []), newCheck('device')] })}
-				>+ Add a check</button
-			>
+			{#if adding === 'check'}
+				<KindPicker
+					kinds={offered(CHECK_KINDS, features)}
+					label="What to check"
+					onpick={(k) => {
+						draft = { ...draft, conditions: [...(draft.conditions ?? []), newCheck(k)] };
+						adding = null;
+					}}
+					oncancel={() => (adding = null)}
+				/>
+			{:else}
+				<button type="button" class="add" onclick={() => (adding = 'check')}>+ Add a check</button>
+			{/if}
 		</section>
 
 		<section class="part">
@@ -502,6 +531,13 @@
 		color: var(--ink-muted);
 		font-size: 13px;
 	}
+	.at-label {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 13px;
+		color: var(--ink-muted);
+	}
 	.at {
 		height: 34px;
 		padding: 0 8px;
@@ -661,9 +697,27 @@
 		background: var(--surface);
 		border: 1px solid var(--card-line);
 	}
+	/* The app's own disclosure (#52): a chevron that turns, not the browser's ▶. */
 	summary {
 		cursor: pointer;
 		font-weight: 600;
+		list-style: none;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	summary::-webkit-details-marker {
+		display: none;
+	}
+	summary::before {
+		content: '›';
+		font-size: 20px;
+		line-height: 1;
+		color: var(--ink-muted);
+		transition: transform 0.15s;
+	}
+	details[open] > summary::before {
+		transform: rotate(90deg);
 	}
 	.fields {
 		display: flex;

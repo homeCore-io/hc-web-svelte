@@ -185,7 +185,7 @@
 		<div class="swatches" role="radiogroup" aria-labelledby="palette">
 			<button role="radio" aria-checked={myTheme === undefined} onclick={() => setTheme(undefined)}>
 				<span class="swatch" style:background={houseTheme?.swatch}></span>
-				The house's ({houseTheme?.name})
+				Same as the house
 			</button>
 			{#each PALETTES as p (p.id)}
 				<button role="radio" aria-checked={myTheme === p.id} onclick={() => setTheme(p.id)}>
@@ -201,6 +201,8 @@
 		<p class="note">
 			How readings are shown to you. Only yours — homeCore keeps them in °C and metric.
 		</p>
+		<!-- Each row says what it sets (#98). -->
+		<span class="unit-label">Temperature</span>
 		<div class="segmented two" role="radiogroup" aria-label="Temperature">
 			{#each temperatures as c (c.value)}
 				<button
@@ -210,6 +212,7 @@
 				>
 			{/each}
 		</div>
+		<span class="unit-label">Pressure, wind and rain</span>
 		<div class="segmented two" role="radiogroup" aria-label="Pressure, wind and rain">
 			{#each measures as c (c.value)}
 				<button
@@ -496,5 +499,12 @@
 	.sessions li > span {
 		display: flex;
 		flex-direction: column;
+	}
+	.unit-label {
+		display: block;
+		margin: var(--space-2) 0 4px;
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--ink-muted);
 	}
 </style>

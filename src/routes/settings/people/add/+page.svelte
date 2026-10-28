@@ -91,8 +91,11 @@
 			<label class="field">
 				<span>First password</span>
 				<input type="password" bind:value={password} autocomplete="new-password" required />
-				<span class="sub"
-					>At least 8 characters. Give it to them in person; they can change it on Me.</span
+				<!-- Said as it's typed, not after homeCore refuses it (#91). -->
+				<span class="sub" class:short={password.length > 0 && password.length < 8}
+					>At least 8 characters{password.length > 0 && password.length < 8
+						? ` — ${8 - password.length} more`
+						: ''}. Give it to them in person; they can change it on Me.</span
 				>
 			</label>
 			<div class="aside">
@@ -102,7 +105,10 @@
 				>
 			</div>
 			{#if note}<p class="note bad" role="alert">{note}</p>{/if}
-			<button class="go" type="submit" disabled={busy || !role || !username.trim()}
+			<button
+				class="go"
+				type="submit"
+				disabled={busy || !role || !username.trim() || password.length < 8}
 				>{busy ? 'Adding…' : `Add as ${roleName(role || 'user').toLowerCase()}`}</button
 			>
 		</section>
@@ -241,5 +247,8 @@
 		margin: 0;
 		color: var(--ink-muted);
 		font-size: 13px;
+	}
+	.short {
+		color: var(--alert);
 	}
 </style>

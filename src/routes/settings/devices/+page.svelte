@@ -195,24 +195,23 @@
 					>
 				{/each}
 			</div>
-			{#if wide.current}
-				<label class="plugin"
-					>Plugin
-					<select value={plugin} onchange={(e) => set('plugin', e.currentTarget.value)}>
-						<option value="">Any</option>
-						{#each byPlugin as p (p.id)}<option value={p.id}>{p.label} · {p.count}</option>{/each}
-					</select>
-				</label>
-				{#if sceneCount > 0}
-					<label class="check"
-						><input
-							type="checkbox"
-							checked={scenes}
-							onchange={(e) => set('scenes', e.currentTarget.checked ? '1' : null)}
-						/>
-						Include {sceneCount} plugin scenes</label
-					>
-				{/if}
+			<!-- On a phone too: the chips scroll, the filters follow below them (#82). -->
+			<label class="plugin"
+				>Plugin
+				<select value={plugin} onchange={(e) => set('plugin', e.currentTarget.value)}>
+					<option value="">Any</option>
+					{#each byPlugin as p (p.id)}<option value={p.id}>{p.label} · {p.count}</option>{/each}
+				</select>
+			</label>
+			{#if sceneCount > 0}
+				<label class="check"
+					><input
+						type="checkbox"
+						checked={scenes}
+						onchange={(e) => set('scenes', e.currentTarget.checked ? '1' : null)}
+					/>
+					Include {sceneCount} plugin scenes</label
+				>
 			{/if}
 		</div>
 
@@ -394,6 +393,17 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 6px;
+	}
+	@media (max-width: 599px) {
+		.chips {
+			flex-wrap: nowrap;
+			overflow-x: auto;
+			width: 100%;
+			scrollbar-width: none;
+		}
+		.chips button {
+			flex: none;
+		}
 	}
 	.chips button {
 		height: 34px;

@@ -57,6 +57,12 @@
 		)
 	);
 	// The rooms in the order Home shows them: the household's, then this person's.
+	// Bars that stick under the header (Customise, Edit, the rule editor's)
+	// follow its real height: on a phone the title and back link can wrap.
+	let headerHeight = $state(64);
+	$effect(() => {
+		document.documentElement.style.setProperty('--header-h', `${headerHeight}px`);
+	});
 	const roomsInOrder = $derived(
 		apply(rooms.list, (r) => ref.room(r.id), view.changes('home')).shown
 	);
@@ -192,7 +198,7 @@
 
 	<div class="body">
 		<UnlockedBar />
-		<header>
+		<header bind:offsetHeight={headerHeight}>
 			<div class="titles">
 				{#if back}<a class="back" href={back.href}
 						><ChevronLeft size={16} strokeWidth={2} aria-hidden="true" />{back.label}</a
@@ -272,7 +278,8 @@
 	header {
 		position: sticky;
 		top: 0;
-		z-index: 2;
+		/* Above anything a card raises inside itself, so nothing scrolls over it (#27). */
+		z-index: 20;
 		display: flex;
 		align-items: center;
 		gap: var(--space-1);

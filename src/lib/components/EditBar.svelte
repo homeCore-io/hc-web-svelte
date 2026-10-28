@@ -78,7 +78,7 @@
 <style>
 	.bar {
 		position: sticky;
-		top: 64px;
+		top: var(--header-h, 64px);
 		z-index: 4;
 		display: flex;
 		flex-wrap: wrap;

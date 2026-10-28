@@ -490,7 +490,8 @@
 	}
 	.bar {
 		position: sticky;
-		top: 0;
+		/* Just under the app's header, as the Customise and Edit bars sit. */
+		top: var(--header-h, 64px);
 		z-index: 3;
 		display: flex;
 		flex-wrap: wrap;
@@ -551,6 +552,11 @@
 	@media (max-width: 499px) {
 		.state {
 			font-size: 0;
+		}
+		/* A phone keeps the date box; its label would wrap the bar. */
+		.at-label {
+			font-size: 0;
+			gap: 0;
 		}
 		.plain,
 		.go {

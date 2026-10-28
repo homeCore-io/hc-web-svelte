@@ -34,7 +34,6 @@
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
 	import Arrange from '#lib/components/Arrange.svelte';
 	import CustomiseBar from '#lib/components/CustomiseBar.svelte';
-	import CustomiseButton from '#lib/components/CustomiseButton.svelte';
 
 	const HOME = 'home';
 	const mode = $derived(view.mode(HOME));
@@ -184,7 +183,6 @@
 	<p class="quiet">Loading the house…</p>
 {:else}
 	<div class="home">
-		<CustomiseButton page={HOME} />
 		<CustomiseBar page={HOME} home />
 
 		{#if alerts.list.length > 0 && mode !== 'edit'}

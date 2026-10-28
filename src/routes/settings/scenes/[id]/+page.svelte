@@ -438,7 +438,7 @@
 			{/each}
 			{#if scene}
 				<div class="foot">
-					<button type="button" class="danger" onclick={remove}>Delete scene…</button>
+					<button type="button" class="danger" onclick={remove}>Delete…</button>
 				</div>
 			{/if}
 		</section>

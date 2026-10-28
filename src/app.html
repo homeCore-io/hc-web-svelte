@@ -23,6 +23,21 @@
 					document.documentElement.dataset.sidebar = 'folded';
 			} catch (e) {}
 		</script>
+		<style>
+			/* The page's own colour before the stylesheet arrives, so loading is
+			   never a white flash in either theme. app.css takes over from here. */
+			html {
+				background: #f3f0e8;
+			}
+			@media (prefers-color-scheme: dark) {
+				html:not([data-theme='light']) {
+					background: #0d1015;
+				}
+			}
+			html[data-theme='dark'] {
+				background: #0d1015;
+			}
+		</style>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

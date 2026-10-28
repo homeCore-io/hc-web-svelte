@@ -6,6 +6,7 @@
 	have their own keys, under Displays.
 -->
 <script lang="ts">
+	import { fullDateOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { onReturn } from '#lib/refresh.js';
 	import { session } from '#lib/me.svelte.js';
@@ -229,7 +230,7 @@
 						<span class="sub"
 							>Made by {nameOf(k.owner_uid)}
 							{daysAgo(k.created_at, clock.now)} · last used {when(k.last_used_at)}{k.expires_at
-								? ` · stops ${new Date(k.expires_at).toLocaleDateString()}`
+								? ` · stops ${fullDateOf(k.expires_at)}`
 								: ''}</span
 						>
 						<span class="sub">Can {keyWords(k.scopes)}</span>
@@ -333,7 +334,7 @@
 							<select bind:value={extend}>
 								<option value={null}
 									>{editing.expires_at
-										? `as now — ${new Date(editing.expires_at).toLocaleDateString()}`
+										? `as now — ${fullDateOf(editing.expires_at)}`
 										: 'as now — never'}</option
 								>
 								{#each EXPIRY.filter((e) => e.days !== null) as e (e.label)}<option value={e.days}

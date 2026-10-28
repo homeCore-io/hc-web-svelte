@@ -2,7 +2,7 @@
  * One device, for an admin (A1): what it reports, which readings have a
  * history worth drawing, and where it is used.
  */
-import { cap, reading, words } from './card.js';
+import { cap, isoMoment, momentText, reading, uncamel, words } from './card.js';
 import type { CoreDevice, Schema } from './devices.js';
 import { rulesNaming, type RuleRef } from './uses.js';
 
@@ -12,6 +12,8 @@ export interface Reading {
 	value: string;
 	/** For a list or a block of values: all of it, laid out, behind a toggle. */
 	detail?: string;
+	/** A colour it reports, as CSS, drawn beside the value. */
+	swatch?: string;
 	diagnostic: boolean;
 }
 
@@ -44,6 +46,7 @@ export function readingsOf(
 				label: spec?.display_name ?? cap(words(attr)),
 				value,
 				...(said?.detail ? { detail: said.detail } : {}),
+				...(said?.swatch ? { swatch: said.swatch } : {}),
 				diagnostic: spec?.category === 'diagnostic'
 			};
 		})
@@ -67,7 +70,7 @@ const titleOf = (x: unknown): string | undefined => {
 export function sayValue(
 	raw: unknown,
 	nameOf: (id: string) => string | undefined = () => undefined
-): { value: string; detail?: string } | undefined {
+): { value: string; detail?: string; swatch?: string } | undefined {
 	if (typeof raw === 'string') {
 		const name = nameOf(raw);
 		if (name) return { value: name };
@@ -89,7 +92,36 @@ export function sayValue(
 		};
 	}
 	if (raw && typeof raw === 'object') {
+		const o = raw as Record<string, unknown>;
+		// A colour as a colour, not "b, g, r".
+		const ch = ['r', 'g', 'b'].map((k) => o[k]);
+		if (ch.every((v) => typeof v === 'number') && Object.keys(o).length <= 4) {
+			const [r, g, b] = ch as number[];
+			return { value: `Red ${r} · green ${g} · blue ${b}`, swatch: `rgb(${r}, ${g}, ${b})` };
+		}
+		// A few plain values said in a line: "Duration 30 · mode fade".
 		const keys = Object.keys(raw);
+		const plain = keys.every((k) => ['string', 'number', 'boolean'].includes(typeof o[k]));
+		if (plain && keys.length > 0 && keys.length <= 4)
+			return {
+				value: keys
+					.map((k, i) => {
+						const v = o[k];
+						const said =
+							typeof v === 'string' && isoMoment(v) !== undefined
+								? momentText(isoMoment(v)!)
+								: typeof v === 'string'
+									? (nameOf(v) ?? (uncamel(v) !== v ? uncamel(v).toLowerCase() : words(v)))
+									: typeof v === 'boolean'
+										? v
+											? 'yes'
+											: 'no'
+										: String(v);
+						const label = words(k);
+						return `${i === 0 ? cap(label) : label} ${said}`;
+					})
+					.join(' · ')
+			};
 		return {
 			value: keys.length ? keys.map((k) => words(k)).join(', ') : 'Nothing',
 			detail: JSON.stringify(raw, null, 2)

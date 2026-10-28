@@ -6,6 +6,7 @@
 	editor's (A3).
 -->
 <script lang="ts">
+	import { timeOf } from '#lib/when.js';
 	import { alertKinds } from '#lib/alertKinds.svelte.js';
 	import { onMount } from 'svelte';
 	import { alertRules } from '#lib/admin.js';
@@ -277,7 +278,7 @@
 			day: 'numeric',
 			month: 'short'
 		});
-		return `at ${t?.slice(0, 5)} on ${day}`;
+		return `at ${t ? timeOf(new Date(local)) : ''} on ${day}`;
 	}
 	function chooseTime(on: boolean) {
 		atTime = on;
@@ -326,8 +327,7 @@
 
 	// ---- runs, folded open one at a time ----
 	let open = $state<string | null>(null);
-	const time = (iso: string) =>
-		new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+	const time = (iso: string) => timeOf(iso);
 
 	// ---- as text ----
 	let text = $state<string | null>(null);

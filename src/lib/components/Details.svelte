@@ -5,6 +5,7 @@
 	`detailsFor` — this only draws it and sends what is asked.
 -->
 <script lang="ts">
+	import { momentOf, timeOf } from '#lib/when.js';
 	import X from '@lucide/svelte/icons/x';
 	import { session } from '#lib/me.svelte.js';
 	import Power from '@lucide/svelte/icons/power';
@@ -135,9 +136,7 @@
 	const time = (iso: string) => {
 		const d = new Date(iso);
 		const today = new Date().toDateString() === d.toDateString();
-		return today
-			? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-			: d.toLocaleDateString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+		return today ? timeOf(d) : momentOf(d);
 	};
 
 	// ---- colour ----

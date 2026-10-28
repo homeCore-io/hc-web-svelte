@@ -10,6 +10,7 @@
 import { cap, words, ago } from './card.js';
 import { knownPluginName, pluginLabel } from './inventory.js';
 import type { Field } from './ruleEdit.js';
+import { timeOf } from './when.js';
 
 export interface Notice {
 	level: 'info' | 'warning' | 'error';
@@ -179,6 +180,9 @@ export function updateOf(
 
 export type Tone = 'good' | 'quiet' | 'bad';
 
+/** Running as the Plugins list says it: turned on and active. */
+export const isRunning = (p: PluginRecord) => p.enabled && p.status === 'active';
+
 /** Its state in words: "Running since 15:07", "Offline — last heard 3 h ago". */
 export function stateOf(
 	p: PluginRecord,
@@ -189,9 +193,7 @@ export function stateOf(
 		if (!iso) return '';
 		const at = new Date(iso);
 		const ms = now - at.getTime();
-		return ms < 86_400_000
-			? `since ${at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`
-			: `for ${ago(ms)}`;
+		return ms < 86_400_000 ? `since ${timeOf(at)}` : `for ${ago(ms)}`;
 	};
 	switch (p.status) {
 		case 'active':
@@ -255,9 +257,13 @@ export function rowsOf(
 
 /** Registry plugins the house doesn't have. */
 export const notInstalled = (registry: RegistryPlugin[], list: PluginRecord[]) =>
-	registry
+	named(registry)
 		.filter((r) => !list.some((p) => p.plugin_id === r.id))
 		.sort((a, b) => a.name.localeCompare(b.name));
+
+/** The registry's plugins under the house's own spelling: "WLED", not "Wled". */
+export const named = (registry: RegistryPlugin[]): RegistryPlugin[] =>
+	registry.map((r) => ({ ...r, name: knownPluginName(r.id) ?? r.name }));
 
 /** "4.0 MB" for this machine's artifact, if the registry says. */
 export function sizeOf(r: RegistryPlugin, version: string): string | undefined {
@@ -354,14 +360,7 @@ export const startRun = (): Run => ({ state: 'running', lines: [], items: {} });
 
 /** A run after one more event. */
 export function runAfter(run: Run, e: StreamEvent, key = 'id'): Run {
-	const at = e.ts
-		? new Date(e.ts).toLocaleTimeString([], {
-				hour: '2-digit',
-				minute: '2-digit',
-				second: '2-digit',
-				hour12: false
-			})
-		: '';
+	const at = e.ts ? timeOf(e.ts, true) : '';
 	// The same words again are the same news: one line, not a hundred.
 	const line = (text: string, tone: Run['lines'][number]['tone'] = 'plain') =>
 		run.lines.at(-1)?.text === text ? run.lines : [...run.lines, { at, text, tone }];

@@ -12,6 +12,7 @@
 import { remaining } from './helpers.js';
 import { isTemperature, numberText, shown, shownRange, toShown } from './units.js';
 import { displayName, type AttributeSchema, type CoreDevice, type Schema } from './devices.js';
+import { momentOf } from './when.js';
 
 export type IconName =
 	| 'light'
@@ -616,14 +617,13 @@ export function reading(a: Record<string, unknown>, s: Schema, name: string): st
 	const value = a[name];
 	if (value === undefined || value === null) return undefined;
 	const spec = s.attributes[name];
-	const moment = epochOf(name, value);
-	if (moment !== undefined)
-		return new Date(moment).toLocaleString([], {
-			day: 'numeric',
-			month: 'short',
-			hour: '2-digit',
-			minute: '2-digit'
-		});
+	const moment = epochOf(name, value) ?? isoMoment(value);
+	if (moment !== undefined) return momentText(moment);
+	// A number or word the plugin names in its schema: WLED's effect 51.
+	const named = spec?.options
+		?.map((o) => (typeof o === 'string' ? { value: o, label: undefined } : o))
+		.find((o) => o.value === String(value));
+	if (named?.label) return named.label;
 	if (typeof value === 'boolean') {
 		const said = value ? spec?.states?.when_true.label : spec?.states?.when_false.label;
 		return cap(said ?? (value ? words(name) : `Not ${words(name).toLowerCase()}`));
@@ -634,13 +634,31 @@ export function reading(a: Record<string, unknown>, s: Schema, name: string): st
 		const n = numberText(r, fmt);
 		if (name === 'temperature' || name.endsWith('_temperature') || isTemperature(r.unit))
 			return `${n}°${unitLetter(r.unit)}`;
-		if (r.unit === '%') return `${n}%`;
+		if (r.unit === '%') return `${Math.round(r.value)}%`;
 		return r.unit ? `${n} ${r.unit}` : n;
 	}
 	if (typeof value === 'string')
 		// An address is said as it is, never capitalised or split into words.
-		return /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : cap(words(value));
+		return /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : cap(words(uncamel(value)));
 	return undefined;
+}
+
+/** A moment as the app says one in a reading: "Oct 21, 1:20 PM". */
+export const momentText = (ms: number): string => momentOf(ms);
+
+/** An ISO 8601 time — "2026-10-21T17:20:56Z" — in ms; never anything else. */
+export function isoMoment(value: unknown): number | undefined {
+	if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) return undefined;
+	const t = Date.parse(value);
+	return Number.isFinite(t) ? t : undefined;
+}
+
+/** A word run together the way some devices send them — "LockFailed" — as
+ *  "Lock failed". Only words in that shape: "HDMI1" and "TV Input" stay. */
+export function uncamel(s: string): string {
+	return /^[A-Z][a-z]+(?:[A-Z][a-z]+)+$/.test(s)
+		? s.replace(/(?<=[a-z])(?=[A-Z])/g, ' ').replace(/ [A-Z]/g, (m) => m.toLowerCase())
+		: s;
 }
 
 /**

@@ -4,6 +4,7 @@
 	versions, and restarting it.
 -->
 <script lang="ts">
+	import { dateOf, fullDateOf, momentOf, timeOf } from '#lib/when.js';
 	import { page } from '$app/state';
 	import { deviceHref } from '#lib/popup.js';
 	import { displayName, type CoreDevice } from '#lib/devices.js';
@@ -17,6 +18,8 @@
 	import { alerts } from '#lib/alerts.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
 	import { backupDue, daysAgo, size, uptime } from '#lib/settings.js';
+	import { houseDevices } from '#lib/inventory.js';
+	import { isRunning } from '#lib/plugins.js';
 	import { PRESETS, directiveOf, keptOf, readLevel, type Preset } from '#lib/system.js';
 	import { loadConfig } from '#lib/config.js';
 	import {
@@ -60,7 +63,7 @@
 		else levelMissing = true;
 		if (p.ok)
 			plugins = {
-				running: p.data.filter((x) => x.status === 'active').length,
+				running: p.data.filter(isRunning).length,
 				all: p.data.length
 			};
 	}
@@ -74,14 +77,13 @@
 		return () => clearInterval(every);
 	});
 
-	const deviceList = $derived(Object.values(devices.byId));
+	// Counted as the Devices page counts them, plugin scenes left out.
+	const deviceList = $derived(houseDevices(devices.byId));
 	const offline = $derived(deviceList.filter((d) => !d.available).length);
 	const since = (iso: string) => {
 		const d = new Date(iso);
 		const today = d.toDateString() === new Date(clock.now).toDateString();
-		return today
-			? `since ${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })} today`
-			: `since ${d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`;
+		return today ? `since ${timeOf(d)} today` : `since ${dateOf(d)}`;
 	};
 
 	interface Tile {
@@ -111,7 +113,7 @@
 			},
 			{
 				label: 'Devices',
-				value: String(status.devices_total),
+				value: String(devices.loaded ? deviceList.length : status.devices_total),
 				detail: offline ? `${offline} offline` : 'none offline',
 				href: '/settings/devices'
 			},
@@ -125,7 +127,7 @@
 			{
 				label: 'Last backup',
 				value: status.last_backup_at ? daysAgo(status.last_backup_at, clock.now) : 'None recorded',
-				detail: due ? 'Back up now' : new Date(status.last_backup_at!).toLocaleDateString(),
+				detail: due ? 'Back up now' : fullDateOf(status.last_backup_at!),
 				href: '/settings/data',
 				bad: due
 			},
@@ -352,11 +354,7 @@
 							<span class="sub"
 								>{c.endpoint === 'logs_stream' ? 'the log' : 'the house'} · {browserOf(
 									c.user_agent
-								)} · since {new Date(c.connected_at).toLocaleString(undefined, {
-									weekday: 'short',
-									hour: '2-digit',
-									minute: '2-digit'
-								})}</span
+								)} · since {momentOf(c.connected_at)}</span
 							>
 						</li>
 					{/each}

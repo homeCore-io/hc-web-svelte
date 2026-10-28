@@ -218,8 +218,9 @@ export function nudgeFavourite(list: string[], r: string, by: -1 | 1): string[] 
 // ---- the phone bar (N2) ----
 
 /** Where the phone bar can take you, besides More. */
-export const BAR_CHOICES = ['home', 'pages', 'scenes', 'alerts', 'search'] as const;
-export const DEFAULT_BAR = ['home', 'pages', 'scenes'];
+// Pages isn't offered until it's built; a bar that still names it drops it.
+export const BAR_CHOICES = ['home', 'scenes', 'alerts', 'search'] as const;
+export const DEFAULT_BAR = ['home', 'scenes', 'alerts'];
 /** The bar holds this many destinations, then More. */
 export const BAR_SIZE = 4;
 

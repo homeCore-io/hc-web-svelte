@@ -31,6 +31,8 @@
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { scenes } from '#lib/scenes.svelte.js';
 	import { alerts } from '#lib/alerts.svelte.js';
+	import { houseDevices, pluginSceneCount } from '#lib/inventory.js';
+	import { isRunning, type PluginRecord } from '#lib/plugins.js';
 	import {
 		mayOpen,
 		SETTINGS,
@@ -82,6 +84,7 @@
 	}
 	let status = $state<Status | null>(null);
 	let people = $state<{ role: string }[] | null>(null);
+	let running = $state<number | null>(null);
 	let displays = $state<number | null>(null);
 	let modes = $state<{ name: string; on: boolean }[] | null>(null);
 	let descriptor = $state<Descriptor | null>(null);
@@ -94,6 +97,9 @@
 		if (!session.isAdmin) return;
 		void get<Status>('/system/status').then((s) => (status = s));
 		void get<{ role: string }[]>('/auth/users').then((u) => (people = u));
+		void get<PluginRecord[]>('/plugins').then(
+			(p) => (running = p ? p.filter(isRunning).length : null)
+		);
 		void get<{ revoked: boolean }[]>('/displays').then(
 			(d) => (displays = d ? d.filter((x) => !x.revoked).length : null)
 		);
@@ -105,7 +111,9 @@
 		);
 	});
 
-	const deviceList = $derived(Object.values(devices.byId));
+	// Counted as the Devices page counts them: plugin scenes go with scenes.
+	const deviceList = $derived(houseDevices(devices.byId));
+	const pluginScenes = $derived(pluginSceneCount(devices.byId));
 	const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 	const live = $derived<Record<string, string | undefined>>({
@@ -115,7 +123,15 @@
 				} offline`
 			: undefined,
 		rooms: rooms.list.length ? plural(rooms.list.length, 'room') : undefined,
-		scenes: scenes.list.length ? plural(scenes.list.length, 'scene') : undefined,
+		scenes:
+			scenes.list.length || pluginScenes
+				? [
+						scenes.list.length ? plural(scenes.list.length, 'scene') : '',
+						pluginScenes ? `${pluginScenes} from plugins` : ''
+					]
+						.filter(Boolean)
+						.join(' · ')
+				: undefined,
 		modes: modes?.length
 			? modes.map((m) => `${m.name} ${m.on ? 'on' : 'off'}`).join(' · ')
 			: undefined,
@@ -125,7 +141,7 @@
 		alerts: alerts.list.length ? `${plural(alerts.list.length, 'alert')} now` : undefined,
 		displays:
 			displays === null ? undefined : displays === 0 ? 'None yet' : plural(displays, 'display'),
-		plugins: status ? `${status.plugins_active} running` : undefined,
+		plugins: running !== null ? `${running} running` : undefined,
 		people: people
 			? `${plural(people.length, 'person', 'people')} · ${plural(
 					people.filter((p) => p.role === 'admin').length,

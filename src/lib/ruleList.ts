@@ -8,6 +8,7 @@ import { found } from './settings.js';
 import { knownPluginName } from './inventory.js';
 import { plain, refsOf, sentence, tagOf, type House, type Phrase, type Rule } from './ruleWords.js';
 import type { AutomationAlerts } from './alertStarts.js';
+import { dateOf, timeOf } from './when.js';
 
 /** What the list knows of a rule's recent runs (from its history). */
 export interface LastRuns {
@@ -344,7 +345,7 @@ export function whenText(iso: string | undefined, now = Date.now()): string {
 	if (ms < 60_000) return 'just now';
 	if (ms < 3_600_000) return `${Math.floor(ms / 60_000)} min ago`;
 	const day = dayOf(iso, now);
-	const time = at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+	const time = timeOf(at);
 	if (day === 'Today') return `today ${time}`;
 	if (day === 'Yesterday') return `yesterday ${time}`;
 	return day;
@@ -358,5 +359,5 @@ export function dayOf(iso: string, now = Date.now()): string {
 	const days = Math.floor((start.getTime() - at.getTime()) / 86_400_000) + 1;
 	if (at.getTime() >= start.getTime()) return 'Today';
 	if (days === 1) return 'Yesterday';
-	return at.toLocaleDateString([], { day: 'numeric', month: 'short' });
+	return dateOf(at, now);
 }

@@ -4,6 +4,7 @@
 	its log; its devices; how much it logs; turning it off or removing it.
 -->
 <script lang="ts">
+	import { timeOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { core } from '#lib/core.svelte.js';
 	import { page } from '$app/state';
@@ -17,7 +18,7 @@
 	import { ask } from '#lib/confirm.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
 	import { displayName } from '#lib/devices.js';
-	import { ago, kindOf } from '#lib/card.js';
+	import { ago, cap, kindOf } from '#lib/card.js';
 	import { kindLabel, knownPluginName, pluginLabel } from '#lib/inventory.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { roomOf } from '#lib/summary.js';
@@ -114,6 +115,9 @@
 		plugin?.capabilities?.actions?.filter((a) => a.requires_role !== 'admin' || session.isAdmin) ??
 			[]
 	);
+	// One count everywhere on the page — the one its Devices tab shows.
+	const its = (n: number, one: string, many: string) =>
+		n === 1 ? `its device ${one}` : `its ${n} devices ${many}`;
 	const mine = $derived(
 		Object.values(devices.byId)
 			.filter((d) => d.plugin_id === id)
@@ -147,7 +151,7 @@
 		if (!update) return;
 		const yes = await ask({
 			title: `Update ${name} to ${update}?`,
-			body: `Downloads it from the registry (${sizeOf(reg!, update) ?? 'signed'}), checks its signature, and restarts ${name}. Its settings stay; its ${plugin?.device_count ?? 0} devices are back within moments.`,
+			body: `Downloads it from the registry (${sizeOf(reg!, update) ?? 'signed'}), checks its signature, and restarts ${name}. Its settings stay${mine.length ? `; ${its(mine.length, 'is', 'are')} back within moments` : ''}.`,
 			go: 'Update'
 		});
 		if (!yes) return;
@@ -170,9 +174,11 @@
 			const yes = await ask({
 				title: `Turn ${name} off?`,
 				body: `It stops, and stays off when homeCore restarts. Its settings are kept.`,
-				lost: [
-					`Its ${plugin?.device_count ?? 0} devices stop reporting and can’t be controlled until it’s back on.`
-				],
+				lost: mine.length
+					? [
+							`${cap(its(mine.length, 'stops', 'stop'))} reporting and can’t be controlled until it’s back on.`
+						]
+					: [],
 				go: 'Turn off'
 			});
 			if (!yes) return;
@@ -187,13 +193,17 @@
 
 	async function remove() {
 		const yes = await ask({
-			title: `Remove ${name}?`,
-			body: 'It’s stopped and its program removed. You can add it again from the registry.',
+			title: `Uninstall ${name}?`,
+			body: 'It’s stopped and its program deleted. You can add it again from the registry.',
 			lost: [
-				`Its ${mine.length} devices go, with their names and rooms; rules that use them are turned off.`,
+				...(mine.length
+					? [
+							`${cap(its(mine.length, 'goes', 'go'))}, with names and rooms; rules that use them are turned off.`
+						]
+					: []),
 				'You choose next whether its settings go too.'
 			],
-			go: 'Remove',
+			go: 'Uninstall',
 			danger: true,
 			typed: mine.length > 5 ? name.toLowerCase() : undefined
 		});
@@ -215,12 +225,12 @@
 
 	async function clearDevices() {
 		const yes = await ask({
-			title: `Remove ${name}’s ${mine.length} devices?`,
+			title: `Delete ${name}’s ${mine.length === 1 ? 'device' : `${mine.length} devices`}?`,
 			body: `${name} keeps running; any it still reports come back as new.`,
 			lost: ['Their names and rooms in homeCore.', 'Rules that use them are turned off.'],
-			go: 'Remove them',
+			go: 'Delete them',
 			danger: true,
-			typed: mine.length > 5 ? 'remove' : undefined
+			typed: mine.length > 5 ? 'delete' : undefined
 		});
 		if (!yes) return;
 		const r = await removeDevices(id);
@@ -262,13 +272,7 @@
 		const t = setInterval(readLog, 5000);
 		return () => clearInterval(t);
 	});
-	const time = (iso: string) =>
-		new Date(iso).toLocaleTimeString([], {
-			hour: '2-digit',
-			minute: '2-digit',
-			second: '2-digit',
-			hour12: false
-		});
+	const time = (iso: string) => timeOf(iso, true);
 	// Someone who may read plugins but not change them (plugins:read) sees how
 	// each is and what it has, and nothing to press; its log is admins' (logs).
 	const canWrite = $derived(session.isAdmin || session.can('plugins:write'));
@@ -380,7 +384,7 @@
 						{/each}
 					</ul>
 					<button type="button" class="plain danger" onclick={clearDevices}
-						>Remove all its devices…</button
+						>Delete all its devices…</button
 					>
 				{/if}
 			</section>
@@ -455,7 +459,7 @@
 						{#if runsOn}<a href="/settings/plugins/runtimes">{runsOn.name}</a>, a plugin runtime{:else}homeCore{/if}
 					</dd>
 					<dt>Devices</dt>
-					<dd>{plugin.device_count}</dd>
+					<dd>{mine.length}</dd>
 					<dt>Last heard</dt>
 					<dd>
 						{plugin.last_heartbeat
@@ -487,10 +491,12 @@
 
 			{#if canWrite}
 				<section class="card danger-zone">
-					<h2>Turn off or remove</h2>
+					<h2>{plugin.enabled ? 'Turn off or uninstall' : 'Uninstall'}</h2>
 					<p class="quiet">
-						Turning it off keeps its settings and stays off through restarts; its {plugin.device_count}
-						devices go quiet. Removing it takes its program and its devices — rules that use them are
+						{#if plugin.enabled}Turning it off keeps its settings and stays off through restarts{mine.length
+								? `; ${its(mine.length, 'goes', 'go')} quiet`
+								: ''}.
+						{/if}Uninstalling it deletes its program and its devices — rules that use them are
 						turned off.
 					</p>
 					<div class="buttons">
@@ -501,7 +507,7 @@
 								onclick={() => turn(false)}>Turn off</button
 							>{/if}
 						<button type="button" class="plain danger" disabled={busy} onclick={remove}
-							>Remove…</button
+							>Uninstall…</button
 						>
 					</div>
 				</section>

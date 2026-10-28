@@ -253,7 +253,8 @@
 				<span class="state">{note ?? card.stateLine}</span>
 			</span>
 		{/if}
-		{#if card.channels.length === 0}{@render control(card.control)}{/if}
+		<!-- Offline: its last state is no longer true, so nothing to read or press. -->
+		{#if card.channels.length === 0 && !off}{@render control(card.control)}{/if}
 	</div>
 
 	{#if form !== 'compact'}
@@ -266,7 +267,7 @@
 		</div>
 	{/if}
 
-	{#if card.channels.length > 0}
+	{#if card.channels.length > 0 && !off}
 		<ul class="channels">
 			{#each card.channels as ch (ch.attr)}
 				<li>

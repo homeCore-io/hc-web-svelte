@@ -1,3 +1,4 @@
+import { timeOf } from './when.js';
 import { describe, expect, test } from 'vitest';
 import { DEVICES, RULES } from './fixtures/rules.js';
 import {
@@ -163,11 +164,10 @@ test('when it ran, as the list says it', () => {
 	const now = Date.parse('2026-10-16T15:00:00');
 	expect(whenText(new Date(now - 30_000).toISOString(), now)).toBe('just now');
 	expect(whenText(new Date(now - 12 * 60_000).toISOString(), now)).toBe('12 min ago');
-	expect(whenText(new Date(Date.parse('2026-10-16T08:49:00')).toISOString(), now)).toBe(
-		'today 08:49'
-	);
-	expect(whenText(new Date(Date.parse('2026-10-15T22:10:00')).toISOString(), now)).toBe(
-		'yesterday 22:10'
-	);
+	// In the person's own clock (lib/when.ts), never zero-padded.
+	const morning = new Date(Date.parse('2026-10-16T08:49:00'));
+	expect(whenText(morning.toISOString(), now)).toBe(`today ${timeOf(morning)}`);
+	const night = new Date(Date.parse('2026-10-15T22:10:00'));
+	expect(whenText(night.toISOString(), now)).toBe(`yesterday ${timeOf(night)}`);
 	expect(whenText(undefined, now)).toBe('');
 });

@@ -13,6 +13,7 @@
 	import { core } from '#lib/core.svelte.js';
 	import {
 		compareVersions,
+		named,
 		needsCore,
 		sizeOf,
 		versionOf,
@@ -40,7 +41,7 @@
 		const [r, s, rt] = await Promise.all([loadRegistry(), loadStatus(), loadRuntimes()]);
 		if (rt.ok) runtimes = rt.data.runtimes;
 		if (!r.ok) return void (failed = r.error);
-		registry = [...r.data.plugins].sort((a, b) => a.name.localeCompare(b.name));
+		registry = named(r.data.plugins).sort((a, b) => a.name.localeCompare(b.name));
 		if (s.ok) have = s.data;
 	});
 

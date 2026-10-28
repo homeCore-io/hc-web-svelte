@@ -8,6 +8,7 @@
 	session's token); if that won't open, asked for every two seconds.
 -->
 <script lang="ts">
+	import { timeOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { session } from '#lib/me.svelte.js';
 	import { heading } from '#lib/heading.svelte.js';
@@ -121,12 +122,7 @@
 			.reverse()
 			.slice(0, 400);
 	});
-	const at = (ts: string) =>
-		new Date(ts).toLocaleTimeString(undefined, {
-			hour: '2-digit',
-			minute: '2-digit',
-			second: '2-digit'
-		});
+	const at = (ts: string) => timeOf(ts, true);
 </script>
 
 {#if !session.isAdmin}

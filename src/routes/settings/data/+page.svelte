@@ -4,6 +4,7 @@
 	brings; rules and scenes on their own; the calendars rules check.
 -->
 <script lang="ts">
+	import { fullDateOf, momentOf, timeOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { onReturn } from '#lib/refresh.js';
 	import ScenesTransfer from '#lib/components/admin/ScenesTransfer.svelte';
@@ -64,7 +65,7 @@
 		!status
 			? ''
 			: status.last_backup_at
-				? `Last backup: ${new Date(status.last_backup_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })} — ${daysAgo(status.last_backup_at, clock.now)}`
+				? `Last backup: ${fullDateOf(status.last_backup_at)} — ${daysAgo(status.last_backup_at, clock.now)}`
 				: 'No backup is recorded.'
 	);
 
@@ -137,7 +138,7 @@
 		if (!file || !plan) return;
 		const ok = await ask({
 			title: 'Put the house back as this backup has it?',
-			body: `Everything changed since ${plan.taken_at ? new Date(plan.taken_at).toLocaleString() : 'the backup was taken'} is lost. homeCore restarts to do it.`,
+			body: `Everything changed since ${plan.taken_at ? momentOf(plan.taken_at) : 'the backup was taken'} is lost. homeCore restarts to do it.`,
 			lost: [
 				'Devices, rooms, scenes, rules and people as they are now',
 				'History since the backup',
@@ -229,9 +230,9 @@
 	}
 	async function remove(c: Calendar) {
 		const ok = await ask({
-			title: `Remove the calendar “${c.id}”?`,
+			title: `Delete the calendar “${c.id}”?`,
 			body: 'Rules that check it find nothing in it from now on.',
-			go: 'Remove',
+			go: 'Delete',
 			danger: true
 		});
 		if (!ok) return;
@@ -312,9 +313,7 @@
 			month: 'short',
 			...(utcMidnight ? { timeZone: 'UTC' } : {})
 		});
-		return e.is_all_day
-			? day
-			: `${day}, ${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
+		return e.is_all_day ? day : `${day}, ${timeOf(d)}`;
 	};
 </script>
 
@@ -360,12 +359,7 @@
 						{#each kept.backups as b (b.name)}
 							<li>
 								<button class="link" onclick={() => fetchKept(b.name)}
-									>{new Date(b.created_at).toLocaleString(undefined, {
-										day: 'numeric',
-										month: 'short',
-										hour: '2-digit',
-										minute: '2-digit'
-									})}</button
+									>{momentOf(b.created_at)}</button
 								>
 								<span class="sub">{size(b.bytes)}</span>
 								<button class="link" disabled={restoring} onclick={() => choseKept(b.name)}
@@ -394,12 +388,7 @@
 				{:else}
 					<div class="plan">
 						<strong
-							>A backup from {plan.taken_at
-								? new Date(plan.taken_at).toLocaleString(undefined, {
-										dateStyle: 'medium',
-										timeStyle: 'short'
-									})
-								: 'an unknown time'}</strong
+							>A backup from {plan.taken_at ? momentOf(plan.taken_at) : 'an unknown time'}</strong
 						>
 						<ul>
 							{#each counts as c (c)}<li>{c}</li>{/each}
@@ -478,7 +467,7 @@
 									}}>How often…</button
 								>
 							{/if}
-							<button class="plain bad" onclick={() => remove(c)}>Remove</button>
+							<button class="plain bad" onclick={() => remove(c)}>Delete…</button>
 						</li>
 						{#if everyFor === c.id}
 							<li class="coming">

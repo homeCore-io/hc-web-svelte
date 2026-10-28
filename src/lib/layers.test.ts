@@ -130,7 +130,7 @@ describe('favourites', () => {
 
 describe('the phone bar (N2)', () => {
 	it('defaults to Home, Pages, Scenes', () => {
-		expect(barOf(undefined, [])).toEqual(['home', 'pages', 'scenes']);
+		expect(barOf(undefined, [])).toEqual(['home', 'scenes', 'alerts']);
 	});
 
 	it('keeps known destinations and real rooms, no repeats, at most four', () => {
@@ -146,7 +146,7 @@ describe('the phone bar (N2)', () => {
 	});
 
 	it('an emptied bar falls back to the default', () => {
-		expect(barOf({ version: 1, bar: [] }, [])).toEqual(['home', 'pages', 'scenes']);
+		expect(barOf({ version: 1, bar: [] }, [])).toEqual(['home', 'scenes', 'alerts']);
 	});
 });
 

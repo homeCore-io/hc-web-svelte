@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { momentOf } from '#lib/when.js';
 	import { goto } from '$app/navigation';
 	import { session } from '#lib/me.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
@@ -36,14 +37,7 @@
 	onMount(() => {
 		if (!session.isDisplay && !session.me?.unlocked_on) void loadSessions();
 	});
-	const day = (iso: string) =>
-		new Date(iso).toLocaleString(undefined, {
-			weekday: 'short',
-			day: 'numeric',
-			month: 'short',
-			hour: '2-digit',
-			minute: '2-digit'
-		});
+	const day = (iso: string) => momentOf(iso);
 	async function endSession(x: SignedIn) {
 		const res = await fetch(`/api/v1/auth/sessions/${encodeURIComponent(x.id)}`, {
 			method: 'DELETE'
@@ -274,7 +268,7 @@
 		{:else}
 			<div class="row">
 				<button class="link" onclick={() => (settingPin = true)}>Change your PIN</button>
-				<button class="link" onclick={removePin}>Remove it</button>
+				<button class="link" onclick={removePin}>Remove PIN…</button>
 			</div>
 		{/if}
 		{#if pinNote}<p class="note" role="status">{pinNote}</p>{/if}

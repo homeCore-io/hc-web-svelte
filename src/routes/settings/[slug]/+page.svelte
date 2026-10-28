@@ -13,5 +13,7 @@
 {#if item?.coming}
 	<Coming what={item.coming.what} when={item.coming.when} />
 {:else}
-	<p>There is no setting called “{page.params.slug}”.</p>
+	<p class="quiet">
+		There is no setting called “{page.params.slug}”. <a href="/settings">Back to Settings</a>
+	</p>
 {/if}

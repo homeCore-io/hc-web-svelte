@@ -1,7 +1,7 @@
 /**
  * Where the app can go (02 — N2, N3).
  *
- * The phone bar's default is Home · Pages · Scenes · More, and each person
+ * The phone bar's default is Home · Scenes · Alerts · More, and each person
  * may choose their own (N2, `barFor`). The desktop sidebar has room for
  * Alerts and the rooms themselves.
  */
@@ -37,7 +37,6 @@ export const SEARCH: Destination = { id: 'search', label: 'Search', href: '#sear
 
 const BY_ID: Record<string, Destination> = {
 	home: HOME,
-	pages: PAGES,
 	scenes: SCENES,
 	alerts: ALERTS,
 	search: SEARCH
@@ -59,9 +58,10 @@ export function barFor(choices: string[], rooms: { id: string; name: string }[])
 }
 
 /** The phone bar, by default (N2). */
-export const PHONE_BAR = [HOME, PAGES, SCENES, MORE];
-/** The sidebar's destinations, above the rooms (N3). */
-export const SIDEBAR = [HOME, PAGES, SCENES, ALERTS];
+export const PHONE_BAR = [HOME, SCENES, ALERTS, MORE];
+/** The sidebar's destinations, above the rooms (N3). Pages joins them when
+ *  it's built; until then it is only reachable by its address. */
+export const SIDEBAR = [HOME, SCENES, ALERTS];
 
 /** Whether `pathname` is at or under `href`. */
 export function isAt(pathname: string, href: string): boolean {

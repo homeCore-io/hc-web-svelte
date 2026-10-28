@@ -4,6 +4,7 @@
 	once: move them to a room, or delete them. Each opens its own page.
 -->
 <script lang="ts">
+	import { fullDateOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { onReturn } from '#lib/refresh.js';
 	import { live } from '#lib/live.svelte.js';
@@ -145,7 +146,7 @@
 				...(fromPlugins.length > 0
 					? [
 							removed !== null
-								? 'A plugin that still reports one doesn’t bring it back: it’s listed under Removed, to bring back.'
+								? 'A plugin that still reports one doesn’t bring it back: it’s listed under Deleted, to bring back.'
 								: 'A plugin that still reports one brings it back as new on its next report — remove it in the plugin (or its hub) first.'
 						]
 					: []),
@@ -305,8 +306,8 @@
 		</p>
 
 		{#if removed?.length}
-			<section class="removed" aria-label="Removed devices">
-				<h2>Removed</h2>
+			<section class="removed" aria-label="Deleted devices">
+				<h2>Deleted</h2>
 				<p class="quiet">
 					Their plugins still report them, but they’re kept out. Bring one back and it returns the
 					next time its plugin reports it, with its history.
@@ -317,10 +318,7 @@
 							<span class="text">
 								<span class="name">{r.name}</span>
 								<span class="sub"
-									>{pluginLabel(r.plugin_id)} · removed {new Date(r.removed_at).toLocaleDateString(
-										undefined,
-										{ day: 'numeric', month: 'short', year: 'numeric' }
-									)}</span
+									>{pluginLabel(r.plugin_id)} · removed {fullDateOf(r.removed_at)}</span
 								>
 							</span>
 							<button type="button" class="back" onclick={() => bringBack(r)}>Bring back</button>

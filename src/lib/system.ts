@@ -486,7 +486,7 @@ export function folded(rows: EventRow[], noisy: (r: EventRow) => boolean): Event
 			const attrs = g.key.split(':').slice(2).join(':').split(',').filter(Boolean);
 			g.words = [
 				...g.words.slice(0, 1),
-				p(` — ${attrs.map(label).join(', ')} changed${n > 1 ? ` ${n} times` : ''}`)
+				p(` — ${[...new Set(attrs.map(label))].join(', ')} changed${n > 1 ? ` ${n} times` : ''}`)
 			];
 		}
 	}
@@ -500,7 +500,11 @@ export const onlyNoise = (e: Json) =>
 	(e.changed as string[]).every((a) => NOISY.test(a));
 
 function label(name: string): string {
-	const w = name.replace(/_(pct|secs|w|kwh)$|(?<=^current)_a$/, '').replace(/[_.]+/g, ' ');
+	// "media_position_updated_at" changing is the position changing.
+	const w = name
+		.replace(/_updated_at$/, '')
+		.replace(/_(pct|secs|w|kwh)$|(?<=^current)_a$/, '')
+		.replace(/[_.]+/g, ' ');
 	return w[0]!.toUpperCase() + w.slice(1);
 }
 

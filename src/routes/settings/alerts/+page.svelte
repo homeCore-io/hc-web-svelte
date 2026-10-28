@@ -18,6 +18,7 @@
 	what becomes of them.
 -->
 <script lang="ts">
+	import { momentOf } from '#lib/when.js';
 	import { alertKinds, pluginName } from '#lib/alertKinds.svelte.js';
 	$effect(() => alertKinds.ensure());
 	import { readingText, shownUnit } from '#lib/units.js';
@@ -252,14 +253,7 @@
 		await reload();
 	}
 	const ruleNameOf = (id: string) => rules?.find((r) => r.id === id)?.name;
-	const day = (iso: string) =>
-		new Date(iso).toLocaleString(undefined, {
-			weekday: 'short',
-			day: 'numeric',
-			month: 'short',
-			hour: '2-digit',
-			minute: '2-digit'
-		});
+	const day = (iso: string) => momentOf(iso);
 
 	// ---- what each alert starts ----
 	const names = $derived(houseNames(rules ?? []));

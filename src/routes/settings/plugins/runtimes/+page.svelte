@@ -4,6 +4,7 @@
 	the code it shows. A token lets one join without asking.
 -->
 <script lang="ts">
+	import { momentOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { ask } from '#lib/confirm.svelte.js';
 	import { loadConfig } from '#lib/config.js';
@@ -63,11 +64,11 @@
 	async function remove(r: Runtime) {
 		const mine = hosted(r.runtime_id);
 		const yes = await ask({
-			title: `Remove ${r.hostname ?? r.runtime_id}?`,
+			title: `Delete ${r.hostname ?? r.runtime_id}?`,
 			body: mine.length
 				? `It runs ${mine.map((p) => pluginLabel(p.plugin_id)).join(', ')}, which stop reaching homeCore. To use it again it has to join again.`
 				: 'It can’t connect again unless it joins again.',
-			go: 'Remove',
+			go: 'Delete',
 			danger: true
 		});
 		if (yes) await decide(r, false);
@@ -139,7 +140,7 @@
 							<span class="st {r.status}">{r.status === 'approved' ? 'Joined' : 'Turned away'}</span
 							>
 							{#if r.status === 'approved'}
-								<button type="button" class="plain" onclick={() => remove(r)}>Remove…</button>
+								<button type="button" class="plain" onclick={() => remove(r)}>Delete…</button>
 							{/if}
 						{/if}
 					</li>
@@ -153,7 +154,7 @@
 			>
 			{#if token}
 				<code>{token.token}</code>
-				<span class="quiet">Good until {new Date(token.expires_at).toLocaleString()}.</span>
+				<span class="quiet">Good until {momentOf(token.expires_at)}.</span>
 			{:else}
 				<button type="button" class="plain" onclick={makeToken}>Make a token</button>
 			{/if}

@@ -5,6 +5,7 @@
 	Its name is homeCore's, and can be changed from homeCore 0.1.81.
 -->
 <script lang="ts">
+	import { agoOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { onReturn } from '#lib/refresh.js';
 	import ArrowUp from '@lucide/svelte/icons/arrow-up';
@@ -59,9 +60,9 @@
 
 	async function remove(d: Display) {
 		const yes = await ask({
-			title: `Remove ${d.name}?`,
+			title: `Delete ${d.name}?`,
 			body: 'The tablet stops working until it is set up again with a new key.',
-			go: 'Remove',
+			go: 'Delete',
 			danger: true
 		});
 		if (!yes) return;
@@ -122,11 +123,7 @@
 	const ago = (at: string | null) => {
 		if (!at) return 'not set up yet';
 		const mins = Math.round((Date.now() - Date.parse(at)) / 60_000);
-		return mins < 2
-			? 'in use now'
-			: mins < 120
-				? `seen ${mins} min ago`
-				: `seen ${Math.round(mins / 60)} h ago`;
+		return mins < 2 ? 'in use now' : `seen ${agoOf(at)}`;
 	};
 </script>
 
@@ -171,9 +168,7 @@
 								<strong>{d.name}</strong>
 								<span>{ago(d.last_used_at)}</span>
 							</button>
-							<button class="bin" aria-label={`Remove ${d.name}`} onclick={() => remove(d)}
-								><X size={18} /></button
-							>
+							<button class="del" onclick={() => remove(d)}>Delete…</button>
 						</div>
 						{#if open === d.id}
 							<div class="edit">
@@ -397,7 +392,6 @@
 		font-weight: 400;
 		color: var(--ink-muted);
 	}
-	.bin,
 	ol button {
 		min-height: 0;
 		width: 36px;
@@ -409,6 +403,19 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+	}
+	/* Delete… in words, like everywhere else — not a bare ✕. */
+	.line .del {
+		align-self: center;
+		width: auto;
+		min-height: 34px;
+		margin-right: 8px;
+		padding: 0 14px;
+		border-radius: 17px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--alert);
+		font-weight: 600;
 	}
 	.edit {
 		display: flex;

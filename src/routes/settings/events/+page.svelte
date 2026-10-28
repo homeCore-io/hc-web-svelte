@@ -5,6 +5,7 @@
 	and a device that keeps re-declaring its controls says so once.
 -->
 <script lang="ts">
+	import { timeOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { session } from '#lib/me.svelte.js';
 	import { heading } from '#lib/heading.svelte.js';
@@ -78,8 +79,7 @@
 		return folded(out, (r) => noisy.has(r)).slice(0, 400);
 	});
 	const roomNames = $derived(rooms.list.map((r) => r.name).sort());
-	const at = (ts: string) =>
-		new Date(ts).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+	const at = (ts: string) => timeOf(ts);
 	const MARK: Record<string, string> = {
 		device: 'D',
 		rule: 'R',
@@ -128,8 +128,7 @@
 						<span class="mark" aria-hidden="true">{MARK[r.kind]}</span>
 						<span class="words"
 							>{#each r.words as w, j (j)}{#if w.strong}<strong>{w.t}</strong
-									>{:else}{w.t}{/if}{/each}{#if r.room}<span class="room">
-									· {r.room}</span
+									>{:else}{w.t}{/if}{/each}{#if r.room}<span class="room">{' '}· {r.room}</span
 								>{/if}</span
 						>
 						{#if r.href}<a href={r.href}>Open</a>{/if}

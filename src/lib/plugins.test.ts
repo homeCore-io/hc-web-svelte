@@ -3,6 +3,7 @@ import {
 	resultLines,
 	buttonOf,
 	dangerous,
+	isRunning,
 	compareVersions,
 	latestOf,
 	needsCore,
@@ -83,6 +84,9 @@ describe('versions', () => {
 describe('how it is, in words', () => {
 	test('running, off, not answering', () => {
 		expect(stateOf(rec({ uptime_started: '2026-10-16T13:07:00Z' }), NOW).word).toBe('Running');
+		// Settings and System count "running" the way this list says it.
+		for (const r of [rec({}), rec({ enabled: false }), rec({ status: 'offline' })])
+			expect(isRunning(r)).toBe(stateOf(r, NOW).word === 'Running');
 		expect(stateOf(rec({ enabled: false }), NOW)).toEqual({
 			word: 'Turned off',
 			detail: '',
@@ -116,7 +120,7 @@ describe('how it is, in words', () => {
 			['Hue', '0.1.17', 'Bridge unreachable'],
 			['YoLink', undefined, undefined]
 		]);
-		expect(notInstalled(REGISTRY, [rec({})]).map((r) => r.name)).toEqual(['Isy']);
+		expect(notInstalled(REGISTRY, [rec({})]).map((r) => r.name)).toEqual(['ISY']); // the house's spelling, not the registry's "Isy"
 	});
 });
 

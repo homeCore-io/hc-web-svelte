@@ -13,7 +13,6 @@
 	import { heading } from '#lib/heading.svelte.js';
 	import CardGrid from '#lib/components/CardGrid.svelte';
 	import CustomiseBar from '#lib/components/CustomiseBar.svelte';
-	import CustomiseButton from '#lib/components/CustomiseButton.svelte';
 	import { added, cardRef, ref } from '#lib/layers.js';
 	import AddedCards from '#lib/components/AddedCards.svelte';
 	import type { CoreDevice } from '#lib/devices.js';
@@ -55,7 +54,6 @@
 	<p class="quiet">This room isn't in the house any more.</p>
 {:else}
 	<div class="room">
-		<CustomiseButton page={key} />
 		<CustomiseBar page={key} />
 		{#if sections.length === 0 && extra.length === 0 && cards.length === 0}
 			<p class="quiet">Nothing in {name} yet.</p>

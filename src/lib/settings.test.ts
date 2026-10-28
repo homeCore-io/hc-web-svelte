@@ -32,8 +32,11 @@ describe('settings', () => {
 	it('says times and sizes as a person would', () => {
 		const now = Date.parse('2026-10-16T12:00:00Z');
 		expect(daysAgo('2026-08-02T12:00:00Z', now)).toBe('75 days ago');
-		expect(daysAgo('2026-10-16T01:00:00Z', now)).toBe('today');
-		expect(daysAgo('2026-10-15T01:00:00Z', now)).toBe('yesterday');
+		// By calendar day, not by 24 h: 21 h ago across midnight is yesterday.
+		const morning = new Date(2026, 9, 28, 11, 0).getTime();
+		expect(daysAgo(new Date(2026, 9, 27, 14, 4).toISOString(), morning)).toBe('yesterday');
+		expect(daysAgo(new Date(2026, 9, 28, 0, 30).toISOString(), morning)).toBe('today');
+		expect(daysAgo(new Date(2026, 9, 25, 23, 0).toISOString(), morning)).toBe('3 days ago');
 		expect(size(2_600_000_000)).toBe('2.6 GB');
 		expect(size(512)).toBe('512 bytes');
 		expect(uptime(600)).toBe('10 min');

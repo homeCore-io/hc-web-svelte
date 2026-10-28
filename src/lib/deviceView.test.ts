@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { chartable, readingsOf, sayValue, usesOf } from './deviceView.js';
 import type { CoreDevice } from './devices.js';
+import { reading, uncamel } from './card.js';
 
 const sensor: CoreDevice = {
 	device_id: 'ecowitt_temp_1',
@@ -100,5 +101,46 @@ describe('values said for a person, not as JSON', () => {
 		});
 		expect(sayValue('paused')).toBeUndefined();
 		expect(sayValue(15)).toBeUndefined();
+	});
+
+	it('colours as colours and small blocks in a line', () => {
+		expect(sayValue({ b: 0, g: 128, r: 255 })).toEqual({
+			value: 'Red 255 · green 128 · blue 0',
+			swatch: 'rgb(255, 128, 0)'
+		});
+		expect(sayValue({ duration_min: 30, mode: 'FadeOut' })?.value).toBe(
+			'Duration min 30 · mode fade out'
+		);
+		expect(sayValue({ enabled: true })).toEqual({ value: 'Enabled yes' });
+		expect(sayValue({ action: 'unlocked', at: '2026-10-21T17:35:17Z' })?.value).not.toContain(
+			'T17'
+		);
+	});
+
+	it('times, named numbers, run-together words and whole percents', () => {
+		const at = '2026-10-21T17:20:56Z';
+		const said = reading({ last_alert_at: at }, { attributes: {} }, 'last_alert_at')!;
+		expect(said).not.toContain('T17');
+		expect(said).toBe(
+			new Date(at).toLocaleString([], {
+				day: 'numeric',
+				month: 'short',
+				hour: 'numeric',
+				minute: '2-digit'
+			})
+		);
+		const wled = {
+			attributes: {
+				effect: { kind: 'integer' as const, options: [{ value: '51', label: 'Rainbow' }] }
+			}
+		};
+		expect(reading({ effect: 51 }, wled, 'effect')).toBe('Rainbow');
+		expect(reading({ last_alert: 'LockFailed' }, { attributes: {} }, 'last_alert')).toBe(
+			'Lock failed'
+		);
+		expect(uncamel('HDMI1')).toBe('HDMI1');
+		expect(uncamel('TV Input')).toBe('TV Input');
+		const pct = { attributes: { brightness_pct: { kind: 'float' as const, unit: '%' } } };
+		expect(reading({ brightness_pct: 50.2 }, pct, 'brightness_pct')).toBe('50%');
 	});
 });

@@ -13,7 +13,7 @@
 	import { hasSettings } from '#lib/settings.js';
 	import { page } from '$app/state';
 	import { beforeNavigate, goto } from '$app/navigation';
-	import Pencil from '@lucide/svelte/icons/pencil';
+	import EditMenu from './EditMenu.svelte';
 	import Search from '@lucide/svelte/icons/search';
 	import Bell from '@lucide/svelte/icons/bell';
 	import Settings from '@lucide/svelte/icons/settings';
@@ -206,16 +206,7 @@
 				aria-label={liveLabel}
 				title={liveLabel}
 			></span>
-			{#if key !== null && canEdit && !editingHere}
-				<button
-					class="icon"
-					aria-label="Edit the shared page"
-					title="Edit the shared page"
-					onclick={() => goto(withEdit(page.url, true))}
-				>
-					<Pencil size={20} strokeWidth={1.8} aria-hidden="true" />
-				</button>
-			{/if}
+			{#if key !== null}<EditMenu pageKey={key} />{/if}
 			<button
 				class="icon"
 				aria-label="Search"

@@ -229,14 +229,22 @@ a {
 	background: var(--lit-bg);
 	border-color: var(--lit-card-line);
 }
+/* Two lines before it's cut, as the app's own cards (#118); one when compact. */
 .hc-tile-name {
 	margin: 0;
 	font-size: 15px;
 	font-weight: 600;
 	line-height: 1.25;
 	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	overflow-wrap: anywhere;
+}
+.hc-tile.compact .hc-tile-name {
+	-webkit-line-clamp: 1;
+	line-clamp: 1;
 }
 .hc-tile-state {
 	margin: 0;

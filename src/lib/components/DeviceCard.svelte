@@ -60,7 +60,13 @@
 	});
 </script>
 
-{#if custom && !failed && !declined && device.plugin_id}
+{#if !pluginUis.loaded && device.plugin_id && !device.plugin_id.startsWith('core.')}
+	<!-- Not yet known whether its plugin draws this card: hold its place,
+	     rather than show the generic card and swap it a moment later (#6). -->
+	<div class="wait" class:large={form === 'large'} aria-busy="true">
+		<span>{label ?? device.name_override ?? device.name}</span>
+	</div>
+{:else if custom && !failed && !declined && device.plugin_id}
 	<div class="plugin-card" class:large={form === 'large'}>
 		<PluginSlot
 			pluginId={device.plugin_id}
@@ -80,7 +86,25 @@
 		min-width: 0;
 	}
 	/* Two columns, as a generic Large card takes. */
-	.plugin-card.large {
+	.plugin-card.large,
+	.wait.large {
 		grid-column: span 2;
+	}
+	/* The size of a card while it loads, so the grid never jumps (#6, #10). */
+	.plugin-card,
+	.wait {
+		min-height: 116px;
+	}
+	.wait,
+	.plugin-card:has(:global(.slot:empty)) {
+		box-sizing: border-box;
+		padding: 14px;
+		border-radius: var(--radius);
+		background: var(--surface);
+		border: 1px solid var(--card-line);
+	}
+	.wait span {
+		font-weight: 600;
+		color: var(--ink-muted);
 	}
 </style>

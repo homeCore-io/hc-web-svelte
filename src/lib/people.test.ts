@@ -14,19 +14,8 @@ import {
 } from './people.js';
 
 // Scopes as homeCore A5 grants them (crates/hc-auth/src/user.rs).
-const READ = [
-	'devices:read',
-	'automations:read',
-	'scenes:read',
-	'areas:read',
-	'content:read'
-];
-const AUTHOR = [
-	'automations:write',
-	'scenes:write',
-	'areas:write',
-	'content:write'
-];
+const READ = ['devices:read', 'automations:read', 'scenes:read', 'areas:read', 'content:read'];
+const AUTHOR = ['automations:write', 'scenes:write', 'areas:write', 'content:write'];
 const MEMBER = [...READ, 'devices:command', 'scenes:run'];
 const USER = [...READ, 'devices:write', 'devices:command', 'scenes:run', ...AUTHOR];
 const ADMIN = [

@@ -187,13 +187,7 @@ export const LEVEL_WORDS: Record<KeyLevel, { name: string; what: string }> = {
 	custom: { name: 'Choose exactly…', what: 'Pick from homeCore’s permissions, one by one.' }
 };
 
-const READS = [
-	'devices:read',
-	'automations:read',
-	'scenes:read',
-	'areas:read',
-	'content:read'
-];
+const READS = ['devices:read', 'automations:read', 'scenes:read', 'areas:read', 'content:read'];
 
 /**
  * The scopes a level grants, within what the maker holds — a key takes a

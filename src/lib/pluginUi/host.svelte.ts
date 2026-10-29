@@ -6,6 +6,8 @@
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import { devices } from '../devices.svelte.js';
+import { alerts } from '../alerts.svelte.js';
+import type { Alert as CoreAlert } from '../alerts.js';
 import { displayName, type CoreDevice } from '../devices.js';
 import { rooms } from '../rooms.svelte.js';
 import { roomOf } from '../summary.js';
@@ -15,7 +17,7 @@ import { ask } from '../confirm.svelte.js';
 import { openDevice } from '../popup.js';
 import { lifecycle, loadConfig, runAction, saveConfig } from '../pluginAdmin.js';
 import { fromShown, readingText, shown, units } from '../units.js';
-import type { Device, Host, Result } from './types.js';
+import type { Alert, Device, Host, Result } from './types.js';
 import kit from './kit.css?raw';
 
 let sheet: CSSStyleSheet | undefined;
@@ -46,6 +48,24 @@ const mine = (pluginId: string) =>
 		.filter((d) => d.plugin_id === pluginId)
 		.sort((a, b) => displayName(a).localeCompare(displayName(b)))
 		.map(deviceView);
+
+/** An alert as a plugin's screens are given it. */
+export const alertView = (a: CoreAlert): Alert => ({
+	id: a.id,
+	kind: a.kind,
+	device_id: a.device_id,
+	message: a.message,
+	reason: a.reason,
+	severity: a.severity,
+	raised_at: a.raised_at,
+	acknowledged: a.acknowledged !== undefined
+});
+
+/** homeCore's alerts on the plugin's devices; `undefined` until it has said. */
+const alertsOf = (pluginId: string): Alert[] | undefined =>
+	alerts.known
+		? alerts.list.filter((a) => devices.byId[a.device_id]?.plugin_id === pluginId).map(alertView)
+		: undefined;
 
 const storeUrl = (pluginId: string, key: string) =>
 	`/ui/plugin-store/${encodeURIComponent(pluginId)}/${encodeURIComponent(key)}`;
@@ -110,6 +130,17 @@ export function createHost(pluginId: string): Host {
 				} catch {
 					return fail('homeCore is not answering.');
 				}
+			}
+		},
+		alerts: {
+			list: () => alertsOf(pluginId),
+			subscribe(f) {
+				// As `devices.subscribe`: now, and whenever the alerts change.
+				return $effect.root(() => {
+					$effect(() => {
+						f(alertsOf(pluginId));
+					});
+				});
 			}
 		},
 		async command(deviceId, body) {

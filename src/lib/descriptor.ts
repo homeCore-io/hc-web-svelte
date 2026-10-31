@@ -64,6 +64,8 @@ export interface Field {
 	generated?: boolean;
 	visible_when?: Cond;
 	required_when?: Cond;
+	/** This app's own (not core's): a `sensor` field lists this room's sensors first. */
+	near?: string;
 }
 
 export interface Section {

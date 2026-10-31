@@ -29,13 +29,21 @@ export type Change =
 	/** A card for something that isn't generated here, added to the page. */
 	| { op: 'add'; ref: string; into?: string; before?: string | null }
 	| { op: 'remove'; ref: string }
-	/** A plugin card's settings on this page, as its settings element made them. */
+	/**
+	 * A card's settings on this page: a plugin card's, as its settings element
+	 * made them; a room's or the big numbers', only what this layer set (G13);
+	 * a section's `layout` (G3).
+	 */
 	| { op: 'config'; ref: string; config: Record<string, unknown> };
 
 export interface PersonDoc {
 	version: number;
 	/** The document's shape (`SCHEMA`); `version` counts saves. Absent is 1. */
 	schema?: number;
+	/** Every-room settings, by kind of card (G4): the room box's, the big numbers'. */
+	defaults?: Record<string, Record<string, unknown>>;
+	/** The frame: the sidebar's rooms as names, or with their status (G3). */
+	shell?: { rooms?: 'names' | 'status' };
 	/** Starred cards, in the order they appear in Favourites on Home. */
 	favourites?: string[];
 	/** Changes per page: `home`, `room:{id}`. */
@@ -60,6 +68,10 @@ export interface HouseDoc {
 	schema?: number;
 	/** The household's edits per page: `home`, `room:{id}`. */
 	pages?: Record<string, Change[]>;
+	/** Every-room settings, by kind of card (G4): the room box's, the big numbers'. */
+	defaults?: Record<string, Record<string, unknown>>;
+	/** The frame: the sidebar's rooms as names, or with their status (G3). */
+	shell?: { rooms?: 'names' | 'status' };
 	/** Each room's icon, by room id (D10). */
 	icons?: Record<string, string>;
 	/** The phone bar for anyone who hasn't chosen their own (N2). */

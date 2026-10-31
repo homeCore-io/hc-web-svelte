@@ -21,18 +21,21 @@ export type Form = 'compact' | 'standard' | 'large';
 export type Change =
 	| { op: 'hide'; ref: string }
 	| { op: 'show'; ref: string }
-	| { op: 'move'; ref: string; before: string | null }
+	/** Within its own list; with `into`, to that section of the page (G5). */
+	| { op: 'move'; ref: string; before: string | null; into?: string }
 	| { op: 'form'; ref: string; form: Form }
 	/** A card's label on this page — the device keeps its own name elsewhere. */
 	| { op: 'rename'; ref: string; name: string }
 	/** A card for something that isn't generated here, added to the page. */
-	| { op: 'add'; ref: string }
+	| { op: 'add'; ref: string; into?: string; before?: string | null }
 	| { op: 'remove'; ref: string }
 	/** A plugin card's settings on this page, as its settings element made them. */
 	| { op: 'config'; ref: string; config: Record<string, unknown> };
 
 export interface PersonDoc {
 	version: number;
+	/** The document's shape (`SCHEMA`); `version` counts saves. Absent is 1. */
+	schema?: number;
 	/** Starred cards, in the order they appear in Favourites on Home. */
 	favourites?: string[];
 	/** Changes per page: `home`, `room:{id}`. */
@@ -53,6 +56,8 @@ export type Ask = 'always' | 'never';
 /** The household's presentation settings and shared edits (M1, 04 §4). */
 export interface HouseDoc {
 	version: number;
+	/** The document's shape (`SCHEMA`); `version` counts saves. Absent is 1. */
+	schema?: number;
 	/** The household's edits per page: `home`, `room:{id}`. */
 	pages?: Record<string, Change[]>;
 	/** Each room's icon, by room id (D10). */
@@ -173,6 +178,37 @@ export function added(changes: Change[] = []): string[] {
 		if (c.op === 'remove') out = out.filter((r) => r !== c.ref);
 	}
 	return out;
+}
+
+/**
+ * The rooms in the order Home shows them (the Shell, More, Settings → Rooms).
+ * Only changes among Home's rooms count: a move into another section takes
+ * a card out of the rooms, it doesn't reorder them.
+ */
+export function homeRoomOrder<T>(
+	rooms: T[],
+	refOf: (room: T) => string,
+	changes: Change[] = []
+): Layered<T> {
+	return apply(
+		rooms,
+		refOf,
+		changes.filter((c) => c.op !== 'move' || c.into === undefined || c.into === 'rooms')
+	);
+}
+
+// ---- the documents' shape (04 §7) ----
+
+/**
+ * The shape the documents are written in. 2 (G5): changes may name sections
+ * (`section:<id>`) and move cards `into` one. Version 1 changes read the same
+ * in 2, so moving up is only saying so; a newer shape is left as it is.
+ */
+export const SCHEMA = 2;
+
+/** A household's or person's document, read in today's shape. Nothing is dropped. */
+export function migrate<D extends { version: number; schema?: number }>(doc: D): D {
+	return (doc.schema ?? 1) >= SCHEMA ? doc : { ...doc, schema: SCHEMA };
 }
 
 /** What a person sees: the household's changes, then their own on top (M3). */

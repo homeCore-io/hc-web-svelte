@@ -4,12 +4,12 @@
  * the house's theme and confirmation overrides. Everyone reads it; people who
  * may author the house's content (`content:write`) change it.
  */
-import type { Change, HouseDoc } from './layers.js';
+import { migrate, type Change, type HouseDoc } from './layers.js';
 import { Synced } from './synced.svelte.js';
 
 class Household extends Synced<HouseDoc> {
 	constructor() {
-		super('/ui/house', 'house');
+		super('/ui/house', 'house', migrate);
 	}
 
 	changes(page: string): Change[] {

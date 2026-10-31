@@ -21,7 +21,7 @@
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
-	import { apply, barOf, ref } from '#lib/layers.js';
+	import { barOf, homeRoomOrder, ref } from '#lib/layers.js';
 	import { personal } from '#lib/personal.svelte.js';
 	import { household } from '#lib/household.svelte.js';
 	import { editing, LEAVE } from '#lib/edit.svelte.js';
@@ -64,7 +64,7 @@
 		document.documentElement.style.setProperty('--header-h', `${headerHeight}px`);
 	});
 	const roomsInOrder = $derived(
-		apply(rooms.list, (r) => ref.room(r.id), view.changes('home')).shown
+		homeRoomOrder(rooms.list, (r) => ref.room(r.id), view.changes('home')).shown
 	);
 
 	// ---- Edit mode (N6), in the address (N5) ----

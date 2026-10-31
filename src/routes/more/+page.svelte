@@ -9,7 +9,7 @@
 	import { session } from '#lib/me.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { household } from '#lib/household.svelte.js';
-	import { apply, ref } from '#lib/layers.js';
+	import { homeRoomOrder, ref } from '#lib/layers.js';
 	import { view } from '#lib/view.svelte.js';
 	import RoomIcon from '#lib/components/RoomIcon.svelte';
 
@@ -22,7 +22,7 @@
 		{ href: '/me', label: 'Me' }
 	]);
 	const roomsInOrder = $derived(
-		apply(rooms.list, (r) => ref.room(r.id), view.changes('home')).shown
+		homeRoomOrder(rooms.list, (r) => ref.room(r.id), view.changes('home')).shown
 	);
 </script>
 

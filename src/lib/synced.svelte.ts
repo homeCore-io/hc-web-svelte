@@ -19,6 +19,7 @@ export class Synced<D extends { version: number }> {
 
 	#url: string;
 	#kind: string;
+	#migrate: Edit<D>;
 	#queue: Promise<void> = Promise.resolve();
 	#listeners = new Set<(doc: D) => void>();
 	/** What the server last confirmed. */
@@ -26,9 +27,11 @@ export class Synced<D extends { version: number }> {
 	/** Changes made here and not yet saved, oldest first. */
 	#pending: Edit<D>[] = [];
 
-	constructor(url: string, kind: string) {
+	/** `migrate` reads an older shape of the document in today's (04 §7). */
+	constructor(url: string, kind: string, migrate: Edit<D> = (d) => d) {
 		this.#url = url;
 		this.#kind = kind;
+		this.#migrate = migrate;
 		this.#saved = { version: 0 } as D;
 		this.doc = this.#saved;
 	}
@@ -93,7 +96,7 @@ export class Synced<D extends { version: number }> {
 		}
 		if (res.status === 409 && tries < 3) {
 			const body = (await res.json().catch(() => ({}))) as { current?: D };
-			this.#saved = body.current ?? ({ version: 0 } as D);
+			this.#saved = this.#migrate(body.current ?? ({ version: 0 } as D));
 			return this.#save(edit, tries + 1);
 		}
 		if (!res.ok) {
@@ -108,9 +111,9 @@ export class Synced<D extends { version: number }> {
 	}
 
 	#take(doc: D): void {
-		this.#saved = doc;
+		this.#saved = this.#migrate(doc);
 		this.#show();
-		for (const l of this.#listeners) l(doc);
+		for (const l of this.#listeners) l(this.#saved);
 	}
 
 	async #reload(): Promise<void> {

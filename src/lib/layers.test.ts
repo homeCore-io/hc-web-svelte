@@ -8,7 +8,10 @@ import {
 	asks,
 	barOf,
 	gone,
+	homeRoomOrder,
 	layered,
+	migrate,
+	SCHEMA,
 	paletteOf,
 	withAsk,
 	nudge,
@@ -279,5 +282,51 @@ describe('plugin cards on a page', () => {
 		const l = apply([r], (x) => x, list);
 		expect(l.config(r)).toEqual({ presets: [14, 16] });
 		expect(added(list)).toEqual([r]);
+	});
+});
+
+describe("Home's room order, for the shell and settings", () => {
+	const rooms = ['room:a', 'room:b', 'room:c'];
+
+	it('follows moves among the rooms, as before', () => {
+		const changes: Change[] = [{ op: 'move', ref: 'room:c', before: 'room:a' }];
+		expect(homeRoomOrder(rooms, id, changes).shown).toEqual(apply(rooms, id, changes).shown);
+		expect(homeRoomOrder(rooms, id, changes).shown).toEqual(['room:c', 'room:a', 'room:b']);
+	});
+
+	it('counts a move into the rooms section, but not one out of it', () => {
+		const changes: Change[] = [
+			{ op: 'move', ref: 'room:c', before: 'room:a', into: 'rooms' },
+			{ op: 'move', ref: 'room:a', before: null, into: 'pinned' }
+		];
+		expect(homeRoomOrder(rooms, id, changes).shown).toEqual(['room:c', 'room:a', 'room:b']);
+	});
+
+	it('is not moved by changes to sections', () => {
+		const changes: Change[] = [
+			{ op: 'move', ref: 'section:rooms', before: 'section:chips' },
+			{ op: 'hide', ref: 'section:rooms' }
+		];
+		expect(homeRoomOrder(rooms, id, changes).shown).toEqual(rooms);
+	});
+});
+
+describe("the documents' shape (04 §7)", () => {
+	it('reads a version 1 document as today’s, keeping everything', () => {
+		const old = {
+			version: 7,
+			pages: { home: [{ op: 'hide', ref: 'room:a' }] as Change[] },
+			someday: { kept: true }
+		};
+		const doc = migrate(old);
+		expect(doc).toEqual({ ...old, schema: SCHEMA });
+		expect(doc.version).toBe(7);
+	});
+
+	it('leaves a document already in this shape, or a newer one, alone', () => {
+		const now = { version: 1, schema: SCHEMA };
+		expect(migrate(now)).toBe(now);
+		const newer = { version: 1, schema: SCHEMA + 1, more: 1 };
+		expect(migrate(newer)).toBe(newer);
 	});
 });

@@ -3,13 +3,13 @@
  * server so they follow the person from phone to laptop — and nobody else
  * sees them. Saving and keeping in step are `Synced`'s.
  */
-import { addChange, type Change, type PersonDoc } from './layers.js';
+import { addChange, migrate, type Change, type PersonDoc } from './layers.js';
 import { Synced } from './synced.svelte.js';
 import { followUnits, unitsOf, type UnitsChoice } from './units.js';
 
 class Personal extends Synced<PersonDoc> {
 	constructor() {
-		super('/ui/prefs', 'person');
+		super('/ui/prefs', 'person', migrate);
 	}
 
 	changes(page: string): Change[] {

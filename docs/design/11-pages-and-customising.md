@@ -433,3 +433,114 @@ doesn't present: the band's Show and its numbers (`section:summary`,
   after each: only the settings that differ are kept.
 - Release note: as planned above — one version; an older app's Edit → Done
   drops the band's Show and its numbers.
+
+## 7. G-c plan (2026-10-31)
+
+Mockup: "G-c · Add anything, anywhere; your own sections" on the canvas
+above — agreed, with: Customise (just me) adds and makes sections too, in
+the person's layer; the weather card shows what a chosen weather device
+reads now, and a forecast only when that device publishes one (an
+Open-Meteo plugin is on the list; it isn't built here).
+
+**Scope:** Add into any section, from Edit and Customise ("Add here" on a
+section, an Into picker in the sheet, two tabs: things in the house, and
+cards); sections of one's own; a layout per section; Pinned an ordinary
+section; six new kinds — heading, text, worth knowing, playing, weather,
+chart; taking an added card or an own section off again.
+
+**Found in the code, and how the plan handles it**
+
+- `applyPage` already moves a card `into` another section (G5). An `add`
+  with `into` (and `before`) is read as the same move, placed ahead of the
+  other changes, so a later move still wins. An `add` without `into` lands
+  where it always has: Pinned on Home, "Also here" on a room's page — every
+  stored pin stays where it is.
+- `homePage` takes the added refs from the changes on screen. Edit adds to
+  the household's list, Customise to the person's; the two lists are read
+  separately (`added(house) ∪ added(mine)`), so taking one's own card off
+  never takes the household's away.
+- Edit → Done drops changes naming what the page doesn't present
+  (`presentRefs`). Own sections come from changes, so `presentRefs` is taken
+  from the page **with** its own sections (`withOwn`), and new cards are
+  generated from their `add` like any other — both stay present.
+- Kind components are imported by the registry, so each is in Home's first
+  download. The new kinds load their component when first drawn
+  (`load`), and the Add sheet loads when opened: Home's budget (≤150 KB,
+  which v0.1.36 broke) stays as it is.
+- The settings sheet (`KindSettings`) and the form engine draw every new
+  kind's options. The engine gains: `text` with `render: 'multiline'` (a
+  note), and a `sensor` field with `render: 'one'` (no average — a chart or
+  a weather card reads one device).
+- `chart` reuses the device page's `Chart` (GET `/devices/{id}/history`,
+  thinned by homeCore to 160 points).
+
+**The model**
+
+- Changes, no new shape: still schema 2.
+  - `add` with `into` / `before` (G5's fields, now used).
+  - `{ op: 'section', ref: 'section:own-<n>', title, layout }` makes a
+    section; `{ op: 'remove', ref: 'section:own-<n>' }` takes it away
+    (`section` and `remove` supersede each other, as `add` and `remove` do).
+    It's placed with an ordinary `move` of its section ref; it's renamed,
+    hidden and laid out like any section.
+- New cards are refs of their own: `kind:<kind>/<n>`, their settings a
+  `config` on that ref (G13: only what the layer set).
+- **Who may take things off (G18):** what the layer being changed made —
+  the household's in Edit, the person's own in Customise. Anything else can
+  be hidden.
+- **Layouts per section (G19):** Pinned, Favourites and own sections — grid,
+  row, list; Scenes & modes — row, grid, list; Rooms — list, field, tiles
+  (as G-b, still also what the styles write); a room page's sections —
+  grid, list. Field and tiles stay for rooms: they size by what's in a room.
+- **Where Add goes (G20):** any section but Needs attention, What's going
+  on, the big numbers, Favourites (starred, not added) and Rooms (generated
+  from the house). Own sections, Pinned, Scenes & modes, a room's sections.
+- **The new kinds (G21):** each one registration in `kinds.ts` with a
+  descriptor —
+  - *heading*: `text`. Spans its section's width.
+  - *text*: `text` (multiline). A note for the household or oneself.
+  - *worth knowing*: what's unusual now, by name — leaks, open, unlocked,
+    playing (each a toggle; lights left out, the chips count those).
+  - *playing*: every speaker or TV playing, its room and what's on.
+  - *weather*: `station` (`auto` = the house's weather station; or one
+    device). Its temperature large, then humidity, wind, rain where it
+    reads them. **A forecast** shows when the device has a `forecast`
+    attribute: a list of `{ time, high?, low?, condition?,
+    precipitation_probability? }`, temperatures in °C (homeCore's rule),
+    up to five shown. That's the contract for the weather plugin.
+  - *chart*: `reading` (temperature or humidity), a sensor for it (one),
+    and `span` (6 hours, a day, a week).
+- New cards open their settings when added, where they need some (a note's
+  text, a chart's sensor); the others are ready as they are.
+
+**Modules**
+
+- `layers.ts` — the `section` op, `ref.kind()`/`kindRef()`.
+- `page.ts` — `withOwn()`, adds placed `into`, new cards from `kind:` refs,
+  section `layouts` and `accepts`, who made an own section.
+- `pieces.ts` — worth knowing, playing, the weather's readings and forecast:
+  pure, unit-tested.
+- `kinds.ts` + `components/kinds/{Heading,Text,Worth,Playing,Weather,
+  Chart}Kind.svelte`, loaded when drawn.
+- `components/AddCard.svelte` — Into, two tabs, either mode;
+  `components/NewSection.svelte`; `SectionTools` — Add here, Layout,
+  Remove (own).
+
+**Commits, each leaving the app working:** (1) the model — changes, page,
+tests, nothing drawn differently; (2) the kinds and their sheets, the form
+engine's additions; (3) the Add sheet, from Edit and Customise, Add here,
+taking added cards off; (4) own sections and a layout per section; (5)
+tidy, and this section as built.
+
+**Proof:** unit tests; build and budget on every commit; on the sandbox at
+390 and 1280, light and dark — Home unchanged until something is added; the
+sheet's two tabs; adding into several sections and an own section; the new
+section sheet; each new kind on the page (a chart over the sandbox's
+history, the weather from a sandbox station); Customise (just me) next to
+Edit (everyone); Pinned with its old pins. Documents read back after each.
+
+**Older apps (release note):** documents read unchanged. A 0.1.37 app shows
+a card added `into` a section in Pinned, and doesn't show new kinds' cards
+or own sections (it can't draw them). Its Edit → Done drops changes naming
+what it doesn't present: own sections (`section` ops and their moves) and
+new cards' settings and moves. Release as one version again.

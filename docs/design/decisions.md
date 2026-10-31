@@ -1045,3 +1045,36 @@ regression shows plainly against today's Home.
 ## G15 — Edit's session covers kind defaults and the shell setting (2026-10-31)
 
 - Undo, Cancel and Done apply to them as to page changes.
+
+## G16 — Adding into a section is a move, read first (2026-10-31)
+
+- An `add` with `into`/`before` places the card as a `move` would, ahead of
+  the layer's other changes. Without `into`, Pinned (Home) or "Also here"
+  (a room), as before — stored pins don't move.
+
+## G17 — Own sections are changes; Customise makes them too (2026-10-31)
+
+- `{ op: 'section', ref: 'section:own-<n>', title, layout }`, taken away by
+  `remove`. The household's in Edit, a person's in Customise (user,
+  2026-10-31). Placed, renamed, hidden and laid out like any section.
+
+## G18 — Take off only what this layer added (2026-10-31)
+
+- Edit removes the household's added cards and sections; Customise a
+  person's own. Anything else is hidden instead.
+
+## G19 — Each section offers the layouts that suit its cards (2026-10-31)
+
+- Grid, row, list for cards; field and tiles only for rooms.
+
+## G20 — Add goes into sections made of chosen things (2026-10-31)
+
+- Own sections, Pinned, Scenes & modes, a room's sections. Not the alerts,
+  chips, big numbers, Favourites (starred) or Rooms (generated).
+
+## G21 — The weather card reads a device; a forecast is that device's `forecast` (2026-10-31)
+
+- Current readings from a chosen weather device (the house's station by
+  default). A forecast shows when the device publishes `forecast`: a list
+  of `{ time, high?, low?, condition?, precipitation_probability? }` in °C.
+  The coming Open-Meteo plugin fills it; the app needs no change.

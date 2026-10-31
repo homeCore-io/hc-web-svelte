@@ -1019,3 +1019,29 @@ changes are announced (`rule_changed`, `rule_removed`).
 
 **Why:** G-a replaces how every page is drawn; with little new UI, any
 regression shows plainly against today's Home.
+
+## G11 — Home is generated as today; the new styles are chosen (2026-10-31)
+
+- The big numbers' section is generated hidden, and the Rooms section keeps
+  its list, until someone picks a style — the household in Edit, or a person
+  in Customise. Nobody's Home changes on upgrade.
+
+## G12 — "Rooms in the sidebar" hides Home's rooms only where the sidebar shows them (2026-10-31)
+
+- 1100 px and wider with the sidebar open. Phones and folded sidebars keep
+  the rooms on Home.
+
+## G13 — Kind settings resolve per setting, each layer holding only what it set (2026-10-31)
+
+- A person's card setting, the household's card setting, the person's
+  every-room setting, the household's, built-in — first set wins, setting by
+  setting. A sheet saves only what differs from what would apply anyway.
+  Plugin cards' `config` is unchanged (their element reports it whole).
+
+## G14 — Tiles keep the section's order (2026-10-31)
+
+- Per G8; "busiest first" would move boxes about as lights change.
+
+## G15 — Edit's session covers kind defaults and the shell setting (2026-10-31)
+
+- Undo, Cancel and Done apply to them as to page changes.

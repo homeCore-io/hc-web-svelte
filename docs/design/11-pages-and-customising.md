@@ -1,6 +1,6 @@
 # 11 — Pages and customising
 
-Status: **decided** — see `decisions.md` (G1–G10, all as recommended) · 2026-10-31 · **G-a built** on `redesign` (not released)
+Status: **decided** — see `decisions.md` (G1–G15) · 2026-10-31 · **G-a released** (0.1.35) · G-b planned (§6)
 
 How Home, room pages, hand-built pages and displays become one thing that
 everyone can arrange, so each new customising feature is a new *kind of card*
@@ -319,3 +319,85 @@ migration, `homeRoomOrder` everywhere; (2) `page.ts` + tests, unwired;
   tried on the sandbox: saved in shape 2, Done keeps them.
 - Release note when it ships: an older app still open somewhere drops
   section changes on its Edit → Done. Release as one version.
+
+---
+
+## 6. G-b plan (2026-10-31)
+
+Mockups: "Customise · style and a room's box" and "G-b · Every room's box,
+choosing a sensor, the big numbers" on the canvas above — agreed, with: a
+room's own settings win over anyone's every-room settings (G4), and the big
+numbers wrap to a second row past about five on a phone (no cap).
+
+**Scope:** the `room` kind's options; the `field` and `tiles` layouts; the
+`summary` kind (the big numbers); the style picker; the sidebar's rooms with
+their status; "Every room's box" (kind defaults) with "Rooms set on their
+own". Alarming states always show on a box (G6).
+
+**Found in the code, and how the plan handles it**
+
+- `config` changes replace a card's settings wholesale (`apply` keeps the
+  last). That suits a plugin's settings element, which reports everything.
+  Room and summary settings are read **per setting** across the layers
+  instead (G13): the person's card setting, the household's card setting,
+  the person's every-room setting, the household's, then built-in. Each
+  layer's `config` holds only what that layer set.
+- Edit keeps a session of edits to the household's document; today they are
+  all page changes. Kind defaults and the shell setting become edits in the
+  same session (G15), so Undo, Cancel and Done cover them.
+- `Field` is core's descriptor vocabulary. The sensor picker is one new
+  field kind, `sensor`, and the big numbers' order one new `render` of
+  `list` (`order`); both live only in this app and either can be used by any
+  descriptor. One client-only field property, `near` (a room id), puts that
+  room's sensors first.
+- The rooms list on Home (`RoomRow`) stays exactly as it is: it is today's
+  style, "List". Box settings apply to boxes and the sidebar's status.
+- Style C hides Home's rooms only where the sidebar shows them (1100 px and
+  wider, sidebar not folded) — on a phone there's no sidebar, so Home keeps
+  its rooms (G12).
+- Tiles keep the section's order, as G8 says; the mockup's "busiest first"
+  would reorder boxes as lights change (G14).
+
+**The model**
+
+- `HouseDoc` / `PersonDoc` gain `defaults?: { [kind]: options }` and
+  `shell?: { rooms?: 'names' | 'status' }`. No other new keys.
+- Card settings: `config` on `room:<id>` and `piece:summary/home`. Section
+  layout: `config` on `section:<id>`, `{ layout }`, limited to the layouts
+  that section allows (`rooms`: list, field, tiles).
+- A new Home section, `summary` ("At a glance"), between the chips and
+  Pinned, **hidden unless shown** — the generated Home is today's until
+  someone picks a style or shows it (G11).
+- Styles are what they write (G3): List = rooms `list`, no band; Room field
+  = `field` + band; Room tiles = `tiles` + band; Rooms in the sidebar =
+  `list` + band + `shell.rooms: status`. The picker reads the style back from
+  those; anything else reads as the nearest.
+
+**Modules**
+
+- `settings.ts` — `resolve()` per setting through the layers, `prune()`
+  (drops what would apply anyway), the room and summary descriptors.
+- `roomBox.ts` — a room's box from its devices and settings: big number,
+  line, badges, glow, alarms, All off, field size; the big numbers from the
+  house. Pure, unit-tested.
+- `styles.ts` — the four styles, `styleOf()`, `styleChanges()`.
+- `components/RoomBox.svelte`, `kinds/SummaryKind.svelte`,
+  `KindSettings.svelte` (a kind's sheet from its descriptor, with a preview),
+  `EveryRoom.svelte`, `StylePicker.svelte`, `form/SensorPicker.svelte`.
+
+**Commits, each leaving the app working:** (1) settings and boxes, pure, with
+tests; (2) the form engine's `sensor` field and `order` list; (3) room boxes:
+`field` and `tiles` layouts and a room's own settings; (4) the big numbers;
+(5) every room's box; (6) styles and the sidebar's rooms; (7) tidy, and this
+section as built.
+
+**Proof:** unit tests; screenshots on the sandbox at 390 and 1280, light and
+dark — Home not arranged must match G-a's; each style; a room with its own
+settings; the every-room sheet; the picker, one and average; the big numbers.
+
+**Older apps (release note):** old documents read unchanged; still shape 2 —
+new keys are optional and new changes use existing ops. A 0.1.35 app keeps
+`defaults` and `shell` when it saves (it changes documents by spreading
+them) and ignores them. But its Edit → Done drops changes naming things it
+doesn't present: the band's Show and its numbers (`section:summary`,
+`piece:summary/home`). Release as one version again.

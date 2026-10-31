@@ -241,3 +241,58 @@ first. *Recommend yes.*
 
 **G10 — G-a ships with only section move/hide/rename as new UI**, so a
 regression is easy to see against today's Home. *Recommend yes.*
+
+---
+
+## 5. G-a plan (2026-10-31)
+
+Mockup: "G-a · Moving, hiding and renaming sections" on the canvas above.
+
+**Found in the code, and how the plan handles it**
+
+- `version` on the UI server's documents is the save counter
+  (`server/store.js:97`), so the document format gets its own field:
+  `schema?: 2` (absent = 1). Migration runs in `Synced` on every read and on
+  a 409's `current`.
+- Done drops every change whose ref the page doesn't present
+  (`EditBar.svelte:27`). `presentRefs(page)` must include `section:<id>`, or
+  Done deletes section changes. An older app still deployed would drop them
+  too — the app is released as one version, never mixed.
+- Room order comes from `home` changes in three places (Shell, More,
+  Settings → Rooms); all three move to one `homeRoomOrder()`.
+- Favourites keep their own list's order and only the person's `form`
+  changes, as today.
+- Room pages pass `page` to device cards (their Hide shortcut); Home doesn't.
+  Kept.
+
+**Modules**
+
+- `src/lib/page.ts` — `Page`/`Section`/`Card` types, `homePage()`,
+  `roomPage()`, `applyPage()` (sections first, fixed ones pulled to the
+  front; cards per section exactly as v1; `move … into` implemented, not yet
+  offered), `presentRefs()`, `homeRoomOrder()`. Pure, unit-tested.
+- `src/lib/kinds.ts` — the registry: `device`, `scene`, `room`, `plugin`,
+  and the pieces `alerts`, `chips`, `modes`; components in
+  `components/kinds/`, wrapping today's cards unchanged.
+- `components/PageView.svelte` — the one renderer; `SectionTools.svelte`
+  for move up/down, hide/show, rename while arranging.
+
+**Sections**
+
+| Page | Sections (id) |
+|---|---|
+| Home | `alerts` (fixed), `chips`, `pinned`, `favourites`, `scenes` (modes drawn at its top), `rooms` |
+| Room | `devices:controls`, `devices:scenes`, `devices:sensors`, `devices:other`, `added` ("Also here") |
+
+Scenes and modes stay one section in G-a (splitting them changes Home's
+spacing); they split in G-c.
+
+**Proof it's unchanged:** unit tests over stored v1 change lists, and
+before/after screenshots (390 px and 1280 px, light and dark; Home, Edit,
+Customise, a room, Not in a room) against the sandbox homeCore with a copy
+of the real UI documents — pixel-identical when not arranging.
+
+**Commits, each leaving the app working:** (1) layers: `schema`, `into`,
+migration, `homeRoomOrder` everywhere; (2) `page.ts` + tests, unwired;
+(3) `kinds.ts` + kind components; (4) room pages on `PageView`, compared;
+(5) Home on `PageView`, compared; (6) section tools; (7) dead code removed.

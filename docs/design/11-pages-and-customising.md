@@ -1,6 +1,6 @@
 # 11 — Pages and customising
 
-Status: **decided** — see `decisions.md` (G1–G15) · 2026-10-31 · **G-a released** (0.1.35) · G-b planned (§6)
+Status: **decided** — see `decisions.md` (G1–G15) · 2026-10-31 · **G-a released** (0.1.35) · **G-b built** on `redesign` (not released, §6)
 
 How Home, room pages, hand-built pages and displays become one thing that
 everyone can arrange, so each new customising feature is a new *kind of card*
@@ -401,3 +401,35 @@ new keys are optional and new changes use existing ops. A 0.1.35 app keeps
 them) and ignores them. But its Edit → Done drops changes naming things it
 doesn't present: the band's Show and its numbers (`section:summary`,
 `piece:summary/home`). Release as one version again.
+
+**As built (2026-10-31)** — commits "Boxes, step 1"–"step 7" on `redesign`.
+
+- The options module is `options.ts` (`settings.ts` was taken by Settings'
+  groups). Resolution and the sheets' layers are in `kindOptions.svelte.ts`.
+- The room box's "Doors & locks" detail is **Locks** (unlocked ones): an
+  open door always shows, so it can't be a detail (G6). Low batteries go
+  with **Batteries**; with it off they show only in Alerts, as today.
+- A box is red for a leak, smoke or a jammed lock; an open door and an
+  offline device show in its line in the alert colour.
+- The room field is a wrapping row of boxes, each as wide as what's in its
+  room (three sizes) — no holes, and the order is the section's.
+- "Use these instead" applies at once; the sheets' other settings on Done.
+  Closing a sheet with × keeps nothing.
+- "Every room's box" is in the Rooms section's tools while arranging, and
+  only in the field, tiles or sidebar styles — the list keeps today's rows,
+  which have no box settings.
+- A sensor's value is read with the schema's unit first, as cards read
+  it; a device whose schema and own unit disagree (the sandbox's stand-in
+  Office Motion: °C in its schema, `temperature_unit: F`) reads wrong in
+  both. Not changed here.
+- Proof: unit tests over the options, boxes, big numbers, styles and
+  section layouts. On the sandbox (390/1280, light/dark): Home unarranged
+  matches G-a's but for live alerts and readings; choosing "Room list"
+  again gives that Home back; field, tiles and rooms in the sidebar chosen
+  through the app, for everyone (Edit) and just me (Customise); a room
+  with its own temperature sensor; the room sheet, the picker (one and an
+  average), every room's box with "Rooms set on their own", the big
+  numbers' sheet with seven numbers wrapping on a phone. Documents checked
+  after each: only the settings that differ are kept.
+- Release note: as planned above — one version; an older app's Edit → Done
+  drops the band's Show and its numbers.

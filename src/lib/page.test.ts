@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { HOUSE, ROOMS, FIXTURE_NOW } from './fixtures/house.js';
 import { roomFromCore } from './house.js';
 import type { Devices } from './devices.js';
-import type { Change } from './layers.js';
+import { gone, type Change } from './layers.js';
 import {
 	applyPage,
 	drawn,
@@ -248,5 +248,19 @@ describe('what a page names, and draws', () => {
 		expect(at(home(), 'rooms', false)).toBe(true);
 		const hidden: Change[] = [{ op: 'hide', ref: sectionRef('rooms') }];
 		expect(at(home(), 'rooms', true, hidden)).toBe(true);
+	});
+});
+
+describe("Edit's Done keeps what the page still has (EditBar)", () => {
+	it('keeps changes to sections, and drops those to things that are gone', () => {
+		const changes: Change[] = [
+			{ op: 'move', ref: sectionRef('scenes'), before: sectionRef('pinned') },
+			{ op: 'hide', ref: sectionRef('chips') },
+			{ op: 'rename', ref: sectionRef('rooms'), name: 'Every room' },
+			{ op: 'hide', ref: 'room:r-den' },
+			{ op: 'hide', ref: 'room:r-demolished' },
+			{ op: 'move', ref: sectionRef('long-gone'), before: null }
+		];
+		expect(gone(changes, presentRefs(home()))).toEqual([changes[4], changes[5]]);
 	});
 });

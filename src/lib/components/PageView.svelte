@@ -8,7 +8,7 @@
 	cards show faded, and a section with nothing in it says what goes there.
 -->
 <script lang="ts">
-	import { applyPage, drawn, presentRefs, type Card, type Page } from '#lib/page.js';
+	import { applyPage, drawn, presentRefs, sectionRef, type Card, type Page } from '#lib/page.js';
 	import { kindOf } from '#lib/kinds.js';
 	import { view } from '#lib/view.svelte.js';
 	import { personal } from '#lib/personal.svelte.js';
@@ -16,6 +16,7 @@
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
 	import type { Layered } from '#lib/layers.js';
 	import Arrange from './Arrange.svelte';
+	import SectionTools from './SectionTools.svelte';
 
 	let { page }: { page: Page } = $props();
 
@@ -31,6 +32,12 @@
 		if (editing.on(key)) editing.present = presentRefs(page);
 	});
 
+	// The sections that can move, as they are drawn — for up and down.
+	const movable = $derived(
+		shown.sections
+			.filter((s) => !s.hidden && !s.section.fixed && drawn(s, arranging))
+			.map((s) => sectionRef(s.section.id))
+	);
 	const listOf = (g: Layered<Card>) => (arranging ? [...g.shown, ...g.hidden] : g.shown);
 </script>
 
@@ -70,13 +77,31 @@
 {#each shown.sections as s (s.section.id)}
 	{#if drawn(s, arranging)}
 		{@const sec = s.section}
-		<section class:faded={s.hidden} aria-label={sec.bare ? s.title : undefined}>
-			{#if sec.bare}
+		<section aria-label={sec.bare ? s.title : undefined}>
+			{#if arranging && !sec.fixed}
+				<div class="head">
+					<h2 class="section-label" class:faded={s.hidden}>
+						{s.title}{#if s.hidden}<span class="note"> · hidden</span>{/if}
+					</h2>
+					<SectionTools
+						page={key}
+						ref={sectionRef(sec.id)}
+						title={s.title}
+						shown={movable}
+						hidden={s.hidden}
+						renamed={s.renamed}
+					/>
+				</div>
+			{:else if !sec.bare}
+				<h2 class="section-label">{s.title}</h2>
+			{/if}
+			{#if s.hidden}
+				<!-- Hidden: only its heading, to bring it back. -->
+			{:else if sec.bare}
 				{#each s.groups as g, i (i)}
 					{#each listOf(g) as card (card.ref)}{@render piece(card)}{/each}
 				{/each}
 			{:else}
-				<h2 class="section-label">{s.title}</h2>
 				{#if sec.lead}{@render piece(sec.lead)}{/if}
 				{#if arranging && sec.hint && s.groups.every((g) => listOf(g).length === 0)}
 					<p class="hint">{sec.hint}</p>
@@ -102,8 +127,22 @@
 		flex-direction: column;
 		gap: 10px;
 	}
+	.head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+	}
+	.head h2 {
+		margin: 0;
+	}
 	.faded {
 		opacity: 0.5;
+	}
+	.note {
+		text-transform: none;
+		letter-spacing: 0;
 	}
 	.hint {
 		color: var(--ink-muted);

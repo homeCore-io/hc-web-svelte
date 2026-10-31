@@ -440,3 +440,72 @@ describe('a row’s runs (G-c)', () => {
 		expect(runsOf([], 'row')).toEqual([{ layout: 'row', cards: [] }]);
 	});
 });
+
+describe('moving a card into another section (G22)', () => {
+	const make: Change = { op: 'section', ref: 'section:own-a1', title: 'Evening', layout: 'grid' };
+	const p = withOwn(home({ added: ['device:hue_lamp'] }), [make]);
+
+	it('takes a scene out of Scenes & modes into Pinned, at the end', () => {
+		const changes: Change[] = [{ op: 'move', ref: 'scene:evening', before: null, into: 'pinned' }];
+		expect(shown(p, 'scenes', changes)).not.toContain('scene:evening');
+		expect(shown(p, 'pinned', changes).at(-1)).toBe('scene:evening');
+	});
+
+	it('puts a card into an own section, then back again, the last move winning', () => {
+		const there: Change[] = [
+			make,
+			{ op: 'move', ref: 'device:hue_lamp', before: null, into: 'own-a1' }
+		];
+		expect(shown(p, 'own-a1', there)).toEqual(['device:hue_lamp']);
+		expect(shown(p, 'pinned', there)).not.toContain('device:hue_lamp');
+		const back: Change[] = [
+			...there,
+			{ op: 'move', ref: 'device:hue_lamp', before: null, into: 'pinned' }
+		];
+		expect(shown(p, 'pinned', back)).toContain('device:hue_lamp');
+		expect(shown(p, 'own-a1', back)).toEqual([]);
+	});
+
+	it('keeps up and down working inside the section it was moved into', () => {
+		const changes: Change[] = [
+			{ op: 'move', ref: 'scene:evening', before: null, into: 'pinned' },
+			{ op: 'move', ref: 'scene:evening', before: 'device:hue_lamp' }
+		];
+		expect(shown(p, 'pinned', changes).slice(0, 2)).toEqual(['scene:evening', 'device:hue_lamp']);
+	});
+
+	it('falls back to where it was when the section it went into is removed', () => {
+		const changes: Change[] = [
+			make,
+			{ op: 'move', ref: 'scene:evening', before: null, into: 'pinned' },
+			{ op: 'move', ref: 'scene:evening', before: null, into: 'own-a1' },
+			{ op: 'remove', ref: 'section:own-a1' }
+		];
+		const after = withOwn(home({ added: ['device:hue_lamp'] }), changes);
+		expect(ids(after)).not.toContain('own-a1');
+		expect(shown(after, 'pinned', changes)).toContain('scene:evening');
+		const once: Change[] = [make, changes[2]!, changes[3]!];
+		expect(shown(withOwn(home(), once), 'scenes', once)).toContain('scene:evening');
+	});
+
+	it('is the person’s own in Customise: their move over the household’s', () => {
+		const house: Change[] = [{ op: 'move', ref: 'scene:evening', before: null, into: 'pinned' }];
+		const mine: Change[] = [{ op: 'move', ref: 'scene:evening', before: null, into: 'scenes' }];
+		expect(shown(p, 'scenes', [...house, ...mine], mine)).toContain('scene:evening');
+		expect(shown(p, 'pinned', house)).toContain('scene:evening');
+	});
+
+	it('works on a room’s page, between its sections', () => {
+		const room = roomPage('r-den', {
+			devices,
+			rooms,
+			added: [],
+			pluginCard: () => undefined,
+			now: FIXTURE_NOW
+		});
+		const tv = 'device:roku_den';
+		const changes: Change[] = [{ op: 'move', ref: tv, before: null, into: 'devices:sensors' }];
+		expect(shown(room, 'devices:controls', changes)).not.toContain(tv);
+		expect(shown(room, 'devices:sensors', changes).at(-1)).toBe(tv);
+	});
+});

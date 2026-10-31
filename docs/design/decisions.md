@@ -1078,3 +1078,11 @@ regression shows plainly against today's Home.
   default). A forecast shows when the device publishes `forecast`: a list
   of `{ time, high?, low?, condition?, precipitation_probability? }` in °C.
   The coming Open-Meteo plugin fills it; the app needs no change.
+
+## G22 — A card moves into another section with "Move to" (2026-10-31)
+
+- While arranging (Customise for oneself, Edit for everyone), any card in a
+  section that takes cards can be moved into another one that does: a
+  `move … into` at its end (user, 2026-10-31). Rooms' boxes, Favourites and
+  the house's own pieces stay where they are. A move into a section that's
+  gone is skipped: the card stays where it was before.

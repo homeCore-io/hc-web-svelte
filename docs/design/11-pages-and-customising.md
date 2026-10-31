@@ -586,3 +586,22 @@ new cards' settings and moves. Release as one version again.
   `kind:` refs.
 - Release note: as planned above — one version; an older app's Edit → Done
   drops own sections and new cards' settings.
+- **Afterwards (user, 2026-10-31): tidied, and cards move between sections.**
+  - Worth knowing no longer lists what plays (the Playing card's job; an old
+    `playing` setting is ignored) and says "Open for 10 days" in one phrase.
+  - Weather names its readings: humidity, feels like, wind with its compass
+    point, gusts, rain today, UV, pressure — relative only; the older
+    Ecowitt's `barometric_rel` reads as inHg — four at most.
+  - A chart on a card shows its reading's value beside the name, never
+    wrapped, over a taller line fitted to the readings, its range beneath.
+  - A row draws scenes' buttons in runs and anything else added between them
+    in a grid of its own (`runsOf`), so buttons keep their height.
+  - **Move to (G22):** while arranging, a card's tools have "Move to", listing
+    the other sections shown here that take cards (`accepts`). It writes
+    `move … into` at the section's end; up and down place it from there.
+    A room's box stays among the rooms; Favourites and the house's pieces
+    don't leave theirs. A move into a section since removed is skipped, so
+    the card is where it was before — never lost. Room pages too.
+  - Older app (0.1.37): it already reads `move … into` (G5), so a moved card
+    shows where it was moved; its Edit → Done keeps those moves, as they name
+    cards it has.

@@ -365,7 +365,7 @@ function ownSections(changes: Change[], mine: Change[]): Section[] {
 		accepts: true,
 		own: mine.includes(c) ? 'person' : 'house',
 		cards: [],
-		hint: 'Nothing here yet — Add here puts something in it.'
+		hint: 'Nothing here yet. Add here puts something in it, or move a card in from another section.'
 	}));
 }
 
@@ -428,10 +428,13 @@ export function applyPage(
 		),
 		...changes
 	];
-	// A card moved into another section (G5) leaves its own first.
-	const into = new Map<string, string>();
-	for (const c of changes) if (c.op === 'move' && c.into !== undefined) into.set(c.ref, c.into);
+	// A card moved into another section (G5) leaves its own first. The last
+	// move into a section the page still has wins: one into a section since
+	// removed is skipped, so the card goes back where it was before — never lost.
 	const ids = new Set(page.sections.map((s) => s.id));
+	const into = new Map<string, string>();
+	for (const c of changes)
+		if (c.op === 'move' && c.into !== undefined && ids.has(c.into)) into.set(c.ref, c.into);
 	const moved = new Map<string, Card>();
 	let sections = page.sections.map((s) => ({
 		...s,
@@ -447,6 +450,8 @@ export function applyPage(
 		cards: [...s.cards, ...[...moved].filter(([r]) => into.get(r) === s.id).map(([, c]) => c)]
 	}));
 
+	// Where a card is placed within a section: moves into it, and moves that
+	// name no section (up and down) — never one placing it in another section.
 	const forSection = (s: Section) =>
 		changes.filter((c) => c.op !== 'move' || c.into === undefined || c.into === s.id);
 	const layered = apply(sections, (s) => sectionRef(s.id), [

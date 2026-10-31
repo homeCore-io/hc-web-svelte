@@ -103,11 +103,27 @@
 		adding.settle = null;
 		setting = { card, name: kindOf(card).name(card) };
 	});
+	// Where a card can be moved (G22): another section shown here that takes
+	// cards. A room's box stays among the rooms; favourites and the house's
+	// own pieces don't leave theirs.
+	const targets = $derived(
+		shown.sections
+			.filter((s) => s.section.accepts && !s.hidden)
+			.map((s) => ({ id: s.section.id, title: s.title }))
+	);
+	const moveTargets = (card: Card, from: string) =>
+		card.kind === 'room' ? [] : targets.filter((t) => t.id !== from);
 	const hasSettings = (card: Card, layout: Layout) =>
 		kindOf(card).options !== null && (card.kind !== 'room' || layout !== 'list' || sideRooms);
 </script>
 
-{#snippet piece(card: Card, g?: Layered<Card>, favourites = false, layout: Layout = 'grid')}
+{#snippet piece(
+	card: Card,
+	g?: Layered<Card>,
+	favourites = false,
+	layout: Layout = 'grid',
+	from?: string
+)}
 	{@const kind = kindOf(card)}
 	{@const label = g?.name(card.ref)}
 	{@const form = kind.form(card, g?.form(card.ref))}
@@ -126,6 +142,7 @@
 			list={favourites ? 'favourites' : 'page'}
 			added={card.added ?? false}
 			renamed={label !== undefined}
+			moveTo={from !== undefined ? moveTargets(card, from) : undefined}
 			settings={hasSettings(card, layout)
 				? () => (setting = { card, name: label ?? kind.name(card) })
 				: undefined}
@@ -206,10 +223,22 @@
 								{#each run.cards as card (card.ref)}
 									{#if g && s.layout === 'field'}
 										<div class={`cell s${kindOf(card).span?.(card) ?? 1}`}>
-											{@render piece(card, g, sec.favourites, s.layout)}
+											{@render piece(
+												card,
+												g,
+												sec.favourites,
+												s.layout,
+												sec.accepts ? sec.id : undefined
+											)}
 										</div>
 									{:else if g}
-										{@render piece(card, g, sec.favourites, s.layout)}
+										{@render piece(
+											card,
+											g,
+											sec.favourites,
+											s.layout,
+											sec.accepts ? sec.id : undefined
+										)}
 									{/if}
 								{/each}
 							</div>

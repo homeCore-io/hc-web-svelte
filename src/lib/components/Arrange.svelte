@@ -24,6 +24,7 @@
 		added = false,
 		renamed = false,
 		settings,
+		moveTo,
 		children
 	}: {
 		page: string;
@@ -39,6 +40,8 @@
 		renamed?: boolean;
 		/** Opens its settings sheet, where its kind has settings. */
 		settings?: () => void;
+		/** Other sections it can be moved into (G22). */
+		moveTo?: { id: string; title: string }[];
 		children: Snippet;
 	} = $props();
 
@@ -48,7 +51,20 @@
 {#if mode !== null}
 	<div class="arrange" class:hidden class:wide class:shared={mode === 'edit'}>
 		<div class="quiet" inert>{@render children()}</div>
-		<Tools {page} {ref} {name} {shown} {hidden} {star} {form} {list} {added} {renamed} {settings} />
+		<Tools
+			{page}
+			{ref}
+			{name}
+			{shown}
+			{hidden}
+			{star}
+			{form}
+			{list}
+			{added}
+			{renamed}
+			{settings}
+			{moveTo}
+		/>
 	</div>
 {:else}
 	{@render children()}

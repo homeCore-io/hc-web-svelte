@@ -602,6 +602,8 @@ new cards' settings and moves. Release as one version again.
     A room's box stays among the rooms; Favourites and the house's pieces
     don't leave theirs. A move into a section since removed is skipped, so
     the card is where it was before — never lost. Room pages too.
+  - A room's section emptied by moves isn't drawn as a bare heading; while
+    arranging it shows, with a hint, so a card can be moved back in.
   - Older app (0.1.37): it already reads `move … into` (G5), so a moved card
     shows where it was moved; its Edit → Done keeps those moves, as they name
     cards it has.

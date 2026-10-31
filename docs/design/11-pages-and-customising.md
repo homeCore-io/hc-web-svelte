@@ -1,6 +1,6 @@
 # 11 — Pages and customising
 
-Status: **decided** — see `decisions.md` (G1–G10, all as recommended) · 2026-10-31
+Status: **decided** — see `decisions.md` (G1–G10, all as recommended) · 2026-10-31 · **G-a built** on `redesign` (not released)
 
 How Home, room pages, hand-built pages and displays become one thing that
 everyone can arrange, so each new customising feature is a new *kind of card*
@@ -296,3 +296,26 @@ of the real UI documents — pixel-identical when not arranging.
 migration, `homeRoomOrder` everywhere; (2) `page.ts` + tests, unwired;
 (3) `kinds.ts` + kind components; (4) room pages on `PageView`, compared;
 (5) Home on `PageView`, compared; (6) section tools; (7) dead code removed.
+
+**As built (2026-10-31)** — commits "Pages, step 1"–"step 7" on `redesign`.
+
+- Section rename is Edit only, as for cards (decided 2026-10-31); Customise
+  moves and hides sections.
+- One `migrate()` serves both documents; it only stamps `schema: 2`.
+- A card carries a `group`: "Also here" is ordered and drawn as two runs —
+  devices, then plugins' cards — exactly as before. Cards have no `options`
+  yet; G-b adds them with the first kind that has settings.
+- Sections carry `bare` (alerts, chips: no heading or tools when not
+  arranging), `lead` (modes above scenes), `favourites`, `hint` and `show`.
+- While arranging, an empty section with a hint shows it (Favourites, and
+  Pinned in Edit), so the household can place sections that are empty
+  today; a hidden section shows only its heading and Show.
+- Room pages get the same section tools — one renderer.
+- `CardGrid` stays (the "what's on" pages use it); `AddedCards` is gone.
+- Proof: unit tests over v1 change lists (page, kinds, layers); screenshots
+  on the sandbox at 390/1280, light/dark — Home, Customise, a room and Not in
+  a room match the old pages but for live times and readings; Edit adds the
+  empty Favourites section. Section move, hide (Customise) and rename (Edit)
+  tried on the sandbox: saved in shape 2, Done keeps them.
+- Release note when it ships: an older app still open somewhere drops
+  section changes on its Edit → Done. Release as one version.

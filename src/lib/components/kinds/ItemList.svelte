@@ -24,7 +24,7 @@
 					>
 						<span class="name">{i.name}</span>
 						<span class="what" class:alert={i.alert}
-							>{i.what}{#if i.room}<span class="room"> · {i.room}</span>{/if}</span
+							>{i.what}{#if i.room}<span class="room">{' · '}{i.room}</span>{/if}</span
 						>
 					</a>
 				</li>

@@ -509,3 +509,25 @@ describe('moving a card into another section (G22)', () => {
 		expect(shown(room, 'devices:sensors', changes).at(-1)).toBe(tv);
 	});
 });
+
+describe('a room’s section emptied by moves (G22)', () => {
+	it('isn’t drawn as a bare heading, but shows while arranging', () => {
+		const room = roomPage('r-den', {
+			devices,
+			rooms,
+			added: [],
+			pluginCard: () => undefined,
+			now: FIXTURE_NOW
+		});
+		const controls = section(room, 'devices:controls');
+		const changes: Change[] = controls.cards.map((c) => ({
+			op: 'move',
+			ref: c.ref,
+			before: null,
+			into: 'devices:sensors'
+		}));
+		const s = applyPage(room, changes).sections.find((x) => x.section.id === 'devices:controls')!;
+		expect(drawn(s, false)).toBe(false);
+		expect(drawn(s, true)).toBe(true);
+	});
+});

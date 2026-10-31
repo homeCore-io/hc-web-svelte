@@ -313,7 +313,9 @@ export function roomPage(id: string, h: RoomInput): Page {
 		layout: 'grid',
 		layouts: ROOM_LAYOUTS,
 		accepts: true,
-		show: 'always',
+		// Drawn with cards; emptied by moving them elsewhere (G22), only while
+		// arranging, so something can be moved back in.
+		hint: 'Nothing here now. Move a card in from another section.',
 		cards: s.cards.map((c) => asCard(h.devices[c.id]!))
 	}));
 

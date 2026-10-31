@@ -14,6 +14,7 @@
 	import { view } from '#lib/view.svelte.js';
 	import KindSettings from './KindSettings.svelte';
 	import RoomBox from './RoomBox.svelte';
+	import SummaryKind from './kinds/SummaryKind.svelte';
 
 	let { page, card, name, close }: { page: string; card: Card; name: string; close: () => void } =
 		$props();
@@ -52,6 +53,8 @@
 						devices={[]}
 					/>
 				</div>
+			{:else if card.kind === 'summary'}
+				<SummaryKind {card} {page} cardTools={false} options={o} />
 			{/if}
 		{/snippet}
 	</KindSettings>

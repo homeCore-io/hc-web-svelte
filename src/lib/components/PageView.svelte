@@ -110,7 +110,7 @@
 						renamed={s.renamed}
 					/>
 				</div>
-			{:else if !sec.bare}
+			{:else if !sec.bare && !sec.headless}
 				<h2 class="section-label">{s.title}</h2>
 			{/if}
 			{#if s.hidden}
@@ -191,6 +191,11 @@
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
+	}
+	/* The big numbers take the whole width, whatever the list's columns. */
+	.list > :global(.clip),
+	.list > :global(.arrange:has(.clip)) {
+		grid-column: 1 / -1;
 	}
 	/* The room field (G-b): boxes as wide as what's in them, rows filled. */
 	.field {

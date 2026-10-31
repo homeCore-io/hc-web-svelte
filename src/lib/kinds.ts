@@ -10,7 +10,7 @@ import type { Descriptor } from './descriptor.js';
 import { displayName } from './devices.js';
 import type { Form } from './layers.js';
 import type { Card, Layout } from './page.js';
-import { ROOM_BUILT_IN, roomDescriptor } from './options.js';
+import { ROOM_BUILT_IN, SUMMARY_BUILT_IN, roomDescriptor, summaryDescriptor } from './options.js';
 import { fieldSize } from './roomBox.js';
 import AlertsKind from './components/kinds/AlertsKind.svelte';
 import ChipsKind from './components/kinds/ChipsKind.svelte';
@@ -19,6 +19,7 @@ import ModesKind from './components/kinds/ModesKind.svelte';
 import PluginKind from './components/kinds/PluginKind.svelte';
 import RoomKind from './components/kinds/RoomKind.svelte';
 import SceneKind from './components/kinds/SceneKind.svelte';
+import SummaryKind from './components/kinds/SummaryKind.svelte';
 
 type CardOf<K extends Card['kind']> = Extract<Card, { kind: K }>;
 
@@ -37,6 +38,8 @@ export interface KindProps<K extends Card['kind'] = Card['kind']> {
 	config?: Record<string, unknown>;
 	/** How its section lays cards out. */
 	layout?: Layout;
+	/** Settings to draw with instead of the page's — a settings sheet's preview. */
+	options?: Record<string, unknown>;
 }
 
 export interface Kind<K extends Card['kind'] = Card['kind']> {
@@ -109,7 +112,15 @@ export const kinds: { [K in Card['kind']]: Kind<K> } = {
 	},
 	alerts: { ...one, ...fixed, name: () => 'Needs attention', component: AlertsKind },
 	chips: { ...one, ...fixed, name: () => 'What’s going on', component: ChipsKind },
-	modes: { ...one, ...fixed, name: () => 'Modes', component: ModesKind }
+	modes: { ...one, ...fixed, name: () => 'Modes', component: ModesKind },
+	summary: {
+		...one,
+		...fixed,
+		name: () => 'The big numbers',
+		options: () => summaryDescriptor(),
+		defaults: SUMMARY_BUILT_IN,
+		component: SummaryKind
+	}
 };
 
 /** A card's kind, typed for the card in hand. */

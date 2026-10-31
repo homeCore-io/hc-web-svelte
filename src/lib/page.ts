@@ -35,6 +35,8 @@ export type Card = Base &
 		| { kind: 'alerts'; count: number }
 		| { kind: 'chips'; chips: Chip[] }
 		| { kind: 'modes' }
+		/** The big numbers across the top of Home (G-b). */
+		| { kind: 'summary' }
 	);
 
 export interface Section {
@@ -48,6 +50,10 @@ export interface Section {
 	fixed?: boolean;
 	/** Drawn as they are — no heading, no layout box, no card tools. */
 	bare?: boolean;
+	/** No heading but while arranging; its cards are arranged as usual. */
+	headless?: boolean;
+	/** Hidden until someone shows it, or picks a style that does (G11). */
+	hiddenUnlessShown?: boolean;
 	/** Drawn above the cards and not arranged with them (Home's modes). */
 	lead?: Card;
 	/** The person's favourites: their own list's order, and only their sizes. */
@@ -198,6 +204,14 @@ export function homePage(h: HomeInput): Page {
 				bare: true,
 				cards:
 					h.chips.length > 0 ? [{ ref: 'piece:chips/home', kind: 'chips', chips: h.chips }] : []
+			},
+			{
+				id: 'summary',
+				title: 'At a glance',
+				layout: 'list',
+				headless: true,
+				hiddenUnlessShown: true,
+				cards: [{ ref: 'piece:summary/home', kind: 'summary' }]
 			},
 			{
 				id: 'pinned',
@@ -360,7 +374,12 @@ export function applyPage(
 
 	const forSection = (s: Section) =>
 		changes.filter((c) => c.op !== 'move' || c.into === undefined || c.into === s.id);
-	const layered = apply(sections, (s) => sectionRef(s.id), changes);
+	const layered = apply(sections, (s) => sectionRef(s.id), [
+		...sections
+			.filter((s) => s.hiddenUnlessShown)
+			.map((s): Change => ({ op: 'hide', ref: sectionRef(s.id) })),
+		...changes
+	]);
 	const fixed = sections.filter((s) => s.fixed);
 	const order = [
 		...fixed.map((s) => ({ s, hidden: false })),

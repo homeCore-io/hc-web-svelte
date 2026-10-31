@@ -41,7 +41,15 @@ const shown = (p: Page, id: string, changes: Change[] = [], mine: Change[] = [])
 
 describe('Home, generated (D1)', () => {
 	it('has its sections in a fixed order, alerts first', () => {
-		expect(ids(home())).toEqual(['alerts', 'chips', 'pinned', 'favourites', 'scenes', 'rooms']);
+		expect(ids(home())).toEqual([
+			'alerts',
+			'chips',
+			'summary',
+			'pinned',
+			'favourites',
+			'scenes',
+			'rooms'
+		]);
 		expect(section(home(), 'alerts').fixed).toBe(true);
 	});
 
@@ -151,9 +159,13 @@ describe('the layers over a page (M2, G5)', () => {
 		]);
 		expect(s.at(-1)!.title).toBe('Every room');
 		expect(s.at(-1)!.renamed).toBe(true);
-		// While arranging, the hidden one is offered again, last.
+		// While arranging, the hidden ones are offered again, last — with the
+		// big numbers, hidden until shown (G11).
 		const arranging = applyPage(home(), changes, [], { arranging: true }).sections;
-		expect(arranging.at(-1)).toMatchObject({ hidden: true, section: { id: 'chips' } });
+		expect(arranging.slice(-2).map((x) => [x.section.id, x.hidden])).toEqual([
+			['chips', true],
+			['summary', true]
+		]);
 	});
 
 	it('keeps the alerts first — no change moves, hides or renames them (G6)', () => {
@@ -283,5 +295,22 @@ describe('a section’s layout (G3)', () => {
 		const house: Change = { op: 'config', ref: 'section:rooms', config: { layout: 'tiles' } };
 		const mine: Change = { op: 'config', ref: 'section:rooms', config: { layout: 'list' } };
 		expect(layoutOf([house, mine])).toBe('list');
+	});
+});
+
+describe('the big numbers’ section (G11)', () => {
+	const summary = (changes: Change[] = [], arranging = false) =>
+		applyPage(home(), changes, [], { arranging }).sections.find((s) => s.section.id === 'summary');
+
+	it('is hidden until someone shows it', () => {
+		expect(summary()).toBeUndefined();
+		expect(summary([], true)?.hidden).toBe(true);
+		expect(summary([{ op: 'show', ref: 'section:summary' }])?.hidden).toBe(false);
+	});
+
+	it('a person may hide what the household showed', () => {
+		const show: Change = { op: 'show', ref: 'section:summary' };
+		const hide: Change = { op: 'hide', ref: 'section:summary' };
+		expect(summary([show, hide])).toBeUndefined();
 	});
 });

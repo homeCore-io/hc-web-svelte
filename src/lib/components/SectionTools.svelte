@@ -10,6 +10,7 @@
 	import ArrowUp from '@lucide/svelte/icons/arrow-up';
 	import ArrowDown from '@lucide/svelte/icons/arrow-down';
 	import Pencil from '@lucide/svelte/icons/pencil';
+	import Settings from '@lucide/svelte/icons/settings-2';
 	import { nudge } from '#lib/layers.js';
 	import { view } from '#lib/view.svelte.js';
 
@@ -19,7 +20,8 @@
 		title,
 		shown,
 		hidden = false,
-		renamed = false
+		renamed = false,
+		settings
 	}: {
 		page: string;
 		ref: string;
@@ -29,6 +31,8 @@
 		shown: string[];
 		hidden?: boolean;
 		renamed?: boolean;
+		/** Settings for every card in it, where its cards' kind has them: every room's box. */
+		settings?: { label: string; open: () => void };
 	} = $props();
 
 	const shared = $derived(view.mode(page) === 'edit');
@@ -92,6 +96,11 @@
 				disabled={!down}
 				onclick={() => down && view.change(page, down)}><ArrowDown size={18} /></button
 			>
+			{#if settings}
+				<button class="text plain" onclick={settings.open}
+					><Settings size={16} aria-hidden="true" />{settings.label}</button
+				>
+			{/if}
 		{/if}
 	</div>
 {/if}
@@ -141,5 +150,10 @@
 		padding: 0 12px;
 		background: var(--accent);
 		color: var(--accent-ink);
+	}
+	.text.plain {
+		gap: 6px;
+		background: none;
+		color: var(--ink);
 	}
 </style>

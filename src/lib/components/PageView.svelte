@@ -25,6 +25,7 @@
 	import type { Layered } from '#lib/layers.js';
 	import Arrange from './Arrange.svelte';
 	import CardOptions from './CardOptions.svelte';
+	import EveryRoom from './EveryRoom.svelte';
 	import SectionTools from './SectionTools.svelte';
 
 	let { page }: { page: Page } = $props();
@@ -51,6 +52,8 @@
 
 	// A kind's settings sheet, for one card (G2). A room's settings are its box's.
 	let setting = $state<{ card: Card; name: string } | null>(null);
+	// Every room's box, from the Rooms section's tools.
+	let everyRoom = $state<{ rooms: Card[]; names: Record<string, string> } | null>(null);
 	const hasSettings = (card: Card, layout: Layout) =>
 		kindOf(card).options !== null && (card.kind !== 'room' || layout !== 'list');
 </script>
@@ -108,6 +111,23 @@
 						shown={movable}
 						hidden={s.hidden}
 						renamed={s.renamed}
+						settings={sec.id === 'rooms' && s.layout !== 'list'
+							? {
+									label: 'Every room’s box',
+									open: () =>
+										(everyRoom = {
+											rooms: s.groups.flatMap((g) => [...g.shown, ...g.hidden]),
+											names: Object.fromEntries(
+												s.groups.flatMap((g) =>
+													[...g.shown, ...g.hidden].map((c) => [
+														c.ref,
+														g.name(c.ref) ?? kindOf(c).name(c)
+													])
+												)
+											)
+										})
+								}
+							: undefined}
 					/>
 				</div>
 			{:else if !sec.bare && !sec.headless}
@@ -145,6 +165,14 @@
 	{/if}
 {/each}
 
+{#if everyRoom}
+	<EveryRoom
+		page={key}
+		rooms={everyRoom.rooms.filter((c) => c.kind === 'room')}
+		names={everyRoom.names}
+		close={() => (everyRoom = null)}
+	/>
+{/if}
 {#if setting}
 	<CardOptions page={key} card={setting.card} name={setting.name} close={() => (setting = null)} />
 {/if}

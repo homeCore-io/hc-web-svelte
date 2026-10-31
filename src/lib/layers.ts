@@ -4,7 +4,8 @@
  * page. So a new device still appears in its room, and the changes survive.
  *
  * Ids name what a card is about: `device:{id}`, `room:{id}`, `scene:{id}`,
- * or `card:{plugin}/{element}/{n}` for a plugin's own card, added to a page.
+ * `card:{plugin}/{element}/{n}` for a plugin's own card added to a page, or
+ * `kind:{kind}/{n}` for one of the app's own cards added to a page (G-c).
  * A change naming something that no longer exists is kept and skipped.
  *
  * Two owners, the same kind of list (04 §3): the household's edits, made in
@@ -29,6 +30,11 @@ export type Change =
 	/** A card for something that isn't generated here, added to the page. */
 	| { op: 'add'; ref: string; into?: string; before?: string | null }
 	| { op: 'remove'; ref: string }
+	/**
+	 * A section of this layer's own (G17): `ref` is `section:own-<n>`. Taken
+	 * away with `remove`; placed, renamed and hidden like any section.
+	 */
+	| { op: 'section'; ref: string; title: string; layout: string }
 	/**
 	 * A card's settings on this page: a plugin card's, as its settings element
 	 * made them; a room's or the big numbers', only what this layer set (G13);
@@ -87,8 +93,19 @@ export const ref = {
 	room: (id: string) => `room:${id}`,
 	scene: (id: string) => `scene:${id}`,
 	/** A new plugin card: its own `n`, so the same card can be added twice. */
-	card: (pluginId: string, element: string, n: string) => `card:${pluginId}/${element}/${n}`
+	card: (pluginId: string, element: string, n: string) => `card:${pluginId}/${element}/${n}`,
+	/** One of the app's own cards, added to a page (G-c): its own `n`, as a plugin card's. */
+	kind: (kind: string, n: string) => `kind:${kind}/${n}`
 };
+
+/** An app card's ref, read back. */
+export function kindRef(r: string): { kind: string; n: string } | undefined {
+	const m = /^kind:([a-z]+)\/([^/]+)$/.exec(r);
+	return m ? { kind: m[1]!, n: m[2]! } : undefined;
+}
+
+/** A short id for something new: a card's `n`, an own section's. */
+export const newId = () => Math.random().toString(36).slice(2, 10);
 
 /** A plugin card's ref, read back. */
 export function cardRef(r: string): { pluginId: string; element: string; n: string } | undefined {
@@ -107,7 +124,8 @@ export function addChange(list: Change[] = [], change: Change): Change[] {
 }
 
 /** Changes that undo each other share a group; only the last of a group counts. */
-const group = (op: Change['op']) => (op === 'show' ? 'hide' : op === 'remove' ? 'add' : op);
+const group = (op: Change['op']) =>
+	op === 'show' ? 'hide' : op === 'remove' || op === 'section' ? 'add' : op;
 
 export interface Layered<T> {
 	/** In the person's order, hidden ones left out. */

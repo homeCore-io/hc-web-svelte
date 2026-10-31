@@ -13,6 +13,7 @@
 		drawn,
 		presentRefs,
 		sectionRef,
+		withOwn,
 		type Card,
 		type Layout,
 		type Page
@@ -35,10 +36,13 @@
 	const arranging = $derived(mode !== null);
 	// A person's own changes size their favourites; Edit shows the household's alone.
 	const mine = $derived(mode === 'edit' ? [] : personal.changes(key));
-	const shown = $derived(applyPage(page, view.changes(key), mine, { arranging }));
+	// The page with the sections people made (G17) — the household's, and in
+	// Customise or normally the person's own too.
+	const full = $derived(withOwn(page, view.changes(key), mine));
+	const shown = $derived(applyPage(full, view.changes(key), mine, { arranging }));
 
 	$effect(() => {
-		if (editing.on(key)) editing.present = presentRefs(page);
+		if (editing.on(key)) editing.present = presentRefs(full);
 	});
 
 	// The sections that can move, as they are drawn — for up and down.

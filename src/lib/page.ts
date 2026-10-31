@@ -62,7 +62,14 @@ export interface Section {
 	hint?: string;
 	/** `always`: shown even with no cards, as a room's sections are. */
 	show?: 'cards' | 'always';
+	/** Add can put things in it (G20). */
+	accepts?: boolean;
+	/** A section someone made (G17): the household's, or this person's own. */
+	own?: 'house' | 'person';
 }
+
+/** Layouts for a section of cards (G19); field and tiles are for rooms. */
+export const CARD_LAYOUTS: Layout[] = ['grid', 'row', 'list'];
 
 export interface Page {
 	/** `home`, `room:<id>` — the key the layers are kept under. */
@@ -217,13 +224,16 @@ export function homePage(h: HomeInput): Page {
 				id: 'pinned',
 				title: 'Pinned',
 				layout: 'grid',
+				layouts: CARD_LAYOUTS,
+				accepts: true,
 				cards: h.added.flatMap((r) => cardOf(r, h, { added: true }) ?? []),
-				hint: edit ? 'Cards added with Add appear here.' : undefined
+				hint: 'What’s added with Add, and not put in another section, appears here.'
 			},
 			{
 				id: 'favourites',
 				title: 'Favourites',
 				layout: 'grid',
+				layouts: CARD_LAYOUTS,
 				favourites: true,
 				// Favourites are each person's own; the shared page has none.
 				cards: edit ? [] : h.favourites.flatMap((r) => cardOf(r, h) ?? []),
@@ -235,6 +245,8 @@ export function homePage(h: HomeInput): Page {
 				id: 'scenes',
 				title: 'Scenes & modes',
 				layout: 'row',
+				layouts: ['row', 'grid', 'list'],
+				accepts: true,
 				lead: hasModes ? { ref: 'piece:modes/home', kind: 'modes' } : undefined,
 				show: hasModes ? 'always' : 'cards',
 				cards: scenes
@@ -252,6 +264,8 @@ export function homePage(h: HomeInput): Page {
 }
 
 // ---- a room's page (N4) ----
+
+const ROOM_LAYOUTS: Layout[] = ['grid', 'list'];
 
 export interface RoomInput {
 	devices: Devices;
@@ -283,6 +297,8 @@ export function roomPage(id: string, h: RoomInput): Page {
 		id: `devices:${s.key}`,
 		title: s.title,
 		layout: 'grid',
+		layouts: ROOM_LAYOUTS,
+		accepts: true,
 		show: 'always',
 		cards: s.cards.map((c) => asCard(h.devices[c.id]!))
 	}));
@@ -306,11 +322,46 @@ export function roomPage(id: string, h: RoomInput): Page {
 			id: 'added',
 			title: 'Also here',
 			layout: 'grid',
-			show: 'always',
+			layouts: ROOM_LAYOUTS,
+			accepts: true,
+			// Empty once what was added here is put in another section.
+			hint: 'What’s added with Add, and not put in another section, appears here.',
 			cards: [...extra, ...plugins]
 		});
 
 	return { id: `room:${id}`, sections, cardTools: true };
+}
+
+// ---- sections of one's own (G17) ----
+
+/** The own sections the changes make, in the order made: the last of `section`/`remove` per ref wins. */
+function ownSections(changes: Change[], mine: Change[]): Section[] {
+	const made = new Map<string, Extract<Change, { op: 'section' }>>();
+	for (const c of changes) {
+		if (!c.ref.startsWith('section:own-')) continue;
+		if (c.op === 'section') made.set(c.ref, c);
+		if (c.op === 'remove') made.delete(c.ref);
+	}
+	return [...made.values()].map((c) => ({
+		id: c.ref.slice('section:'.length),
+		title: c.title,
+		layout: (CARD_LAYOUTS as string[]).includes(c.layout) ? (c.layout as Layout) : 'grid',
+		layouts: CARD_LAYOUTS,
+		accepts: true,
+		own: mine.includes(c) ? 'person' : 'house',
+		cards: [],
+		hint: 'Nothing here yet — Add here puts something in it.'
+	}));
+}
+
+/**
+ * The page with the sections the changes made (G17), after its own — where
+ * they go is an ordinary `move`. `mine` are the person's changes (none in
+ * Edit), to tell whose a section is.
+ */
+export function withOwn(page: Page, changes: Change[] = [], mine: Change[] = []): Page {
+	const own = ownSections(changes, mine);
+	return own.length === 0 ? page : { ...page, sections: [...page.sections, ...own] };
 }
 
 // ---- the layers, applied (M2, G5, G6) ----
@@ -353,6 +404,15 @@ export function applyPage(
 	mine: Change[] = [],
 	o: { arranging: boolean } = { arranging: false }
 ): Shown {
+	// Added into a section (G16): placed as a move would, ahead of the rest.
+	changes = [
+		...changes.flatMap((c): Change[] =>
+			c.op === 'add' && c.into !== undefined
+				? [{ op: 'move', ref: c.ref, before: c.before ?? null, into: c.into }]
+				: []
+		),
+		...changes
+	];
 	// A card moved into another section (G5) leaves its own first.
 	const into = new Map<string, string>();
 	for (const c of changes) if (c.op === 'move' && c.into !== undefined) into.set(c.ref, c.into);

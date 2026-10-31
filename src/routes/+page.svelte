@@ -12,7 +12,7 @@
 <script lang="ts">
 	import { cardFor } from '#lib/card.js';
 	import { houseChips } from '#lib/summary.js';
-	import { added, cardRef } from '#lib/layers.js';
+	import { cardRef } from '#lib/layers.js';
 	import { homePage } from '#lib/page.js';
 	import { devices } from '#lib/devices.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
@@ -34,7 +34,7 @@
 			scenes: scenes.list,
 			favourites: personal.doc.favourites ?? [],
 			// Cards the household pinned to Home (M2 `add`).
-			added: added(view.changes(HOME)),
+			added: view.added(HOME),
 			pluginCard: (r) => {
 				const c = cardRef(r);
 				const found = c ? pluginUis.card(c.pluginId, c.element) : undefined;

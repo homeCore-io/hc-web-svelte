@@ -9,7 +9,7 @@
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { heading } from '#lib/heading.svelte.js';
-	import { added, cardRef } from '#lib/layers.js';
+	import { cardRef } from '#lib/layers.js';
 	import { roomPage } from '#lib/page.js';
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
 	import { view } from '#lib/view.svelte.js';
@@ -28,7 +28,7 @@
 			devices: devices.byId,
 			rooms: rooms.list,
 			// Cards the household added from elsewhere in the house (M2 `add`).
-			added: added(view.changes(key)),
+			added: view.added(key),
 			pluginCard: (r) => {
 				const c = cardRef(r);
 				const found = c ? pluginUis.card(c.pluginId, c.element) : undefined;

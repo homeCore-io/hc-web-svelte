@@ -6,6 +6,7 @@ import { gone, type Change } from './layers.js';
 import {
 	applyPage,
 	drawn,
+	withOwn,
 	homePage,
 	presentRefs,
 	roomPage,
@@ -254,7 +255,8 @@ describe('what a page names, and draws', () => {
 				arranging
 			);
 		expect(at(home(), 'pinned', false)).toBe(false);
-		expect(at(home(), 'pinned', true)).toBe(false);
+		// Pinned is an ordinary section (G7): found while arranging, in Customise too.
+		expect(at(home(), 'pinned', true)).toBe(true);
 		expect(at(home({ mode: 'edit' }), 'pinned', true)).toBe(true);
 		expect(at(home(), 'favourites', true)).toBe(true);
 		expect(at(home(), 'rooms', false)).toBe(true);
@@ -312,5 +314,89 @@ describe('the big numbers’ section (G11)', () => {
 		const show: Change = { op: 'show', ref: 'section:summary' };
 		const hide: Change = { op: 'hide', ref: 'section:summary' };
 		expect(summary([show, hide])).toBeUndefined();
+	});
+});
+
+describe('adding into a section (G16)', () => {
+	const p = home({ added: ['device:hue_lamp', 'scene:evening'] });
+
+	it('puts a card added without a section in Pinned, as before', () => {
+		expect(shown(p, 'pinned', [{ op: 'add', ref: 'device:hue_lamp' }])).toContain(
+			'device:hue_lamp'
+		);
+	});
+
+	it('puts a card added into a section there, before the card it names', () => {
+		const changes: Change[] = [
+			{ op: 'add', ref: 'device:hue_lamp', into: 'scenes', before: 'scene:evening' }
+		];
+		expect(shown(p, 'pinned', changes)).not.toContain('device:hue_lamp');
+		expect(shown(p, 'scenes', changes).slice(0, 2)).toEqual(['device:hue_lamp', 'scene:evening']);
+	});
+
+	it('lets a later move still win', () => {
+		const changes: Change[] = [
+			{ op: 'add', ref: 'device:hue_lamp', into: 'scenes' },
+			{ op: 'move', ref: 'device:hue_lamp', before: null, into: 'pinned' }
+		];
+		expect(shown(p, 'pinned', changes)).toContain('device:hue_lamp');
+	});
+
+	it('takes the cards of a section it may add to, and not of those it may not (G20)', () => {
+		const accepts = home()
+			.sections.filter((s) => s.accepts)
+			.map((s) => s.id);
+		expect(accepts).toEqual(['pinned', 'scenes']);
+	});
+});
+
+describe('sections of one’s own (G17)', () => {
+	const make: Change = { op: 'section', ref: 'section:own-a1', title: 'Evening', layout: 'row' };
+
+	it('are made by a change, after the page’s own, and placed by a move', () => {
+		const p = withOwn(home(), [make]);
+		expect(ids(p).at(-1)).toBe('own-a1');
+		expect(section(p, 'own-a1')).toMatchObject({ title: 'Evening', layout: 'row', accepts: true });
+		const order = applyPage(p, [
+			make,
+			{ op: 'move', ref: 'section:own-a1', before: 'section:scenes' }
+		]).sections.map((s) => s.section.id);
+		expect(order.indexOf('own-a1')).toBe(order.indexOf('scenes') - 1);
+	});
+
+	it('hold what is added into them', () => {
+		const p = withOwn(home({ added: ['device:hue_lamp'] }), [make]);
+		const changes: Change[] = [make, { op: 'add', ref: 'device:hue_lamp', into: 'own-a1' }];
+		expect(shown(p, 'own-a1', changes)).toEqual(['device:hue_lamp']);
+	});
+
+	it('are gone once removed, and what was added into them goes back to Pinned', () => {
+		const changes: Change[] = [
+			make,
+			{ op: 'add', ref: 'device:hue_lamp', into: 'own-a1' },
+			{ op: 'remove', ref: 'section:own-a1' }
+		];
+		const p = withOwn(home({ added: ['device:hue_lamp'] }), changes);
+		expect(ids(p)).not.toContain('own-a1');
+		expect(shown(p, 'pinned', changes)).toContain('device:hue_lamp');
+	});
+
+	it('say whose they are: the person’s own, or the household’s', () => {
+		const theirs: Change = { ...make, ref: 'section:own-b2' };
+		const p = withOwn(home(), [theirs, make], [make]);
+		expect(section(p, 'own-a1').own).toBe('person');
+		expect(section(p, 'own-b2').own).toBe('house');
+	});
+
+	it('are named by the page, so Edit’s Done keeps changes to them', () => {
+		const changes: Change[] = [make, { op: 'rename', ref: 'section:own-a1', name: 'Night' }];
+		const p = withOwn(home(), changes);
+		expect(gone(changes, presentRefs(p))).toEqual([]);
+	});
+
+	it('take only the layouts for cards (G19)', () => {
+		const p = withOwn(home(), [{ ...make, layout: 'field' }]);
+		expect(section(p, 'own-a1').layout).toBe('grid');
+		expect(section(p, 'own-a1').layouts).toEqual(['grid', 'row', 'list']);
 	});
 });

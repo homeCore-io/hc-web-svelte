@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	addChange,
 	cardRef,
+	kindRef,
 	ref,
 	added,
 	apply,
@@ -328,5 +329,19 @@ describe("the documents' shape (04 §7)", () => {
 		expect(migrate(now)).toBe(now);
 		const newer = { version: 1, schema: SCHEMA + 1, more: 1 };
 		expect(migrate(newer)).toBe(newer);
+	});
+});
+
+describe('things added to a page (G-c)', () => {
+	it('reads an app card’s ref back', () => {
+		expect(kindRef(ref.kind('chart', 'x1'))).toEqual({ kind: 'chart', n: 'x1' });
+		expect(kindRef('card:plugin.hue/x/1')).toBeUndefined();
+	});
+
+	it('keeps the last of making and removing a section', () => {
+		const made: Change = { op: 'section', ref: 'section:own-a', title: 'A', layout: 'grid' };
+		const list = addChange(addChange([], made), { op: 'remove', ref: 'section:own-a' });
+		expect(list).toEqual([{ op: 'remove', ref: 'section:own-a' }]);
+		expect(addChange(list, made)).toEqual([made]);
 	});
 });

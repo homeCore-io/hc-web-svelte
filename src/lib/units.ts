@@ -162,6 +162,22 @@ function familyOf(unit: string | undefined): { family: Family; name: string } | 
 export const isTemperature = (unit: string | undefined): boolean =>
 	familyOf(unit)?.family === FAMILIES[0];
 
+/**
+ * The unit a reading is in: the schema's, unless the device's own `_unit`
+ * sibling names another unit of the same kind. Plugins publish °C today and
+ * no longer send the sibling, so one present is a reading kept from an older
+ * plugin — Hue's °F, YoLink's chosen scale — and then it's the true label:
+ * the number was written in it (hc-hue 0.1.17, #40). A sibling the app
+ * doesn't know, or of another kind, changes nothing.
+ */
+export function readingUnit(declared: string | undefined, sibling: unknown): string | undefined {
+	const own = typeof sibling === 'string' ? familyOf(sibling) : undefined;
+	if (!own) return declared;
+	const d = familyOf(declared);
+	if (declared && (!d || d.family !== own.family)) return declared;
+	return own.name;
+}
+
 /** The unit a reading in `unit` is shown in: `°C` → `°F`. Others as they are. */
 export function shownUnit(unit: string | undefined, u: Units = units()): string | undefined {
 	const f = familyOf(unit);

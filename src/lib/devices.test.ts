@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { devicesAfter, fromList } from './devices.js';
+import { devicesAfter, fromList, unitOf, withReadingUnits, type CoreDevice } from './devices.js';
 import { HOUSE } from './fixtures/house.js';
 
 const house = fromList(HOUSE);
@@ -73,5 +73,37 @@ describe('devices after a frame', () => {
 	it('frames about unknown devices or other things change nothing', () => {
 		expect(devicesAfter(house, { type: 'device_removed', device_id: 'nope' })).toBeUndefined();
 		expect(devicesAfter(house, { type: 'rule_fired' })).toBeUndefined();
+	});
+});
+
+describe('the unit each reading is in', () => {
+	const stale: CoreDevice = {
+		device_id: 'hue_motion',
+		name: 'Office Motion',
+		available: true,
+		attributes: { temperature: 71.6, temperature_unit: 'F' },
+		schema: { attributes: { temperature: { kind: 'float', unit: '°C', writable: false } } }
+	} as CoreDevice;
+
+	it('follows a reading kept in another unit, and only then', () => {
+		const d = withReadingUnits(stale);
+		expect(d.schema!.attributes.temperature!.unit).toBe('°F');
+		expect(unitOf(d, 'temperature')).toBe('°F');
+		const plain = { ...stale, attributes: { temperature: 22 } };
+		expect(withReadingUnits(plain)).toBe(plain);
+	});
+
+	it('goes back to the declared unit once the plugin stops sending one', () => {
+		const at = { [stale.device_id]: withReadingUnits(stale) };
+		const u = devicesAfter(at, {
+			type: 'device_state_changed',
+			timestamp: '2026-10-31T12:00:00Z',
+			device_id: stale.device_id,
+			current: { temperature: 22 },
+			changed: ['temperature']
+		});
+		const d = u!.devices[stale.device_id]!;
+		expect(d.schema!.attributes.temperature!.unit).toBe('°C');
+		expect(unitOf(d, 'temperature')).toBe('°C');
 	});
 });

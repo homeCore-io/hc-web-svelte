@@ -4,6 +4,7 @@ import {
 	isTemperature,
 	localeUnits,
 	readingText,
+	readingUnit,
 	shown,
 	shownRange,
 	shownUnit,
@@ -104,5 +105,24 @@ describe('a range in the shown unit', () => {
 			step: 1
 		});
 		expect(shownRange({ min: 5 }, '°C', US)).toEqual({ min: 41, max: undefined, step: undefined });
+	});
+});
+
+describe('the unit a reading is in', () => {
+	it('is the schema’s, unless its own sibling names another of the same kind', () => {
+		expect(readingUnit('°C', undefined)).toBe('°C');
+		// A reading kept from an older Hue: written in °F, declared °C.
+		expect(readingUnit('°C', 'F')).toBe('°F');
+		expect(readingUnit('°C', '°C')).toBe('°C');
+		// No schema yet: the sibling is all there is.
+		expect(readingUnit(undefined, '°F')).toBe('°F');
+		expect(readingUnit(undefined, 'lux')).toBeUndefined();
+	});
+
+	it('ignores a sibling it doesn’t know or of another kind', () => {
+		expect(readingUnit('°C', 'kelvin')).toBe('°C');
+		expect(readingUnit('°C', 'inHg')).toBe('°C');
+		expect(readingUnit('%', 'F')).toBe('%');
+		expect(readingUnit('°C', 7)).toBe('°C');
 	});
 });

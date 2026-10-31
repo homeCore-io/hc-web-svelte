@@ -102,6 +102,15 @@ describe('readings', () => {
 		expect(sourced('none', 'temperature', all, office)).toBeUndefined();
 		expect(sourced(['gone'], 'temperature', all, office)).toBeUndefined();
 	});
+
+	it('a reading kept in °F from an older plugin averages as °F, not °C', () => {
+		// Declared °C, written 71.6 with temperature_unit F: 22 °C, not 71.6.
+		const stale = dev('hue', 'motion_sensor', { temperature: 71.6, temperature_unit: 'F' });
+		const house = fromList([...office, stale]);
+		expect(readingOf(stale, 'temperature')).toBeCloseTo(22, 5);
+		expect(house.hue!.schema!.attributes.temperature!.unit).toBe('°F');
+		expect(sourced(['desk', 'hue'], 'temperature', house, office)).toBeCloseTo(21.5, 5);
+	});
 });
 
 describe('a room’s box', () => {

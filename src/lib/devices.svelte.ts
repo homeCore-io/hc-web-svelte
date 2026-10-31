@@ -6,7 +6,14 @@
  * events, so the list is also loaded once over REST — ignored if a snapshot
  * got there first, as for rooms.
  */
-import { devicesAfter, fromList, type CoreDevice, type Devices, type Schema } from './devices.js';
+import {
+	devicesAfter,
+	fromList,
+	withReadingUnits,
+	type CoreDevice,
+	type Devices,
+	type Schema
+} from './devices.js';
 import { live } from './live.svelte.js';
 import { commands } from './commands.svelte.js';
 
@@ -57,7 +64,10 @@ class DeviceStore {
 			if (!res.ok) return;
 			const fresh = (await res.json()) as CoreDevice;
 			const had = this.byId[id];
-			this.byId = { ...this.byId, [id]: { ...fresh, schema: fresh.schema ?? had?.schema } };
+			this.byId = {
+				...this.byId,
+				[id]: withReadingUnits({ ...fresh, schema: fresh.schema ?? had?.schema })
+			};
 		} catch {
 			// The next event about it will bring it up to date.
 		}
@@ -69,7 +79,7 @@ class DeviceStore {
 			if (!res.ok) return;
 			const schema = (await res.json()) as Schema;
 			const d = this.byId[id];
-			if (d !== undefined) this.byId = { ...this.byId, [id]: { ...d, schema } };
+			if (d !== undefined) this.byId = { ...this.byId, [id]: withReadingUnits({ ...d, schema }) };
 		} catch {
 			// The card falls back to what it can say without a schema.
 		}

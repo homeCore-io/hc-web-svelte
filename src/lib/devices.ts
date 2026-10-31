@@ -5,6 +5,7 @@
  * the result. Shapes follow homeCore's own types (`hc-types` `DeviceState`,
  * `DeviceSchema`) — only the fields the app reads.
  */
+import { readingUnit } from './units.js';
 
 export interface StateLabel {
 	label: string;
@@ -149,8 +150,45 @@ export interface DevicesUpdate {
 
 export function fromList(list: CoreDevice[]): Devices {
 	const out: Devices = {};
-	for (const d of list) out[d.device_id] = d;
+	for (const d of list) out[d.device_id] = withReadingUnits(d);
 	return out;
+}
+
+/** Each schema made true to its readings, to the one homeCore declared. */
+const declared = new WeakMap<Schema, Schema>();
+
+/** The unit `attr` reads in on this device (`readingUnit`). */
+export const unitOf = (d: Pick<CoreDevice, 'attributes' | 'schema'>, attr: string) => {
+	const s = d.schema ? (declared.get(d.schema) ?? d.schema) : undefined;
+	return readingUnit(s?.attributes[attr]?.unit, d.attributes[`${attr}_unit`]);
+};
+
+/**
+ * The device with its schema's units made true to its readings: where a
+ * reading's own `_unit` sibling says otherwise (`readingUnit`), the schema
+ * says so too, so cards, boxes, averages, charts and alerts all read the
+ * number alike. The same object when nothing needed changing — nearly always.
+ */
+export function withReadingUnits(d: CoreDevice): CoreDevice {
+	if (!d.schema) return d;
+	// Always from what homeCore declared, so a sibling that has gone takes
+	// its unit with it.
+	const schema = declared.get(d.schema) ?? d.schema;
+	let attributes: Record<string, AttributeSchema> | undefined;
+	for (const key of Object.keys(d.attributes)) {
+		if (!key.endsWith('_unit')) continue;
+		const attr = key.slice(0, -'_unit'.length);
+		const spec = schema.attributes[attr];
+		if (!spec) continue;
+		const unit = readingUnit(spec.unit, d.attributes[key]);
+		if (unit === spec.unit) continue;
+		attributes ??= { ...schema.attributes };
+		attributes[attr] = { ...spec, unit };
+	}
+	if (!attributes) return schema === d.schema ? d : { ...d, schema };
+	const made = { ...schema, attributes };
+	declared.set(made, schema);
+	return { ...d, schema: made };
 }
 
 /**
@@ -217,7 +255,10 @@ export function devicesAfter(devices: Devices, frame: DeviceFrame): DevicesUpdat
 }
 
 function replace(devices: Devices, device: CoreDevice): DevicesUpdate {
-	return { devices: { ...devices, [device.device_id]: device }, fetchSchema: [] };
+	return {
+		devices: { ...devices, [device.device_id]: withReadingUnits(device) },
+		fetchSchema: []
+	};
 }
 
 /** The name a person sees: their override, else what the bridge calls it. */

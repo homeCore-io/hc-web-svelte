@@ -10,7 +10,7 @@
  * data — including that no card offers a control a device doesn't declare.
  */
 import { remaining } from './helpers.js';
-import { isTemperature, numberText, shown, shownRange, toShown } from './units.js';
+import { isTemperature, numberText, readingUnit, shown, shownRange, toShown } from './units.js';
 import { displayName, type AttributeSchema, type CoreDevice, type Schema } from './devices.js';
 import { momentOf } from './when.js';
 
@@ -630,7 +630,7 @@ export function reading(a: Record<string, unknown>, s: Schema, name: string): st
 	}
 	if (typeof value === 'number') {
 		// In the person's units: °F or °C, inHg or hPa.
-		const r = shown(value, spec?.unit ?? str(a[`${name}_unit`]));
+		const r = shown(value, readingUnit(spec?.unit, a[`${name}_unit`]));
 		const n = numberText(r, fmt);
 		if (name === 'temperature' || name.endsWith('_temperature') || isTemperature(r.unit))
 			return `${n}°${unitLetter(r.unit)}`;

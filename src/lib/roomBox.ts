@@ -8,7 +8,7 @@
  * leak, smoke, an open door, something offline (G6).
  */
 import { kindOf, type CardView } from './card.js';
-import { displayName, type CoreDevice, type Devices } from './devices.js';
+import { displayName, unitOf, type CoreDevice, type Devices } from './devices.js';
 import { numbersOf, sourceOf, type NumberId, type Options, type Source } from './options.js';
 import { allOffTargets } from './summary.js';
 import { toShown } from './units.js';
@@ -19,8 +19,7 @@ import { toShown } from './units.js';
 export function readingOf(d: CoreDevice, attr: string): number | undefined {
 	const v = d.attributes[attr];
 	if (!d.available || typeof v !== 'number' || !Number.isFinite(v)) return undefined;
-	const unit = d.schema?.attributes[attr]?.unit ?? str(d.attributes[`${attr}_unit`]);
-	return toShown(v, unit);
+	return toShown(v, unitOf(d, attr));
 }
 
 /** Whether a device reads `attr` at all — what the sensor picker offers. */
@@ -306,7 +305,4 @@ export function bigNumbers(h: HouseIn, o: Options): BigNumber[] {
 
 function num(v: unknown): number | undefined {
 	return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
-}
-function str(v: unknown): string | undefined {
-	return typeof v === 'string' ? v : undefined;
 }

@@ -3,9 +3,12 @@
 	number, a line of what's on, and "All off". It glows as warm as the
 	share of its lights that are on. What's wrong in the room always shows, in
 	the alert colour (G6). The box opens the room; "All off" is its own control.
+	In a narrow box "All off" moves up beside the name as a button with just
+	its icon, so it never crowds the line.
 -->
 <script lang="ts">
 	import BatteryLow from '@lucide/svelte/icons/battery-low';
+	import Power from '@lucide/svelte/icons/power';
 	import { allOff } from '#lib/allOff.js';
 	import type { CoreDevice } from '#lib/devices.js';
 	import type { Box } from '#lib/roomBox.js';
@@ -32,24 +35,24 @@
 
 <div class="box" class:alarm={box.alarm} class:tiles style={`--glow: ${glow}%`}>
 	{#if href}<a {href} class="cover" aria-label={`Open ${name}`}></a>{/if}
-	<div class="top">
-		<span class="name">{name}</span>
-		{#if box.badges.length > 0}
-			<span class="badges">
-				{#each box.badges as b (b.icon)}
-					<span class="badge" class:warn={b.icon === 'battery'} title={b.label}>
-						{#if b.icon === 'battery'}
-							<BatteryLow size={14} aria-label={b.label} />
-						{:else}
-							<Icon name={b.icon} size={14} />
-							<span class="sr">{b.label}</span>
-						{/if}
-					</span>
-				{/each}
-			</span>
-		{/if}
-	</div>
-	<div class="bottom">
+	<div class="frame">
+		<div class="top">
+			<span class="name">{name}</span>
+			{#if box.badges.length > 0}
+				<span class="badges">
+					{#each box.badges as b (b.icon)}
+						<span class="badge" class:warn={b.icon === 'battery'} title={b.label}>
+							{#if b.icon === 'battery'}
+								<BatteryLow size={14} aria-label={b.label} />
+							{:else}
+								<Icon name={b.icon} size={14} />
+								<span class="sr">{b.label}</span>
+							{/if}
+						</span>
+					{/each}
+				</span>
+			{/if}
+		</div>
 		<div class="numbers">
 			{#if box.big !== undefined}<span class="big">{box.big}</span>{/if}
 			<span class="line" class:lit
@@ -59,7 +62,13 @@
 			>
 		</div>
 		{#if box.allOff.length > 0}
-			<button class="off" onclick={() => allOff(box.allOff, devices)}>All off</button>
+			<button
+				class="off"
+				aria-label={`All off in ${name}`}
+				title="All off"
+				onclick={() => allOff(box.allOff, devices)}
+				><Power size={14} aria-hidden="true" /><span class="word">All off</span></button
+			>
 		{/if}
 	</div>
 </div>
@@ -70,10 +79,7 @@
 		height: 100%;
 		min-height: 140px;
 		box-sizing: border-box;
-		display: flex;
-		flex-direction: column;
-		justify-content: space-between;
-		gap: 10px;
+		container-type: inline-size;
 		padding: 12px 12px 12px 14px;
 		border-radius: var(--radius);
 		border: 1px solid var(--card-line);
@@ -98,7 +104,21 @@
 		border-radius: var(--radius);
 		z-index: 1;
 	}
+	/* Wide: name across the top, the numbers and "All off" along the bottom.
+	   Narrow: "All off" beside the name, the numbers the whole width. */
+	.frame {
+		height: 100%;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		grid-template-rows: auto 1fr;
+		grid-template-areas:
+			'top top'
+			'numbers off';
+		column-gap: 8px;
+		row-gap: 10px;
+	}
 	.top {
+		grid-area: top;
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-start;
@@ -138,14 +158,9 @@
 		overflow: hidden;
 		clip-path: inset(50%);
 	}
-	.bottom {
-		display: flex;
-		align-items: flex-end;
-		justify-content: space-between;
-		gap: 8px;
-		min-width: 0;
-	}
 	.numbers {
+		grid-area: numbers;
+		align-self: end;
 		display: flex;
 		flex-direction: column;
 		gap: 4px;
@@ -174,16 +189,49 @@
 		font-weight: 600;
 	}
 	.off {
+		grid-area: off;
+		align-self: end;
 		position: relative;
 		z-index: 2;
 		height: 32px;
 		padding: 0 12px;
+		display: flex;
+		align-items: center;
+		gap: 5px;
 		border-radius: 16px;
 		border: 1px solid var(--line);
 		background: var(--surface);
 		color: var(--ink);
 		font-size: 12px;
 		font-weight: 600;
-		flex: none;
+	}
+	.off :global(svg) {
+		display: none;
+	}
+	/* A 44px target around the 32px button. */
+	.off::before {
+		content: '';
+		position: absolute;
+		inset: -6px;
+	}
+	@container (max-width: 250px) {
+		.frame {
+			grid-template-areas:
+				'top off'
+				'numbers numbers';
+		}
+		.off {
+			align-self: start;
+			width: 32px;
+			padding: 0;
+			justify-content: center;
+			margin: -4px -4px 0 0;
+		}
+		.off :global(svg) {
+			display: block;
+		}
+		.word {
+			display: none;
+		}
 	}
 </style>

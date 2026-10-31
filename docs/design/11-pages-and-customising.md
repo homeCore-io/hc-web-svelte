@@ -375,7 +375,7 @@ own". Alarming states always show on a box (G6).
 
 **Modules**
 
-- `settings.ts` — `resolve()` per setting through the layers, `prune()`
+- `options.ts` — `resolve()` per setting through the layers, `prune()`
   (drops what would apply anyway), the room and summary descriptors.
 - `roomBox.ts` — a room's box from its devices and settings: big number,
   line, badges, glow, alarms, All off, field size; the big numbers from the

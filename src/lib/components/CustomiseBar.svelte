@@ -6,7 +6,6 @@
 	import { customise } from '#lib/customise.svelte.js';
 	import { personal } from '#lib/personal.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
-	import StylePicker from './StylePicker.svelte';
 
 	let { page, home = false }: { page: string; home?: boolean } = $props();
 	let styling = $state(false);
@@ -38,7 +37,10 @@
 		>
 		<button class="done" onclick={() => (customise.page = null)}>Done</button>
 	</div>
-	{#if styling}<StylePicker {page} close={() => (styling = false)} />{/if}
+	{#if styling}{#await import('./StylePicker.svelte') then { default: StylePicker }}<StylePicker
+				{page}
+				close={() => (styling = false)}
+			/>{/await}{/if}
 	{#if personal.trouble}<p class="trouble" role="alert">{personal.trouble}</p>{/if}
 {/if}
 

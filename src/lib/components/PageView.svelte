@@ -24,8 +24,6 @@
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
 	import type { Layered } from '#lib/layers.js';
 	import Arrange from './Arrange.svelte';
-	import CardOptions from './CardOptions.svelte';
-	import EveryRoom from './EveryRoom.svelte';
 	import { kindOptions } from '#lib/kindOptions.svelte.js';
 	import SectionTools from './SectionTools.svelte';
 
@@ -171,16 +169,30 @@
 	{/if}
 {/each}
 
+<!-- The settings sheets load when first opened: they aren't Home's first paint (06 V5). -->
 {#if everyRoom}
-	<EveryRoom
-		page={key}
-		rooms={everyRoom.rooms.filter((c) => c.kind === 'room')}
-		names={everyRoom.names}
-		close={() => (everyRoom = null)}
-	/>
+	{#await import('./EveryRoom.svelte') then { default: EveryRoom }}
+		{#if everyRoom}
+			<EveryRoom
+				page={key}
+				rooms={everyRoom.rooms.filter((c) => c.kind === 'room')}
+				names={everyRoom.names}
+				close={() => (everyRoom = null)}
+			/>
+		{/if}
+	{/await}
 {/if}
 {#if setting}
-	<CardOptions page={key} card={setting.card} name={setting.name} close={() => (setting = null)} />
+	{#await import('./CardOptions.svelte') then { default: CardOptions }}
+		{#if setting}
+			<CardOptions
+				page={key}
+				card={setting.card}
+				name={setting.name}
+				close={() => (setting = null)}
+			/>
+		{/if}
+	{/await}
 {/if}
 
 <style>

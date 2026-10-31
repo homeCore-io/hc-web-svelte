@@ -14,7 +14,6 @@
 	import { gone } from '#lib/layers.js';
 	import { withEdit } from '#lib/nav.js';
 	import AddCard from './AddCard.svelte';
-	import StylePicker from './StylePicker.svelte';
 
 	let { key }: { key: string } = $props();
 
@@ -72,7 +71,10 @@
 	</p>
 {/if}
 {#if household.trouble}<p class="trouble" role="alert">{household.trouble}</p>{/if}
-{#if styling}<StylePicker page={key} close={() => (styling = false)} />{/if}
+{#if styling}{#await import('./StylePicker.svelte') then { default: StylePicker }}<StylePicker
+			page={key}
+			close={() => (styling = false)}
+		/>{/await}{/if}
 {#if adding}<AddCard {key} close={() => (adding = false)} />{/if}
 
 <style>

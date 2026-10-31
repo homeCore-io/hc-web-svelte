@@ -257,7 +257,7 @@ export const textDescriptor = (): Descriptor => ({
 	]
 });
 
-export const WORTH_BUILT_IN: Options = { leaks: true, open: true, unlocked: true, playing: true };
+export const WORTH_BUILT_IN: Options = { leaks: true, open: true, unlocked: true };
 export const worthDescriptor = (): Descriptor => ({
 	title: 'Worth knowing',
 	sections: [
@@ -267,8 +267,7 @@ export const worthDescriptor = (): Descriptor => ({
 			fields: [
 				{ kind: 'toggle', key: 'leaks', label: 'Leaks', default: true },
 				{ kind: 'toggle', key: 'open', label: 'Doors and windows open', default: true },
-				{ kind: 'toggle', key: 'unlocked', label: 'Locks unlocked', default: true },
-				{ kind: 'toggle', key: 'playing', label: 'Music and TV playing', default: true }
+				{ kind: 'toggle', key: 'unlocked', label: 'Locks unlocked', default: true }
 			]
 		}
 	]

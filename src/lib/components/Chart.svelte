@@ -15,7 +15,8 @@
 		bool,
 		current,
 		span = DAY,
-		end
+		end,
+		compact = false
 	}: {
 		deviceId: string;
 		attr: string;
@@ -27,6 +28,8 @@
 		span?: number;
 		/** When it ends, in ms since 1970: now unless said. */
 		end?: number;
+		/** On a card that names the reading already: no heading; its range goes under the line. */
+		compact?: boolean;
 	} = $props();
 
 	interface Point {
@@ -115,9 +118,15 @@
 		const vs = points.map((p) => p.v);
 		let min = Math.min(...vs);
 		let max = Math.max(...vs);
+		// Fitted to the readings, with a little room above and below; a steady
+		// reading sits in the middle rather than on an edge.
+		const pad = Math.max((max - min) * 0.12, 1e-9);
 		if (max - min < 1e-9) {
 			min -= 1;
 			max += 1;
+		} else {
+			min -= pad;
+			max += pad;
 		}
 		const y = (v: number) => H - 6 - ((v - min) / (max - min)) * (H - 12);
 		// A step line: a reading holds until the next one.
@@ -137,23 +146,31 @@
 	const day = (t: number) =>
 		new Date(t).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
 	const past = $derived(end !== undefined);
+	const unitText = $derived(shownAs === '%' ? '%' : shownAs ? ` ${shownAs}` : '');
+	const rangeText = $derived(
+		!shape || bool
+			? ''
+			: fmt(shape.min) === fmt(shape.max)
+				? `steady at ${fmt(shape.min)}${unitText}`
+				: `${fmt(shape.min)}–${fmt(shape.max)}${unitText}`
+	);
 </script>
 
-<div class="chart">
-	<div class="head">
-		<span>{label}, {past ? `${spanText} to ${day(until)}` : `last ${spanText}`}</span>
-		{#if shape && !bool}
-			<span class="num range"
-				>{fmt(shape.min) === fmt(shape.max)
-					? fmt(shape.min)
-					: `${fmt(shape.min)}–${fmt(shape.max)}`}{shownAs === '%'
-					? '%'
-					: shownAs
-						? ` ${shownAs}`
-						: ''}</span
-			>
-		{/if}
-	</div>
+<div class="chart" class:compact>
+	{#if !compact}<div class="head">
+			<span>{label}, {past ? `${spanText} to ${day(until)}` : `last ${spanText}`}</span>
+			{#if shape && !bool}
+				<span class="num range"
+					>{fmt(shape.min) === fmt(shape.max)
+						? fmt(shape.min)
+						: `${fmt(shape.min)}–${fmt(shape.max)}`}{shownAs === '%'
+						? '%'
+						: shownAs
+							? ` ${shownAs}`
+							: ''}</span
+				>
+			{/if}
+		</div>{/if}
 	{#if failed}
 		<p class="quiet">History isn't available.</p>
 	{:else if points === null}
@@ -173,9 +190,10 @@
 			{#if shape.line}<path d={shape.line} />{/if}
 		</svg>
 		<div class="axis" aria-hidden="true">
-			{#if past}<span>{day(until - span)}</span><span>{day(until)}</span>{:else}<span
-					>{spanShort} ago</span
-				><span>now</span>{/if}
+			{#if past}<span>{day(until - span)}</span>{#if compact}<span class="num">{rangeText}</span
+					>{/if}<span>{day(until)}</span>{:else}<span>{spanShort} ago</span>{#if compact}<span
+						class="num">{rangeText}</span
+					>{/if}<span>now</span>{/if}
 		</div>
 		{#if cut}
 			<p class="quiet">
@@ -225,8 +243,14 @@
 	.axis {
 		display: flex;
 		justify-content: space-between;
+		gap: 8px;
 		font-size: 11px;
 		color: var(--ink-muted);
+		white-space: nowrap;
+	}
+	.compact svg,
+	.compact .placeholder {
+		height: 96px;
 	}
 	.quiet {
 		margin: 0;

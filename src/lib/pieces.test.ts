@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { cardFor } from './card.js';
+import { followUnits } from './units.js';
 import type { CoreDevice, Devices } from './devices.js';
 import { HOUSE, ROOMS, FIXTURE_NOW } from './fixtures/house.js';
 import { roomFromCore } from './house.js';
 import { chartSource, spanOf, WORTH_BUILT_IN } from './options.js';
-import { forecastOf, playingNow, stationOf, weatherOf, worthKnowing } from './pieces.js';
+import {
+	compass,
+	forecastOf,
+	longFor,
+	playingNow,
+	stationOf,
+	weatherOf,
+	worthKnowing
+} from './pieces.js';
 
 const rooms = ROOMS.map(roomFromCore);
 const withState = (id: string, attributes: Record<string, unknown>): Devices =>
@@ -25,22 +34,46 @@ describe('worth knowing (G-c)', () => {
 	});
 
 	it('leaves out what is switched off', () => {
-		const none = { leaks: false, open: false, unlocked: false, playing: false };
+		const none = { leaks: false, open: false, unlocked: false };
 		expect(worthKnowing(cards(wet), wet, rooms, none)).toEqual([]);
 		const noLeaks = worthKnowing(cards(wet), wet, rooms, { ...WORTH_BUILT_IN, leaks: false });
 		expect(noLeaks.some((i) => i.id === 'yolink_leak')).toBe(false);
 	});
 
-	it('lists what plays under worth knowing and on its own, with its room', () => {
+	it('leaves what plays to the Playing card, even with an old "playing" setting', () => {
 		const all = Object.fromEntries(HOUSE.map((d) => [d.device_id, d]));
 		const playing = playingNow(cards(all), all, rooms);
-		const worth = worthKnowing(cards(all), all, rooms, {
-			leaks: false,
-			open: false,
-			unlocked: false
-		});
-		expect(worth.map((i) => i.id)).toEqual(playing.map((i) => i.id));
+		expect(playing.length).toBeGreaterThan(0);
 		for (const i of playing) expect(i.what.startsWith('Playing')).toBe(true);
+		const worth = worthKnowing(cards(all), all, rooms, { ...WORTH_BUILT_IN, playing: true });
+		for (const i of playing) expect(worth.some((w) => w.id === i.id)).toBe(false);
+	});
+
+	it('says how long a door has been open in one plain phrase', () => {
+		const door = HOUSE.find((d) => d.device_type === 'contact_sensor' || d.device_type === 'door');
+		expect(door).toBeDefined();
+		const attr =
+			'open' in door!.attributes
+				? 'open'
+				: 'contact_open' in door!.attributes
+					? 'contact_open'
+					: 'contact';
+		const ten = new Date(FIXTURE_NOW - 10 * 86_400_000 - 3_600_000).toISOString();
+		const all: Devices = {
+			...Object.fromEntries(HOUSE.map((d) => [d.device_id, d])),
+			[door!.device_id]: {
+				...door!,
+				attributes: { ...door!.attributes, [attr]: attr !== 'contact' },
+				attributes_changed_at: { [attr]: ten },
+				last_seen: new Date(FIXTURE_NOW - 45 * 3_600_000).toISOString()
+			}
+		};
+		const it = worthKnowing(cards(all), all, rooms, WORTH_BUILT_IN, FIXTURE_NOW).find(
+			(i) => i.id === door!.device_id
+		);
+		expect(it?.what).toBe('Open for 10 days');
+		expect(longFor(60_000)).toBe('1 minute');
+		expect(longFor(3 * 3_600_000)).toBe('3 hours');
 	});
 });
 
@@ -57,6 +90,7 @@ describe('the weather (G21)', () => {
 		const w = weatherOf(all.ecowitt_station!, FIXTURE_NOW);
 		expect(w.temperature).toBeCloseTo(57.7);
 		expect(w.readings[0]).toEqual({ label: 'Humidity', text: '94%' });
+		expect(w.readings.map((r) => r.label)).toEqual(['Humidity', 'Wind']);
 		expect(w.forecast).toEqual([]);
 	});
 
@@ -84,6 +118,29 @@ describe('the weather (G21)', () => {
 		});
 		expect(w.forecast[1]!.high).toBeCloseTo(12.4);
 		expect(w.readings.some((r) => r.label.toLowerCase().includes('forecast'))).toBe(false);
+	});
+
+	it('names its readings plainly, relative pressure only, in the person’s units', () => {
+		const d: CoreDevice = {
+			...all.ecowitt_station!,
+			attributes: {
+				...all.ecowitt_station!.attributes,
+				barometric_rel: 30.4,
+				barometric_abs: 29.5,
+				wind_direction: 213,
+				uvi: 3.2
+			}
+		};
+		followUnits(() => ({ temperature: 'F', measures: 'us' }));
+		const w = weatherOf(d, FIXTURE_NOW, 9);
+		expect(w.readings.map((r) => r.label)).toEqual(['Humidity', 'Wind', 'UV', 'Pressure']);
+		expect(w.readings.find((r) => r.label === 'Pressure')?.text).toBe('30.4 inHg');
+		expect(w.readings.find((r) => r.label === 'Wind')?.text).toMatch(/ SW$/);
+		expect(w.readings.some((r) => /abs/i.test(r.label))).toBe(false);
+		followUnits(() => ({ temperature: 'C', measures: 'metric' }));
+		expect(weatherOf(d, FIXTURE_NOW, 9).readings.at(-1)?.text).toBe('1029.5 hPa');
+		expect(compass(0)).toBe('N');
+		expect(compass(350)).toBe('N');
 	});
 
 	it('reads nothing from a forecast that isn’t a list', () => {

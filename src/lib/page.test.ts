@@ -10,6 +10,7 @@ import {
 	homePage,
 	presentRefs,
 	roomPage,
+	runsOf,
 	sectionRef,
 	type Card,
 	type HomeInput,
@@ -418,5 +419,24 @@ describe('the app’s own cards (G-c)', () => {
 			pluginCard: () => undefined
 		});
 		expect(refs(section(p, 'added').cards)).toEqual(['kind:weather/w1']);
+	});
+});
+
+describe('a row’s runs (G-c)', () => {
+	const scene = (id: string) => ({ ref: `scene:${id}`, kind: 'scene', id, name: id }) as Card;
+	const chart = { ref: 'piece:chart/a', kind: 'chart' } as Card;
+
+	it('keeps scenes’ buttons in rows and draws anything else between them in a grid', () => {
+		const runs = runsOf([scene('a'), scene('b'), chart, scene('c')], 'row');
+		expect(runs.map((r) => [r.layout, r.cards.map((c) => c.ref)])).toEqual([
+			['row', ['scene:a', 'scene:b']],
+			['grid', ['piece:chart/a']],
+			['row', ['scene:c']]
+		]);
+	});
+
+	it('leaves other layouts as one run', () => {
+		expect(runsOf([scene('a'), chart], 'grid')).toHaveLength(1);
+		expect(runsOf([], 'row')).toEqual([{ layout: 'row', cards: [] }]);
 	});
 });

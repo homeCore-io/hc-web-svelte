@@ -1,4 +1,4 @@
-<!-- What's out of the ordinary now, by name (G-c): leaks, open, unlocked, playing. -->
+<!-- What's out of the ordinary now, by name (G-c): leaks, open, unlocked. Playing is its own card. -->
 <script lang="ts">
 	import { cardFor } from '#lib/card.js';
 	import { clock } from '#lib/clock.svelte.js';
@@ -17,7 +17,8 @@
 			Object.values(devices.byId).map((d) => cardFor(d, clock.now)),
 			devices.byId,
 			rooms.list,
-			o
+			o,
+			clock.now
 		)
 	);
 </script>

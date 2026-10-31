@@ -12,6 +12,7 @@
 		applyPage,
 		drawn,
 		presentRefs,
+		runsOf,
 		sectionRef,
 		withOwn,
 		type Card,
@@ -200,19 +201,19 @@
 					<p class="hint">{sec.hint}</p>
 				{:else}
 					{#each s.groups.length > 0 ? s.groups : [null] as g, i (i)}
-						<div class={s.layout}>
-							{#if g}
-								{#each listOf(g) as card (card.ref)}
-									{#if s.layout === 'field'}
+						{#each g ? runsOf(listOf(g), s.layout) : [{ layout: s.layout, cards: [] }] as run, j (j)}
+							<div class={run.layout}>
+								{#each run.cards as card (card.ref)}
+									{#if g && s.layout === 'field'}
 										<div class={`cell s${kindOf(card).span?.(card) ?? 1}`}>
 											{@render piece(card, g, sec.favourites, s.layout)}
 										</div>
-									{:else}
+									{:else if g}
 										{@render piece(card, g, sec.favourites, s.layout)}
 									{/if}
 								{/each}
-							{/if}
-						</div>
+							</div>
+						{/each}
 					{/each}
 				{/if}
 			{/if}

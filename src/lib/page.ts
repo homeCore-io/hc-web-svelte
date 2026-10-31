@@ -511,3 +511,27 @@ export function drawn(s: ShownSection, arranging: boolean): boolean {
 		(arranging && (s.hidden || s.section.hint !== undefined))
 	);
 }
+
+/** A scene's button: one line, run on a tap — what a row is made of. */
+const isButton = (c: Card) => c.kind === 'scene' || (c.kind === 'device' && c.scene);
+
+/**
+ * A section's cards in the runs they're drawn in. A row lines up scenes'
+ * buttons; anything else added into it (a light, a chart) is drawn in a grid
+ * of its own between them, so the buttons keep their height rather than
+ * stretching to a card's. Other layouts are one run.
+ */
+export function runsOf<C extends Card>(
+	cards: C[],
+	layout: Layout
+): { layout: Layout; cards: C[] }[] {
+	if (layout !== 'row') return [{ layout, cards }];
+	const out: { layout: Layout; cards: C[] }[] = [];
+	for (const c of cards) {
+		const l: Layout = isButton(c) ? 'row' : 'grid';
+		const last = out.at(-1);
+		if (last && last.layout === l) last.cards.push(c);
+		else out.push({ layout: l, cards: [c] });
+	}
+	return out.length > 0 ? out : [{ layout, cards }];
+}

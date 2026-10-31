@@ -970,3 +970,52 @@ All nine taken as recommended (2026-10-16).
 Also from 09: **[core]** a step aimed at a device homeCore doesn't know is
 reported as such, stale references cover every action target, and rule
 changes are announced (`rule_changed`, `rule_removed`).
+
+## G1 — One page document and one renderer for every page (2026-10-31)
+
+- Home, room pages and (later) hand-built pages are the same document —
+  sections of cards — drawn by one renderer. Generated pages are computed
+  into it; layers apply to the document (11 §2.1).
+
+**Why:** customising features otherwise get written once per page type.
+
+## G2 — Card kinds are registered, their settings are form-engine descriptors (2026-10-31)
+
+- Each kind: forms, an options descriptor, defaults, a component, whether
+  Add offers it. No hand-written settings sheets; plugin cards are one kind.
+
+## G3 — Styles are section layouts plus a shell setting (2026-10-31)
+
+- Room field, room tiles, rooms in the sidebar = the Rooms section's layout
+  (`field`, `tiles`, hidden) and whether the sidebar lists rooms. Any section
+  may use any layout that suits it.
+
+## G4 — Settings resolve card → person's kind default → household's kind default → built-in (2026-10-31)
+
+- Room box settings (big number, sensor sources, details, All off) are
+  display settings in the UI server, as decided the same day.
+
+## G5 — The change list is extended, not replaced (2026-10-31)
+
+- `move`/`add` gain `into` (and `before`), `config` covers any card and
+  sections, sections are refs (`section:<id>`), a `section` change makes an
+  own section. Docs move to version 2, migrated on read.
+
+## G6 — Alerts first, always (2026-10-31)
+
+- The alerts section can't be hidden or moved down; a room box always shows
+  an open door, leak, smoke or offline device whatever its details say.
+
+## G7 — Pinned becomes an ordinary section once Add can place cards anywhere (2026-10-31)
+
+## G8 — One section order for all styles (2026-10-31)
+
+- Switching style changes layouts only. Per-style arrangements may come
+  later as stored presets.
+
+## G9 — Milestones G-a to G-e in order, each mocked up and agreed first (2026-10-31)
+
+## G10 — G-a ships with only section move, hide and rename as new UI (2026-10-31)
+
+**Why:** G-a replaces how every page is drawn; with little new UI, any
+regression shows plainly against today's Home.

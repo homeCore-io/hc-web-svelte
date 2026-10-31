@@ -11,6 +11,7 @@
 	import ArrowDown from '@lucide/svelte/icons/arrow-down';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Settings from '@lucide/svelte/icons/settings-2';
+	import Plus from '@lucide/svelte/icons/plus';
 	import { nudge } from '#lib/layers.js';
 	import { view } from '#lib/view.svelte.js';
 
@@ -21,6 +22,7 @@
 		shown,
 		hidden = false,
 		renamed = false,
+		add,
 		settings
 	}: {
 		page: string;
@@ -31,6 +33,8 @@
 		shown: string[];
 		hidden?: boolean;
 		renamed?: boolean;
+		/** Opens Add, into this section (G20). */
+		add?: () => void;
 		/** Settings for every card in it, where its cards' kind has them: every room's box. */
 		settings?: { label: string; open: () => void };
 	} = $props();
@@ -101,6 +105,10 @@
 					><Settings size={16} aria-hidden="true" />{settings.label}</button
 				>
 			{/if}
+			{#if add}
+				<button class="text add" onclick={add}><Plus size={16} aria-hidden="true" />Add here</button
+				>
+			{/if}
 		{/if}
 	</div>
 {/if}
@@ -150,6 +158,10 @@
 		padding: 0 12px;
 		background: var(--accent);
 		color: var(--accent-ink);
+	}
+	.text.add {
+		gap: 4px;
+		margin-left: 2px;
 	}
 	.text.plain {
 		gap: 6px;

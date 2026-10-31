@@ -28,6 +28,7 @@
 	import { kindOptions } from '#lib/kindOptions.svelte.js';
 	import SectionTools from './SectionTools.svelte';
 	import KindView from './KindView.svelte';
+	import { adding } from '#lib/adding.svelte.js';
 
 	let { page }: { page: Page } = $props();
 
@@ -60,6 +61,31 @@
 	let everyRoom = $state<{ rooms: Card[]; names: Record<string, string> } | null>(null);
 	// Rooms in the sidebar, with their status (G3): their boxes' settings show there.
 	const sideRooms = $derived(page.id === 'home' && kindOptions.shellRooms(key) === 'status');
+	// Add (G-c): the sections it can add into, as headed here — and where
+	// added things go when none is said, Pinned or "Also here", which a room
+	// doesn't have until something's in it.
+	const home = $derived(page.id === 'home' ? 'pinned' : 'added');
+	const into = $derived.by(() => {
+		const out = shown.sections
+			.filter((s) => s.section.accepts)
+			.map((s) => ({ id: s.section.id, title: s.title }));
+		return out.some((s) => s.id === home) ? out : [{ id: home, title: 'Also here' }, ...out];
+	});
+	// Leaving Customise or Edit closes Add.
+	$effect(() => {
+		if (!arranging && adding.page === key) adding.close();
+	});
+	// A card just added that needs setting (a note, a chart): its settings open as it appears.
+	$effect(() => {
+		const r = adding.settle;
+		if (r === null) return;
+		const card = shown.sections
+			.flatMap((s) => s.groups.flatMap((g) => [...g.shown, ...g.hidden]))
+			.find((c) => c.ref === r);
+		if (!card) return;
+		adding.settle = null;
+		setting = { card, name: kindOf(card).name(card) };
+	});
 	const hasSettings = (card: Card, layout: Layout) =>
 		kindOf(card).options !== null && (card.kind !== 'room' || layout !== 'list' || sideRooms);
 </script>
@@ -119,6 +145,7 @@
 						shown={movable}
 						hidden={s.hidden}
 						renamed={s.renamed}
+						add={sec.accepts ? () => adding.open(key, sec.id) : undefined}
 						settings={sec.id === 'rooms' && (s.layout !== 'list' || sideRooms)
 							? {
 									label: 'Every room’s box',
@@ -173,7 +200,14 @@
 	{/if}
 {/each}
 
-<!-- The settings sheets load when first opened: they aren't Home's first paint (06 V5). -->
+<!-- The sheets load when first opened: they aren't Home's first paint (06 V5). -->
+{#if adding.page === key && arranging}
+	{#await import('./AddCard.svelte') then { default: AddCard }}
+		{#if adding.page === key}
+			<AddCard {key} sections={into} {home} close={() => adding.close()} />
+		{/if}
+	{/await}
+{/if}
 {#if everyRoom}
 	{#await import('./EveryRoom.svelte') then { default: EveryRoom }}
 		{#if everyRoom}

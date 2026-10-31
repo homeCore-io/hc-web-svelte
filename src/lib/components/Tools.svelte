@@ -4,8 +4,8 @@
 
 	In Customise, for this person: star for Home's favourites, hide or show,
 	move up or down, and — for device cards — their form (C1).
-	In Edit, for the household: the same, without the star, plus rename and,
-	for a card that was added, take it off the page.
+	In Edit, for the household: the same, without the star, plus rename.
+	In either, a card this layer added can be taken off the page (G18).
 -->
 <script lang="ts">
 	import Star from '@lucide/svelte/icons/star';
@@ -133,7 +133,7 @@
 				<Star size={18} fill={fav ? 'currentColor' : 'none'} />
 			</button>
 		{/if}
-		{#if added && shared}
+		{#if added && view.addedHere(page, ref)}
 			<button
 				aria-label={`Take ${name} off this page`}
 				onclick={() => view.change(page, { op: 'remove', ref })}><X size={18} /></button

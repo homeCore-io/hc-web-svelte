@@ -1,6 +1,6 @@
 <!--
 	Edit mode's bar (N6): it says plainly that everyone sees these changes, and
-	holds Undo, Add a card, Cancel and Done. Changes that name something the
+	holds Undo, Add, Cancel and Done. Changes that name something the
 	page no longer has do nothing; Done tidies them away without asking (#4).
 -->
 <script lang="ts">
@@ -13,11 +13,10 @@
 	import { household } from '#lib/household.svelte.js';
 	import { gone } from '#lib/layers.js';
 	import { withEdit } from '#lib/nav.js';
-	import AddCard from './AddCard.svelte';
+	import { adding } from '#lib/adding.svelte.js';
 
 	let { key }: { key: string } = $props();
 
-	let adding = $state(false);
 	let styling = $state(false);
 	const stale = $derived(gone(editing.changes(key), editing.present));
 	const changed = $derived(editing.changes(key).length > 0);
@@ -46,8 +45,8 @@
 		<button class="plain" disabled={editing.count === 0} onclick={() => editing.undo()}>
 			<Undo size={16} aria-hidden="true" /> Undo
 		</button>
-		<button class="plain" onclick={() => (adding = true)}>
-			<Plus size={16} aria-hidden="true" /> Add a card
+		<button class="plain" onclick={() => adding.open(key)}>
+			<Plus size={16} aria-hidden="true" /> Add
 		</button>
 		{#if key === 'home'}<button class="plain" onclick={() => (styling = true)}>Style</button>{/if}
 		<button class="plain" onclick={cancel}>Cancel</button>
@@ -75,7 +74,6 @@
 			page={key}
 			close={() => (styling = false)}
 		/>{/await}{/if}
-{#if adding}<AddCard {key} close={() => (adding = false)} />{/if}
 
 <style>
 	.bar {

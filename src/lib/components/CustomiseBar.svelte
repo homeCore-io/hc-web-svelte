@@ -1,11 +1,13 @@
 <!--
 	The banner while a page is being arranged (N6): it says plainly that only
-	this person sees the changes, offers "Reset to shared", and ends with Done.
+	this person sees the changes, offers Add (into their own layer, G17),
+	"Reset to shared", and ends with Done.
 -->
 <script lang="ts">
 	import { customise } from '#lib/customise.svelte.js';
 	import { personal } from '#lib/personal.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
+	import { adding } from '#lib/adding.svelte.js';
 
 	let { page, home = false }: { page: string; home?: boolean } = $props();
 	let styling = $state(false);
@@ -20,6 +22,7 @@
 			<strong>Customising</strong>
 			<span>Only you see these changes.</span>
 		</div>
+		<button class="reset" onclick={() => adding.open(page)}>Add</button>
 		{#if home}<button class="reset" onclick={() => (styling = true)}>Style</button>{/if}
 		<button
 			class="reset"

@@ -1,16 +1,16 @@
 <!--
-	Add a card to the household's page (M2 `add`), in Edit mode: anything in
-	the house that isn't already generated on this page, and plugins' own cards
-	(a new one each time — the same card can be added twice, set differently).
-	On Home, added cards appear under Pinned; on a room's page, under "Also
-	here".
+	Add (M2 `add`, G-c): into the section chosen, in the layer being changed —
+	the household's in Edit, this person's own in Customise.
 
-	Chips along the top narrow it to a kind of thing; the list is grouped by
-	room, so the scenes a hub gives every room ("Bright", "Bright", "Bright")
-	are told apart by their heading. Plugins' cards come first, as their own.
+	Two tabs. Things in the house: anything not already on this page, with
+	chips that narrow it to a kind of thing and a heading per room, so the
+	scenes a hub gives every room ("Bright", "Bright") are told apart.
+	Cards: the app's own (a heading, a note, worth knowing, playing, the
+	weather, a chart) and plugins' cards — a new one each time, so the same
+	card can be added twice, set differently.
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import SearchIcon from '@lucide/svelte/icons/search';
 	import Puzzle from '@lucide/svelte/icons/puzzle';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -19,23 +19,41 @@
 	import { devices } from '#lib/devices.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { scenes } from '#lib/scenes.svelte.js';
-	import { added, ref } from '#lib/layers.js';
-	import { editing } from '#lib/edit.svelte.js';
+	import { newId, ref } from '#lib/layers.js';
+	import { view } from '#lib/view.svelte.js';
+	import { adding } from '#lib/adding.svelte.js';
+	import { kinds } from '#lib/kinds.js';
+	import { APP_KINDS, type AppKind } from '#lib/page.js';
 	import { pluginLabel } from '#lib/inventory.js';
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
 	import { deviceOffer, finds, SHELVES, underRooms, type Offer, type Shelf } from '#lib/addCard.js';
 
 	pluginUis.ensure();
 
-	let { key, close }: { key: string; close: () => void } = $props();
+	let {
+		key,
+		sections,
+		home,
+		close
+	}: {
+		key: string;
+		/** The sections it can add into, as headed on the page. */
+		sections: { id: string; title: string }[];
+		/** Where added things go when no section is said: Pinned, or "Also here". */
+		home: string;
+		close: () => void;
+	} = $props();
 
 	let dialog = $state<HTMLDialogElement>();
 	let query = $state('');
-	let shelf = $state<Shelf | 'all' | 'cards'>('all');
+	let shelf = $state<Shelf | 'all'>('all');
+	let tab = $state<'things' | 'cards'>('things');
+	let into = $state(untrack(() => adding.into ?? home));
 	onMount(() => dialog?.showModal());
 
 	const room = $derived(key.startsWith('room:') ? key.slice(5) : null);
-	const already = $derived(new Set(added(editing.changes(key))));
+	const already = $derived(new Set(view.added(key)));
+	const intoTitle = $derived(sections.find((s) => s.id === into)?.title ?? '');
 
 	const offers = $derived(
 		[
@@ -56,7 +74,7 @@
 			// On a room's page its own things are already there.
 			.filter((o) => (room === null || o.room !== room) && !already.has(o.ref))
 	);
-	const cards = $derived(
+	const pluginCards = $derived(
 		pluginUis.cards().map((c) => ({
 			pluginId: c.pluginId,
 			element: c.slot.element,
@@ -66,54 +84,83 @@
 			plugin: pluginLabel(c.pluginId)
 		}))
 	);
+	const appCards = $derived(
+		APP_KINDS.flatMap((k) => {
+			const kind = kinds[k];
+			const ok = kind.addable && kind.addable.pages.includes(room === null ? 'home' : 'room');
+			return ok && kind.offer ? [{ kind: k, ...kind.offer }] : [];
+		})
+	);
 
 	const roomName = (id: string) => rooms.list.find((r) => r.id === id)?.name ?? '';
 	const found = $derived(
 		offers.filter((o) => finds(query, `${o.name} ${roomName(o.room)} ${o.what}`))
 	);
-	const foundCards = $derived(
-		cards.filter((c) => finds(query, `${c.name} ${c.description} ${c.plugin} card`))
+	const foundPlugins = $derived(
+		pluginCards.filter((c) => finds(query, `${c.name} ${c.description} ${c.plugin} card`))
 	);
+	const foundApp = $derived(appCards.filter((c) => finds(query, `${c.name} ${c.sub} card`)));
 
 	/** The chips: a kind with nothing in it (for this search) is left out. */
 	const chips = $derived([
-		{ id: 'all' as const, label: 'All', n: found.length + foundCards.length },
-		...SHELVES.map((s) => ({ ...s, n: found.filter((o) => o.shelf === s.id).length })),
-		{ id: 'cards' as const, label: 'Plugin cards', n: foundCards.length }
+		{ id: 'all' as const, label: 'All', n: found.length },
+		...SHELVES.map((s) => ({ ...s, n: found.filter((o) => o.shelf === s.id).length }))
 	]);
 	const shownChips = $derived(chips.filter((c) => c.id === 'all' || c.n > 0 || c.id === shelf));
-
-	const showCards = $derived(shelf === 'all' || shelf === 'cards' ? foundCards : []);
 	const groups = $derived(
-		shelf === 'cards'
-			? []
-			: underRooms(shelf === 'all' ? found : found.filter((o) => o.shelf === shelf), rooms.list)
+		underRooms(shelf === 'all' ? found : found.filter((o) => o.shelf === shelf), rooms.list)
 	);
 
 	function add(r: string) {
-		editing.changePage(key, { op: 'add', ref: r });
+		const to = into === home ? {} : { into };
+		view.change(key, { op: 'add', ref: r, ...to });
 		dialog?.close();
 	}
 	function addCard(pluginId: string, element: string) {
-		add(ref.card(pluginId, element, Math.random().toString(36).slice(2, 10)));
+		add(ref.card(pluginId, element, newId()));
+	}
+	function addApp(k: AppKind) {
+		const r = ref.kind(k, newId());
+		// A note, a heading, a chart show nothing until set: their settings open as they appear.
+		if (kinds[k].setFirst) adding.settle = r;
+		add(r);
 	}
 </script>
 
 <dialog
 	bind:this={dialog}
-	aria-label="Add a card"
+	aria-label={`Add to ${intoTitle}`}
 	onclose={close}
 	onclick={(e) => {
 		if (e.target === dialog) dialog?.close();
 	}}
 >
 	<div class="box">
+		<div class="top">
+			<label class="into"
+				><span>Add to</span>
+				<select bind:value={into}>
+					{#each sections as s (s.id)}
+						<option value={s.id}>{s.title}</option>
+					{/each}
+				</select>
+			</label>
+			<button class="x" aria-label="Close" onclick={() => dialog?.close()}><X size={20} /></button>
+		</div>
+		<div class="tabs" role="tablist" aria-label="What to add">
+			<button role="tab" aria-selected={tab === 'things'} onclick={() => (tab = 'things')}
+				>Things in the house</button
+			>
+			<button role="tab" aria-selected={tab === 'cards'} onclick={() => (tab = 'cards')}
+				>Cards</button
+			>
+		</div>
 		<label class="field">
 			<SearchIcon size={20} aria-hidden="true" />
 			<!-- svelte-ignore a11y_autofocus -->
 			<input
 				bind:value={query}
-				placeholder="Add a card for…"
+				placeholder={tab === 'things' ? 'A light, a scene, a sensor…' : 'A note, a chart…'}
 				aria-label="Find something to add"
 				autocomplete="off"
 				spellcheck="false"
@@ -125,55 +172,77 @@
 				</button>
 			{/if}
 		</label>
-		<div class="chips" role="group" aria-label="Show">
-			{#each shownChips as c (c.id)}
-				<button
-					class="chip"
-					aria-pressed={shelf === c.id}
-					onclick={(e) => {
-						shelf = c.id;
-						e.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-					}}
-				>
-					{c.label} <span class="n">{c.n}</span>
-				</button>
-			{/each}
-		</div>
-		<div class="list">
-			{#if showCards.length}
-				{#if shelf === 'all'}<h3>Cards from plugins</h3>{/if}
-				<div class="cards">
-					{#each showCards as c (`${c.pluginId}/${c.element}`)}
-						<button class="pcard" onclick={() => addCard(c.pluginId, c.element)}>
-							<span class="ico plug"><Puzzle size={18} aria-hidden="true" /></span>
-							<span class="words">
-								<b>{c.name}</b>
-								{#if c.description}<small>{c.description}</small>{/if}
-								<em>{c.plugin}</em>
-							</span>
-						</button>
-					{/each}
-				</div>
-			{/if}
-			{#each groups as g (g.id)}
-				<h3>{g.name}</h3>
-				<ul>
-					{#each g.offers as o (o.ref)}
-						<li>
-							<button class="row" onclick={() => add(o.ref)}>
-								<span class="ico"><Icon name={o.icon} size={18} /></span>
+		{#if tab === 'things'}
+			<div class="chips" role="group" aria-label="Show">
+				{#each shownChips as c (c.id)}
+					<button
+						class="chip"
+						aria-pressed={shelf === c.id}
+						onclick={(e) => {
+							shelf = c.id;
+							e.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+						}}
+					>
+						{c.label} <span class="n">{c.n}</span>
+					</button>
+				{/each}
+			</div>
+		{/if}
+		<div class="list" role="tabpanel">
+			{#if tab === 'cards'}
+				{#if foundApp.length}
+					<h3>Cards</h3>
+					<div class="cards">
+						{#each foundApp as c (c.kind)}
+							<button class="pcard" onclick={() => addApp(c.kind)}>
+								<span class="ico"><Plus size={18} aria-hidden="true" /></span>
 								<span class="words">
-									<span class="title">{o.name}</span>
-									<span class="detail">{o.what}</span>
+									<b>{c.name}</b>
+									<small>{c.sub}</small>
 								</span>
-								<span class="plus"><Plus size={16} aria-hidden="true" /></span>
 							</button>
-						</li>
-					{/each}
-				</ul>
-			{/each}
-			{#if !showCards.length && !groups.length}
-				<p class="none">Nothing to add{query.trim() ? ` matching “${query.trim()}”` : ''}.</p>
+						{/each}
+					</div>
+				{/if}
+				{#if foundPlugins.length}
+					<h3>Cards from plugins</h3>
+					<div class="cards">
+						{#each foundPlugins as c (`${c.pluginId}/${c.element}`)}
+							<button class="pcard" onclick={() => addCard(c.pluginId, c.element)}>
+								<span class="ico plug"><Puzzle size={18} aria-hidden="true" /></span>
+								<span class="words">
+									<b>{c.name}</b>
+									{#if c.description}<small>{c.description}</small>{/if}
+									<em>{c.plugin}</em>
+								</span>
+							</button>
+						{/each}
+					</div>
+				{/if}
+				{#if !foundApp.length && !foundPlugins.length}
+					<p class="none">No card{query.trim() ? ` matching “${query.trim()}”` : ''}.</p>
+				{/if}
+			{:else}
+				{#each groups as g (g.id)}
+					<h3>{g.name}</h3>
+					<ul>
+						{#each g.offers as o (o.ref)}
+							<li>
+								<button class="row" onclick={() => add(o.ref)}>
+									<span class="ico"><Icon name={o.icon} size={18} /></span>
+									<span class="words">
+										<span class="title">{o.name}</span>
+										<span class="detail">{o.what}</span>
+									</span>
+									<span class="plus"><Plus size={16} aria-hidden="true" /></span>
+								</button>
+							</li>
+						{/each}
+					</ul>
+				{/each}
+				{#if !groups.length}
+					<p class="none">Nothing to add{query.trim() ? ` matching “${query.trim()}”` : ''}.</p>
+				{/if}
 			{/if}
 		</div>
 	</div>
@@ -197,6 +266,66 @@
 		display: flex;
 		flex-direction: column;
 		max-height: 80vh;
+	}
+	.top {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 12px 12px 4px 16px;
+	}
+	.into {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		font-weight: 700;
+		min-width: 0;
+	}
+	.into select {
+		flex: 1;
+		min-width: 0;
+		height: 40px;
+		padding: 0 10px;
+		border: 1px solid var(--line);
+		border-radius: 10px;
+		background: var(--surface);
+		color: var(--ink);
+		font: inherit;
+		font-weight: 600;
+	}
+	.x {
+		flex: none;
+		display: grid;
+		place-items: center;
+		width: 40px;
+		height: 40px;
+		border: 1px solid var(--line);
+		border-radius: 999px;
+		background: var(--surface);
+		color: var(--ink-muted);
+	}
+	.tabs {
+		display: flex;
+		gap: 2px;
+		margin: 8px 12px 0;
+		padding: 3px;
+		border-radius: 12px;
+		background: var(--surface-2);
+	}
+	.tabs button {
+		flex: 1;
+		height: 36px;
+		border: none;
+		border-radius: 9px;
+		background: transparent;
+		color: var(--ink-muted);
+		font-size: 13px;
+		font-weight: 600;
+	}
+	.tabs button[aria-selected='true'] {
+		background: var(--surface);
+		color: var(--ink);
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 	}
 	.field {
 		display: flex;

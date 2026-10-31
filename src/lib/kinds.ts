@@ -1,7 +1,7 @@
 /**
  * The kinds of card a page can hold (G2, 11 §2.2): for each, the sizes it can
  * be, what it's called, whether it can be starred, its settings (a form-engine
- * descriptor — none yet but plugins' own), and what draws it.
+ * descriptor; plugins' cards have their own element instead), and what draws it.
  *
  * A new kind of card is one entry here; every page then has it.
  */
@@ -9,7 +9,9 @@ import type { Component } from 'svelte';
 import type { Descriptor } from './descriptor.js';
 import { displayName } from './devices.js';
 import type { Form } from './layers.js';
-import type { Card } from './page.js';
+import type { Card, Layout } from './page.js';
+import { ROOM_BUILT_IN, roomDescriptor } from './options.js';
+import { fieldSize } from './roomBox.js';
 import AlertsKind from './components/kinds/AlertsKind.svelte';
 import ChipsKind from './components/kinds/ChipsKind.svelte';
 import DeviceKind from './components/kinds/DeviceKind.svelte';
@@ -31,8 +33,10 @@ export interface KindProps<K extends Card['kind'] = Card['kind']> {
 	page: string;
 	/** The page lets device cards carry their own tools (room pages). */
 	cardTools: boolean;
-	/** Its settings on this page. */
+	/** Its settings on this page: a plugin card's as its element made them. */
 	config?: Record<string, unknown>;
+	/** How its section lays cards out. */
+	layout?: Layout;
 }
 
 export interface Kind<K extends Card['kind'] = Card['kind']> {
@@ -44,9 +48,12 @@ export interface Kind<K extends Card['kind'] = Card['kind']> {
 	name(card: CardOf<K>): string;
 	/** Whether it can be one of a person's favourites. */
 	star: boolean;
-	/** Its settings, for the settings sheet; `null` while it has none. */
-	options: Descriptor | null;
+	/** Its settings, for the settings sheet (G2); `null` while it has none. */
+	options: ((card: CardOf<K>) => Descriptor) | null;
+	/** The settings it has before anyone sets any. */
 	defaults: Record<string, unknown>;
+	/** Its size in a `field` section, 1–3; 1 where it doesn't say. */
+	span?: (card: CardOf<K>) => 1 | 2 | 3;
 	/** Whether Add offers it. G-a adds nothing new: Add keeps its own list. */
 	addable: false | { pages: ('home' | 'room')[] };
 	component: Component<KindProps<K>>;
@@ -76,7 +83,15 @@ export const kinds: { [K in Card['kind']]: Kind<K> } = {
 		addable: { pages: ['home', 'room'] },
 		component: SceneKind
 	},
-	room: { ...one, ...fixed, name: (c) => c.name, component: RoomKind },
+	room: {
+		...one,
+		...fixed,
+		name: (c) => c.name,
+		options: (c) => roomDescriptor(c.id === 'none' ? undefined : c.id),
+		defaults: ROOM_BUILT_IN,
+		span: (c) => fieldSize(c.devices.length),
+		component: RoomKind
+	},
 	plugin: {
 		// Only the sizes it can be; its first is its own choice of default.
 		forms: (c) => (c.forms?.length ? ALL.filter((f) => c.forms!.includes(f)) : ALL),

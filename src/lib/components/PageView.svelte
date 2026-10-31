@@ -8,7 +8,15 @@
 	cards show faded, and a section with nothing in it says what goes there.
 -->
 <script lang="ts">
-	import { applyPage, drawn, presentRefs, sectionRef, type Card, type Page } from '#lib/page.js';
+	import {
+		applyPage,
+		drawn,
+		presentRefs,
+		sectionRef,
+		type Card,
+		type Layout,
+		type Page
+	} from '#lib/page.js';
 	import { kindOf } from '#lib/kinds.js';
 	import { view } from '#lib/view.svelte.js';
 	import { personal } from '#lib/personal.svelte.js';
@@ -16,6 +24,7 @@
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
 	import type { Layered } from '#lib/layers.js';
 	import Arrange from './Arrange.svelte';
+	import CardOptions from './CardOptions.svelte';
 	import SectionTools from './SectionTools.svelte';
 
 	let { page }: { page: Page } = $props();
@@ -39,9 +48,14 @@
 			.map((s) => sectionRef(s.section.id))
 	);
 	const listOf = (g: Layered<Card>) => (arranging ? [...g.shown, ...g.hidden] : g.shown);
+
+	// A kind's settings sheet, for one card (G2). A room's settings are its box's.
+	let setting = $state<{ card: Card; name: string } | null>(null);
+	const hasSettings = (card: Card, layout: Layout) =>
+		kindOf(card).options !== null && (card.kind !== 'room' || layout !== 'list');
 </script>
 
-{#snippet piece(card: Card, g?: Layered<Card>, favourites = false)}
+{#snippet piece(card: Card, g?: Layered<Card>, favourites = false, layout: Layout = 'grid')}
 	{@const kind = kindOf(card)}
 	{@const label = g?.name(card.ref)}
 	{@const form = kind.form(card, g?.form(card.ref))}
@@ -61,6 +75,9 @@
 			list={favourites ? 'favourites' : 'page'}
 			added={card.added ?? false}
 			renamed={label !== undefined}
+			settings={hasSettings(card, layout)
+				? () => (setting = { card, name: label ?? kind.name(card) })
+				: undefined}
 		>
 			<Draw
 				{card}
@@ -69,6 +86,7 @@
 				page={key}
 				cardTools={page.cardTools}
 				config={g.config(card.ref)}
+				{layout}
 			/>
 		</Arrange>
 	{/if}
@@ -107,10 +125,16 @@
 					<p class="hint">{sec.hint}</p>
 				{:else}
 					{#each s.groups.length > 0 ? s.groups : [null] as g, i (i)}
-						<div class={sec.layout}>
+						<div class={s.layout}>
 							{#if g}
 								{#each listOf(g) as card (card.ref)}
-									{@render piece(card, g, sec.favourites)}
+									{#if s.layout === 'field'}
+										<div class={`cell s${kindOf(card).span?.(card) ?? 1}`}>
+											{@render piece(card, g, sec.favourites, s.layout)}
+										</div>
+									{:else}
+										{@render piece(card, g, sec.favourites, s.layout)}
+									{/if}
 								{/each}
 							{/if}
 						</div>
@@ -120,6 +144,10 @@
 		</section>
 	{/if}
 {/each}
+
+{#if setting}
+	<CardOptions page={key} card={setting.card} name={setting.name} close={() => (setting = null)} />
+{/if}
 
 <style>
 	section {
@@ -164,7 +192,43 @@
 		flex-direction: column;
 		gap: 8px;
 	}
+	/* The room field (G-b): boxes as wide as what's in them, rows filled. */
+	.field {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 10px;
+	}
+	.cell {
+		display: grid;
+		min-width: 0;
+		height: 150px;
+	}
+	.cell.s1 {
+		flex: 1 1 140px;
+	}
+	.cell.s2 {
+		flex: 2 1 220px;
+	}
+	.cell.s3 {
+		flex: 3 1 320px;
+	}
+	.field :global(.arrange),
+	.cell:has(:global(.arrange)) {
+		height: auto;
+	}
+	.tiles {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+		grid-auto-rows: 150px;
+		gap: 10px;
+	}
+	.tiles:has(:global(.arrange)) {
+		grid-auto-rows: auto;
+	}
 	@media (min-width: 700px) {
+		.tiles {
+			grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+		}
 		.grid {
 			grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
 		}

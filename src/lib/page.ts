@@ -14,7 +14,7 @@ import type { Room } from './house.js';
 import { apply, cardRef, ref, type Change, type Form, type Layered } from './layers.js';
 import { byRoom, roomSections, type Chip } from './summary.js';
 
-/** How a section lays its cards out (G3). G-a draws the first three. */
+/** How a section lays its cards out (G3). */
 export type Layout = 'grid' | 'row' | 'list' | 'field' | 'tiles';
 
 interface Base {
@@ -41,6 +41,8 @@ export interface Section {
 	id: string;
 	title: string;
 	layout: Layout;
+	/** The layouts it may be given (a `config` change); none, only its own. */
+	layouts?: Layout[];
 	cards: Card[];
 	/** Always first, can't be hidden or renamed (G6). */
 	fixed?: boolean;
@@ -223,7 +225,14 @@ export function homePage(h: HomeInput): Page {
 				show: hasModes ? 'always' : 'cards',
 				cards: scenes
 			},
-			{ id: 'rooms', title: 'Rooms', layout: 'list', show: 'always', cards: rooms }
+			{
+				id: 'rooms',
+				title: 'Rooms',
+				layout: 'list',
+				layouts: ['list', 'field', 'tiles'],
+				show: 'always',
+				cards: rooms
+			}
 		]
 	};
 }
@@ -298,6 +307,8 @@ export interface ShownSection {
 	title: string;
 	renamed: boolean;
 	hidden: boolean;
+	/** Its layout on this page: one it was given, if it may take it, else its own. */
+	layout: Layout;
 	/** Its cards in runs of one group each, with the layers applied. */
 	groups: Layered<Card>[];
 }
@@ -369,7 +380,16 @@ export function applyPage(
 						)
 					: apply(cards, (c) => c.ref, forSection(s))
 			);
-			return { section: s, title: name ?? s.title, renamed: name !== undefined, hidden, groups };
+			const given = layered.config(sectionRef(s.id))?.layout;
+			const layout = s.layouts?.find((l) => l === given) ?? s.layout;
+			return {
+				section: s,
+				title: name ?? s.title,
+				renamed: name !== undefined,
+				hidden,
+				layout,
+				groups
+			};
 		})
 	};
 }

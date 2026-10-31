@@ -33,7 +33,8 @@
 		form,
 		list = 'page',
 		added = false,
-		renamed = false
+		renamed = false,
+		settings
 	}: {
 		page: string;
 		ref: string;
@@ -50,6 +51,8 @@
 		added?: boolean;
 		/** Whether `name` is a label given on this page. */
 		renamed?: boolean;
+		/** Opens its kind's settings sheet (G2). */
+		settings?: () => void;
 	} = $props();
 
 	const shared = $derived(view.mode(page) === 'edit');
@@ -157,7 +160,9 @@
 			<button aria-label={`Move ${name} down`} disabled={!down} onclick={() => move(1)}
 				><ArrowDown size={18} /></button
 			>
-			{#if card?.slot.settings}
+			{#if settings}
+				<button aria-label={`${name}: settings`} onclick={settings}><Settings size={18} /></button>
+			{:else if card?.slot.settings}
 				<button aria-label={`${name}: settings`} onclick={() => (setting = true)}
 					><Settings size={18} /></button
 				>

@@ -45,6 +45,11 @@ class Editing {
 		];
 	}
 
+	/** A change to the household's document beyond its pages: every-room settings, the sidebar (G15). */
+	changeDoc(edit: Edit<HouseDoc>): void {
+		this.#edits = [...this.#edits, edit];
+	}
+
 	/** Drop the changes that name things the page no longer has. */
 	forget(page: string, stale: Change[]): void {
 		this.#edits = [

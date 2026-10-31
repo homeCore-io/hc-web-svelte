@@ -23,6 +23,7 @@
 		list = 'page',
 		added = false,
 		renamed = false,
+		settings,
 		children
 	}: {
 		page: string;
@@ -36,6 +37,8 @@
 		list?: 'page' | 'favourites';
 		added?: boolean;
 		renamed?: boolean;
+		/** Opens its settings sheet, where its kind has settings. */
+		settings?: () => void;
 		children: Snippet;
 	} = $props();
 
@@ -45,7 +48,7 @@
 {#if mode !== null}
 	<div class="arrange" class:hidden class:wide class:shared={mode === 'edit'}>
 		<div class="quiet" inert>{@render children()}</div>
-		<Tools {page} {ref} {name} {shown} {hidden} {star} {form} {list} {added} {renamed} />
+		<Tools {page} {ref} {name} {shown} {hidden} {star} {form} {list} {added} {renamed} {settings} />
 	</div>
 {:else}
 	{@render children()}

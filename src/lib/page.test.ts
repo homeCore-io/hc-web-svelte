@@ -264,3 +264,24 @@ describe("Edit's Done keeps what the page still has (EditBar)", () => {
 		expect(gone(changes, presentRefs(home()))).toEqual([changes[4], changes[5]]);
 	});
 });
+
+describe('a section’s layout (G3)', () => {
+	const layoutOf = (changes: Change[]) =>
+		applyPage(home(), changes).sections.find((s) => s.section.id === 'rooms')!.layout;
+
+	it('is its own until it is given one it may take', () => {
+		expect(layoutOf([])).toBe('list');
+		expect(layoutOf([{ op: 'config', ref: 'section:rooms', config: { layout: 'field' } }])).toBe(
+			'field'
+		);
+		expect(layoutOf([{ op: 'config', ref: 'section:rooms', config: { layout: 'row' } }])).toBe(
+			'list'
+		);
+	});
+
+	it('the person’s choice over the household’s', () => {
+		const house: Change = { op: 'config', ref: 'section:rooms', config: { layout: 'tiles' } };
+		const mine: Change = { op: 'config', ref: 'section:rooms', config: { layout: 'list' } };
+		expect(layoutOf([house, mine])).toBe('list');
+	});
+});

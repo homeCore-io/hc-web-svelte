@@ -14,10 +14,12 @@
 	import { gone } from '#lib/layers.js';
 	import { withEdit } from '#lib/nav.js';
 	import AddCard from './AddCard.svelte';
+	import StylePicker from './StylePicker.svelte';
 
 	let { key }: { key: string } = $props();
 
 	let adding = $state(false);
+	let styling = $state(false);
 	const stale = $derived(gone(editing.changes(key), editing.present));
 	const changed = $derived(editing.changes(key).length > 0);
 
@@ -48,6 +50,7 @@
 		<button class="plain" onclick={() => (adding = true)}>
 			<Plus size={16} aria-hidden="true" /> Add a card
 		</button>
+		{#if key === 'home'}<button class="plain" onclick={() => (styling = true)}>Style</button>{/if}
 		<button class="plain" onclick={cancel}>Cancel</button>
 		<button class="done" onclick={done}>Done</button>
 	</div>
@@ -69,6 +72,7 @@
 	</p>
 {/if}
 {#if household.trouble}<p class="trouble" role="alert">{household.trouble}</p>{/if}
+{#if styling}<StylePicker page={key} close={() => (styling = false)} />{/if}
 {#if adding}<AddCard {key} close={() => (adding = false)} />{/if}
 
 <style>

@@ -33,6 +33,10 @@
 	import UnlockedBar from './UnlockedBar.svelte';
 	import { alerts } from '#lib/alerts.svelte.js';
 	import RoomIcon from './RoomIcon.svelte';
+	import SideRoomStatus from './SideRoomStatus.svelte';
+	import { kindOptions } from '#lib/kindOptions.svelte.js';
+	import { devices } from '#lib/devices.svelte.js';
+	import { byRoom } from '#lib/summary.js';
 	import { session } from '#lib/me.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { live } from '#lib/live.svelte.js';
@@ -63,6 +67,9 @@
 	$effect(() => {
 		document.documentElement.style.setProperty('--header-h', `${headerHeight}px`);
 	});
+	// "Rooms in the sidebar" (G3): each room with its status.
+	const withStatus = $derived(kindOptions.shellRooms('home') === 'status');
+	const grouped = $derived(withStatus ? byRoom(devices.byId, rooms.list) : null);
 	const roomsInOrder = $derived(
 		homeRoomOrder(rooms.list, (r) => ref.room(r.id), view.changes('home')).shown
 	);
@@ -171,7 +178,9 @@
 						class="room"
 						href={`/rooms/${r.id}`}
 						aria-current={pathname === `/rooms/${r.id}` ? 'page' : undefined}
-						><RoomIcon name={household.iconOf(r.id)} size={16} />{r.name}</a
+						><RoomIcon name={household.iconOf(r.id)} size={16} /><span class="room-name"
+							>{r.name}</span
+						>{#if grouped}<SideRoomStatus room={r.id} list={grouped.get(r.id) ?? []} />{/if}</a
 					>
 				{/each}
 			</div>
@@ -601,6 +610,12 @@
 		padding: 0 10px;
 		border-radius: 8px;
 		text-decoration: none;
+	}
+	.room-name {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.room[aria-current='page'] {
 		background: var(--nav-on);

@@ -6,8 +6,10 @@
 	import { customise } from '#lib/customise.svelte.js';
 	import { personal } from '#lib/personal.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
+	import StylePicker from './StylePicker.svelte';
 
 	let { page, home = false }: { page: string; home?: boolean } = $props();
+	let styling = $state(false);
 	const changed = $derived(
 		personal.changes(page).length > 0 || (home && (personal.doc.favourites?.length ?? 0) > 0)
 	);
@@ -19,6 +21,7 @@
 			<strong>Customising</strong>
 			<span>Only you see these changes.</span>
 		</div>
+		{#if home}<button class="reset" onclick={() => (styling = true)}>Style</button>{/if}
 		<button
 			class="reset"
 			disabled={!changed}
@@ -35,6 +38,7 @@
 		>
 		<button class="done" onclick={() => (customise.page = null)}>Done</button>
 	</div>
+	{#if styling}<StylePicker {page} close={() => (styling = false)} />{/if}
 	{#if personal.trouble}<p class="trouble" role="alert">{personal.trouble}</p>{/if}
 {/if}
 

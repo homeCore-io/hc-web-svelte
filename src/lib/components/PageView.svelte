@@ -26,6 +26,7 @@
 	import Arrange from './Arrange.svelte';
 	import CardOptions from './CardOptions.svelte';
 	import EveryRoom from './EveryRoom.svelte';
+	import { kindOptions } from '#lib/kindOptions.svelte.js';
 	import SectionTools from './SectionTools.svelte';
 
 	let { page }: { page: Page } = $props();
@@ -54,8 +55,10 @@
 	let setting = $state<{ card: Card; name: string } | null>(null);
 	// Every room's box, from the Rooms section's tools.
 	let everyRoom = $state<{ rooms: Card[]; names: Record<string, string> } | null>(null);
+	// Rooms in the sidebar, with their status (G3): their boxes' settings show there.
+	const sideRooms = $derived(page.id === 'home' && kindOptions.shellRooms(key) === 'status');
 	const hasSettings = (card: Card, layout: Layout) =>
-		kindOf(card).options !== null && (card.kind !== 'room' || layout !== 'list');
+		kindOf(card).options !== null && (card.kind !== 'room' || layout !== 'list' || sideRooms);
 </script>
 
 {#snippet piece(card: Card, g?: Layered<Card>, favourites = false, layout: Layout = 'grid')}
@@ -98,7 +101,10 @@
 {#each shown.sections as s (s.section.id)}
 	{#if drawn(s, arranging)}
 		{@const sec = s.section}
-		<section aria-label={sec.bare ? s.title : undefined}>
+		<section
+			aria-label={sec.bare ? s.title : undefined}
+			class:in-sidebar={sec.id === 'rooms' && sideRooms && !arranging}
+		>
 			{#if arranging && !sec.fixed}
 				<div class="head">
 					<h2 class="section-label" class:faded={s.hidden}>
@@ -111,7 +117,7 @@
 						shown={movable}
 						hidden={s.hidden}
 						renamed={s.renamed}
-						settings={sec.id === 'rooms' && s.layout !== 'list'
+						settings={sec.id === 'rooms' && (s.layout !== 'list' || sideRooms)
 							? {
 									label: 'Every room’s box',
 									open: () =>
@@ -182,6 +188,12 @@
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
+	}
+	/* Where the sidebar lists the rooms with their status, Home doesn't again (G12). */
+	@media (min-width: 1100px) {
+		:global(html:not([data-sidebar='folded'])) .in-sidebar {
+			display: none;
+		}
 	}
 	.head {
 		display: flex;

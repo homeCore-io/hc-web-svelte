@@ -221,3 +221,144 @@ export const numbersOf = (v: unknown): NumberId[] =>
 	Array.isArray(v)
 		? [...new Set(v.filter((x): x is NumberId => NUMBERS.some(([id]) => id === x)))]
 		: (SUMMARY_BUILT_IN.numbers as NumberId[]);
+
+// ---- the app's own cards (G-c, G21) ----
+
+export const HEADING_BUILT_IN: Options = { text: 'Heading' };
+export const headingDescriptor = (): Descriptor => ({
+	title: 'Heading',
+	sections: [
+		{
+			id: 'heading',
+			title: 'Heading',
+			fields: [{ kind: 'text', key: 'text', label: 'Words', default: 'Heading' }]
+		}
+	]
+});
+
+export const TEXT_BUILT_IN: Options = { text: '' };
+export const textDescriptor = (): Descriptor => ({
+	title: 'Note',
+	sections: [
+		{
+			id: 'note',
+			title: 'Note',
+			fields: [
+				{
+					kind: 'text',
+					key: 'text',
+					label: 'What it says',
+					render: 'multiline',
+					placeholder: 'Bins go out Thursday night.',
+					default: ''
+				}
+			]
+		}
+	]
+});
+
+export const WORTH_BUILT_IN: Options = { leaks: true, open: true, unlocked: true, playing: true };
+export const worthDescriptor = (): Descriptor => ({
+	title: 'Worth knowing',
+	sections: [
+		{
+			id: 'show',
+			title: 'Show',
+			fields: [
+				{ kind: 'toggle', key: 'leaks', label: 'Leaks', default: true },
+				{ kind: 'toggle', key: 'open', label: 'Doors and windows open', default: true },
+				{ kind: 'toggle', key: 'unlocked', label: 'Locks unlocked', default: true },
+				{ kind: 'toggle', key: 'playing', label: 'Music and TV playing', default: true }
+			]
+		}
+	]
+});
+
+export const WEATHER_BUILT_IN: Options = { station: 'auto' };
+export const weatherDescriptor = (): Descriptor => ({
+	title: 'Weather',
+	sections: [
+		{
+			id: 'from',
+			title: 'From',
+			fields: [
+				{
+					kind: 'sensor',
+					key: 'station',
+					label: 'Weather from',
+					render: 'one',
+					source: { kind: 'core_resource', ref: 'devices', capability: 'temperature' },
+					options: [{ value: 'auto', label: 'The house’s weather station' }],
+					default: 'auto'
+				},
+				{
+					kind: 'note',
+					text: 'A forecast shows when the device has one — a weather plugin’s, say.'
+				}
+			]
+		}
+	]
+});
+
+export const SPANS = [
+	['6h', '6 hours', 6 * 3600_000],
+	['24h', 'A day', 24 * 3600_000],
+	['7d', 'A week', 7 * 24 * 3600_000]
+] as const;
+export const spanOf = (v: unknown): number => (SPANS.find(([id]) => id === v) ?? SPANS[1])[2];
+
+export const CHART_BUILT_IN: Options = {
+	reading: 'temperature',
+	temperature: 'none',
+	humidity: 'none',
+	span: '24h'
+};
+const chartSensor = (key: 'temperature' | 'humidity', label: string): Field => ({
+	kind: 'sensor',
+	key,
+	label,
+	render: 'one',
+	source: { kind: 'core_resource', ref: 'devices', capability: key },
+	options: [],
+	default: 'none',
+	visible_when: { field: 'reading', eq: key }
+});
+export const chartDescriptor = (): Descriptor => ({
+	title: 'Chart',
+	sections: [
+		{
+			id: 'what',
+			title: 'What it charts',
+			fields: [
+				{
+					kind: 'enum',
+					key: 'reading',
+					label: 'Reading',
+					render: 'segmented',
+					options: [
+						{ value: 'temperature', label: 'Temperature' },
+						{ value: 'humidity', label: 'Humidity' }
+					],
+					default: 'temperature'
+				},
+				chartSensor('temperature', 'Temperature from'),
+				chartSensor('humidity', 'Humidity from'),
+				{
+					kind: 'enum',
+					key: 'span',
+					label: 'Over',
+					render: 'segmented',
+					options: SPANS.map(([value, label]) => ({ value, label })),
+					default: '24h'
+				}
+			]
+		}
+	]
+});
+
+/** The device a chart reads: the one chosen for its reading, if any. */
+export function chartSource(o: Options): { attr: 'temperature' | 'humidity'; id?: string } {
+	const attr = o.reading === 'humidity' ? 'humidity' : 'temperature';
+	const s = sourceOf(o[attr]);
+	return { attr, id: Array.isArray(s) ? s[0] : undefined };
+}

@@ -429,6 +429,17 @@
 			>
 		{/if}
 	</div>
+{:else if field.kind === 'text' && field.render === 'multiline'}
+	<!-- This app's own (G-c): a note's words, over several lines. -->
+	<textarea
+		{id}
+		class="multiline"
+		class:invalid
+		{disabled}
+		{placeholder}
+		rows="4"
+		value={text}
+		oninput={(e) => typed(e.currentTarget.value)}></textarea>
 {:else}
 	<div class="typed">
 		<input
@@ -459,6 +470,21 @@
 {/if}
 
 <style>
+	.multiline {
+		width: 100%;
+		box-sizing: border-box;
+		min-height: 96px;
+		padding: 10px 12px;
+		border: 1px solid var(--line);
+		border-radius: 10px;
+		background: var(--surface);
+		color: var(--ink);
+		font: inherit;
+		resize: vertical;
+	}
+	.multiline.invalid {
+		border-color: var(--alert);
+	}
 	.map {
 		display: flex;
 		flex-direction: column;

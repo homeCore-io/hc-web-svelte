@@ -27,6 +27,7 @@
 	import Arrange from './Arrange.svelte';
 	import { kindOptions } from '#lib/kindOptions.svelte.js';
 	import SectionTools from './SectionTools.svelte';
+	import KindView from './KindView.svelte';
 
 	let { page }: { page: Page } = $props();
 
@@ -67,9 +68,8 @@
 	{@const kind = kindOf(card)}
 	{@const label = g?.name(card.ref)}
 	{@const form = kind.form(card, g?.form(card.ref))}
-	{@const Draw = kind.component}
 	{#if g === undefined}
-		<Draw {card} page={key} cardTools={page.cardTools} />
+		<KindView {card} page={key} cardTools={page.cardTools} />
 	{:else}
 		<Arrange
 			page={key}
@@ -87,7 +87,7 @@
 				? () => (setting = { card, name: label ?? kind.name(card) })
 				: undefined}
 		>
-			<Draw
+			<KindView
 				{card}
 				{form}
 				{label}
@@ -251,6 +251,15 @@
 	/* The big numbers take the whole width, whatever the list's columns. */
 	.list > :global(.clip),
 	.list > :global(.arrange:has(.clip)) {
+		grid-column: 1 / -1;
+	}
+	/* A heading spans its section, whatever its layout (G-c). */
+	.grid > :global(.span-all),
+	.grid > :global(.arrange:has(.span-all)),
+	.row > :global(.span-all),
+	.row > :global(.arrange:has(.span-all)),
+	.list > :global(.span-all),
+	.list > :global(.arrange:has(.span-all)) {
 		grid-column: 1 / -1;
 	}
 	/* The room field (G-b): boxes as wide as what's in them, rows filled. */

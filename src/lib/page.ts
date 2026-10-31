@@ -11,7 +11,7 @@
 import { cardFor, kindOf } from './card.js';
 import { displayName, type CoreDevice, type Devices } from './devices.js';
 import type { Room } from './house.js';
-import { apply, cardRef, ref, type Change, type Form, type Layered } from './layers.js';
+import { apply, cardRef, kindRef, ref, type Change, type Form, type Layered } from './layers.js';
 import { byRoom, roomSections, type Chip } from './summary.js';
 
 /** How a section lays its cards out (G3). */
@@ -37,7 +37,19 @@ export type Card = Base &
 		| { kind: 'modes' }
 		/** The big numbers across the top of Home (G-b). */
 		| { kind: 'summary' }
+		/** The app's own cards, added with Add (G-c). */
+		| { kind: 'heading' }
+		| { kind: 'text' }
+		| { kind: 'worth' }
+		| { kind: 'playing' }
+		| { kind: 'weather' }
+		| { kind: 'chart' }
 	);
+
+/** The app's own cards Add offers (G21), in the order offered. */
+export const APP_KINDS = ['heading', 'text', 'worth', 'playing', 'weather', 'chart'] as const;
+export type AppKind = (typeof APP_KINDS)[number];
+const isAppKind = (k: string): k is AppKind => (APP_KINDS as readonly string[]).includes(k);
 
 export interface Section {
 	id: string;
@@ -125,6 +137,8 @@ function cardOf(
 		const s = h.scenes.find((x) => x.id === r.slice(6));
 		return s ? { ref: r, kind: 'scene', id: s.id, name: s.name, ...extra } : undefined;
 	}
+	const own = kindRef(r);
+	if (own) return isAppKind(own.kind) ? { ref: r, kind: own.kind, ...extra } : undefined;
 	if (cardRef(r)) {
 		// Kept even while its plugin is away, so it can be taken off.
 		const found = h.pluginCard(r);
@@ -309,14 +323,15 @@ export function roomPage(id: string, h: RoomInput): Page {
 		.filter((d): d is CoreDevice => d !== undefined && !inRoom.includes(d))
 		.map((d) => ({ ...asCard(d, { added: true, group: 'devices' }), form: undefined }));
 	const plugins = h.added
-		.filter((r) => cardRef(r) !== undefined)
+		.filter((r) => cardRef(r) !== undefined || kindRef(r) !== undefined)
 		.map((r) =>
 			cardOf(
 				r,
 				{ devices: {}, scenes: [], pluginCard: h.pluginCard },
 				{ added: true, group: 'cards' }
-			)!
-		);
+			)
+		)
+		.filter((c): c is Card => c !== undefined);
 	if (extra.length > 0 || plugins.length > 0)
 		sections.push({
 			id: 'added',

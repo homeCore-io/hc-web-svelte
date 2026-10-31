@@ -13,6 +13,7 @@
 	import { roomBox } from '#lib/roomBox.js';
 	import { view } from '#lib/view.svelte.js';
 	import KindSettings from './KindSettings.svelte';
+	import KindView from './KindView.svelte';
 	import RoomBox from './RoomBox.svelte';
 	import SummaryKind from './kinds/SummaryKind.svelte';
 
@@ -55,6 +56,8 @@
 				</div>
 			{:else if card.kind === 'summary'}
 				<SummaryKind {card} {page} cardTools={false} options={o} />
+			{:else}
+				<KindView {card} {page} cardTools={false} options={o} />
 			{/if}
 		{/snippet}
 	</KindSettings>

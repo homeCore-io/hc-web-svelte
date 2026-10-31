@@ -10,7 +10,22 @@ import type { Descriptor } from './descriptor.js';
 import { displayName } from './devices.js';
 import type { Form } from './layers.js';
 import type { Card, Layout } from './page.js';
-import { ROOM_BUILT_IN, SUMMARY_BUILT_IN, roomDescriptor, summaryDescriptor } from './options.js';
+import {
+	CHART_BUILT_IN,
+	HEADING_BUILT_IN,
+	ROOM_BUILT_IN,
+	SUMMARY_BUILT_IN,
+	TEXT_BUILT_IN,
+	WEATHER_BUILT_IN,
+	WORTH_BUILT_IN,
+	chartDescriptor,
+	headingDescriptor,
+	roomDescriptor,
+	summaryDescriptor,
+	textDescriptor,
+	weatherDescriptor,
+	worthDescriptor
+} from './options.js';
 import { fieldSize } from './roomBox.js';
 import AlertsKind from './components/kinds/AlertsKind.svelte';
 import ChipsKind from './components/kinds/ChipsKind.svelte';
@@ -57,14 +72,31 @@ export interface Kind<K extends Card['kind'] = Card['kind']> {
 	defaults: Record<string, unknown>;
 	/** Its size in a `field` section, 1–3; 1 where it doesn't say. */
 	span?: (card: CardOf<K>) => 1 | 2 | 3;
-	/** Whether Add offers it. G-a adds nothing new: Add keeps its own list. */
+	/** Whether Add offers it, and on which pages. */
 	addable: false | { pages: ('home' | 'room')[] };
-	component: Component<KindProps<K>>;
+	/** How Add's Cards tab offers one of the app's own cards (G-c). */
+	offer?: { name: string; sub: string };
+	/** Open its settings as soon as it's added: it shows nothing until set (a note, a chart). */
+	setFirst?: boolean;
+	/** Drawn the whole width of its section (a heading). */
+	wide?: boolean;
+	/** What draws it — imported with the registry, or `load`ed when first drawn (G-c, 06 V5). */
+	component?: Component<KindProps<K>>;
+	load?: () => Promise<{ default: Component<KindProps<K>> }>;
+}
+
+/** A component loaded once, the first time anything asks for it. */
+function lazy<K extends Card['kind']>(
+	f: () => Promise<{ default: Component<KindProps<K>> }>
+): () => Promise<{ default: Component<KindProps<K>> }> {
+	let p: Promise<{ default: Component<KindProps<K>> }> | undefined;
+	return () => (p ??= f());
 }
 
 const ALL: Form[] = ['compact', 'standard', 'large'];
 const one = { forms: () => [], form: () => undefined };
 const fixed = { star: false, options: null, defaults: {}, addable: false as const };
+const anywhere = { pages: ['home', 'room'] as ('home' | 'room')[] };
 
 export const kinds: { [K in Card['kind']]: Kind<K> } = {
 	device: {
@@ -120,6 +152,70 @@ export const kinds: { [K in Card['kind']]: Kind<K> } = {
 		options: () => summaryDescriptor(),
 		defaults: SUMMARY_BUILT_IN,
 		component: SummaryKind
+	},
+	heading: {
+		...one,
+		name: () => 'Heading',
+		star: false,
+		options: () => headingDescriptor(),
+		defaults: HEADING_BUILT_IN,
+		addable: anywhere,
+		offer: { name: 'Heading', sub: 'A title to split a section' },
+		setFirst: true,
+		wide: true,
+		load: lazy(() => import('./components/kinds/HeadingKind.svelte'))
+	},
+	text: {
+		...one,
+		name: () => 'Note',
+		star: false,
+		options: () => textDescriptor(),
+		defaults: TEXT_BUILT_IN,
+		addable: anywhere,
+		offer: { name: 'Text', sub: 'A note for the household, or yourself' },
+		setFirst: true,
+		load: lazy(() => import('./components/kinds/TextKind.svelte'))
+	},
+	worth: {
+		...one,
+		name: () => 'Worth knowing',
+		star: false,
+		options: () => worthDescriptor(),
+		defaults: WORTH_BUILT_IN,
+		addable: anywhere,
+		offer: { name: 'Worth knowing', sub: 'Leaks, what’s open or unlocked, what’s playing' },
+		load: lazy(() => import('./components/kinds/WorthKind.svelte'))
+	},
+	playing: {
+		...one,
+		name: () => 'Playing',
+		star: false,
+		options: null,
+		defaults: {},
+		addable: anywhere,
+		offer: { name: 'Playing', sub: 'Every speaker and TV that’s on' },
+		load: lazy(() => import('./components/kinds/PlayingKind.svelte'))
+	},
+	weather: {
+		...one,
+		name: () => 'Weather',
+		star: false,
+		options: () => weatherDescriptor(),
+		defaults: WEATHER_BUILT_IN,
+		addable: anywhere,
+		offer: { name: 'Weather', sub: 'Your weather station now; a forecast where there is one' },
+		load: lazy(() => import('./components/kinds/WeatherKind.svelte'))
+	},
+	chart: {
+		...one,
+		name: () => 'Chart',
+		star: false,
+		options: () => chartDescriptor(),
+		defaults: CHART_BUILT_IN,
+		addable: anywhere,
+		offer: { name: 'Chart', sub: 'A temperature or humidity over time' },
+		setFirst: true,
+		load: lazy(() => import('./components/kinds/ChartKind.svelte'))
 	}
 };
 

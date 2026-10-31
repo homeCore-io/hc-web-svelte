@@ -20,6 +20,7 @@
 		label,
 		value,
 		near,
+		one = false,
 		onpick,
 		close
 	}: {
@@ -29,6 +30,8 @@
 		value: string[];
 		/** The room this is for: its sensors first. */
 		near?: string;
+		/** One device only: no average offered. */
+		one?: boolean;
 		onpick: (ids: string[]) => void;
 		close: () => void;
 	} = $props();
@@ -111,14 +114,14 @@
 			</div>
 			<button class="x" aria-label="Close" onclick={() => dialog?.close()}><X size={20} /></button>
 		</header>
-		<div class="segmented" role="radiogroup" aria-label="How many">
-			<button role="radio" aria-checked={mode === 'one'} onclick={() => setMode('one')}
-				>One sensor</button
-			>
-			<button role="radio" aria-checked={mode === 'average'} onclick={() => setMode('average')}
-				>Average of several</button
-			>
-		</div>
+		{#if !one}<div class="segmented" role="radiogroup" aria-label="How many">
+				<button role="radio" aria-checked={mode === 'one'} onclick={() => setMode('one')}
+					>One sensor</button
+				>
+				<button role="radio" aria-checked={mode === 'average'} onclick={() => setMode('average')}
+					>Average of several</button
+				>
+			</div>{/if}
 		<label class="search"
 			>Find a sensor
 			<input type="search" bind:value={search} placeholder="Name, room or plugin" />

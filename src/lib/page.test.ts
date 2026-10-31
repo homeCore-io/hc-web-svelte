@@ -400,3 +400,23 @@ describe('sections of one’s own (G17)', () => {
 		expect(section(p, 'own-a1').layouts).toEqual(['grid', 'row', 'list']);
 	});
 });
+
+describe('the app’s own cards (G-c)', () => {
+	it('are made from what was added, a ref each; an unknown kind is skipped', () => {
+		const p = home({ added: ['kind:chart/a1', 'kind:text/b2', 'kind:nonsense/c3'] });
+		expect(section(p, 'pinned').cards.map((c) => [c.ref, c.kind])).toEqual([
+			['kind:chart/a1', 'chart'],
+			['kind:text/b2', 'text']
+		]);
+	});
+
+	it('appear under "Also here" on a room’s page, with plugins’ cards', () => {
+		const p = roomPage('r-den', {
+			devices,
+			rooms,
+			added: ['kind:weather/w1'],
+			pluginCard: () => undefined
+		});
+		expect(refs(section(p, 'added').cards)).toEqual(['kind:weather/w1']);
+	});
+});

@@ -20,6 +20,8 @@
 	}: { field: Field; value: unknown; label: string; onchange: (value: unknown) => void } = $props();
 
 	const attr = $derived(field.source?.capability ?? 'temperature');
+	// `render: 'one'` (G-c): one device, no average — a chart, a weather card.
+	const one = $derived(field.render === 'one');
 	const source = $derived(sourceOf(value ?? field.default));
 	const ids = $derived(Array.isArray(source) ? source : []);
 	let picking = $state(false);
@@ -56,7 +58,11 @@
 		</button>
 	{/if}
 	<button type="button" class="choose" onclick={() => (picking = true)}>
-		{ids.length > 0 ? 'Choose other sensors…' : 'Choose any sensor in the house…'}
+		{ids.length > 0
+			? one
+				? 'Choose another sensor…'
+				: 'Choose other sensors…'
+			: 'Choose any sensor in the house…'}
 	</button>
 </div>
 {#if picking}
@@ -65,6 +71,7 @@
 		{label}
 		value={ids}
 		near={field.near}
+		{one}
 		onpick={(next) => onchange(next)}
 		close={() => (picking = false)}
 	/>

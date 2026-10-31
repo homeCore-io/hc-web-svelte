@@ -23,7 +23,8 @@
 	import { personal } from '#lib/personal.svelte.js';
 	import { editing } from '#lib/edit.svelte.js';
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
-	import type { Layered } from '#lib/layers.js';
+	import { added, type Change, type Layered } from '#lib/layers.js';
+	import Plus from '@lucide/svelte/icons/plus';
 	import Arrange from './Arrange.svelte';
 	import { kindOptions } from '#lib/kindOptions.svelte.js';
 	import SectionTools from './SectionTools.svelte';
@@ -71,6 +72,21 @@
 			.map((s) => ({ id: s.section.id, title: s.title }));
 		return out.some((s) => s.id === home) ? out : [{ id: home, title: 'Also here' }, ...out];
 	});
+	// The layer this screen changes (G18): the household's in Edit, the person's in Customise.
+	const layer = $derived(mode === 'edit' ? view.changes(key) : personal.changes(key));
+	const mineSection = (own: 'house' | 'person' | undefined) =>
+		own !== undefined && own === (mode === 'edit' ? 'house' : 'person');
+	/** An own section away, and what this layer added into it with it (G17). */
+	function removeSection(id: string) {
+		const r = sectionRef(id);
+		const inside = layer.filter(
+			(c): c is Extract<Change, { op: 'add' }> => c.op === 'add' && c.into === id
+		);
+		for (const c of inside)
+			if (added(layer).includes(c.ref)) view.change(key, { op: 'remove', ref: c.ref });
+		view.change(key, { op: 'remove', ref: r });
+	}
+	let making = $state(false);
 	// Leaving Customise or Edit closes Add.
 	$effect(() => {
 		if (!arranging && adding.page === key) adding.close();
@@ -146,6 +162,10 @@
 						hidden={s.hidden}
 						renamed={s.renamed}
 						add={sec.accepts ? () => adding.open(key, sec.id) : undefined}
+						layouts={sec.layouts}
+						layout={s.layout}
+						mine={mineSection(sec.own)}
+						remove={sec.own ? () => removeSection(sec.id) : undefined}
 						settings={sec.id === 'rooms' && (s.layout !== 'list' || sideRooms)
 							? {
 									label: 'Every room’s box',
@@ -200,7 +220,24 @@
 	{/if}
 {/each}
 
+{#if arranging}
+	<button class="new-section" onclick={() => (making = true)}
+		><Plus size={16} aria-hidden="true" />New section</button
+	>
+{/if}
+
 <!-- The sheets load when first opened: they aren't Home's first paint (06 V5). -->
+{#if making && arranging}
+	{#await import('./NewSection.svelte') then { default: NewSection }}
+		<NewSection
+			page={key}
+			order={shown.sections
+				.filter((s) => !s.hidden && !s.section.fixed && drawn(s, arranging))
+				.map((s) => ({ ref: sectionRef(s.section.id), title: s.title }))}
+			close={() => (making = false)}
+		/>
+	{/await}
+{/if}
 {#if adding.page === key && arranging}
 	{#await import('./AddCard.svelte') then { default: AddCard }}
 		{#if adding.page === key}
@@ -244,6 +281,19 @@
 		:global(html:not([data-sidebar='folded'])) .in-sidebar {
 			display: none;
 		}
+	}
+	.new-section {
+		align-self: flex-start;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		height: 44px;
+		padding: 0 16px;
+		border: 1px dashed var(--accent);
+		border-radius: 999px;
+		background: none;
+		color: var(--accent);
+		font-weight: 700;
 	}
 	.head {
 		display: flex;

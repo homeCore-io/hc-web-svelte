@@ -3,6 +3,9 @@
 	sections shown, hide it or show it again, and — in Edit, for the
 	household — give it another heading (G10). The alerts have none: they are
 	always first (G6).
+
+	G-c: a layout among those that suit it (G19), "Add here" (G20), and for a
+	section this layer made, a heading and Remove (G17, G18).
 -->
 <script lang="ts">
 	import EyeOff from '@lucide/svelte/icons/eye-off';
@@ -12,6 +15,9 @@
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Settings from '@lucide/svelte/icons/settings-2';
 	import Plus from '@lucide/svelte/icons/plus';
+	import Trash from '@lucide/svelte/icons/trash-2';
+	import { ask } from '#lib/confirm.svelte.js';
+	import type { Layout } from '#lib/page.js';
 	import { nudge } from '#lib/layers.js';
 	import { view } from '#lib/view.svelte.js';
 
@@ -23,6 +29,10 @@
 		hidden = false,
 		renamed = false,
 		add,
+		layouts = [],
+		layout,
+		mine = false,
+		remove,
 		settings
 	}: {
 		page: string;
@@ -35,11 +45,33 @@
 		renamed?: boolean;
 		/** Opens Add, into this section (G20). */
 		add?: () => void;
+		/** The layouts it may take, and the one it has (G19). */
+		layouts?: Layout[];
+		layout?: Layout;
+		/** This layer made it: it can be renamed here, and removed (G17, G18). */
+		mine?: boolean;
+		remove?: () => void;
 		/** Settings for every card in it, where its cards' kind has them: every room's box. */
 		settings?: { label: string; open: () => void };
 	} = $props();
 
 	const shared = $derived(view.mode(page) === 'edit');
+	const LAYOUT_NAMES: Record<Layout, string> = {
+		grid: 'Grid',
+		row: 'Row',
+		list: 'List',
+		field: 'Room field',
+		tiles: 'Tiles'
+	};
+	async function removeIt() {
+		const yes = await ask({
+			title: `Remove ${title}?`,
+			body: 'The section goes, and what was added into it with it.',
+			go: 'Remove',
+			danger: true
+		});
+		if (yes) remove?.();
+	}
 	const up = $derived(nudge(shown, ref, -1));
 	const down = $derived(nudge(shown, ref, 1));
 
@@ -80,7 +112,7 @@
 			{#if hidden}<Eye size={18} />{:else}<EyeOff size={18} />{/if}
 		</button>
 		{#if !hidden}
-			{#if shared}
+			{#if shared || mine}
 				<button
 					aria-label={`Rename ${title}`}
 					aria-pressed={renamed}
@@ -105,6 +137,23 @@
 					><Settings size={16} aria-hidden="true" />{settings.label}</button
 				>
 			{/if}
+			{#if layouts.length > 1}
+				<select
+					aria-label={`Layout of ${title}`}
+					value={layout}
+					onchange={(e) =>
+						view.change(page, {
+							op: 'config',
+							ref,
+							config: { layout: e.currentTarget.value }
+						})}
+				>
+					{#each layouts as l (l)}<option value={l}>{LAYOUT_NAMES[l]}</option>{/each}
+				</select>
+			{/if}
+			{#if mine && remove}
+				<button aria-label={`Remove ${title}`} onclick={removeIt}><Trash size={17} /></button>
+			{/if}
 			{#if add}
 				<button class="text add" onclick={add}><Plus size={16} aria-hidden="true" />Add here</button
 				>
@@ -116,6 +165,7 @@
 <style>
 	.tools {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		gap: 2px;
 		padding: 3px;
@@ -158,6 +208,17 @@
 		padding: 0 12px;
 		background: var(--accent);
 		color: var(--accent-ink);
+	}
+	select {
+		height: 34px;
+		padding: 0 6px;
+		border: none;
+		border-radius: 9px;
+		background: none;
+		color: var(--ink);
+		font: inherit;
+		font-size: 13px;
+		font-weight: 600;
 	}
 	.text.add {
 		gap: 4px;

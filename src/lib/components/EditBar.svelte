@@ -101,6 +101,7 @@
 	}
 	.actions {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 6px;
 	}
 	/* On a phone the buttons take a row of their own, Done at the end. */
@@ -116,9 +117,9 @@
 		}
 	}
 	button {
-		height: 40px;
+		height: 44px;
 		padding: 0 14px;
-		border-radius: 20px;
+		border-radius: 22px;
 		font-size: 14px;
 		font-weight: 600;
 		display: flex;

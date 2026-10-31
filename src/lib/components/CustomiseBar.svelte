@@ -22,23 +22,25 @@
 			<strong>Customising</strong>
 			<span>Only you see these changes.</span>
 		</div>
-		<button class="reset" onclick={() => adding.open(page)}>Add</button>
-		{#if home}<button class="reset" onclick={() => (styling = true)}>Style</button>{/if}
-		<button
-			class="reset"
-			disabled={!changed}
-			onclick={async () => {
-				const yes = await ask({
-					title: 'Put this page back to how everyone else sees it?',
-					body: 'Your own changes to it are dropped.',
-					go: 'Reset to shared'
-				});
-				if (!yes) return;
-				void personal.resetPage(page);
-				if (home) void personal.change((d) => ({ ...d, favourites: [] }));
-			}}>Reset to shared</button
-		>
-		<button class="done" onclick={() => (customise.page = null)}>Done</button>
+		<div class="actions">
+			<button class="reset" onclick={() => adding.open(page)}>Add</button>
+			{#if home}<button class="reset" onclick={() => (styling = true)}>Style</button>{/if}
+			<button
+				class="reset"
+				disabled={!changed}
+				onclick={async () => {
+					const yes = await ask({
+						title: 'Put this page back to how everyone else sees it?',
+						body: 'Your own changes to it are dropped.',
+						go: 'Reset to shared'
+					});
+					if (!yes) return;
+					void personal.resetPage(page);
+					if (home) void personal.change((d) => ({ ...d, favourites: [] }));
+				}}>Reset to shared</button
+			>
+			<button class="done" onclick={() => (customise.page = null)}>Done</button>
+		</div>
 	</div>
 	{#if styling}{#await import('./StylePicker.svelte') then { default: StylePicker }}<StylePicker
 				{page}
@@ -53,6 +55,7 @@
 		top: var(--header-h, 64px);
 		z-index: 4;
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		gap: 10px;
 		padding: 10px 10px 10px 14px;
@@ -62,7 +65,7 @@
 		color: var(--lit-ink);
 	}
 	.text {
-		flex: 1;
+		flex: 1 1 180px;
 		display: flex;
 		flex-direction: column;
 		font-size: 13px;
@@ -71,8 +74,25 @@
 	strong {
 		font-size: 15px;
 	}
+	.actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+	/* On a phone the words take the first row, the buttons one of their own, Done at the end. */
+	@media (max-width: 699px) {
+		.actions {
+			flex: 1 1 100%;
+		}
+		.actions button {
+			padding: 0 12px;
+		}
+		.done {
+			margin-left: auto;
+		}
+	}
 	button {
-		height: 40px;
+		height: 44px;
 		padding: 0 14px;
 		border-radius: 20px;
 		font-size: 14px;

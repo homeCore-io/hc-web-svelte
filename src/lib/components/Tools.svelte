@@ -238,7 +238,7 @@
 	}
 	button {
 		min-width: 34px;
-		height: 34px;
+		height: 40px;
 		border: none;
 		border-radius: 9px;
 		background: none;
@@ -248,6 +248,14 @@
 		font-size: 13px;
 		font-weight: 700;
 		color: var(--ink);
+	}
+	/* The icons share the row: 40px each where there's room, narrower on a
+	   half-width card on a phone, so star to Move to stays one tidy row. */
+	.tools > button {
+		/* A small basis, so they fit a row before it wraps; then up to 40px. */
+		flex: 1 1 28px;
+		min-width: 28px;
+		max-width: 40px;
 	}
 	button:disabled {
 		opacity: 0.3;

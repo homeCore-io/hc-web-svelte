@@ -544,3 +544,45 @@ a card added `into` a section in Pinned, and doesn't show new kinds' cards
 or own sections (it can't draw them). Its Edit → Done drops changes naming
 what it doesn't present: own sections (`section` ops and their moves) and
 new cards' settings and moves. Release as one version again.
+
+**As built (2026-10-31)** — commits "Adding, step 1"–"step 5" on `redesign`.
+
+- Add is opened from the bar ("Add" in Edit and in Customise) or a
+  section's "Add here"; the sheet's "Add to" picks the section. Generated
+  things already on the page aren't offered twice, as before.
+- A scene added into another section is drawn there and not in Scenes &
+  modes as well: an `add … into` reads as a move (G16), and a move takes a
+  card out of wherever the page generated it.
+- Taking off what this layer added (G18) uses the layer's own list:
+  `view.added()` reads the household's and the person's separately, and
+  `view.addedHere()` says whether this screen's layer added a card.
+- Removing an own section removes what this layer added into it, with a
+  question first. In Customise the person's other changes naming it (its
+  move, a note's text) stay in their document and are skipped, as changes
+  to anything gone are (M2); Edit's Done tidies the household's.
+- A person can rename their own sections in Customise; the household's
+  are renamed only in Edit (G10).
+- Pinned and "Also here" show their hint while arranging in Customise too
+  (they're ordinary sections now, G7); "Also here" is no longer drawn empty
+  once its cards are added elsewhere.
+- Layouts are a select in a section's tools; the Rooms section's is the
+  same setting the styles write.
+- New sheets (Add, New section) and the six new kinds' components load when
+  first used: Home's JavaScript went from 142.8 KB to 146.1 KB compressed.
+- The weather card shows the device's main readings (Ecowitt's humidity and
+  pressures) and, where the device has `forecast`, up to five days. The
+  sandbox's station has none, so the forecast is proven by unit tests, not
+  a screenshot.
+- Proof: unit tests over own sections, adds into sections, app cards, worth
+  knowing, playing, weather and forecast, chart settings. On the sandbox
+  (390/1280, light/dark): Home on fresh documents matches v0.1.37 (same
+  sections and cards; the v0.1.37 copy ran from a worktree that drew a
+  fallback font, so not pixel for pixel); the Add sheet's two tabs; adding
+  a note, heading, weather, chart, worth knowing, playing and a light
+  through Customise and Edit; own sections made in both, with a layout and
+  a place; removing one's own section; a weather card added into a room's
+  Controls. Documents read back each time: adds carry `into`, own
+  sections are `section` changes with a `move`, settings are `config` on
+  `kind:` refs.
+- Release note: as planned above — one version; an older app's Edit → Done
+  drops own sections and new cards' settings.

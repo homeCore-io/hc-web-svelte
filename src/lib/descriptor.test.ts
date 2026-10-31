@@ -11,6 +11,7 @@ import {
 	problems,
 	sectionShown,
 	fieldShown,
+	holdsValue,
 	valuesOf,
 	writes,
 	json,
@@ -221,5 +222,27 @@ describe('a name → value table (logging.targets)', () => {
 		expect(problem(field, { 'hc core': 'debug' })).toMatch(/no spaces/);
 		expect(problem(field, { hc_core: 'loud' })).toMatch(/isn’t one of/);
 		expect(say(field, { a: 'info', b: 'warn' })).toBe('2 entries');
+	});
+});
+
+describe('this app’s own field kinds (G-b)', () => {
+	const f = {
+		kind: 'sensor',
+		key: 'temperature',
+		options: [
+			{ value: 'auto', label: 'Average of the room’s sensors' },
+			{ value: 'none', label: 'No temperature' }
+		]
+	};
+	it('a sensor holds a value and says what it is', () => {
+		expect(holdsValue(f)).toBe(true);
+		expect(say(f, 'auto')).toBe('Average of the room’s sensors');
+		expect(say(f, ['a'])).toBe('one sensor');
+		expect(say(f, ['a', 'b'])).toBe('an average of 2 sensors');
+	});
+	it('an ordered list is a list: what changed is its order too', () => {
+		const order = { kind: 'list', render: 'order', key: 'numbers', options: [] };
+		const d = { sections: [{ id: 's', title: 'S', fields: [order] }] };
+		expect(changes(d, { numbers: ['a', 'b'] }, { numbers: ['b', 'a'] })).toHaveLength(1);
 	});
 });

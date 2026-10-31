@@ -100,7 +100,9 @@ const VALUED = new Set([
 	'select',
 	'list',
 	'table',
-	'map'
+	'map',
+	// This app's own: a reading from the house — `auto`, `none` or device ids (G-b).
+	'sensor'
 ]);
 export const holdsValue = (f: Field): f is Field & { key: string } =>
 	f.key !== undefined && VALUED.has(f.kind);
@@ -266,6 +268,8 @@ export function describe(f: Field, v: unknown): string {
 		const o = f.options.find((x) => same(x.value, v));
 		if (o) return o.label;
 	}
+	if (f.kind === 'sensor' && Array.isArray(v))
+		return v.length === 1 ? 'one sensor' : `an average of ${v.length} sensors`;
 	if (Array.isArray(v))
 		return v.length === 0 ? 'none' : `${v.length} item${v.length === 1 ? '' : 's'}`;
 	if (f.kind === 'map' && v !== null && typeof v === 'object') {

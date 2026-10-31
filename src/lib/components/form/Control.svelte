@@ -9,6 +9,8 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Toggle from '../Toggle.svelte';
 	import Self from './Control.svelte';
+	import SensorField from './SensorField.svelte';
+	import OrderList from './OrderList.svelte';
 	import {
 		MAP_NAME,
 		entry,
@@ -184,6 +186,10 @@
 
 {#if field.kind === 'toggle'}
 	<Toggle on={!!(value ?? field.default)} {label} {disabled} onchange={(on) => onchange(on)} />
+{:else if field.kind === 'sensor'}
+	<SensorField {field} {value} {label} {onchange} />
+{:else if field.kind === 'list' && field.render === 'order'}
+	<OrderList {field} {value} {label} {onchange} />
 {:else if field.kind === 'enum' && (field.render === 'segmented' || field.render === 'pills' || field.render === 'radio')}
 	<div class="segmented" role="radiogroup" aria-label={label}>
 		{#each field.options ?? [] as o (String(o.value))}

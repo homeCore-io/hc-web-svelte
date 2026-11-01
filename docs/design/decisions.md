@@ -1086,3 +1086,28 @@ regression shows plainly against today's Home.
   `move … into` at its end (user, 2026-10-31). Rooms' boxes, Favourites and
   the house's own pieces stay where they are. A move into a section that's
   gone is skipped: the card stays where it was before.
+
+## G23 — A device card's settings, per card and per device type (2026-10-31)
+
+- Main reading, further readings, Large's sliders and readings, when it
+  last changed, tapping, a symbol, and its size — in one sheet drawn by the
+  form engine. Kept as `config` on the device's ref; "every <type> card" as
+  `defaults['device:<type>']`. A setting chooses among what the card already
+  found: never a control the device doesn't declare.
+
+## G24 — Tapping a card: its page, or the whole card switches it (2026-10-31)
+
+- Built in: the control acts, the rest of the card opens its page (D2, D3).
+  Chosen per card or type: the whole card switches, locks or plays it — then
+  a small arrow and the long-press menu's "Open details" open its page
+  (user, 2026-10-31). Cards with no control always open their page.
+
+## G25 — A card can have its own symbol (2026-10-31)
+
+- On that card only (a switch that runs a fan); the device's own symbol is
+  unchanged everywhere else (user, 2026-10-31).
+
+## G26 — A device its plugin draws: size only (2026-10-31)
+
+- Its plugin's card is drawn as the plugin made it; the sheet offers its
+  size and says so.

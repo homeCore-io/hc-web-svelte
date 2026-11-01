@@ -607,3 +607,92 @@ new cards' settings and moves. Release as one version again.
   - Older app (0.1.37): it already reads `move … into` (G5), so a moved card
     shows where it was moved; its Edit → Done keeps those moves, as they name
     cards it has.
+
+## 8. G-d plan (2026-10-31)
+
+Mockup: "G-d · A device card's settings" on the canvas — agreed, with:
+a card with no control (a sensor) opens its page on tap, as today; a card
+can instead be switched by tapping anywhere on it (a big target for wall
+panels), and then opens from a small arrow or a long press; a card can have
+a symbol of its own (a switch that runs a fan). Room pages stay as they are.
+
+**Scope:** the `device` kind gets settings, drawn by the form engine like
+every other kind's, per card and as a default for every card of a device
+type. Nothing else.
+
+**Found in the code, and how the plan handles it**
+
+- `cardFor(device, now)` already builds everything a card shows, and its
+  tests hold "no card offers a control the device doesn't declare". The
+  settings are applied there — `cardFor(device, now, options)` — so that
+  rule still holds: a setting can only choose among what `describe` found.
+- Device cards' tools carry S/M/L. On a phone the tool row is already full
+  (G-c's fix). The settings sheet takes over size for device cards: the
+  tools show a settings button instead of S/M/L, and the sheet writes the
+  same `form` change it always did. Plugin cards (`plugin` kind) keep S/M/L
+  and their own settings element.
+- `kindOptions` looks a card's settings up by a kind string and a ref. A
+  device card uses `device:<type>` (card.ts `kindOf`: `light`,
+  `motion_sensor`, …) as its kind, so "every light card" is one default and
+  every motion sensor's another, through the same layers (G4, G13).
+- `GenericDeviceCard`: only visible controls act (D2); the rest of the card
+  is a link to the details (D3); a long press opens a small menu. Tapping
+  the whole card to switch it replaces that link with a button and adds the
+  arrow and the menu's "Open details" — keyboards and screen readers keep a
+  named details link.
+- A device a plugin draws (`device.card`) keeps its plugin's drawing: its
+  sheet offers Size only, and says the rest is the plugin's.
+- Budget: the sheet and the form engine are already lazy (`CardOptions`);
+  only applying settings (small, in `card.ts`) and the descriptor builder
+  are added to Home's first download.
+
+**The model** — no new change shapes; still schema 2.
+
+- A card's settings: `{ op: 'config', ref: 'device:<id>', config }` on the
+  page, in the household's layer (Edit) or the person's (Customise).
+- Every card of a type: `defaults['device:<type>']` in the household's or
+  the person's document. Lookup (G4/G13): the person's card setting, the
+  household's, the person's type default, the household's, built in.
+- The options (all optional; built in = today's card):
+  - `main` — what the state line leads with: `auto` (today's line) or one
+    of the device's readings (`primary` first, then the rest, as the device
+    page lists them).
+  - `show_<attr>` — further readings after it on the state line (battery,
+    temperature on a motion sensor, door on a lock…). Off unless chosen.
+  - `extra_<attr>` — on Large: each slider, steps, transport or reading
+    `cardFor` found (brightness, warmth, volume, speed…), on unless turned off.
+  - `last` — "When it last changed", under the state line on Standard and
+    Large.
+  - `tap` — `details` (built in) or `control`: the whole card switches,
+    locks or plays it. Offered only when the card has a control.
+  - `symbol` — `auto` (the device's own, `status_icon`) or one of card.ts
+    `SYMBOLS`, on this card only. A symbol keeps its state pair (lock and
+    unlock, door and open door), as the device's own does.
+- Size stays the page's `form` change; the sheet shows it with the rest.
+- Never wider than the device: a reading the device stops publishing is
+  skipped; `tap: control` on a card with no control acts as `details`.
+
+**Commits** (each leaving the app working; gated on test, check, prettier,
+build + budget)
+
+1. `card.ts`: `cardFor(device, now, options?)` applies the options; the
+   device's readings for choosing; tests (main, shown readings, Large
+   extras off, last changed, symbol with its pair, tap without a control).
+2. `options.ts` + `kinds.ts`: the device descriptor (built per card: its
+   readings, its extras, tap only with a control, Size), the form engine's
+   `enum` with `render: 'icons'` (a grid of the app's symbols); `DeviceKind`
+   reads its options through `kindOptions` with `device:<type>`.
+3. The sheet: `CardOptions` for device cards — Size written as `form`, the
+   rest as `config`; "Same for every <type> card…" switching the sheet to
+   the type's default and back; a plugin-drawn device shows Size only.
+   Device cards' tools show settings instead of S/M/L.
+4. Tapping: whole-card switching, the open arrow, "Open details" in the
+   long-press menu; a separate details link for keyboards.
+5. Doc 11 §8 as built.
+
+**Migration and older apps.** Documents read unchanged; a card with no
+settings draws as it did. A 0.1.38 app ignores `config` on device refs and
+`defaults['device:…']` and keeps them when it saves (its Edit → Done keeps
+changes naming cards it has, and device refs are such). So an older app
+still open shows device cards as before and loses nothing. Release as one
+version anyway, to keep the house's screens alike.

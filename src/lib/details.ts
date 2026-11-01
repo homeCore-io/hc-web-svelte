@@ -537,6 +537,7 @@ function chartFor(d: CoreDevice, s: Schema): DetailsView['chart'] {
 		light: 'brightness_pct',
 		temperature_sensor: 'temperature',
 		weather_station: 'temperature',
+		weather: 'temperature',
 		switch: 'power_w'
 	};
 	const candidates = [prefer[kind], ...(s.primary ?? [])].filter((n): n is string => !!n);

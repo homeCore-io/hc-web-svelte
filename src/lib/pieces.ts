@@ -3,8 +3,8 @@
  * playing, a weather device's readings and forecast. Plain data from the
  * house's devices, so each can be tested without drawing anything.
  */
-import { reading, type CardView, type IconName } from './card.js';
-import { displayName, type CoreDevice, type Devices } from './devices.js';
+import { reading, skyIcon, type CardView, type IconName } from './card.js';
+import { displayName, type AttributeSchema, type CoreDevice, type Devices } from './devices.js';
 import type { Room } from './house.js';
 import { kindOf } from './card.js';
 import { sourceOf, type Options } from './options.js';
@@ -127,14 +127,25 @@ export const playingNow = (cards: CardView[], all: Devices, rooms: Room[]): Play
 
 // ---- weather (G21) ----
 
-/** The weather device a card reads: the one chosen, or the house's weather station. */
+/** A weather station's or a weather plugin's place, with a temperature now. */
+export const isWeather = (d: CoreDevice) =>
+	(kindOf(d) === 'weather_station' || kindOf(d) === 'weather') &&
+	readingOf(d, 'temperature') !== undefined;
+
+const hasForecast = (d: CoreDevice) =>
+	Array.isArray(d.attributes.forecast) && d.attributes.forecast.length > 0;
+
+/**
+ * The weather device a card reads: the one chosen, or the house's weather,
+ * one with a forecast first (a weather plugin's beside a station's), so a
+ * house with both doesn't get whichever is listed first.
+ */
 export function stationOf(all: Devices, chosen: unknown): CoreDevice | undefined {
 	const s = sourceOf(chosen);
 	if (Array.isArray(s)) return all[s[0]!];
 	if (s === 'none') return undefined;
-	return Object.values(all).find(
-		(d) => kindOf(d) === 'weather_station' && readingOf(d, 'temperature') !== undefined
-	);
+	const weather = Object.values(all).filter(isWeather);
+	return weather.find(hasForecast) ?? weather[0];
 }
 
 export interface Day {
@@ -142,7 +153,10 @@ export interface Day {
 	label: string;
 	high?: number;
 	low?: number;
+	/** In words: its option's label where the device names one, "Rain". */
 	condition?: string;
+	/** Its icon, where the device's `condition` options name one. */
+	icon?: IconName;
 	/** Chance of rain, 0–100. */
 	rain?: number;
 }
@@ -160,18 +174,38 @@ export interface Weather {
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
 
 /**
+ * When a forecast day is. A bare date ("2026-11-01") is that day here, not
+ * UTC midnight, which west of Greenwich is the evening before.
+ */
+function dayOf(time: unknown): number {
+	if (typeof time !== 'string') return NaN;
+	const bare = /^(\d{4})-(\d{2})-(\d{2})$/.exec(time);
+	if (bare) return new Date(+bare[1]!, +bare[2]! - 1, +bare[3]!).getTime();
+	return Date.parse(time);
+}
+
+/** A condition's words: its option's label, else the value in words. */
+function conditionText(spec: AttributeSchema | undefined, value: string): string {
+	const o = (spec?.options ?? []).find((x) => typeof x !== 'string' && x.value === value);
+	if (typeof o === 'object' && o.label) return o.label;
+	const w = value.replace(/_/g, ' ');
+	return w.charAt(0).toUpperCase() + w.slice(1);
+}
+
+/**
  * A device's `forecast` (G21): `{ time, high?, low?, condition?,
  * precipitation_probability? }` per day, temperatures in °C as homeCore
  * keeps them. Anything else in it is ignored; a day without a time is skipped.
+ * `condition` is said and drawn from the device's `condition` options.
  */
-export function forecastOf(v: unknown, now: number, max = 5): Day[] {
+export function forecastOf(v: unknown, now: number, max = 5, condition?: AttributeSchema): Day[] {
 	if (!Array.isArray(v)) return [];
 	const today = new Date(now).toDateString();
 	return v
 		.flatMap((x): Day[] => {
 			if (typeof x !== 'object' || x === null) return [];
 			const f = x as Record<string, unknown>;
-			const t = typeof f.time === 'string' ? Date.parse(f.time) : NaN;
+			const t = dayOf(f.time);
 			if (!Number.isFinite(t)) return [];
 			const at = new Date(t);
 			const c = (k: string) => {
@@ -186,7 +220,9 @@ export function forecastOf(v: unknown, now: number, max = 5): Day[] {
 							: at.toLocaleDateString(undefined, { weekday: 'short' }),
 					high: c('high'),
 					low: c('low'),
-					condition: typeof f.condition === 'string' ? f.condition : undefined,
+					condition:
+						typeof f.condition === 'string' ? conditionText(condition, f.condition) : undefined,
+					icon: skyIcon(condition, f.condition),
 					rain: num(f.precipitation_probability)
 				}
 			];
@@ -257,7 +293,7 @@ export function weatherOf(d: CoreDevice, now: number, max = 4): Weather {
 		name: displayName(d),
 		temperature: readingOf(d, 'temperature'),
 		readings: readings.slice(0, max),
-		forecast: forecastOf(d.attributes.forecast, now),
+		forecast: forecastOf(d.attributes.forecast, now, 5, s.attributes.condition),
 		available: d.available
 	};
 }

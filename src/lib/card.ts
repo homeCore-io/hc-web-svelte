@@ -31,6 +31,14 @@ export type IconName =
 	| 'weather'
 	| 'rain'
 	| 'lightning'
+	| 'sun'
+	| 'moon'
+	| 'cloud'
+	| 'fog'
+	| 'drizzle'
+	| 'hail'
+	| 'snow'
+	| 'showers'
 	| 'vibration'
 	| 'keypad'
 	| 'remote'
@@ -224,6 +232,7 @@ export const SENSORS = new Set([
 	'occupancy_sensor',
 	'temperature_sensor',
 	'weather_station',
+	'weather',
 	'rain_sensor',
 	'lightning_sensor',
 	'vibration_sensor',
@@ -413,6 +422,15 @@ function describe(
 		case 'weather_station': {
 			v.icon = kind === 'weather_station' ? 'weather' : 'thermometer';
 			const parts = [reading(a, s, 'temperature'), reading(a, s, 'humidity')].filter(
+				(p): p is string => p !== undefined
+			);
+			v.stateLine = parts.join(' · ') || primaryLine(a, s);
+			return v;
+		}
+		// A place's weather (a weather plugin's): its sky, drawn and said.
+		case 'weather': {
+			v.icon = skyIcon(s.attributes.condition, a.condition, a.is_day !== false) ?? 'weather';
+			const parts = [reading(a, s, 'temperature'), reading(a, s, 'condition')].filter(
 				(p): p is string => p !== undefined
 			);
 			v.stateLine = parts.join(' · ') || primaryLine(a, s);
@@ -648,6 +666,38 @@ function pushSlider(
 
 function optionsOf(spec: AttributeSchema | undefined): string[] {
 	return (spec?.options ?? []).map((o) => (typeof o === 'string' ? o : o.value));
+}
+
+/** The weather icons a plugin's schema may name for its options, as the app's. */
+const SKY: Record<string, IconName> = {
+	sun: 'sun',
+	'cloud-sun': 'weather',
+	cloud: 'cloud',
+	'cloud-fog': 'fog',
+	'cloud-drizzle': 'drizzle',
+	'cloud-rain': 'rain',
+	'cloud-hail': 'hail',
+	'cloud-snow': 'snow',
+	'cloud-rain-wind': 'showers',
+	'cloud-lightning': 'lightning'
+};
+
+/**
+ * The icon a weather condition's option names (`condition` on a weather
+ * device, or a forecast day's): the sun, a cloud, rain. A clear night is the
+ * moon. Undefined where the plugin names none the app draws.
+ */
+export function skyIcon(
+	spec: AttributeSchema | undefined,
+	value: unknown,
+	day = true
+): IconName | undefined {
+	const named = (spec?.options ?? []).find(
+		(o) => typeof o !== 'string' && o.value === String(value)
+	);
+	const icon = typeof named === 'object' ? named.icon : undefined;
+	const drawn = icon ? SKY[icon] : undefined;
+	return drawn === 'sun' && !day ? 'moon' : drawn;
 }
 
 /** Attribute names, `primary` first, then the rest alphabetically. */

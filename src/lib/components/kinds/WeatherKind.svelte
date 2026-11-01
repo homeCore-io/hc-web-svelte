@@ -10,6 +10,7 @@
 	import type { KindProps } from '#lib/kinds.js';
 	import { WEATHER_BUILT_IN } from '#lib/options.js';
 	import { stationOf, weatherOf } from '#lib/pieces.js';
+	import Icon from '../Icon.svelte';
 
 	let { card, page, label, options }: KindProps<'weather'> = $props();
 	const o = $derived(options ?? kindOptions.of(page, 'weather', card.ref, WEATHER_BUILT_IN));
@@ -40,6 +41,8 @@
 				{#each w.forecast as d, i (i)}
 					<li>
 						<span class="day">{d.label}</span>
+						{#if d.icon}<span class="sky" title={d.condition}><Icon name={d.icon} size={18} /></span
+							>{/if}
 						<span class="hl">{deg(d.high)}<span class="low"> {deg(d.low)}</span></span>
 						{#if d.condition}<span class="cond">{d.condition}</span>{/if}
 						{#if d.rain !== undefined}<span class="rain">{Math.round(d.rain)}% rain</span>{/if}
@@ -120,6 +123,10 @@
 	}
 	.day {
 		font-weight: 700;
+	}
+	.sky {
+		display: flex;
+		color: var(--ink-muted);
 	}
 	.hl {
 		font-family: var(--font-num);

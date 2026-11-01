@@ -171,6 +171,63 @@ describe('the weather (G21)', () => {
 	});
 });
 
+describe('a weather plugin’s place (hc-weather)', () => {
+	const all = Object.fromEntries(HOUSE.map((d) => [d.device_id, d]));
+	const condition = {
+		kind: 'enum' as const,
+		options: [
+			{ value: 'clear', label: 'Clear', icon: 'sun' },
+			{ value: 'rain', label: 'Rain', icon: 'cloud-rain' }
+		]
+	};
+	const today = new Date(FIXTURE_NOW);
+	const iso = (n: number) => {
+		const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + n);
+		const p = (x: number) => String(x).padStart(2, '0');
+		return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+	};
+	const place: CoreDevice = {
+		device_id: 'weather_home',
+		name: 'Home weather',
+		device_type: 'weather',
+		available: true,
+		attributes: {
+			temperature: 15.8,
+			condition: 'clear',
+			is_day: false,
+			forecast: [
+				{ time: iso(0), high: 17, low: 8, condition: 'rain', precipitation_probability: 40 },
+				{ time: iso(1), high: 18, low: 7, condition: 'clear' }
+			]
+		},
+		schema: {
+			attributes: { temperature: { kind: 'float', unit: '°C' }, condition }
+		}
+	} as CoreDevice;
+
+	it('is the house’s weather when it has a forecast, ahead of a station without one', () => {
+		expect(stationOf({ ...all, weather_home: place }, 'auto')?.device_id).toBe('weather_home');
+		const noForecast = { ...place, attributes: { ...place.attributes, forecast: [] } };
+		expect(stationOf({ ...all, weather_home: noForecast }, 'auto')?.device_id).toBe(
+			'ecowitt_station'
+		);
+	});
+
+	it('says and draws each day’s sky from its options; a bare date is that day here', () => {
+		const w = weatherOf(place, FIXTURE_NOW);
+		expect(w.forecast[0]).toMatchObject({ label: 'Today', condition: 'Rain', icon: 'rain' });
+		expect(w.forecast[1]).toMatchObject({ condition: 'Clear', icon: 'sun' });
+	});
+
+	it('its card: the temperature and the sky, the moon on a clear night', () => {
+		const c = cardFor(place, FIXTURE_NOW);
+		expect(c.icon).toBe('moon');
+		expect(c.stateLine).toBe('15.8°C · Clear');
+		const day = cardFor({ ...place, attributes: { ...place.attributes, is_day: true } });
+		expect(day.icon).toBe('sun');
+	});
+});
+
 describe('a chart’s settings (G-c)', () => {
 	it('charts the device chosen for its reading, over the span chosen', () => {
 		expect(chartSource({ reading: 'humidity', humidity: ['a'], temperature: ['b'] })).toEqual({

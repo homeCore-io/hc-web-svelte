@@ -394,9 +394,12 @@ export interface HouseIn {
 export function bigNumbers(h: HouseIn, o: Options): BigNumber[] {
 	const temps = h.rooms.flatMap((r) => sourced('auto', 'temperature', h.all, r.devices) ?? []);
 	const humids = h.rooms.flatMap((r) => sourced('auto', 'humidity', h.all, r.devices) ?? []);
-	const station = Object.values(h.all).find(
-		(d) => kindOf(d) === 'weather_station' && readingOf(d, 'temperature') !== undefined
-	);
+	// Outside: the house's own station, measured; else a weather plugin's place.
+	const outdoors = (kind: string) =>
+		Object.values(h.all).find(
+			(d) => kindOf(d) === kind && readingOf(d, 'temperature') !== undefined
+		);
+	const station = outdoors('weather_station') ?? outdoors('weather');
 	const inside = sourceOf(o.inside);
 	const outside = sourceOf(o.outside);
 	const humid = sourceOf(o.humid);

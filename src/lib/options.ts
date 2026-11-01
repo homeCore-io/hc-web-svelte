@@ -301,7 +301,7 @@ export const weatherDescriptor = (): Descriptor => ({
 					label: 'Weather from',
 					render: 'one',
 					source: { kind: 'core_resource', ref: 'devices', capability: 'temperature' },
-					options: [{ value: 'auto', label: 'The house’s weather station' }],
+					options: [{ value: 'auto', label: 'The house’s weather, with a forecast if one has it' }],
 					default: 'auto'
 				},
 				{

@@ -19,6 +19,14 @@
 	import CloudSun from '@lucide/svelte/icons/cloud-sun';
 	import CloudRain from '@lucide/svelte/icons/cloud-rain';
 	import CloudLightning from '@lucide/svelte/icons/cloud-lightning';
+	import Sun from '@lucide/svelte/icons/sun';
+	import Moon from '@lucide/svelte/icons/moon';
+	import Cloud from '@lucide/svelte/icons/cloud';
+	import CloudFog from '@lucide/svelte/icons/cloud-fog';
+	import CloudDrizzle from '@lucide/svelte/icons/cloud-drizzle';
+	import CloudHail from '@lucide/svelte/icons/cloud-hail';
+	import CloudSnow from '@lucide/svelte/icons/cloud-snow';
+	import CloudRainWind from '@lucide/svelte/icons/cloud-rain-wind';
 	import Vibrate from '@lucide/svelte/icons/vibrate';
 	import Grid from '@lucide/svelte/icons/grid-3x3';
 	import CircleDot from '@lucide/svelte/icons/circle-dot';
@@ -49,6 +57,14 @@
 		weather: CloudSun,
 		rain: CloudRain,
 		lightning: CloudLightning,
+		sun: Sun,
+		moon: Moon,
+		cloud: Cloud,
+		fog: CloudFog,
+		drizzle: CloudDrizzle,
+		hail: CloudHail,
+		snow: CloudSnow,
+		showers: CloudRainWind,
 		vibration: Vibrate,
 		keypad: Grid,
 		remote: CircleDot,

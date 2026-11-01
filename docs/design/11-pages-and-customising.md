@@ -433,6 +433,32 @@ doesn't present: the band's Show and its numbers (`section:summary`,
   after each: only the settings that differ are kept.
 - Release note: as planned above — one version; an older app's Edit → Done
   drops the band's Show and its numbers.
+- **Not yet like mockup A (user, 2026-11-01).** The Room field as built
+  differs from "A · Room field" and its phone board. The user hid some
+  boxes, found it close enough for now, and deferred the fix:
+  1. The mockup is a 12-column grid with 84px rows: busy rooms are tall as
+     well as wide (Living Room 5 × 3), quiet ones 2 × 2. Built, every box
+     is 150px tall and only its width varies (`.field` / `.cell.sN` in
+     `PageView.svelte`).
+  2. A small box in the mockup has its name, one badge and one line
+     ("75° · Lights off"), no All off; built, it has the big number, All
+     off and a wrapping line.
+  3. The line strings everything together ("3 of 4 lights on·55%·Roku
+     Smart Soundbar - YL0001073725 playing"); the mockup says lights and
+     humidity, then one note in a big room.
+  4. Quiet rooms are large boxes saying "All quiet".
+  5. On a phone the mockup is a four-column field, fourteen rooms on one
+     screen; built, most boxes take the full width.
+  6. The mockup has the big numbers, then the field, with Needs attention,
+     Worth knowing, Playing and Modes & scenes in a column beside it;
+     built, the field comes last, after alerts, chips, Pinned, Favourites
+     and Scenes.
+  7. The chips row repeats the big numbers beneath it.
+
+  Proposed, not agreed: the mockup's grid, with height and width from how
+  busy a room is; small boxes trimmed; with Room field chosen, the numbers
+  straight after the alerts (still first, G6), then the field with the
+  side column, no chips. Tiles and rooms in the sidebar unchanged.
 
 ## 7. G-c plan (2026-10-31)
 

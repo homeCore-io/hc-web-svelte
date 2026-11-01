@@ -109,7 +109,7 @@ export const kinds: { [K in Card['kind']]: Kind<K> } = {
 		star: true,
 		// Built for the device when its sheet opens (deviceOptions.ts, G23).
 		options: null,
-		settable: () => false,
+		settable: (c) => !c.scene,
 		defaults: DEVICE_BUILT_IN,
 		addable: { pages: ['home', 'room'] },
 		component: DeviceKind

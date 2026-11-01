@@ -24,7 +24,7 @@
 	import { personal } from '#lib/personal.svelte.js';
 	import { editing } from '#lib/edit.svelte.js';
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
-	import { added, type Change, type Layered } from '#lib/layers.js';
+	import { added, type Change, type Form, type Layered } from '#lib/layers.js';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Arrange from './Arrange.svelte';
 	import { kindOptions } from '#lib/kindOptions.svelte.js';
@@ -58,7 +58,7 @@
 	const listOf = (g: Layered<Card>) => (arranging ? [...g.shown, ...g.hidden] : g.shown);
 
 	// A kind's settings sheet, for one card (G2). A room's settings are its box's.
-	let setting = $state<{ card: Card; name: string } | null>(null);
+	let setting = $state<{ card: Card; name: string; form?: Form } | null>(null);
 	// Every room's box, from the Rooms section's tools.
 	let everyRoom = $state<{ rooms: Card[]; names: Record<string, string> } | null>(null);
 	// Rooms in the sidebar, with their status (G3): their boxes' settings show there.
@@ -149,7 +149,7 @@
 			renamed={label !== undefined}
 			moveTo={from !== undefined ? moveTargets(card, from) : undefined}
 			settings={hasSettings(card, layout)
-				? () => (setting = { card, name: label ?? kind.name(card) })
+				? () => (setting = { card, name: label ?? kind.name(card), form })
 				: undefined}
 		>
 			<KindView
@@ -299,6 +299,7 @@
 				page={key}
 				card={setting.card}
 				name={setting.name}
+				form={setting.form}
 				close={() => (setting = null)}
 			/>
 		{/if}

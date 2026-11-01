@@ -3,7 +3,7 @@
 	meanwhile (`Arrange`) so nothing can be switched by accident.
 
 	In Customise, for this person: star for Home's favourites, hide or show,
-	move up or down, and — for device cards — their form (C1).
+	move up or down, and their form (C1) — for a device card, in its settings.
 	In Edit, for the household: the same, without the star, plus rename.
 	In either, a card this layer added can be taken off the page (G18), and a
 	card can be moved into another section that takes cards (G22).
@@ -186,7 +186,8 @@
 					><Settings size={18} /></button
 				>
 			{/if}
-			{#if form && FORMS.length > 1}
+			<!-- A device card's size is in its settings sheet (G23). -->
+			{#if form && FORMS.length > 1 && !settings}
 				<span class="forms" role="radiogroup" aria-label={`${name} size`}>
 					{#each FORMS as [f, letter] (f)}
 						<button

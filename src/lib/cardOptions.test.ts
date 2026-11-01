@@ -80,3 +80,40 @@ describe("a device card's settings (G23–G25)", () => {
 		}
 	});
 });
+
+describe('the readings a card offers', () => {
+	it('leaves out settings, diagnostics and second forms, but offers the battery', () => {
+		const d: CoreDevice = {
+			...byId('hue_motion'),
+			attributes: {
+				motion: false,
+				temperature: 22,
+				temperature_f: 71.6,
+				illuminance: 26,
+				illuminance_raw: 14261,
+				battery_pct: 80,
+				bridge_id: 'x',
+				sensitivity: 2
+			},
+			schema: {
+				primary: ['motion', 'temperature', 'illuminance'],
+				attributes: {
+					motion: { kind: 'bool' },
+					temperature: { kind: 'float', unit: '°C' },
+					temperature_f: { kind: 'float' },
+					illuminance: { kind: 'float', unit: 'lux' },
+					illuminance_raw: { kind: 'float' },
+					battery_pct: { kind: 'float', unit: '%', category: 'diagnostic' },
+					bridge_id: { kind: 'string', category: 'diagnostic' },
+					sensitivity: { kind: 'integer', writable: true, category: 'config' }
+				}
+			} as never
+		};
+		expect(cardReadings(d).map((r) => r.attr)).toEqual([
+			'motion',
+			'temperature',
+			'illuminance',
+			'battery_pct'
+		]);
+	});
+});

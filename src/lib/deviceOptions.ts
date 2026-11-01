@@ -82,8 +82,7 @@ export function deviceDescriptor(d: CoreDevice, o: DeviceSheet = {}): Descriptor
 				kind: 'toggle',
 				key: `show_${r.attr}`,
 				label: `Also: ${r.label}`,
-				default: false,
-				visible_when: { field: 'main', ne: r.attr }
+				default: false
 			});
 	line.push({ kind: 'toggle', key: 'last', label: 'When it last changed', default: false });
 	sections.push({ id: 'line', title: 'What it says', fields: line });
@@ -109,7 +108,7 @@ export function deviceDescriptor(d: CoreDevice, o: DeviceSheet = {}): Descriptor
 				{
 					kind: 'enum',
 					key: 'tap',
-					label: 'Tapping the card',
+					label: 'What a tap does',
 					render: 'segmented',
 					options: [
 						{ value: 'details', label: 'Opens its page' },

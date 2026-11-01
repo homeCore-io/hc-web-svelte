@@ -6,7 +6,10 @@
 	what a control asks for.
 
 	Only visible controls act (D2); tapping anywhere else on the card opens the
-	device's details (D3), in the address (N5).
+	device's details (D3), in the address (N5). A card set to (G24) works its
+	control from anywhere on it instead: then a small arrow, and the long-press
+	menu's "Open details", open its page — and the arrow is the named details
+	link for keyboards and screen readers.
 -->
 <script lang="ts">
 	import Play from '@lucide/svelte/icons/play';
@@ -28,6 +31,8 @@
 	import { alerts } from '#lib/alerts.svelte.js';
 	import Star from '@lucide/svelte/icons/star';
 	import EyeOff from '@lucide/svelte/icons/eye-off';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import ExternalLink from '@lucide/svelte/icons/square-arrow-out-up-right';
 	import Icon from './Icon.svelte';
 	import Art from './Art.svelte';
 	import Toggle from './Toggle.svelte';
@@ -121,6 +126,24 @@
 		}
 	}
 
+	// The whole card works its control (G24), where it has one and may be pressed.
+	const whole = $derived(!!card.tapControls && !locked && card.control !== null);
+	const wholeLabel = $derived.by(() => {
+		const c = card.control;
+		if (c?.kind === 'switch') return `Turn ${name} ${c.on ? 'off' : 'on'}`;
+		if (c?.kind === 'lock') return `${c.locked ? 'Unlock' : 'Lock'} ${name}`;
+		if (c?.kind === 'play') return `${c.playing ? 'Pause' : 'Play'} ${name}`;
+		return name;
+	});
+	async function actWhole() {
+		const c = card.control;
+		if (c?.kind === 'switch') {
+			if (await goAhead(device.device_id, card.kind, `Turn ${name} ${c.on ? 'off' : 'on'}?`))
+				set({ [c.attr]: !c.on });
+		} else if (c) await run(c);
+	}
+	const details = () => openDevice(device.device_id, page.url);
+
 	// A slider follows the finger, and sends once, when it is let go.
 	let dragging = $state<Record<string, number>>({});
 	function slide(e: Extra & { kind: 'slider' }, value: number) {
@@ -135,6 +158,19 @@
 		set({ [e.attr]: sent, ...(e.attr === 'brightness_pct' ? { on: true } : {}) });
 	}
 </script>
+
+{#snippet open()}
+	<a
+		class="open"
+		href={deviceHref(device.device_id, page.url)}
+		aria-label={`${name} — details`}
+		onclick={(e) => {
+			if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+			e.preventDefault();
+			details();
+		}}><span><ChevronRight size={16} /></span></a
+	>
+{/snippet}
 
 {#snippet control(c: Control | null)}
 	{#if c?.kind === 'switch'}
@@ -181,29 +217,52 @@
 	class:offline={off}
 	aria-label={name}
 >
-	<a
-		class="cover"
-		href={deviceHref(device.device_id, page.url)}
-		aria-label={`${name} — details`}
-		onclick={(e) => {
-			if (e.metaKey || e.ctrlKey || e.shiftKey) return;
-			e.preventDefault();
-			if (held) {
-				held = false;
-				return;
-			}
-			openDevice(device.device_id, page.url);
-		}}
-		onpointerdown={press}
-		onpointerup={letGo}
-		onpointerleave={letGo}
-		onpointercancel={letGo}
-		oncontextmenu={(e) => {
-			e.preventDefault();
-			letGo();
-			menu = true;
-		}}
-	></a>
+	{#if whole}
+		<button
+			class="cover"
+			aria-label={wholeLabel}
+			onclick={() => {
+				if (held) {
+					held = false;
+					return;
+				}
+				void actWhole();
+			}}
+			onpointerdown={press}
+			onpointerup={letGo}
+			onpointerleave={letGo}
+			onpointercancel={letGo}
+			oncontextmenu={(e) => {
+				e.preventDefault();
+				letGo();
+				menu = true;
+			}}
+		></button>
+	{:else}
+		<a
+			class="cover"
+			href={deviceHref(device.device_id, page.url)}
+			aria-label={`${name} — details`}
+			onclick={(e) => {
+				if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+				e.preventDefault();
+				if (held) {
+					held = false;
+					return;
+				}
+				details();
+			}}
+			onpointerdown={press}
+			onpointerup={letGo}
+			onpointerleave={letGo}
+			onpointercancel={letGo}
+			oncontextmenu={(e) => {
+				e.preventDefault();
+				letGo();
+				menu = true;
+			}}
+		></a>
+	{/if}
 	{#if menu}
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
@@ -213,6 +272,18 @@
 			tabindex="-1"
 			onkeydown={(e) => e.key === 'Escape' && (menu = false)}
 		>
+			{#if whole}
+				<button
+					role="menuitem"
+					onclick={() => {
+						menu = false;
+						details();
+					}}
+				>
+					<ExternalLink size={16} />
+					Open details
+				</button>
+			{/if}
 			<button
 				role="menuitem"
 				onclick={() => {
@@ -255,18 +326,23 @@
 				<span class="name">{name}</span>
 				<span class="state">{note ?? card.stateLine}</span>
 			</span>
+			{#if whole}{@render open()}{/if}
 		{/if}
 		<!-- Offline: its last state is no longer true, so nothing to read or press. -->
 		{#if card.channels.length === 0 && !off}{@render control(card.control)}{/if}
 	</div>
 
 	{#if form !== 'compact'}
-		<div class="text">
-			<span class="name">{name}</span>
-			<span class="state" class:note>
-				{#if card.waiting}<span class="working" aria-label="Waiting for the house"></span>{/if}
-				{note ?? card.stateLine}
-			</span>
+		<div class="textrow">
+			<div class="text">
+				<span class="name">{name}</span>
+				<span class="state" class:note>
+					{#if card.waiting}<span class="working" aria-label="Waiting for the house"></span>{/if}
+					{note ?? card.stateLine}
+				</span>
+				{#if card.last}<span class="last">{card.last}</span>{/if}
+			</div>
+			{#if whole}{@render open()}{/if}
 		</div>
 	{/if}
 
@@ -403,6 +479,47 @@
 		inset: 0;
 		border-radius: var(--radius);
 		z-index: 1;
+	}
+	button.cover {
+		border: none;
+		background: none;
+		padding: 0;
+		cursor: pointer;
+	}
+	/* The whole card switches it (G24): its page opens from here. A 44px target
+	   beside its name, drawn smaller. */
+	.textrow {
+		display: flex;
+		align-items: flex-end;
+		justify-content: space-between;
+		gap: 6px;
+		min-width: 0;
+	}
+	.open {
+		position: relative;
+		z-index: 2;
+		flex: none;
+		margin: -10px -10px -10px 0;
+		width: 44px;
+		height: 44px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--ink-muted);
+	}
+	.open span {
+		width: 26px;
+		height: 26px;
+		border-radius: 13px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.last {
+		font-size: 12px;
+		color: var(--ink-muted);
 	}
 	.channels,
 	.extras {

@@ -147,27 +147,37 @@ export interface CardView {
  */
 export type CardOptions = Record<string, unknown>;
 
-/** The device's readings a card can lead with or add: what it reports now, primary first. */
+/** A battery's reading: offered on a card though plugins file it as a diagnostic. */
+const BATTERY = new Set(['battery', 'battery_pct']);
+
+/**
+ * The device's readings a card can lead with or add: what it reports now,
+ * primary first. Not its settings (`config`) or diagnostics — but its
+ * battery — and not a second form of another reading (`temperature_f`,
+ * `illuminance_raw`, `color_temp_mirek`).
+ */
 export function cardReadings(d: CoreDevice): { attr: string; label: string; value: string }[] {
 	const s: Schema = d.schema ?? { attributes: {} };
 	const primary = s.primary ?? [];
 	const rank = (a: string) => {
 		const p = primary.indexOf(a);
-		return p >= 0 ? p : 500;
+		return p >= 0 ? p : BATTERY.has(a) ? 900 : 500;
 	};
-	return Object.keys(d.attributes)
-		.filter((n) => {
-			const spec = s.attributes[n];
-			const v = d.attributes[n];
-			return (
-				!n.endsWith('_unit') &&
-				spec?.category !== 'diagnostic' &&
-				spec?.kind !== 'json' &&
-				v !== undefined &&
-				v !== null &&
-				typeof v !== 'object'
-			);
-		})
+	const names = Object.keys(d.attributes).filter((n) => {
+		const spec = s.attributes[n];
+		const v = d.attributes[n];
+		return (
+			!n.endsWith('_unit') &&
+			(BATTERY.has(n) || (spec?.category !== 'diagnostic' && spec?.category !== 'config')) &&
+			spec?.kind !== 'json' &&
+			v !== undefined &&
+			v !== null &&
+			typeof v !== 'object'
+		);
+	});
+	const another = (n: string) => names.some((m) => m !== n && n.startsWith(`${m}_`));
+	return names
+		.filter((n) => !another(n))
 		.map((attr) => ({
 			attr,
 			label: s.attributes[attr]?.display_name ?? cap(words(attr)),

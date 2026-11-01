@@ -395,10 +395,13 @@ describe('sections of one’s own (G17)', () => {
 		expect(gone(changes, presentRefs(p))).toEqual([]);
 	});
 
-	it('take only the layouts for cards (G19)', () => {
-		const p = withOwn(home(), [{ ...make, layout: 'field' }]);
+	it('take only the layouts for cards (G19), unless copied from the rooms (G29)', () => {
+		const p = withOwn(home(), [{ ...make, layout: 'nonsense' }]);
 		expect(section(p, 'own-a1').layout).toBe('grid');
 		expect(section(p, 'own-a1').layouts).toEqual(['grid', 'row', 'list']);
+		const rooms = withOwn(home(), [{ ...make, layout: 'field' }]);
+		expect(section(rooms, 'own-a1').layout).toBe('field');
+		expect(section(rooms, 'own-a1').layouts).toEqual(['list', 'field', 'tiles']);
 	});
 });
 

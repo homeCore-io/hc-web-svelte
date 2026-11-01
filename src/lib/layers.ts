@@ -42,6 +42,14 @@ export type Change =
 	 */
 	| { op: 'config'; ref: string; config: Record<string, unknown> };
 
+/** A page someone made (G27): its changes are kept at `pages['page:<id>']`. */
+export interface BuiltPage {
+	id: string;
+	name: string;
+	/** One of the rooms' symbols (`ROOM_ICONS`); none, a page's own. */
+	icon?: string;
+}
+
 export interface PersonDoc {
 	version: number;
 	/** The document's shape (`SCHEMA`); `version` counts saves. Absent is 1. */
@@ -52,8 +60,10 @@ export interface PersonDoc {
 	shell?: { rooms?: 'names' | 'status' };
 	/** Starred cards, in the order they appear in Favourites on Home. */
 	favourites?: string[];
-	/** Changes per page: `home`, `room:{id}`. */
+	/** Changes per page: `home`, `room:{id}`, `page:{id}`. */
 	pages?: Record<string, Change[]>;
+	/** Pages that are just this person's (G28), in their order. */
+	built?: BuiltPage[];
 	/** The phone bar's destinations, More always last (N2). */
 	bar?: string[];
 	/** Light or dark, or follow the device (V2). */
@@ -72,8 +82,10 @@ export interface HouseDoc {
 	version: number;
 	/** The document's shape (`SCHEMA`); `version` counts saves. Absent is 1. */
 	schema?: number;
-	/** The household's edits per page: `home`, `room:{id}`. */
+	/** The household's edits per page: `home`, `room:{id}`, `page:{id}`. */
 	pages?: Record<string, Change[]>;
+	/** The house's own pages (G28), in their order. */
+	built?: BuiltPage[];
 	/** Every-room settings, by kind of card (G4): the room box's, the big numbers'. */
 	defaults?: Record<string, Record<string, unknown>>;
 	/** The frame: the sidebar's rooms as names, or with their status (G3). */
@@ -283,31 +295,43 @@ export function nudgeFavourite(list: string[], r: string, by: -1 | 1): string[] 
 
 // ---- the phone bar (N2) ----
 
-/** Where the phone bar can take you, besides More. */
-// Pages isn't offered until it's built; a bar that still names it drops it.
-export const BAR_CHOICES = ['home', 'scenes', 'alerts', 'search'] as const;
+/** Where the phone bar can take you, besides More — and rooms and pages (G30). */
+export const BAR_CHOICES = ['home', 'pages', 'scenes', 'alerts', 'search'] as const;
 export const DEFAULT_BAR = ['home', 'scenes', 'alerts'];
+/** Once there are pages to go to, Pages joins the default bar (N2, G30). */
+const WITH_PAGES = ['home', 'pages', 'scenes', 'alerts'];
 /** The bar holds this many destinations, then More. */
 export const BAR_SIZE = 4;
 
-/** A bar made safe: known destinations or rooms, no repeats, at most four. */
-function safeBar(bar: string[] | undefined, rooms: string[]): string[] {
+/**
+ * A bar made safe: known destinations, rooms or pages that are still there,
+ * no repeats, at most four.
+ */
+function safeBar(bar: string[] | undefined, rooms: string[], pages: string[]): string[] {
 	const ok = (d: string) =>
 		(BAR_CHOICES as readonly string[]).includes(d) ||
-		(d.startsWith('room:') && rooms.includes(d.slice(5)));
+		(d.startsWith('room:') && rooms.includes(d.slice(5))) ||
+		(d.startsWith('page:') && pages.includes(d.slice(5)));
 	return [...new Set((bar ?? []).filter(ok))].slice(0, BAR_SIZE);
 }
 
+const ids = (doc?: { built?: BuiltPage[] }) => (doc?.built ?? []).map((p) => p.id);
+
 /** The household's bar (N2): what an admin chose, or the default. */
-export function houseBar(house: HouseDoc | undefined, rooms: string[]): string[] {
-	const bar = safeBar(house?.bar, rooms);
-	return bar.length > 0 ? bar : DEFAULT_BAR;
+export function houseBar(
+	house: HouseDoc | undefined,
+	rooms: string[],
+	mine: string[] = []
+): string[] {
+	const bar = safeBar(house?.bar, rooms, ids(house));
+	if (bar.length > 0) return bar;
+	return ids(house).length + mine.length > 0 ? WITH_PAGES : DEFAULT_BAR;
 }
 
 /** A person's bar: their own choice, else the household's. */
 export function barOf(doc: PersonDoc | undefined, rooms: string[], house?: HouseDoc): string[] {
-	const bar = safeBar(doc?.bar, rooms);
-	return bar.length > 0 ? bar : houseBar(house, rooms);
+	const bar = safeBar(doc?.bar, rooms, [...ids(house), ...ids(doc)]);
+	return bar.length > 0 ? bar : houseBar(house, rooms, ids(doc));
 }
 
 // ---- confirmation (D2) ----

@@ -4,7 +4,8 @@
  *
  * Its settings are a document on the UI server, keyed by the display's id.
  * Pages are named as the phone bar names places: `home`, `room:{id}`,
- * `scenes`, `alerts`.
+ * `scenes`, `alerts` — and `page:{id}` for one of the house's own pages
+ * (G31); never a person's, as a display isn't a person.
  */
 
 export interface Kiosk {
@@ -30,7 +31,12 @@ export interface Tab {
 }
 
 /** What a display may show, in order: what the admin chose that still exists, else Home. */
-export function tabsFor(doc: DisplayDoc | undefined, rooms: { id: string; name: string }[]): Tab[] {
+export function tabsFor(
+	doc: DisplayDoc | undefined,
+	rooms: { id: string; name: string }[],
+	/** The house's own pages. */
+	pages: { id: string; name: string }[] = []
+): Tab[] {
 	const out: Tab[] = [];
 	for (const key of doc?.pages ?? []) {
 		if (out.some((t) => t.key === key)) continue;
@@ -40,6 +46,9 @@ export function tabsFor(doc: DisplayDoc | undefined, rooms: { id: string; name: 
 		else if (key.startsWith('room:')) {
 			const room = rooms.find((r) => r.id === key.slice(5));
 			if (room) out.push({ key, label: room.name, href: `/rooms/${room.id}` });
+		} else if (key.startsWith('page:')) {
+			const page = pages.find((p) => p.id === key.slice(5));
+			if (page) out.push({ key, label: page.name, href: `/pages/${page.id}` });
 		}
 	}
 	return out.length > 0 ? out : [{ key: 'home', label: 'Home', href: '/' }];

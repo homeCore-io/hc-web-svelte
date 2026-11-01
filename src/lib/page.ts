@@ -1,6 +1,6 @@
 /**
  * A page as one document (G1, 11 §2): sections of cards, the same shape for
- * Home, a room's page and — later — pages the household builds. Home and the
+ * Home, a room's page and pages people make (G27). Home and the
  * rooms are computed into it from the house every time (D1); the layers then
  * apply to the document (M2), and one renderer draws it (`PageView`).
  *
@@ -84,7 +84,7 @@ export interface Section {
 export const CARD_LAYOUTS: Layout[] = ['grid', 'row', 'list'];
 
 export interface Page {
-	/** `home`, `room:<id>` — the key the layers are kept under. */
+	/** `home`, `room:<id>`, `page:<id>` — the key the layers are kept under. */
 	id: string;
 	sections: Section[];
 	/** Device cards carry their own Hide (room pages). */
@@ -123,12 +123,28 @@ function deviceCard(d: CoreDevice, extra: Partial<Base> = {}): Card {
 	};
 }
 
+/** A room as a card: its box, or its line in a list. */
+const roomCard = (r: Room, devices: CoreDevice[], extra: Partial<Base> = {}): Card => ({
+	ref: ref.room(r.id),
+	kind: 'room',
+	id: r.id,
+	name: r.name,
+	href: `/rooms/${r.id}`,
+	devices,
+	...extra
+});
+
 /** Something a ref names, as a card — or nothing, if the house no longer has it. */
 function cardOf(
 	r: string,
-	h: Pick<HomeInput, 'devices' | 'scenes' | 'pluginCard'>,
+	h: Pick<HomeInput, 'devices' | 'scenes' | 'pluginCard'> & { rooms?: Room[] },
 	extra: Partial<Base> = {}
 ): Card | undefined {
+	if (r.startsWith('room:') && h.rooms) {
+		// A page someone made holds rooms' boxes too (G27).
+		const room = h.rooms.find((x) => x.id === r.slice(5));
+		return room ? roomCard(room, byRoom(h.devices, h.rooms).get(room.id) ?? [], extra) : undefined;
+	}
 	if (r.startsWith('device:')) {
 		const d = h.devices[r.slice(7)];
 		return d ? deviceCard(d, extra) : undefined;
@@ -180,14 +196,7 @@ export function homePage(h: HomeInput): Page {
 		...h.rooms
 			.map((r) => ({ r, devices: grouped.get(r.id) ?? [] }))
 			.filter((x) => x.devices.length > 0)
-			.map(({ r, devices }): Card => ({
-				ref: ref.room(r.id),
-				kind: 'room',
-				id: r.id,
-				name: r.name,
-				href: `/rooms/${r.id}`,
-				devices
-			})),
+			.map(({ r, devices }) => roomCard(r, devices)),
 		...(strays.length > 0
 			? [
 					{
@@ -349,7 +358,45 @@ export function roomPage(id: string, h: RoomInput): Page {
 	return { id: `room:${id}`, sections, cardTools: true };
 }
 
+// ---- a page someone made (G27) ----
+
+export interface BuiltInput {
+	devices: Devices;
+	rooms: Room[];
+	scenes: { id: string; name: string }[];
+	/** Refs added to the page, in the order added: everything on it. */
+	added: string[];
+	pluginCard: (ref: string) => { label: string; forms?: Form[] } | undefined;
+}
+
+/**
+ * A page someone made: nothing generated. What's on it is what its layer
+ * added, into the sections it made; what was added into no section is in
+ * "Cards", headed only while arranging.
+ */
+export function builtPage(id: string, h: BuiltInput): Page {
+	return {
+		id: `page:${id}`,
+		cardTools: false,
+		sections: [
+			{
+				id: 'cards',
+				title: 'Cards',
+				layout: 'grid',
+				layouts: CARD_LAYOUTS,
+				accepts: true,
+				headless: true,
+				cards: h.added.flatMap((r) => cardOf(r, h, { added: true }) ?? []),
+				hint: 'What’s added with Add, and not put in another section, appears here.'
+			}
+		]
+	};
+}
+
 // ---- sections of one's own (G17) ----
+
+/** Layouts for rooms (G3); a section of one's own holding them keeps them (G29). */
+const ROOM_LAYOUTS_ALL: Layout[] = ['list', 'field', 'tiles'];
 
 /** The own sections the changes make, in the order made: the last of `section`/`remove` per ref wins. */
 function ownSections(changes: Change[], mine: Change[]): Section[] {
@@ -359,16 +406,20 @@ function ownSections(changes: Change[], mine: Change[]): Section[] {
 		if (c.op === 'section') made.set(c.ref, c);
 		if (c.op === 'remove') made.delete(c.ref);
 	}
-	return [...made.values()].map((c) => ({
-		id: c.ref.slice('section:'.length),
-		title: c.title,
-		layout: (CARD_LAYOUTS as string[]).includes(c.layout) ? (c.layout as Layout) : 'grid',
-		layouts: CARD_LAYOUTS,
-		accepts: true,
-		own: mine.includes(c) ? 'person' : 'house',
-		cards: [],
-		hint: 'Nothing here yet. Add here puts something in it, or move a card in from another section.'
-	}));
+	return [...made.values()].map((c) => {
+		const rooms = c.layout === 'field' || c.layout === 'tiles';
+		const layouts = rooms ? ROOM_LAYOUTS_ALL : CARD_LAYOUTS;
+		return {
+			id: c.ref.slice('section:'.length),
+			title: c.title,
+			layout: (layouts as string[]).includes(c.layout) ? (c.layout as Layout) : 'grid',
+			layouts,
+			accepts: true,
+			own: mine.includes(c) ? 'person' : 'house',
+			cards: [],
+			hint: 'Nothing here yet. Add here puts something in it, or move a card in from another section.'
+		};
+	});
 }
 
 /**

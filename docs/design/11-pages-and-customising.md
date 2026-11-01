@@ -1,6 +1,6 @@
 # 11 — Pages and customising
 
-Status: **decided**, see `decisions.md` (G1 to G31) · 2026-11-01 · G-a to G-d **released** (0.1.35 to 0.1.39) · **G-e built** on `redesign` (not released, §9)
+Status: **decided**, see `decisions.md` (G1 to G32) · 2026-11-01 · G-a to G-e **released** (0.1.35 to 0.1.40) · the room field **matched to mockup A** on `redesign` (not released, §6)
 
 How Home, room pages, hand-built pages and displays become one thing that
 everyone can arrange, so each new customising feature is a new *kind of card*
@@ -455,10 +455,78 @@ doesn't present: the band's Show and its numbers (`section:summary`,
      and Scenes.
   7. The chips row repeats the big numbers beneath it.
 
-  Proposed, not agreed: the mockup's grid, with height and width from how
-  busy a room is; small boxes trimmed; with Room field chosen, the numbers
-  straight after the alerts (still first, G6), then the field with the
-  side column, no chips. Tiles and rooms in the sidebar unchanged.
+- **Matched to mockup A (2026-11-01).** The user sent the board and asked
+  for its layout, then for Pinned and Favourites beside the rooms too, with
+  the side column arranged like any other sections (G32). As built
+  ("The room field drawn as mockup A…" on `redesign`):
+  - Header and band. Home's title keeps its name and has the day and the
+    house's mode above it, shortened on a phone ("Sun, Nov 1 · Day Mode").
+    The big numbers follow, with a rule above and below and 48px numbers on
+    a wide screen. The chips row isn't drawn in this style.
+  - The field. A 12-column grid of 84px rows, packed densely. The three
+    busiest rooms are three rows tall and 5, 4 and 3 columns wide; with two
+    busy rooms they are 6 and 6, with one 6. The next two are two rows tall
+    (3 and 3, or 4 when there is one), and every other room is 2 × 2. A
+    room with nothing going on is never big. Busyness counts lights on,
+    marks and what's wrong (`fieldPlan` in `roomBox.ts`). The busiest three
+    come first by busyness, and the rest keep the order they were arranged
+    in. On a phone the field has four columns of 74px: 2 × 2, 2 × 1 and
+    1 × 1.
+  - A big box has its name, up to three marks (22px tiles: alert red for an
+    open door, a leak or a low battery; amber for unlocked; grey for someone
+    here, playing, a fan, a timer), its big number, a mono line of lights
+    then humidity ("3 of 4 lights on · 55%"), one note (what's wrong first,
+    such as "2 offline") and All off while lights are on. A small box has
+    its name on up to two lines, one mark and one short line ("64° · Lights
+    off", "1/1 on"). Where something is wrong, a small box's line says that
+    in the alert colour instead (G6). The glow follows the share of lights
+    on, and a box with something wrong has the alert border. The room's own
+    settings still choose its big number and what it says.
+  - The heading reads "Rooms" (the section's name, which can be renamed in
+    Edit; the mockup says "The house"), with "Brighter is more of it on"
+    and its ramp on the right. The footer reads "Sized by what is in each
+    room · 17 rooms · tap one to open it".
+  - The side column (G32) has a rule on its left and between its sections.
+    By default it holds Needs attention, Pinned, Favourites, Worth knowing,
+    Playing, then Scenes & modes. Alerts are compact rows (up to five, then
+    "All N alerts"). Cards are one to a row and never Large. Worth knowing
+    and Playing are plain rows under their headings. Modes and scenes are
+    34px chips, with the active mode in the lit colour.
+  - On a phone the alerts are one line after the band ("1 door open · 8
+    alerts"), and the side sections follow the field in their order.
+  - The sidebar lists no rooms while Home is in the room field
+    (§2.3), read from Home's changes as this screen shows them.
+  - Room tiles, the room list and rooms in the sidebar look as they did.
+    Worth knowing and Playing aren't drawn in those styles.
+  - Arranging keeps the two columns. The field's boxes are drawn in order
+    and all the same size, with their tools. Section tools in this style
+    have "Beside the rooms" or "Under the rooms". Up and down move a section
+    among the others in its column. The Rooms section leads the main column
+    and can't move. Changing a section's layout or column keeps its other
+    setting.
+  - Home's JavaScript is 142.5 KB. The full alert list (with its seen and
+    ignore tools) is fetched alongside Home's code, since Home only shows
+    three alerts and they arrive from the network after it anyway. That
+    took it from 152.1 KB, over budget, to 142.4 KB.
+  - Still different from the board: no sparkline under Inside; "°" in
+    place of "°F"; Playing shows plain rows without the pause button and
+    the speaker tile; Worth knowing lists what's out of the ordinary now
+    instead of a timed log of events; Customise stays in the header's
+    pencil menu instead of a button beside the title. Pinned and Favourites
+    cards are standard device cards, so the side column runs longer than
+    the field when there are several.
+  - Proof: unit tests for the field's plan, a box's text and marks, the
+    columns through the layers and their default order, and Home's style
+    read back. On the sandbox at 1280 × 900, 1440 × 1060 and 390 × 844,
+    light and dark: the field chosen in Edit; in Customise, Playing moved
+    above Favourites, Worth knowing hidden, Favourites put under the rooms;
+    the person's document read back with `move`, `hide` and
+    `config: { column: "main" }`. Tiles, list and rooms in the sidebar
+    checked at 1280 and 390.
+  - Older apps: a 0.1.40 app draws the field as before and ignores
+    `column`. Its Edit → Done drops the household's changes to Worth
+    knowing and Playing, which it doesn't have, and choosing a section's
+    layout there drops that section's column. Release as one version.
 
 ## 7. G-c plan (2026-10-31)
 

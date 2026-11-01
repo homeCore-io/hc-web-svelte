@@ -1146,3 +1146,22 @@ regression shows plainly against today's Home.
 - A display isn't a person (D7), so it shows the house's pages only. A page
   that's gone is skipped, as a room that's gone is. A display opened at the
   app's front door rests on its first page.
+
+## G32: Sections beside the rooms in the room field (2026-11-01)
+
+- In the room field style Home is drawn as mockup A: the big numbers
+  across the top, the rooms' field, and a column beside it (user,
+  2026-11-01). Needs attention is that column's first section and can't be
+  moved or hidden (G6). After it, by default: Pinned, Favourites, Worth
+  knowing, Playing, Scenes & modes. Sections a person or the household
+  makes start under the rooms.
+- In Customise and Edit the side sections move up and down and hide like
+  any section, and each one's tools choose "Beside the rooms" or "Under the
+  rooms". The choice is a section `config` change, `{ column: 'side' |
+  'main' }`, in the layer being changed, so a person's choice wins over the
+  household's. Only the room field reads it.
+- The rooms lead the main column, and the band stays on top. Cards beside
+  the rooms are as wide as the column and never Large. Scenes and modes
+  there are chips.
+- On a phone the column follows the field in the same order, and the
+  alerts are one line after the big numbers.

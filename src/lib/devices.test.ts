@@ -22,6 +22,22 @@ describe('devices after a frame', () => {
 		expect(u.devices.hue_ceiling).toBe(house.hue_ceiling);
 	});
 
+	it('a device added unavailable is available once it reports, with no "online" event', () => {
+		const added = devicesAfter(house, {
+			type: 'device_added',
+			device: { device_id: 'nuheat_1', name: 'Living Room', available: false, attributes: {} }
+		})!.devices;
+		expect(added.nuheat_1!.available).toBe(false);
+		const u = devicesAfter(added, {
+			type: 'device_state_changed',
+			timestamp: '2026-11-01T19:40:27Z',
+			device_id: 'nuheat_1',
+			current: { temperature: 21.95 },
+			changed: ['temperature']
+		})!;
+		expect(u.devices.nuheat_1!.available).toBe(true);
+	});
+
 	it('a metadata change keeps the schema the record does not carry', () => {
 		const { schema: _schema, ...record } = house.hue_lamp!;
 		const u = devicesAfter(house, {

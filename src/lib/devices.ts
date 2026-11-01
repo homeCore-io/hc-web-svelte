@@ -211,6 +211,9 @@ export function devicesAfter(devices: Devices, frame: DeviceFrame): DevicesUpdat
 			for (const key of e.changed) changedAt[key] = e.timestamp;
 			return replace(devices, {
 				...d,
+				// A report means it's there, as homeCore counts it. Older homeCores
+				// didn't say so when a device registered unavailable then reported.
+				available: true,
 				attributes: e.current,
 				attributes_changed_at: changedAt,
 				last_seen: e.timestamp,

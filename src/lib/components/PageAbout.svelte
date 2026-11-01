@@ -53,9 +53,11 @@
 	const bar = $derived(barOf(personal.doc, ids, household.doc));
 	const inBar = $derived(bar.includes(key));
 	function toggleBar() {
+		// Decided now: the change is made again when it's saved, after this screen shows it.
+		const on = !inBar;
 		void personal.change((d) => ({
 			...d,
-			bar: withPageInBar(barOf(d, ids, household.doc), p.id, !inBar, BAR_SIZE)
+			bar: withPageInBar(barOf(d, ids, household.doc), p.id, on, BAR_SIZE)
 		}));
 	}
 	const NAMES: Record<string, string> = {

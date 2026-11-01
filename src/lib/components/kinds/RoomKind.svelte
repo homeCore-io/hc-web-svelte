@@ -1,6 +1,7 @@
 <!--
 	A room on Home: in the list, its summary and "All off" (C5); in the room
 	field or tiles, its box (G-b), with the settings that apply on this screen.
+	On a page someone made, in a grid, its box too (G27).
 -->
 <script lang="ts">
 	import { cardFor } from '#lib/card.js';
@@ -16,7 +17,8 @@
 
 	let { card, label, page, layout }: KindProps<'room'> = $props();
 	const cards = $derived(card.devices.map((d) => cardFor(d, clock.now)));
-	const boxed = $derived(layout === 'field' || layout === 'tiles');
+	// In a grid (a page someone made, G27) a room is a box the grid's size.
+	const boxed = $derived(layout === 'field' || layout === 'tiles' || layout === 'grid');
 	const box = $derived(
 		boxed
 			? roomBox(
@@ -35,7 +37,7 @@
 		name={label ?? card.name}
 		{box}
 		devices={card.devices}
-		tiles={layout === 'tiles'}
+		tiles={layout !== 'field'}
 	/>
 {:else}
 	<RoomRow

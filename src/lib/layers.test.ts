@@ -35,6 +35,10 @@ describe('a personal layer over a generated page (M2)', () => {
 		expect(l.hidden).toEqual(['b']);
 	});
 
+	it('a move before itself leaves it where it is', () => {
+		expect(apply(items, id, [{ op: 'move', ref: 'a', before: 'a' }]).shown).toEqual(items);
+	});
+
 	it('moves before another, or to the end', () => {
 		expect(apply(items, id, [{ op: 'move', ref: 'd', before: 'a' }]).shown).toEqual([
 			'd',

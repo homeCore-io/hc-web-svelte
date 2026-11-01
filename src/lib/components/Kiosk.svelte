@@ -41,11 +41,16 @@
 	const tabs = $derived(tabsFor(doc, rooms.list, household.doc.built ?? []));
 	const pathname = $derived(page.url.pathname);
 
-	// Only its own pages: anywhere else goes to its first.
+	// Only its own pages: anywhere else goes to its first. Opened at the
+	// app's front door (set up, reloaded there), it rests on its first too.
+	let rested = false;
 	$effect(() => {
 		// The house's pages are named in its document: wait for it too (G31).
 		if (doc === undefined || rooms.list.length === 0 || !household.loaded) return;
-		if (!allowedOn(tabs, pathname)) void goto(tabs[0]!.href, { replace: true });
+		const arriving = !rested && pathname === '/';
+		rested = true;
+		if (!allowedOn(tabs, pathname) || (arriving && tabs[0]!.href !== '/'))
+			void goto(tabs[0]!.href, { replace: true });
 	});
 
 	// ---- swipe between pages ----

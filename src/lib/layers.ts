@@ -188,6 +188,7 @@ export function apply<T>(
 			case 'move': {
 				const from = order.indexOf(c.ref);
 				if (from < 0) break; // It isn't here any more.
+				if (c.before === c.ref) break; // Before itself: where it is.
 				order.splice(from, 1);
 				const to = c.before === null ? -1 : order.indexOf(c.before);
 				if (to < 0) order.push(c.ref);

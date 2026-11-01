@@ -80,12 +80,13 @@
 {:else}
 	<div class="built">
 		<CustomiseBar page={key} own={found.whose === 'mine'} />
-		<div class="top">
-			<span class="whose">{found.whose === 'house' ? 'Everyone' : 'Just you'}</span>
-			<button class="about" onclick={() => (about = true)}
-				><Info size={16} aria-hidden="true" />This page</button
-			>
-		</div>
+		<!-- A display has no menus (D7): the page alone. -->
+		{#if !session.isDisplay}<div class="top">
+				<span class="whose">{found.whose === 'house' ? 'Everyone' : 'Just you'}</span>
+				<button class="about" onclick={() => (about = true)}
+					><Info size={16} aria-hidden="true" />This page</button
+				>
+			</div>{/if}
 		{#if empty && !arranging}
 			<div class="empty">
 				<b>Nothing on this page yet.</b>

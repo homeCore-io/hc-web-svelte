@@ -39,10 +39,11 @@
 		if (!title) return;
 		const id = `own-${newId()}`;
 		const ref = `section:${id}`;
-		view.change(page, { op: 'section', ref, title, layout });
 		// After the one chosen: before whatever follows it; at the end it's already there.
+		// Read before the section is made, as `order` then has it too.
 		const at = order.findIndex((o) => o.ref === after);
 		const next = order[at + 1];
+		view.change(page, { op: 'section', ref, title, layout });
 		if (next) view.change(page, { op: 'move', ref, before: next.ref });
 		dialog?.close();
 		adding.open(page, id);

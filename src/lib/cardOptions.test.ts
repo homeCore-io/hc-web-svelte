@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { cardFor, cardReadings, extraKey, type CardOptions } from './card.js';
+import { cardFor, extraKey, type CardOptions } from './card.js';
+import { cardReadings } from './deviceOptions.js';
 import { HOUSE, FIXTURE_NOW } from './fixtures/house.js';
 import type { CoreDevice } from './devices.js';
 
@@ -115,5 +116,47 @@ describe('the readings a card offers', () => {
 			'illuminance',
 			'battery_pct'
 		]);
+	});
+});
+
+describe('what only looks like a reading (G23)', () => {
+	it("leaves out Hue's dynamics, Enabled and how a lock was last worked; caps at six", () => {
+		const attrs: Record<string, unknown> = {
+			on: true,
+			brightness_pct: 30,
+			dynamic_speed: 0,
+			dynamic_status: 'none',
+			enabled: true,
+			last_lock_method: 'Fingerprint',
+			a: 1,
+			b: 2,
+			c: 3,
+			d: 4,
+			e: 5
+		};
+		const d: CoreDevice = {
+			...byId('hue_lamp'),
+			attributes: attrs,
+			schema: {
+				attributes: Object.fromEntries(Object.keys(attrs).map((k) => [k, { kind: 'integer' }]))
+			} as never
+		};
+		const offered = cardReadings(d).map((r) => r.attr);
+		expect(offered.slice(0, 2)).toEqual(['on', 'brightness_pct']);
+		expect(offered).toHaveLength(6);
+		for (const gone of ['dynamic_speed', 'dynamic_status', 'enabled', 'last_lock_method'])
+			expect(offered).not.toContain(gone);
+	});
+
+	it('how a lock was last worked goes on the last-changed line', () => {
+		const c = card(
+			'yolink_front_lock',
+			{ last: true },
+			{
+				attributes: { locked: false, last_lock_method: 'Keypad' },
+				last_change: { changed_at: new Date(FIXTURE_NOW - 2 * 3600_000).toISOString() } as never
+			}
+		);
+		expect(c.last).toBe('Changed 2 h ago by keypad');
 	});
 });

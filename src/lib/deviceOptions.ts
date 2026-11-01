@@ -4,9 +4,9 @@
  * the device in hand from what its card already found, so it never offers
  * what the device doesn't have. The settings are applied in `cardFor`.
  */
-import { SYMBOLS, cardFor, cardReadings, extraKey, kindOf, type Extra } from './card.js';
+import { SYMBOLS, cap, cardFor, extraKey, kindOf, reading, words, type Extra } from './card.js';
 import type { Descriptor, Field, Section } from './descriptor.js';
-import type { CoreDevice } from './devices.js';
+import type { CoreDevice, Schema } from './devices.js';
 import { kindLabel } from './inventory.js';
 import type { Form } from './layers.js';
 
@@ -21,8 +21,105 @@ const FORM_LABELS: Record<Form, string> = {
 	large: 'Large'
 };
 
+/** An extra's value now, for its toggle's second line. */
+function extraNow(e: Extra): string {
+	if (e.kind === 'slider')
+		return ` · ${Math.round(e.value * 10) / 10}${e.unit ? (e.unit === '%' ? '%' : ` ${e.unit}`) : ''}`;
+	if (e.kind === 'steps' || e.kind === 'reading') return e.value ? ` · ${e.value}` : '';
+	return '';
+}
+
 function extraLabel(e: Extra): string {
 	return e.kind === 'transport' ? 'Previous and next' : e.label;
+}
+
+// The readings a card offers — only the sheet needs these, so they load with it.
+
+/** A battery's reading: offered on a card though plugins file it as a diagnostic. */
+const BATTERY = new Set(['battery', 'battery_pct']);
+
+/** Readings worth a card, most useful first; anything else ranks after them. */
+const USEFUL = [
+	'on',
+	'locked',
+	'open',
+	'contact',
+	'contact_open',
+	'motion',
+	'occupied',
+	'occupancy',
+	'water_detected',
+	'smoke',
+	'temperature',
+	'humidity',
+	'illuminance',
+	'brightness_pct',
+	'color_temp',
+	'speed',
+	'volume',
+	'power_w',
+	'energy_kwh',
+	'co2',
+	'pressure',
+	'wind_speed',
+	'rain_rate',
+	'door_open',
+	'battery',
+	'battery_pct'
+];
+/**
+ * Not readings, whatever a plugin files them as: an effect engine's state
+ * (Hue's dynamics), whether a feature is on, a sensor's own settings, how
+ * the last change was made (that goes on the last-changed line), and its
+ * bookkeeping.
+ */
+const NOT_READINGS =
+	/(^|_)(dynamic|dynamics|effect|effects|scene|enabled|sensitivity|supports|valid|identify|method|source|event|mirek|raw|id|kind|type|mode_values)(_|$)|^last_/;
+/** How many readings a card offers to say. */
+const OFFERED = 6;
+
+/**
+ * The device's readings a card can lead with or add (G23): what it reports
+ * now, most useful first, at most six. Not its settings (`config`) or
+ * diagnostics — but its battery — not what only looks like a reading
+ * (`NOT_READINGS`), and not a second form of another (`temperature_f`).
+ */
+export function cardReadings(d: CoreDevice): { attr: string; label: string; value: string }[] {
+	const s: Schema = d.schema ?? { attributes: {} };
+	const primary = s.primary ?? [];
+	const rank = (a: string) => {
+		const u = USEFUL.indexOf(a);
+		if (u >= 0) return u;
+		const p = primary.indexOf(a);
+		return p >= 0 ? 100 + p : 500;
+	};
+	const names = Object.keys(d.attributes).filter((n) => {
+		const spec = s.attributes[n];
+		const v = d.attributes[n];
+		return (
+			!n.endsWith('_unit') &&
+			(BATTERY.has(n) ||
+				(spec?.category !== 'diagnostic' &&
+					spec?.category !== 'config' &&
+					!NOT_READINGS.test(n))) &&
+			spec?.kind !== 'json' &&
+			v !== undefined &&
+			v !== null &&
+			typeof v !== 'object'
+		);
+	});
+	const another = (n: string) => names.some((m) => m !== n && n.startsWith(`${m}_`));
+	return names
+		.filter((n) => !another(n))
+		.map((attr) => ({
+			attr,
+			// "Battery %" says its unit in its name; the value says it again.
+			label: (s.attributes[attr]?.display_name ?? cap(words(attr))).replace(/\s*%$/, ''),
+			value: reading(d.attributes, s, attr) ?? ''
+		}))
+		.filter((r) => r.value !== '')
+		.sort((a, b) => rank(a.attr) - rank(b.attr) || a.label.localeCompare(b.label))
+		.slice(0, OFFERED);
 }
 
 export interface DeviceSheet {
@@ -62,42 +159,59 @@ export function deviceDescriptor(d: CoreDevice, o: DeviceSheet = {}): Descriptor
 		return { title: 'Card', sections };
 	}
 
-	const plain = cardFor(d, Date.now());
+	const now = Date.now();
+	const plain = cardFor(d, now);
 	const readings = cardReadings(d);
-	const line: Field[] = [];
 	if (readings.length > 0)
-		line.push({
-			kind: 'enum',
-			key: 'main',
-			label: 'It leads with',
-			options: [
-				{ value: 'auto', label: `As usual — ${plain.stateLine || '—'}` },
-				...readings.map((r) => ({ value: r.attr, label: `${r.label} — ${r.value}` }))
-			],
-			default: 'auto'
-		});
-	if (plain.channels.length === 0)
-		for (const r of readings)
-			line.push({
-				kind: 'toggle',
-				key: `show_${r.attr}`,
-				label: `Also: ${r.label}`,
-				default: false
-			});
-	line.push({ kind: 'toggle', key: 'last', label: 'When it last changed', default: false });
-	sections.push({ id: 'line', title: 'What it says', fields: line });
-
-	if (plain.extras.length > 0 && (o.forms === undefined || o.forms.all.includes('large')))
 		sections.push({
-			id: 'large',
-			title: 'On Large',
-			fields: plain.extras.map((e): Field => ({
+			id: 'main',
+			title: 'Main reading',
+			fields: [
+				{
+					kind: 'enum',
+					key: 'main',
+					label: 'Main reading',
+					render: 'choices',
+					options: [
+						{ value: 'auto', label: 'As usual', sub: plain.stateLine || '—' },
+						...readings.map((r) => ({ value: r.attr, label: r.label, sub: r.value }))
+					],
+					default: 'auto'
+				}
+			]
+		});
+
+	// A light's card is its sliders; anything else's, its other readings.
+	const light = plain.kind === 'light';
+	const large = o.forms === undefined || o.forms.all.includes('large');
+	const shown: Field[] = [];
+	if (large)
+		for (const e of plain.extras)
+			shown.push({
 				kind: 'toggle',
 				key: `extra_${extraKey(e)}`,
-				label: extraLabel(e),
+				label: e.kind === 'slider' ? `${e.label} slider` : extraLabel(e),
+				help: `Large size only${extraNow(e)}`,
 				default: true
-			}))
-		});
+			});
+	if (!light && plain.channels.length === 0)
+		for (const r of readings)
+			shown.push({
+				kind: 'toggle',
+				key: `show_${r.attr}`,
+				label: r.label,
+				help: r.value,
+				default: false
+			});
+	const last = cardFor(d, now, { last: true }).last;
+	shown.push({
+		kind: 'toggle',
+		key: 'last',
+		label: 'When it last changed',
+		...(last ? { help: last } : {}),
+		default: false
+	});
+	sections.push({ id: 'shown', title: light ? 'On the card' : 'Also show', fields: shown });
 
 	const c = plain.control;
 	if (c && (c.kind === 'switch' || c.kind === 'lock' || c.kind === 'play'))
@@ -108,7 +222,7 @@ export function deviceDescriptor(d: CoreDevice, o: DeviceSheet = {}): Descriptor
 				{
 					kind: 'enum',
 					key: 'tap',
-					label: 'What a tap does',
+					label: 'Tapping the card',
 					render: 'segmented',
 					options: [
 						{ value: 'details', label: 'Opens its page' },
@@ -126,7 +240,12 @@ export function deviceDescriptor(d: CoreDevice, o: DeviceSheet = {}): Descriptor
 				},
 				{
 					kind: 'note',
-					text: 'When the card switches it, its page opens from the arrow, or by pressing and holding.',
+					text: `As now: its ${c.kind === 'switch' ? 'switch' : 'button'} acts, the rest of the card opens its page.`,
+					visible_when: { field: 'tap', eq: 'details' }
+				},
+				{
+					kind: 'note',
+					text: 'A big target for wall panels. Its page opens from the arrow, or by pressing and holding.',
 					visible_when: { field: 'tap', eq: 'control' }
 				}
 			]

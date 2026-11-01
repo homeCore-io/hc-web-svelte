@@ -147,44 +147,15 @@ export interface CardView {
  */
 export type CardOptions = Record<string, unknown>;
 
-/** A battery's reading: offered on a card though plugins file it as a diagnostic. */
-const BATTERY = new Set(['battery', 'battery_pct']);
-
-/**
- * The device's readings a card can lead with or add: what it reports now,
- * primary first. Not its settings (`config`) or diagnostics — but its
- * battery — and not a second form of another reading (`temperature_f`,
- * `illuminance_raw`, `color_temp_mirek`).
- */
-export function cardReadings(d: CoreDevice): { attr: string; label: string; value: string }[] {
-	const s: Schema = d.schema ?? { attributes: {} };
-	const primary = s.primary ?? [];
-	const rank = (a: string) => {
-		const p = primary.indexOf(a);
-		return p >= 0 ? p : BATTERY.has(a) ? 900 : 500;
-	};
-	const names = Object.keys(d.attributes).filter((n) => {
-		const spec = s.attributes[n];
-		const v = d.attributes[n];
-		return (
-			!n.endsWith('_unit') &&
-			(BATTERY.has(n) || (spec?.category !== 'diagnostic' && spec?.category !== 'config')) &&
-			spec?.kind !== 'json' &&
-			v !== undefined &&
-			v !== null &&
-			typeof v !== 'object'
-		);
-	});
-	const another = (n: string) => names.some((m) => m !== n && n.startsWith(`${m}_`));
-	return names
-		.filter((n) => !another(n))
-		.map((attr) => ({
-			attr,
-			label: s.attributes[attr]?.display_name ?? cap(words(attr)),
-			value: reading(d.attributes, s, attr) ?? ''
-		}))
-		.filter((r) => r.value !== '')
-		.sort((a, b) => rank(a.attr) - rank(b.attr) || a.label.localeCompare(b.label));
+/** How the last change was made, where the device says: "by fingerprint", "by Night rule". */
+function byWhom(d: CoreDevice): string {
+	const a = d.attributes;
+	const how = typeof a.last_lock_method === 'string' ? a.last_lock_method : undefined;
+	if (how) return ` by ${words(uncamel(how)).toLowerCase()}`;
+	const c = d.last_change;
+	if (c?.kind === 'physical') return ' at the wall';
+	if (c?.actor_name) return ` by ${c.actor_name}`;
+	return '';
 }
 
 /** What an extra on Large is called in settings: its attribute, or what it does. */
@@ -215,7 +186,8 @@ function dress(v: CardView, d: CoreDevice, s: Schema, o: CardOptions, now: numbe
 	if (o.last === true) {
 		const at = d.last_change?.changed_at ?? d.last_seen;
 		const ms = at ? now - Date.parse(at) : NaN;
-		if (Number.isFinite(ms)) v.last = ms < 60_000 ? 'Changed just now' : `Changed ${ago(ms)} ago`;
+		if (Number.isFinite(ms))
+			v.last = (ms < 60_000 ? 'Changed just now' : `Changed ${ago(ms)} ago`) + byWhom(d);
 	}
 	if (typeof o.symbol === 'string' && o.symbol !== 'auto')
 		v.icon = symbolFor(o.symbol, v.icon) ?? v.icon;

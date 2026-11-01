@@ -741,3 +741,18 @@ version anyway, to keep the house's screens alike.
 - Release note: documents unchanged in shape; a 0.1.38 app ignores device
   cards' settings and keeps them when it saves, so nothing is lost if one
   is still open.
+- **Matched to the mockup (coordinator, 2026-10-31).** The sheet reads
+  Size; Main reading (a list of choices, each with its value now — the
+  form engine's `enum` with `render: 'choices'` and an option's `sub`); "On
+  the card" for a light (its sliders, "Large size only", and when it last
+  changed) or "Also show" for anything else (plain labels, each value as a
+  second line); Tapping the card with its one-line hint; Symbol; then "Same
+  for every … card…". The form engine lays a field's label beside its
+  control only where the form is wide (a container query at 620px — a
+  settings page), so in a sheet every control takes the full width under
+  its label and Size never wraps; the settings pages keep two columns.
+  Readings offered are capped at six, most useful first, and leave out an
+  effect engine's state (Hue's dynamics), "Enabled", sensitivities and how
+  a lock was last worked — that goes on the last-changed line instead
+  ("Changed 2 h ago by keypad"). The filter lives with the sheet, so Home's
+  JavaScript stays at 147.8 KB.

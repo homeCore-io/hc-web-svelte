@@ -65,3 +65,22 @@ describe("a device card's sheet (G23–G26)", () => {
 		expect(typeWords(byId('hue_motion'))).toBe('motion sensor');
 	});
 });
+
+describe('grouped like the mockup', () => {
+	const sections = (id: string) => deviceDescriptor(byId(id)).sections.map((s) => s.title);
+	it('a light: main reading, what is on the card, tapping, symbol', () => {
+		expect(sections('hue_lamp')).toEqual([
+			'Main reading',
+			'On the card',
+			'Tapping the card',
+			'Symbol'
+		]);
+		expect(keys('hue_lamp').some((k) => k.startsWith('show_'))).toBe(false);
+	});
+	it('a sensor: main reading, also show, symbol — each choice with its value now', () => {
+		expect(sections('hue_motion')).toEqual(['Main reading', 'Also show', 'Symbol']);
+		const main = deviceDescriptor(byId('hue_motion')).sections[0]!.fields[0]!;
+		expect(main.render).toBe('choices');
+		expect(main.options?.every((o) => typeof o.sub === 'string')).toBe(true);
+	});
+});

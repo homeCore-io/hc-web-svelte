@@ -76,7 +76,10 @@
 		{/if}
 		{#each form.sections as section (section.id)}
 			<section>
-				{#if section.fields.length > 1}<h3>{section.title}</h3>{/if}
+				<!-- A heading where it gathers several settings; one names itself. -->
+				{#if section.fields.filter((f) => f.key !== undefined).length > 1}<h3>
+						{section.title}
+					</h3>{/if}
 				<SectionForm {form} {section} showKeys={false} />
 			</section>
 		{/each}

@@ -11,6 +11,8 @@
 export interface Opt {
 	value: unknown;
 	label: string;
+	/** This app's own: a second line under the label — a reading's value now. */
+	sub?: string;
 }
 
 /** `visible_when` / `required_when`, exactly as core serialises a `Cond`. */

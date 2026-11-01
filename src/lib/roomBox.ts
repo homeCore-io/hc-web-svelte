@@ -11,7 +11,7 @@ import { kindOf, type CardView, type IconName } from './card.js';
 import { displayName, unitOf, type CoreDevice, type Devices } from './devices.js';
 import { numbersOf, sourceOf, type NumberId, type Options, type Source } from './options.js';
 import { allOffTargets } from './summary.js';
-import { toShown } from './units.js';
+import { shownUnit, toShown } from './units.js';
 
 // ---- readings ----
 
@@ -418,7 +418,7 @@ export function bigNumbers(h: HouseIn, o: Options): BigNumber[] {
 			const v = of(inside, 'temperature', mean(temps));
 			return {
 				value: v === undefined ? '—' : String(Math.round(v)),
-				unit: v === undefined ? undefined : '°',
+				unit: v === undefined ? undefined : shownUnit('°C'),
 				sub: chosen(inside) ?? `average of ${plural(temps.length, 'room', 'rooms')}`
 			};
 		},
@@ -428,7 +428,7 @@ export function bigNumbers(h: HouseIn, o: Options): BigNumber[] {
 				outside === 'auto' && station ? percent(readingOf(station, 'humidity')) : undefined;
 			return {
 				value: v === undefined ? '—' : String(Math.round(v)),
-				unit: v === undefined ? undefined : '°',
+				unit: v === undefined ? undefined : shownUnit('°C'),
 				sub: chosen(outside) ?? (station ? (hum ?? displayName(station)) : 'no weather station')
 			};
 		},

@@ -487,8 +487,9 @@ doesn't present: the band's Show and its numbers (`section:summary`,
     and its ramp on the right. The footer reads "Sized by what is in each
     room · 17 rooms · tap one to open it".
   - The side column (G32) has a rule on its left and between its sections.
-    By default it holds Needs attention, Pinned, Favourites, Worth knowing,
-    Playing, then Scenes & modes. Alerts are compact rows (up to five, then
+    By default it holds Needs attention, Pinned, Worth knowing, Playing,
+    then Scenes & modes. Favourites start under the rooms (user,
+    2026-11-01). Alerts are compact rows (up to five, then
     "All N alerts"). Cards are one to a row and never Large. Worth knowing
     is plain rows under its heading. Playing is as the board draws it: the
     artwork or the player's icon in a tile, what's playing, its room, and
@@ -511,8 +512,10 @@ doesn't present: the band's Show and its numbers (`section:summary`,
     ignore tools) is fetched alongside Home's code, since Home only shows
     three alerts and they arrive from the network after it anyway. That
     took it from 152.1 KB, over budget, to 142.4 KB.
-  - Still different from the board: no sparkline under Inside; "°" in
-    place of "°F"; Worth knowing lists what's out of the ordinary now
+  - Inside and Outside say their unit, "°F" or "°C" as the person reads,
+    as device cards do. The board's sparkline under Inside was dropped
+    from the board as well (user, 2026-11-01: not useful).
+  - Still different from the board: Worth knowing lists what's out of the ordinary now
     instead of a timed log of events; Customise stays in the header's
     pencil menu instead of a button beside the title. Pinned and Favourites
     cards are standard device cards, so the side column runs longer than

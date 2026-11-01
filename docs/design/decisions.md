@@ -1152,9 +1152,11 @@ regression shows plainly against today's Home.
 - In the room field style Home is drawn as mockup A: the big numbers
   across the top, the rooms' field, and a column beside it (user,
   2026-11-01). Needs attention is that column's first section and can't be
-  moved or hidden (G6). After it, by default: Pinned, Favourites, Worth
-  knowing, Playing, Scenes & modes. Sections a person or the household
-  makes start under the rooms.
+  moved or hidden (G6). After it, by default: Pinned, Worth knowing,
+  Playing, Scenes & modes. Favourites start under the rooms (user,
+  2026-11-01), as do sections a person or the household makes. Every
+  section but the alerts, the big numbers and the rooms can go in either
+  column.
 - In Customise and Edit the side sections move up and down and hide like
   any section, and each one's tools choose "Beside the rooms" or "Under the
   rooms". The choice is a section `config` change, `{ column: 'side' |

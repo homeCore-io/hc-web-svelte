@@ -546,12 +546,18 @@ describe('beside the rooms, in the room field (G32)', () => {
 			field: true
 		}).sections.map((s) => [s.section.id, s.column]);
 
-	it('Needs attention first beside the rooms, then Pinned, Favourites, Worth knowing, Playing, Scenes', () => {
+	it('Needs attention first beside the rooms, then Pinned, Worth knowing, Playing, Scenes; Favourites under the rooms', () => {
 		const side = at()
 			.filter(([, c]) => c === 'side')
 			.map(([id]) => id);
-		expect(side).toEqual(['alerts', 'pinned', 'favourites', 'worth', 'playing', 'scenes']);
-		expect(at().filter(([, c]) => c === 'main')).toEqual([['rooms', 'main']]);
+		expect(side).toEqual(['alerts', 'pinned', 'worth', 'playing', 'scenes']);
+		// The rooms are drawn first in the main column, whatever the page's order.
+		expect(
+			at()
+				.filter(([, c]) => c === 'main')
+				.map(([id]) => id)
+				.sort()
+		).toEqual(['favourites', 'rooms']);
 		expect(at().find(([id]) => id === 'summary')?.[1]).toBe('band');
 		expect(at().find(([id]) => id === 'chips')?.[1]).toBe('none');
 	});
@@ -599,6 +605,6 @@ describe('beside the rooms, in the room field (G32)', () => {
 		const side = at(changes)
 			.filter(([, c]) => c === 'side')
 			.map(([id]) => id);
-		expect(side).toEqual(['alerts', 'scenes', 'pinned', 'favourites', 'worth', 'playing']);
+		expect(side).toEqual(['alerts', 'scenes', 'pinned', 'worth', 'playing']);
 	});
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { followUnits } from './units.js';
 import { cardFor } from './card.js';
 import { fromList, type CoreDevice } from './devices.js';
 import {
@@ -279,6 +280,14 @@ describe('the big numbers', () => {
 			['playing', '0', 'nothing playing'],
 			['open', '0', 'all shut']
 		]);
+	});
+
+	it('say their temperatures in the person’s unit, as cards do', () => {
+		followUnits(() => ({ temperature: 'F', measures: 'us' }));
+		const us = bigNumbers(h, SUMMARY_BUILT_IN).find((x) => x.id === 'inside');
+		expect([us?.value, us?.unit]).toEqual(['68', '°F']);
+		followUnits(() => ({ temperature: 'C', measures: 'metric' }));
+		expect(bigNumbers(h, SUMMARY_BUILT_IN).find((x) => x.id === 'inside')?.unit).toBe('°C');
 	});
 
 	it('take a chosen sensor, and drop what isn’t a number they know', () => {

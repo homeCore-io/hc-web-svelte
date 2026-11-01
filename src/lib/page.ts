@@ -273,7 +273,8 @@ export function homePage(h: HomeInput): Page {
 				layout: 'grid',
 				layouts: CARD_LAYOUTS,
 				favourites: true,
-				field: SIDE,
+				// Under the rooms until moved beside them (the user's choice, 2026-11-01).
+				field: { column: 'main', movable: true },
 				// Favourites are each person's own; the shared page has none.
 				cards: edit ? [] : h.favourites.flatMap((r) => cardOf(r, h) ?? []),
 				hint: edit

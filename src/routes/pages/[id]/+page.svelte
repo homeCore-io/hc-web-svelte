@@ -9,6 +9,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import Plus from '@lucide/svelte/icons/plus';
+	import Info from '@lucide/svelte/icons/info';
 	import { devices } from '#lib/devices.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { scenes } from '#lib/scenes.svelte.js';
@@ -62,6 +63,7 @@
 		else making = true;
 	}
 	let making = $state(false);
+	let about = $state(false);
 
 	// Made just now and empty (NewPage): open ready to add to, in Customise.
 	$effect(() => {
@@ -78,6 +80,12 @@
 {:else}
 	<div class="built">
 		<CustomiseBar page={key} own={found.whose === 'mine'} />
+		<div class="top">
+			<span class="whose">{found.whose === 'house' ? 'Everyone' : 'Just you'}</span>
+			<button class="about" onclick={() => (about = true)}
+				><Info size={16} aria-hidden="true" />This page</button
+			>
+		</div>
 		{#if empty && !arranging}
 			<div class="empty">
 				<b>Nothing on this page yet.</b>
@@ -100,6 +108,11 @@
 		<PageView page={doc} bind:making />
 	</div>
 {/if}
+{#if about && found}
+	{#await import('#lib/components/PageAbout.svelte') then { default: PageAbout }}
+		<PageAbout p={found} close={() => (about = false)} />
+	{/await}
+{/if}
 
 <style>
 	.built {
@@ -107,6 +120,34 @@
 		flex-direction: column;
 		gap: 22px;
 		max-width: 1100px;
+	}
+	.top {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 10px;
+		margin-bottom: -8px;
+	}
+	.whose {
+		font-size: 12px;
+		font-weight: 700;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--ink-muted);
+	}
+	.about {
+		height: 36px;
+		padding: 0 14px;
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		border: 1px solid var(--line);
+		border-radius: 999px;
+		background: var(--surface);
+		color: var(--ink);
+		font: inherit;
+		font-size: 13px;
+		font-weight: 600;
 	}
 	.quiet {
 		color: var(--ink-muted);

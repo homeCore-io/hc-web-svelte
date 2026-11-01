@@ -14,6 +14,7 @@
 	import RoomIcon from '#lib/components/RoomIcon.svelte';
 
 	const items = $derived([
+		{ href: '/pages', label: 'Pages' },
 		{ href: '/scenes', label: 'Scenes' },
 		{ href: '/alerts', label: 'Alerts' },
 		...(hasSettings((s) => session.can(s), session.isAdmin)

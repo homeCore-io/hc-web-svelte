@@ -9,8 +9,18 @@
 	import { BAR_CHOICES, BAR_SIZE, nudgeFavourite } from '#lib/layers.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 
-	let { bar, label, set }: { bar: string[]; label: string; set: (next: string[]) => void } =
-		$props();
+	let {
+		bar,
+		label,
+		set,
+		pages = []
+	}: {
+		bar: string[];
+		label: string;
+		set: (next: string[]) => void;
+		/** Pages it may hold (G30): the house's, and on Me the person's own. */
+		pages?: { id: string; name: string }[];
+	} = $props();
 
 	const NAMES: Record<string, string> = {
 		home: 'Home',
@@ -22,10 +32,13 @@
 	const nameOf = (d: string) =>
 		d.startsWith('room:')
 			? (rooms.list.find((r) => `room:${r.id}` === d)?.name ?? 'Room')
-			: NAMES[d]!;
+			: d.startsWith('page:')
+				? (pages.find((p) => `page:${p.id}` === d)?.name ?? 'Page')
+				: NAMES[d]!;
 	const addable = $derived([
 		...BAR_CHOICES.filter((d) => !bar.includes(d)),
-		...rooms.list.map((r) => `room:${r.id}`).filter((d) => !bar.includes(d))
+		...rooms.list.map((r) => `room:${r.id}`).filter((d) => !bar.includes(d)),
+		...pages.map((p) => `page:${p.id}`).filter((d) => !bar.includes(d))
 	]);
 </script>
 

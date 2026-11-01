@@ -57,7 +57,9 @@
 				rooms.list.map((r) => r.id),
 				household.doc
 			),
-			rooms.list
+			rooms.list,
+			// The house's pages and this person's own (G30).
+			[...(household.doc.built ?? []), ...(personal.doc.built ?? [])]
 		)
 	);
 	// The rooms in the order Home shows them: the household's, then this person's.
@@ -262,7 +264,11 @@
 					finder.open = true;
 				}}
 			>
-				<d.icon size={22} strokeWidth={1.8} aria-hidden="true" />
+				{#if d.symbol}<RoomIcon name={d.symbol} size={22} />{:else}<d.icon
+						size={22}
+						strokeWidth={1.8}
+						aria-hidden="true"
+					/>{/if}
 				<span>{d.label}</span>
 			</a>
 		{/each}

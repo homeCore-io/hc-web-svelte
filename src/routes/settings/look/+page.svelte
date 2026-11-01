@@ -45,7 +45,12 @@
 			<p class="quiet">
 				Up to {BAR_SIZE} places, then More — for everyone who hasn't chosen their own.
 			</p>
-			<BarChooser {bar} label="The household's phone bar" set={setBar} />
+			<BarChooser
+				{bar}
+				label="The household's phone bar"
+				set={setBar}
+				pages={household.doc.built ?? []}
+			/>
 		</section>
 		{#if household.trouble}<p class="trouble" role="alert">{household.trouble}</p>{/if}
 	</div>

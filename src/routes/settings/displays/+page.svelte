@@ -16,6 +16,8 @@
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { nudgeFavourite } from '#lib/layers.js';
 	import { tabsFor, type DisplayDoc } from '#lib/display.js';
+	import { displayPages } from '#lib/built.js';
+	import { household } from '#lib/household.svelte.js';
 	import { core } from '#lib/core.svelte.js';
 
 	interface Display {
@@ -113,9 +115,11 @@
 		{ key: 'home', label: 'Home' },
 		{ key: 'scenes', label: 'Scenes' },
 		{ key: 'alerts', label: 'Alerts' },
-		...rooms.list.map((r) => ({ key: `room:${r.id}`, label: r.name }))
+		...rooms.list.map((r) => ({ key: `room:${r.id}`, label: r.name })),
+		// The house's own pages, never a person's (G31).
+		...displayPages(household.doc).map((p) => ({ key: `page:${p.id}`, label: p.name }))
 	]);
-	const chosen = $derived(tabsFor(doc, rooms.list));
+	const chosen = $derived(tabsFor(doc, rooms.list, displayPages(household.doc)));
 	const setPages = (pages: string[]) => save({ ...doc, pages });
 	const setKiosk = (k: Partial<NonNullable<DisplayDoc['kiosk']>>) =>
 		save({ ...doc, kiosk: { ...doc.kiosk, ...k } });

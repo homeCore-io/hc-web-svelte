@@ -234,7 +234,12 @@
 	<section>
 		<h2 class="section-label" id="bar">Phone bar</h2>
 		<p class="note">Up to {BAR_SIZE} places at the bottom of your phone, then More. Only yours.</p>
-		<BarChooser {bar} label="Your phone bar" set={setBar} />
+		<BarChooser
+			{bar}
+			label="Your phone bar"
+			set={setBar}
+			pages={[...(household.doc.built ?? []), ...(personal.doc.built ?? [])]}
+		/>
 		{#if personal.doc.bar !== undefined}
 			<button class="link" onclick={usualBar}>Back to the household's bar</button>
 		{/if}

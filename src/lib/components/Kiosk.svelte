@@ -13,6 +13,7 @@
 	import Bell from '@lucide/svelte/icons/bell';
 	import { allowedOn, nextTab, reloadDue, tabsFor, type DisplayDoc } from '#lib/display.js';
 	import { rooms } from '#lib/rooms.svelte.js';
+	import { household } from '#lib/household.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
 	import { alerts } from '#lib/alerts.svelte.js';
 	import { theme } from '#lib/theme.svelte.js';
@@ -37,12 +38,13 @@
 		return () => clearInterval(t);
 	});
 
-	const tabs = $derived(tabsFor(doc, rooms.list));
+	const tabs = $derived(tabsFor(doc, rooms.list, household.doc.built ?? []));
 	const pathname = $derived(page.url.pathname);
 
 	// Only its own pages: anywhere else goes to its first.
 	$effect(() => {
-		if (doc === undefined || rooms.list.length === 0) return;
+		// The house's pages are named in its document: wait for it too (G31).
+		if (doc === undefined || rooms.list.length === 0 || !household.loaded) return;
 		if (!allowedOn(tabs, pathname)) void goto(tabs[0]!.href, { replace: true });
 	});
 

@@ -490,7 +490,10 @@ doesn't present: the band's Show and its numbers (`section:summary`,
     By default it holds Needs attention, Pinned, Favourites, Worth knowing,
     Playing, then Scenes & modes. Alerts are compact rows (up to five, then
     "All N alerts"). Cards are one to a row and never Large. Worth knowing
-    and Playing are plain rows under their headings. Modes and scenes are
+    is plain rows under its heading. Playing is as the board draws it: the
+    artwork or the player's icon in a tile, what's playing, its room, and
+    a pause button. A player that gives its own id as the title (a Sonos on
+    its line-in, "RINCON_542A…") says its name and "Playing" instead. Modes and scenes are
     34px chips, with the active mode in the lit colour.
   - On a phone the alerts are one line after the band ("1 door open · 8
     alerts"), and the side sections follow the field in their order.
@@ -509,8 +512,7 @@ doesn't present: the band's Show and its numbers (`section:summary`,
     three alerts and they arrive from the network after it anyway. That
     took it from 152.1 KB, over budget, to 142.4 KB.
   - Still different from the board: no sparkline under Inside; "°" in
-    place of "°F"; Playing shows plain rows without the pause button and
-    the speaker tile; Worth knowing lists what's out of the ordinary now
+    place of "°F"; Worth knowing lists what's out of the ordinary now
     instead of a timed log of events; Customise stays in the header's
     pencil menu instead of a button beside the title. Pinned and Favourites
     cards are standard device cards, so the side column runs longer than

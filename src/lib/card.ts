@@ -129,6 +129,8 @@ export interface CardView {
 	 * no album — so it is shown whole, not cropped to fill.
 	 */
 	artLogo?: boolean;
+	/** What a player is playing or paused on, in words: a title, else its app or input. */
+	nowPlaying?: string;
 	/** Multi-channel devices: a switch per channel, and no single control (C7). */
 	channels: Channel[];
 	available: boolean;
@@ -452,8 +454,10 @@ function media(d: CoreDevice, a: Record<string, unknown>, s: Schema, v: CardView
 	// On a radio stream the "track" is the stream's own file, and its title
 	// can be its address (`hls.m3u8?rj-ttl=5&…`). Never say that; the station
 	// shows in its logo, and the line just says it's playing.
-	const title = raw && !streamAddress(raw) ? raw : undefined;
-	const app = str(a.app_name) ?? (a.source !== 'Home' ? str(a.source) : undefined);
+	// A Sonos playing its line-in or TV gives its own id ("RINCON_542A…") as the title.
+	const title = raw && !streamAddress(raw) && !idLike(raw) ? raw : undefined;
+	const source = str(a.app_name) ?? (a.source !== 'Home' ? str(a.source) : undefined);
+	const app = source && !idLike(source) ? source : undefined;
 	const isSpeaker = (d.plugin_id ?? '').includes('sonos') || d.ui_hint === 'speaker';
 	v.icon = isSpeaker ? 'speaker' : 'tv';
 	const playing = state === 'playing';
@@ -467,6 +471,7 @@ function media(d: CoreDevice, a: Record<string, unknown>, s: Schema, v: CardView
 				: app
 					? `On · ${app}`
 					: 'On';
+	if (on && (playing || state === 'paused')) v.nowPlaying = title ?? app;
 	const ids = new Set((s.actions ?? []).map((x) => x.id));
 	const toggle = ids.has('play_pause') ? 'play_pause' : playing ? 'pause' : 'play';
 	if (on && ids.has(toggle)) v.control = { kind: 'play', playing, action: toggle };
@@ -492,6 +497,9 @@ function media(d: CoreDevice, a: Record<string, unknown>, s: Schema, v: CardView
 /** A "title" that is really a stream's address (as hc-web-flutter judged it too). */
 export const streamAddress = (t: string) =>
 	t.includes('://') || t.includes('.m3u8') || (t.includes('?') && t.includes('&')) || t.length > 60;
+
+/** A device's or input's id rather than its name: long, no spaces, capitals, digits and "_". */
+export const idLike = (t: string) => t.length >= 12 && /^[A-Z0-9_:.-]+$/.test(t) && /\d/.test(t);
 
 /** homeCore's artwork for a player, keyed by the track's own art address. */
 export function artUrl(deviceId: string, published: string): string {

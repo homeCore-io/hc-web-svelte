@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cardFor } from './card.js';
+import { cardFor, idLike } from './card.js';
 import { followUnits } from './units.js';
 import type { CoreDevice, Devices } from './devices.js';
 import { HOUSE, ROOMS, FIXTURE_NOW } from './fixtures/house.js';
@@ -44,9 +44,32 @@ describe('worth knowing (G-c)', () => {
 		const all = Object.fromEntries(HOUSE.map((d) => [d.device_id, d]));
 		const playing = playingNow(cards(all), all, rooms);
 		expect(playing.length).toBeGreaterThan(0);
-		for (const i of playing) expect(i.what.startsWith('Playing')).toBe(true);
 		const worth = worthKnowing(cards(all), all, rooms, { ...WORTH_BUILT_IN, playing: true });
 		for (const i of playing) expect(worth.some((w) => w.id === i.id)).toBe(false);
+	});
+
+	it('says what is playing and where, never a player id', () => {
+		const all = Object.fromEntries(HOUSE.map((d) => [d.device_id, d]));
+		for (const i of playingNow(cards(all), all, rooms)) {
+			expect(i.title).not.toMatch(/^Playing/);
+			expect(idLike(i.title)).toBe(false);
+		}
+		expect(idLike('RINCON_542A1B8710A901400')).toBe(true);
+		const speaker = HOUSE.find((d) => (d.plugin_id ?? '').includes('sonos'));
+		expect(speaker).toBeDefined();
+		const lineIn = {
+			...speaker!,
+			attributes: {
+				...speaker!.attributes,
+				state: 'playing',
+				media_title: 'RINCON_542A1B8710A901400'
+			}
+		};
+		const card = cardFor(lineIn, FIXTURE_NOW);
+		expect(card.stateLine).not.toContain('RINCON');
+		expect(card.nowPlaying).toBeUndefined();
+		expect(idLike('HDMI 1')).toBe(false);
+		expect(idLike('YouTube')).toBe(false);
 	});
 
 	it('says how long a door has been open in one plain phrase', () => {

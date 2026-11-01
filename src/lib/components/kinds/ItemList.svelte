@@ -1,5 +1,5 @@
 <!--
-	What worth knowing and playing list: a name, its room, what it's doing.
+	What worth knowing lists: a name, its room, what it's doing.
 	`plain`: under its section's own heading, beside the rooms (mockup A).
 -->
 <script lang="ts">

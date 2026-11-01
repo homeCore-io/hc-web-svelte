@@ -3,7 +3,7 @@
  * playing, a weather device's readings and forecast. Plain data from the
  * house's devices, so each can be tested without drawing anything.
  */
-import { reading, type CardView } from './card.js';
+import { reading, type CardView, type IconName } from './card.js';
 import { displayName, type CoreDevice, type Devices } from './devices.js';
 import type { Room } from './house.js';
 import { kindOf } from './card.js';
@@ -92,9 +92,38 @@ export function worthKnowing(
 	];
 }
 
-/** Every speaker or TV playing now, with its room. */
-export const playingNow = (cards: CardView[], all: Devices, rooms: Room[]): Item[] =>
-	cards.filter(isPlaying).map((c) => item(c, all, rooms));
+export interface Playing {
+	id: string;
+	/** What's playing ("ALT Radio", "YouTube"), else the player's own name. */
+	title: string;
+	/** Its room, and the player's name too when the title isn't it. */
+	where: string;
+	/** Pause, where the player has a play control. */
+	pause?: string;
+	icon: IconName;
+	art?: string;
+	artLogo?: boolean;
+}
+
+/** Every speaker or TV playing now: what it's playing, where (mockup A). */
+export const playingNow = (cards: CardView[], all: Devices, rooms: Room[]): Playing[] =>
+	cards.filter(isPlaying).map((c) => {
+		const room = roomName(all[c.id], rooms);
+		const title = c.nowPlaying ?? c.name;
+		const named = title === c.name || room === c.name;
+		return {
+			id: c.id,
+			icon: c.icon,
+			title,
+			where: named
+				? room && room !== title
+					? room
+					: 'Playing'
+				: [room, c.name].filter(Boolean).join(' · '),
+			...(c.control?.kind === 'play' ? { pause: c.control.action } : {}),
+			...(c.art ? { art: c.art, artLogo: c.artLogo } : {})
+		};
+	});
 
 // ---- weather (G21) ----
 

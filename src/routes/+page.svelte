@@ -10,7 +10,11 @@
 	arranges it for one person; Edit, for everyone (N6).
 -->
 <script lang="ts">
-	import { cardFor } from '#lib/card.js';
+	import { cardFor, kindOf } from '#lib/card.js';
+	import { displayName } from '#lib/devices.js';
+	import { heading } from '#lib/heading.svelte.js';
+	import { kindOptions } from '#lib/kindOptions.svelte.js';
+	import { homeStyle } from '#lib/styles.js';
 	import { houseChips } from '#lib/summary.js';
 	import { cardRef } from '#lib/layers.js';
 	import { homePage } from '#lib/page.js';
@@ -47,12 +51,29 @@
 			mode: view.mode(HOME)
 		})
 	);
+
+	// The room field (mockup A): wider, and the day and the house's mode above the title.
+	const field = $derived(homeStyle(view.changes(HOME), kindOptions.shellRooms(HOME)) === 'field');
+	const kicker = $derived.by(() => {
+		if (!field) return null;
+		const at = new Date(clock.now);
+		const day = (o: Intl.DateTimeFormatOptions) => at.toLocaleDateString(undefined, o);
+		const mode = Object.values(devices.byId).find(
+			(d) => kindOf(d) === 'mode' && d.attributes.on === true
+		);
+		const withMode = (s: string) => (mode ? `${s} · ${displayName(mode)}` : s);
+		return {
+			long: withMode(day({ weekday: 'long', day: 'numeric', month: 'long' })),
+			short: withMode(day({ weekday: 'short', day: 'numeric', month: 'short' }))
+		};
+	});
+	$effect(() => heading.showKicker(kicker));
 </script>
 
 {#if !devices.loaded}
 	<p class="quiet">Loading the house…</p>
 {:else}
-	<div class="home">
+	<div class="home" class:field>
 		<CustomiseBar page={HOME} home />
 		<PageView page={doc} />
 	</div>
@@ -64,6 +85,9 @@
 		flex-direction: column;
 		gap: 22px;
 		max-width: 1100px;
+	}
+	.home.field {
+		max-width: 1240px;
 	}
 	.quiet {
 		color: var(--ink-muted);

@@ -1,6 +1,8 @@
 <!--
 	A room on Home: in the list, its summary and "All off" (C5); in the room
 	field or tiles, its box (G-b), with the settings that apply on this screen.
+	In the field, the field's plan says whether it is a big box (`large`) or a
+	small one (mockup A).
 	On a page someone made, in a grid, its box too (G27).
 -->
 <script lang="ts">
@@ -12,10 +14,11 @@
 	import type { KindProps } from '#lib/kinds.js';
 	import { ROOM_BUILT_IN } from '#lib/options.js';
 	import { roomBox } from '#lib/roomBox.js';
+	import FieldBox from '../FieldBox.svelte';
 	import RoomBox from '../RoomBox.svelte';
 	import RoomRow from '../RoomRow.svelte';
 
-	let { card, label, page, layout }: KindProps<'room'> = $props();
+	let { card, label, page, layout, form }: KindProps<'room'> = $props();
 	const cards = $derived(card.devices.map((d) => cardFor(d, clock.now)));
 	// In a grid (a page someone made, G27) a room is a box the grid's size.
 	const boxed = $derived(layout === 'field' || layout === 'tiles' || layout === 'grid');
@@ -31,14 +34,16 @@
 	);
 </script>
 
-{#if box}
-	<RoomBox
+{#if box && layout === 'field'}
+	<FieldBox
 		href={card.href}
 		name={label ?? card.name}
 		{box}
 		devices={card.devices}
-		tiles={layout !== 'field'}
+		big={form === 'large'}
 	/>
+{:else if box}
+	<RoomBox href={card.href} name={label ?? card.name} {box} devices={card.devices} tiles />
 {:else}
 	<RoomRow
 		href={card.href}

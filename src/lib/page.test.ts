@@ -49,6 +49,8 @@ describe('Home, generated (D1)', () => {
 			'summary',
 			'pinned',
 			'favourites',
+			'worth',
+			'playing',
 			'scenes',
 			'rooms'
 		]);
@@ -532,5 +534,71 @@ describe('a room’s section emptied by moves (G22)', () => {
 		const s = applyPage(room, changes).sections.find((x) => x.section.id === 'devices:controls')!;
 		expect(drawn(s, false)).toBe(false);
 		expect(drawn(s, true)).toBe(true);
+	});
+});
+
+describe('beside the rooms, in the room field (G32)', () => {
+	// As the style writes it: the big numbers shown.
+	const SHOW: Change = { op: 'show', ref: 'section:summary' };
+	const at = (changes: Change[] = [], mine: Change[] = [], arranging = false) =>
+		applyPage(withOwn(home({ alerts: 2 }), changes, mine), [SHOW, ...changes], mine, {
+			arranging,
+			field: true
+		}).sections.map((s) => [s.section.id, s.column]);
+
+	it('Needs attention first beside the rooms, then Pinned, Favourites, Worth knowing, Playing, Scenes', () => {
+		const side = at()
+			.filter(([, c]) => c === 'side')
+			.map(([id]) => id);
+		expect(side).toEqual(['alerts', 'pinned', 'favourites', 'worth', 'playing', 'scenes']);
+		expect(at().filter(([, c]) => c === 'main')).toEqual([['rooms', 'main']]);
+		expect(at().find(([id]) => id === 'summary')?.[1]).toBe('band');
+		expect(at().find(([id]) => id === 'chips')?.[1]).toBe('none');
+	});
+
+	it('worth knowing and playing are the room field’s alone', () => {
+		const ids = applyPage(home(), [], [], { arranging: false }).sections.map((s) => s.section.id);
+		expect(ids).not.toContain('worth');
+		expect(ids).not.toContain('playing');
+		// Named on the page all the same, so Edit's Done keeps changes to them.
+		expect(presentRefs(home()).has('section:worth')).toBe(true);
+	});
+
+	it('a column setting moves a section across, through the layers; the person’s wins', () => {
+		const house: Change[] = [{ op: 'config', ref: 'section:pinned', config: { column: 'main' } }];
+		expect(at(house).find(([id]) => id === 'pinned')?.[1]).toBe('main');
+		const mine: Change[] = [
+			{ op: 'config', ref: 'section:pinned', config: { column: 'side', layout: 'list' } }
+		];
+		expect(at([...house, ...mine], mine).find(([id]) => id === 'pinned')?.[1]).toBe('side');
+	});
+
+	it('the rooms, the band and the alerts stay put; own sections start under the rooms', () => {
+		const changes: Change[] = [
+			{ op: 'config', ref: 'section:rooms', config: { layout: 'field', column: 'side' } },
+			{ op: 'config', ref: 'section:summary', config: { column: 'side' } },
+			{ op: 'config', ref: 'section:alerts', config: { column: 'main' } },
+			{ op: 'section', ref: 'section:own-a', title: 'Garden', layout: 'grid' }
+		];
+		const cols = Object.fromEntries(at(changes));
+		expect([cols.rooms, cols.summary, cols.alerts, cols['own-a']]).toEqual([
+			'main',
+			'band',
+			'side',
+			'main'
+		]);
+		const moved: Change[] = [
+			...changes,
+			{ op: 'config', ref: 'section:own-a', config: { column: 'side' } }
+		];
+		expect(Object.fromEntries(at(moved))['own-a']).toBe('side');
+	});
+
+	it('moves up and down keep the side’s order', () => {
+		const changes: Change[] = [{ op: 'move', ref: 'section:scenes', before: 'section:pinned' }];
+		const side = at(changes)
+			.filter(([, c]) => c === 'side')
+			.map(([id]) => id);
+		expect(side).toEqual(['alerts', 'scenes', 'pinned', 'favourites', 'worth', 'playing']);
 	});
 });

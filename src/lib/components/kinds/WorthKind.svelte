@@ -10,7 +10,7 @@
 	import { worthKnowing } from '#lib/pieces.js';
 	import ItemList from './ItemList.svelte';
 
-	let { card, page, label, options }: KindProps<'worth'> = $props();
+	let { card, page, label, options, place }: KindProps<'worth'> = $props();
 	const o = $derived(options ?? kindOptions.of(page, 'worth', card.ref, WORTH_BUILT_IN));
 	const items = $derived(
 		worthKnowing(
@@ -23,4 +23,9 @@
 	);
 </script>
 
-<ItemList title={label ?? 'Worth knowing'} {items} none="Nothing out of the ordinary." />
+<ItemList
+	title={label ?? 'Worth knowing'}
+	{items}
+	none="Nothing out of the ordinary."
+	plain={place === 'side'}
+/>

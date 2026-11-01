@@ -78,7 +78,17 @@ export interface Section {
 	accepts?: boolean;
 	/** A section someone made (G17): the household's, or this person's own. */
 	own?: 'house' | 'person';
+	/**
+	 * Where the room field style draws it (G32, mockup A): the band across the
+	 * top, the side column, the main column under the rooms, or not at all.
+	 * `movable`: a `column` setting may put it in the other column. `only`:
+	 * drawn in that style alone. Unsaid: the main column, movable.
+	 */
+	field?: { column: Column; movable?: boolean; only?: boolean };
 }
+
+export type Column = 'band' | 'side' | 'main' | 'none';
+const SIDE = { column: 'side', movable: true } as const;
 
 /** Layouts for a section of cards (G19); field and tiles are for rooms. */
 export const CARD_LAYOUTS: Layout[] = ['grid', 'row', 'list'];
@@ -222,6 +232,7 @@ export function homePage(h: HomeInput): Page {
 				layout: 'list',
 				fixed: true,
 				bare: true,
+				field: { column: 'side' },
 				cards:
 					h.alerts > 0 && !edit
 						? [{ ref: 'piece:alerts/home', kind: 'alerts', count: h.alerts }]
@@ -232,6 +243,8 @@ export function homePage(h: HomeInput): Page {
 				title: 'What’s going on',
 				layout: 'list',
 				bare: true,
+				// The band says the same in the room field.
+				field: { column: 'none' },
 				cards:
 					h.chips.length > 0 ? [{ ref: 'piece:chips/home', kind: 'chips', chips: h.chips }] : []
 			},
@@ -241,6 +254,7 @@ export function homePage(h: HomeInput): Page {
 				layout: 'list',
 				headless: true,
 				hiddenUnlessShown: true,
+				field: { column: 'band' },
 				cards: [{ ref: 'piece:summary/home', kind: 'summary' }]
 			},
 			{
@@ -249,6 +263,7 @@ export function homePage(h: HomeInput): Page {
 				layout: 'grid',
 				layouts: CARD_LAYOUTS,
 				accepts: true,
+				field: SIDE,
 				cards: h.added.flatMap((r) => cardOf(r, h, { added: true }) ?? []),
 				hint: 'What’s added with Add, and not put in another section, appears here.'
 			},
@@ -258,11 +273,27 @@ export function homePage(h: HomeInput): Page {
 				layout: 'grid',
 				layouts: CARD_LAYOUTS,
 				favourites: true,
+				field: SIDE,
 				// Favourites are each person's own; the shared page has none.
 				cards: edit ? [] : h.favourites.flatMap((r) => cardOf(r, h) ?? []),
 				hint: edit
 					? 'Each person’s favourites show here.'
 					: 'Star anything — here or in a room — and it appears in Favourites at the top of Home.'
+			},
+			// Beside the rooms in the room field (mockup A); not drawn in other styles.
+			{
+				id: 'worth',
+				title: 'Worth knowing',
+				layout: 'list',
+				field: { ...SIDE, only: true },
+				cards: [{ ref: 'piece:worth/home', kind: 'worth' }]
+			},
+			{
+				id: 'playing',
+				title: 'Playing',
+				layout: 'list',
+				field: { ...SIDE, only: true },
+				cards: [{ ref: 'piece:playing/home', kind: 'playing' }]
 			},
 			{
 				id: 'scenes',
@@ -270,6 +301,7 @@ export function homePage(h: HomeInput): Page {
 				layout: 'row',
 				layouts: ['row', 'grid', 'list'],
 				accepts: true,
+				field: SIDE,
 				lead: hasModes ? { ref: 'piece:modes/home', kind: 'modes' } : undefined,
 				show: hasModes ? 'always' : 'cards',
 				cards: scenes
@@ -280,6 +312,7 @@ export function homePage(h: HomeInput): Page {
 				layout: 'list',
 				layouts: ['list', 'field', 'tiles'],
 				show: 'always',
+				field: { column: 'main' },
 				cards: rooms
 			}
 		]
@@ -444,6 +477,10 @@ export interface ShownSection {
 	layout: Layout;
 	/** Its cards in runs of one group each, with the layers applied. */
 	groups: Layered<Card>[];
+	/** Its settings on this page: its layout, its column. */
+	config?: Record<string, unknown>;
+	/** Where the room field style draws it (G32). */
+	column: Column;
 }
 
 export interface Shown {
@@ -470,8 +507,11 @@ export function applyPage(
 	page: Page,
 	changes: Change[] = [],
 	mine: Change[] = [],
-	o: { arranging: boolean } = { arranging: false }
+	o: { arranging: boolean; field?: boolean } = { arranging: false }
 ): Shown {
+	// What only the room field draws is left out of the other styles (G32).
+	if (!o.field && page.sections.some((s) => s.field?.only))
+		page = { ...page, sections: page.sections.filter((s) => !s.field?.only) };
 	// Added into a section (G16): placed as a move would, ahead of the rest.
 	changes = [
 		...changes.flatMap((c): Change[] =>
@@ -532,18 +572,26 @@ export function applyPage(
 						)
 					: apply(cards, (c) => c.ref, forSection(s))
 			);
-			const given = layered.config(sectionRef(s.id))?.layout;
-			const layout = s.layouts?.find((l) => l === given) ?? s.layout;
+			const config = layered.config(sectionRef(s.id));
+			const layout = s.layouts?.find((l) => l === config?.layout) ?? s.layout;
 			return {
 				section: s,
 				title: name ?? s.title,
 				renamed: name !== undefined,
 				hidden,
 				layout,
-				groups
+				groups,
+				config,
+				column: columnOf(s, config?.column)
 			};
 		})
 	};
+}
+
+/** Where the room field draws a section: its column, or the one it was given if it may move (G32). */
+export function columnOf(s: Section, given: unknown): Column {
+	const f = s.field ?? { column: 'main', movable: true };
+	return f.movable && (given === 'side' || given === 'main') ? given : f.column;
 }
 
 /** Everything the page names, for Edit's "refers to something that's gone" (M2). */

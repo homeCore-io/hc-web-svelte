@@ -6,6 +6,9 @@
 
 	G-c: a layout among those that suit it (G19), "Add here" (G20), and for a
 	section this layer made, a heading and Remove (G17, G18).
+
+	In the room field style, which column it is in: beside the rooms or under
+	them (G32). Its settings are kept together, so choosing one keeps the other.
 -->
 <script lang="ts">
 	import EyeOff from '@lucide/svelte/icons/eye-off';
@@ -17,7 +20,7 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash from '@lucide/svelte/icons/trash-2';
 	import { ask } from '#lib/confirm.svelte.js';
-	import type { Layout } from '#lib/page.js';
+	import type { Column, Layout } from '#lib/page.js';
 	import { nudge } from '#lib/layers.js';
 	import { view } from '#lib/view.svelte.js';
 
@@ -31,6 +34,8 @@
 		add,
 		layouts = [],
 		layout,
+		config = {},
+		column,
 		mine = false,
 		remove,
 		settings
@@ -48,6 +53,10 @@
 		/** The layouts it may take, and the one it has (G19). */
 		layouts?: Layout[];
 		layout?: Layout;
+		/** Its settings as they apply here, kept when one of them changes. */
+		config?: Record<string, unknown>;
+		/** In the room field, the column it is in, where it may move (G32). */
+		column?: Column;
 		/** This layer made it: it can be renamed here, and removed (G17, G18). */
 		mine?: boolean;
 		remove?: () => void;
@@ -145,10 +154,25 @@
 						view.change(page, {
 							op: 'config',
 							ref,
-							config: { layout: e.currentTarget.value }
+							config: { ...config, layout: e.currentTarget.value }
 						})}
 				>
 					{#each layouts as l (l)}<option value={l}>{LAYOUT_NAMES[l]}</option>{/each}
+				</select>
+			{/if}
+			{#if column === 'side' || column === 'main'}
+				<select
+					aria-label={`Where ${title} goes`}
+					value={column}
+					onchange={(e) =>
+						view.change(page, {
+							op: 'config',
+							ref,
+							config: { ...config, column: e.currentTarget.value }
+						})}
+				>
+					<option value="side">Beside the rooms</option>
+					<option value="main">Under the rooms</option>
 				</select>
 			{/if}
 			{#if mine && remove}

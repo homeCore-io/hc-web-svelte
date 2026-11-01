@@ -8,7 +8,7 @@
 	import { playingNow } from '#lib/pieces.js';
 	import ItemList from './ItemList.svelte';
 
-	let { label }: KindProps<'playing'> = $props();
+	let { label, place }: KindProps<'playing'> = $props();
 	const items = $derived(
 		playingNow(
 			Object.values(devices.byId).map((d) => cardFor(d, clock.now)),
@@ -18,4 +18,4 @@
 	);
 </script>
 
-<ItemList title={label ?? 'Playing'} {items} none="Nothing playing." />
+<ItemList title={label ?? 'Playing'} {items} none="Nothing playing." plain={place === 'side'} />

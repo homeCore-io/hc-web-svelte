@@ -10,8 +10,16 @@ import {
 	withDefaults,
 	roomDescriptor
 } from './options.js';
-import { bigNumbers, fieldSize, readingOf, roomBox, sourced } from './roomBox.js';
-import { styleChanges, styleOf, shellRooms } from './styles.js';
+import {
+	bigNumbers,
+	fieldPlan,
+	fieldText,
+	readingOf,
+	roomBox,
+	sourced,
+	type Box
+} from './roomBox.js';
+import { homeStyle, styleChanges, styleOf, shellRooms } from './styles.js';
 
 const NOW = Date.parse('2026-10-31T12:00:00Z');
 const C = { unit: '°C', kind: 'number', writable: false };
@@ -154,9 +162,107 @@ describe('a room’s box', () => {
 		expect(box().allOff.map((c) => c.id)).toEqual(['lamp']);
 		expect(box({ allOff: false }).allOff).toEqual([]);
 	});
+});
 
-	it('is sized in the field by how much is in the room', () => {
-		expect([fieldSize(2), fieldSize(6), fieldSize(14)]).toEqual([1, 2, 3]);
+describe('the room field (mockup A)', () => {
+	it('a big box: the number, lights then humidity, a note; a small one: one short line', () => {
+		const t = fieldText(box());
+		expect(t.line).toBe('1 of 2 lights on · 48%');
+		expect(t.short).toBe('20° · 1/2 on');
+		expect(t.brief).toBe('1/2 on');
+		expect(t.lit).toBe(true);
+		expect(t.note).toBeUndefined();
+		const dark = fieldText(box({ temperature: 'none', lights: false, humidity: 'none' }));
+		expect([dark.line, dark.short, dark.lit]).toEqual(['', 'All quiet', false]);
+	});
+
+	it('lights as the big number aren’t said again', () => {
+		const t = fieldText(box({ big: 'lights' }));
+		expect(t.line).toBe('48%');
+		expect(t.short).toBe('1/2 on');
+	});
+
+	it('marks what’s wrong first, then who’s about; what’s wrong is a small box’s line (G6)', () => {
+		const more = [
+			...office,
+			dev('door', 'contact_sensor', { open: true }),
+			dev('plug', 'switch', { on: true }, { available: false })
+		];
+		const b = roomBox(
+			more,
+			more.map((d) => cardFor(d, NOW)),
+			all,
+			resolve([{ doors: false }], ROOM_BUILT_IN)
+		);
+		expect(b.marks.map((m) => [m.icon, m.tone])).toEqual([
+			['door-open', 'alert'],
+			['motion', 'calm']
+		]);
+		const t = fieldText(b);
+		// The door is its mark; what's offline is the note, and a small box's line.
+		expect(t.note).toEqual({ text: 'plug offline', alert: true, what: 'offline' });
+		expect(t.wrong?.text).toBe('plug offline');
+	});
+
+	const quiet = (): Box => ({ ...box({ lights: false, people: false }), lines: [], marks: [] });
+	const busy = (on: number, marks = 0): Box => ({
+		...quiet(),
+		lights: { on, of: 8 },
+		marks: Array.from({ length: marks }, () => ({ icon: 'fan', label: 'Fan on', tone: 'calm' }))
+	});
+
+	it('the three busiest fill a row three tall, the next two are two tall, the rest two by two', () => {
+		const rooms = [
+			{ ref: 'room:a', box: quiet() },
+			{ ref: 'room:b', box: busy(1) },
+			{ ref: 'room:c', box: busy(4, 3) },
+			{ ref: 'room:d', box: busy(2) },
+			{ ref: 'room:e', box: busy(4) },
+			{ ref: 'room:f', box: busy(1, 1) },
+			{ ref: 'room:g', box: quiet() }
+		];
+		const plan = fieldPlan(rooms);
+		expect(plan.map((p) => [p.ref, p.cols, p.rows, p.big])).toEqual([
+			['room:c', 5, 3, true],
+			['room:e', 4, 3, true],
+			['room:d', 3, 3, true],
+			// The next two keep their order.
+			['room:b', 3, 2, true],
+			['room:f', 3, 2, true],
+			['room:a', 2, 2, false],
+			['room:g', 2, 2, false]
+		]);
+		expect(plan.map((p) => `${p.phoneCols}x${p.phoneRows}`)).toEqual([
+			'2x2',
+			'2x2',
+			'2x2',
+			'2x1',
+			'2x1',
+			'1x1',
+			'1x1'
+		]);
+	});
+
+	it('fills its rows when fewer rooms are busy, and a quiet room is never big', () => {
+		const one = fieldPlan([
+			{ ref: 'a', box: quiet() },
+			{ ref: 'b', box: busy(2) }
+		]);
+		expect(one.map((p) => [p.ref, p.cols, p.big])).toEqual([
+			['b', 6, true],
+			['a', 2, false]
+		]);
+		const two = fieldPlan([
+			{ ref: 'a', box: busy(1) },
+			{ ref: 'b', box: busy(3) }
+		]);
+		expect(two.map((p) => [p.ref, p.cols])).toEqual([
+			['b', 6],
+			['a', 6]
+		]);
+		const four = fieldPlan(['a', 'b', 'c', 'd'].map((ref, i) => ({ ref, box: busy(4 - i) })));
+		expect(four.at(-1)).toMatchObject({ ref: 'd', cols: 4, rows: 2 });
+		expect(fieldPlan([{ ref: 'x' }])[0]).toMatchObject({ big: false, cols: 2 });
 	});
 });
 
@@ -200,6 +306,12 @@ describe('styles (G3)', () => {
 	it('show the big numbers but in the list', () => {
 		expect(styleChanges('list').changes[1]).toEqual({ op: 'hide', ref: 'section:summary' });
 		expect(styleChanges('tiles').changes[1]).toEqual({ op: 'show', ref: 'section:summary' });
+	});
+
+	it('Home’s style read from its changes as shown', () => {
+		expect(homeStyle([], 'names')).toBe('list');
+		expect(homeStyle(styleChanges('field').changes, 'names')).toBe('field');
+		expect(homeStyle(styleChanges('field').changes, 'status')).toBe('side');
 	});
 
 	it('the sidebar’s rooms: the person’s, else the household’s', () => {

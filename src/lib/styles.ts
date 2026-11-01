@@ -4,7 +4,7 @@
  * sidebar lists rooms with their status. A person can start from a style and
  * still move things; the picker reads the style back from the same changes.
  */
-import type { Change } from './layers.js';
+import { apply, type Change } from './layers.js';
 
 export type Style = 'list' | 'field' | 'tiles' | 'side';
 export type ShellRooms = 'names' | 'status';
@@ -24,6 +24,12 @@ export const STYLES: { id: Style; name: string; sub: string }[] = [
 export function styleOf(layout: string, rooms: ShellRooms): Style {
 	if (rooms === 'status') return 'side';
 	return layout === 'field' || layout === 'tiles' ? layout : 'list';
+}
+
+/** The style Home has on this screen, from its changes as shown (`view.changes('home')`). */
+export function homeStyle(changes: Change[], rooms: ShellRooms): Style {
+	const layout = apply(['section:rooms'], (r) => r, changes).config('section:rooms')?.layout;
+	return styleOf(typeof layout === 'string' ? layout : 'list', rooms);
 }
 
 /** What choosing a style writes: changes to Home, and the sidebar's rooms. */

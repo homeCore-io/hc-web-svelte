@@ -1,14 +1,22 @@
-<!-- What worth knowing and playing list: a name, its room, what it's doing. -->
+<!--
+	What worth knowing and playing list: a name, its room, what it's doing.
+	`plain`: under its section's own heading, beside the rooms (mockup A).
+-->
 <script lang="ts">
 	import { page } from '$app/state';
 	import type { Item } from '#lib/pieces.js';
 	import { deviceHref, openDevice } from '#lib/popup.js';
 
-	let { title, items, none }: { title: string; items: Item[]; none: string } = $props();
+	let {
+		title,
+		items,
+		none,
+		plain = false
+	}: { title: string; items: Item[]; none: string; plain?: boolean } = $props();
 </script>
 
-<article class="piece" aria-label={title}>
-	<h3>{title}</h3>
+<article class="piece" class:plain aria-label={title}>
+	{#if !plain}<h3>{title}</h3>{/if}
 	{#if items.length === 0}
 		<p class="quiet">{none}</p>
 	{:else}
@@ -43,6 +51,17 @@
 		border-radius: var(--radius);
 		background: var(--surface);
 		min-width: 0;
+	}
+	.plain {
+		padding: 0;
+		border: none;
+		background: none;
+	}
+	.plain a {
+		min-height: 40px;
+	}
+	.plain .name {
+		font-size: 13px;
 	}
 	h3 {
 		margin: 0;

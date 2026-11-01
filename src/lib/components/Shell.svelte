@@ -37,6 +37,7 @@
 	import { kindOptions } from '#lib/kindOptions.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
 	import { byRoom } from '#lib/summary.js';
+	import { homeStyle } from '#lib/styles.js';
 	import { session } from '#lib/me.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { live } from '#lib/live.svelte.js';
@@ -71,6 +72,10 @@
 	});
 	// "Rooms in the sidebar" (G3): each room with its status.
 	const withStatus = $derived(kindOptions.shellRooms('home') === 'status');
+	// The room field shows every room on Home, so the sidebar doesn't (11 §2.3, mockup A).
+	const field = $derived(
+		homeStyle(view.changes('home'), kindOptions.shellRooms('home')) === 'field'
+	);
 	const grouped = $derived(withStatus ? byRoom(devices.byId, rooms.list) : null);
 	const roomsInOrder = $derived(
 		homeRoomOrder(rooms.list, (r) => ref.room(r.id), view.changes('home')).shown
@@ -174,7 +179,7 @@
 			</a>
 		{/each}
 
-		{#if rooms.list.length > 0}
+		{#if rooms.list.length > 0 && !field}
 			<div class="rooms">
 				<p class="section-label">Rooms</p>
 				{#each roomsInOrder as r (r.id)}
@@ -215,6 +220,11 @@
 			<div class="titles">
 				{#if back}<a class="back" href={back.href}
 						><ChevronLeft size={16} strokeWidth={2} aria-hidden="true" />{back.label}</a
+					>{/if}
+				{#if heading.kicker}<span class="kicker"
+						><span class="long">{heading.kicker.long}</span><span class="short"
+							>{heading.kicker.short}</span
+						></span
 					>{/if}
 				<h1>{title}</h1>
 			</div>
@@ -320,6 +330,25 @@
 		font-size: 14px;
 		font-weight: 600;
 		text-decoration: none;
+	}
+	/* Above Home's title in the room field: the day, and the house's mode (mockup A). */
+	.kicker {
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		color: var(--ink-muted);
+	}
+	.kicker .long {
+		display: none;
+	}
+	@media (min-width: 700px) {
+		.kicker .long {
+			display: inline;
+		}
+		.kicker .short {
+			display: none;
+		}
 	}
 	h1 {
 		margin: 0;

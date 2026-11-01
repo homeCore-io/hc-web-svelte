@@ -14,7 +14,7 @@
 	import { bigNumbers } from '#lib/roomBox.js';
 	import { byRoom } from '#lib/summary.js';
 
-	let { card, page, options }: KindProps<'summary'> = $props();
+	let { card, page, options, place }: KindProps<'summary'> = $props();
 
 	const numbers = $derived.by(() => {
 		const grouped = byRoom(devices.byId, rooms.list);
@@ -34,7 +34,7 @@
 	});
 </script>
 
-<section class="clip" aria-label="The house at a glance">
+<section class="clip" class:band={place === 'band'} aria-label="The house at a glance">
 	<div class="numbers">
 		{#each numbers as n (n.id)}
 			<div class="number">
@@ -113,6 +113,17 @@
 		}
 		.value {
 			font-size: 44px;
+		}
+		/* The room field's band (mockup A): a touch larger, the rule above as well. */
+		.band {
+			padding-top: 14px;
+			border-top: 1px solid var(--line);
+		}
+		.band .value {
+			font-size: 48px;
+		}
+		.band .unit {
+			font-size: 22px;
 		}
 		.unit {
 			font-size: 20px;

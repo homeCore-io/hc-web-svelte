@@ -6,6 +6,11 @@
 
 	While arranging, each card goes quiet with its tools (`Arrange`), hidden
 	cards show faded, and a section with nothing in it says what goes there.
+
+	Home in the room field style (mockup A, G32) is drawn in three places: the
+	big numbers across the top, the rooms' field with what's under it, and a
+	column beside them (Needs attention first, G6). On a phone the column
+	follows the field, and the alerts are one line after the numbers.
 -->
 <script lang="ts">
 	import {
@@ -16,10 +21,18 @@
 		sectionRef,
 		withOwn,
 		type Card,
+		type Column,
 		type Layout,
-		type Page
+		type Page,
+		type ShownSection
 	} from '#lib/page.js';
-	import { kindOf } from '#lib/kinds.js';
+	import { kindOf, type Place } from '#lib/kinds.js';
+	import { cardFor } from '#lib/card.js';
+	import { clock } from '#lib/clock.svelte.js';
+	import { devices } from '#lib/devices.svelte.js';
+	import { ROOM_BUILT_IN } from '#lib/options.js';
+	import { fieldPlan, roomBox, type Plot } from '#lib/roomBox.js';
+	import { homeStyle } from '#lib/styles.js';
 	import { view } from '#lib/view.svelte.js';
 	import { personal } from '#lib/personal.svelte.js';
 	import { editing } from '#lib/edit.svelte.js';
@@ -50,18 +63,59 @@
 	// The page with the sections people made (G17) — the household's, and in
 	// Customise or normally the person's own too.
 	const full = $derived(withOwn(page, view.changes(key), mine));
-	const shown = $derived(applyPage(full, view.changes(key), mine, { arranging }));
+	// Home in the room field style (G32): drawn in its columns.
+	const field = $derived(
+		page.id === 'home' && homeStyle(view.changes(key), kindOptions.shellRooms(key)) === 'field'
+	);
+	const shown = $derived(applyPage(full, view.changes(key), mine, { arranging, field }));
 
 	$effect(() => {
 		if (editing.on(key)) editing.present = presentRefs(full);
 	});
 
-	// The sections that can move, as they are drawn — for up and down.
+	// The sections that can move, as they are drawn — for up and down; in
+	// the room field, among those in the same column.
 	const movable = $derived(
-		shown.sections
-			.filter((s) => !s.hidden && !s.section.fixed && drawn(s, arranging))
-			.map((s) => sectionRef(s.section.id))
+		shown.sections.filter((s) => !s.hidden && !s.section.fixed && drawn(s, arranging))
 	);
+	// The rooms lead the main column: what's put there goes under them.
+	const leads = (s: ShownSection) => field && s.section.id === 'rooms';
+	const peers = (s: ShownSection) =>
+		leads(s)
+			? []
+			: movable
+					.filter((m) => !field || (m.column === s.column && !leads(m)))
+					.map((m) => sectionRef(m.section.id));
+	const inColumn = (c: Column) => {
+		const here = shown.sections.filter((s) => s.column === c && drawn(s, arranging));
+		return [...here.filter(leads), ...here.filter((s) => !leads(s))];
+	};
+	// The alerts, as the phone's one line after the numbers.
+	const briefAlerts = $derived(
+		shown.sections.find((s) => s.section.id === 'alerts')?.groups[0]?.shown[0]
+	);
+	/** A field's boxes in the field's plan: big or small, and how many columns and rows. */
+	function planned(cards: Card[]): { card: Card; plot: Plot }[] {
+		const plots = fieldPlan(
+			cards.map((c) => ({
+				ref: c.ref,
+				box:
+					c.kind === 'room'
+						? roomBox(
+								c.devices,
+								c.devices.map((d) => cardFor(d, clock.now)),
+								devices.byId,
+								kindOptions.of(key, 'room', c.ref, ROOM_BUILT_IN)
+							)
+						: undefined
+			}))
+		);
+		const byRef = new Map(plots.map((p) => [p.ref, p]));
+		// While arranging, in the order up and down move them.
+		return arranging
+			? cards.map((card) => ({ card, plot: byRef.get(card.ref)! }))
+			: plots.map((plot) => ({ card: cards.find((c) => c.ref === plot.ref)!, plot }));
+	}
 	const listOf = (g: Layered<Card>) => (arranging ? [...g.shown, ...g.hidden] : g.shown);
 
 	// A kind's settings sheet, for one card (G2). A room's settings are its box's.
@@ -135,13 +189,17 @@
 	g?: Layered<Card>,
 	favourites = false,
 	layout: Layout = 'grid',
-	from?: string
+	from?: string,
+	place?: Place,
+	sized?: Form
 )}
 	{@const kind = kindOf(card)}
 	{@const label = g?.name(card.ref)}
 	{@const form = kind.form(card, g?.form(card.ref))}
+	<!-- Beside the rooms, a card is as wide as the column: never Large (G32). -->
+	{@const drawnAs = sized ?? (place === 'side' && form === 'large' ? 'standard' : form)}
 	{#if g === undefined}
-		<KindView {card} page={key} cardTools={page.cardTools} />
+		<KindView {card} page={key} cardTools={page.cardTools} {place} />
 	{:else}
 		<Arrange
 			page={key}
@@ -151,7 +209,7 @@
 			hidden={g.hidden.includes(card)}
 			star={kind.star}
 			form={kind.forms(card).length > 0 ? form : undefined}
-			wide={form === 'large'}
+			wide={drawnAs === 'large'}
 			list={favourites ? 'favourites' : 'page'}
 			added={card.added ?? false}
 			renamed={label !== undefined}
@@ -162,106 +220,166 @@
 		>
 			<KindView
 				{card}
-				{form}
+				form={drawnAs}
 				{label}
 				page={key}
 				cardTools={page.cardTools}
 				config={g.config(card.ref)}
 				{layout}
+				{place}
 			/>
 		</Arrange>
 	{/if}
 {/snippet}
 
-{#each shown.sections as s (s.section.id)}
-	{#if drawn(s, arranging)}
-		{@const sec = s.section}
-		<section
-			aria-label={sec.bare ? s.title : undefined}
-			class:in-sidebar={sec.id === 'rooms' && sideRooms && !arranging}
-		>
-			{#if arranging && !sec.fixed}
-				<div class="head">
-					<h2 class="section-label" class:faded={s.hidden}>
-						{s.title}{#if s.hidden}<span class="note"> · hidden</span>{/if}
-					</h2>
-					<SectionTools
-						page={key}
-						ref={sectionRef(sec.id)}
-						title={s.title}
-						shown={movable}
-						hidden={s.hidden}
-						renamed={s.renamed}
-						add={sec.accepts ? () => adding.open(key, sec.id) : undefined}
-						layouts={sec.layouts}
-						layout={s.layout}
-						mine={mineSection(sec.own)}
-						remove={sec.own ? () => removeSection(sec.id) : undefined}
-						settings={sec.id === 'rooms' && (s.layout !== 'list' || sideRooms)
-							? {
-									label: 'Every room’s box',
-									open: () =>
-										(everyRoom = {
-											rooms: s.groups.flatMap((g) => [...g.shown, ...g.hidden]),
-											names: Object.fromEntries(
-												s.groups.flatMap((g) =>
-													[...g.shown, ...g.hidden].map((c) => [
-														c.ref,
-														g.name(c.ref) ?? kindOf(c).name(c)
-													])
-												)
+{#snippet block(s: ShownSection, place?: Place)}
+	{@const sec = s.section}
+	<section
+		aria-label={sec.bare ? s.title : undefined}
+		class:in-sidebar={sec.id === 'rooms' && sideRooms && !arranging}
+		class:alerts={field && sec.id === 'alerts'}
+	>
+		{#if arranging && !sec.fixed}
+			<div class="head">
+				<h2 class="section-label" class:faded={s.hidden}>
+					{s.title}{#if s.hidden}<span class="note"> · hidden</span>{/if}
+				</h2>
+				<SectionTools
+					page={key}
+					ref={sectionRef(sec.id)}
+					title={s.title}
+					shown={peers(s)}
+					hidden={s.hidden}
+					renamed={s.renamed}
+					add={sec.accepts ? () => adding.open(key, sec.id) : undefined}
+					layouts={sec.layouts}
+					layout={s.layout}
+					config={s.config}
+					column={field && (sec.field?.movable ?? sec.field === undefined) ? s.column : undefined}
+					mine={mineSection(sec.own)}
+					remove={sec.own ? () => removeSection(sec.id) : undefined}
+					settings={sec.id === 'rooms' && (s.layout !== 'list' || sideRooms)
+						? {
+								label: 'Every room’s box',
+								open: () =>
+									(everyRoom = {
+										rooms: s.groups.flatMap((g) => [...g.shown, ...g.hidden]),
+										names: Object.fromEntries(
+											s.groups.flatMap((g) =>
+												[...g.shown, ...g.hidden].map((c) => [
+													c.ref,
+													g.name(c.ref) ?? kindOf(c).name(c)
+												])
 											)
-										})
-								}
-							: undefined}
-					/>
-				</div>
-			{:else if !sec.bare && !sec.headless}
+										)
+									})
+							}
+						: undefined}
+				/>
+			</div>
+		{:else if field && s.layout === 'field' && !arranging}
+			<!-- The rooms' heading in the field, with what the glow means (mockup A). -->
+			<div class="head">
 				<h2 class="section-label">{s.title}</h2>
-			{/if}
-			{#if s.hidden}
-				<!-- Hidden: only its heading, to bring it back. -->
-			{:else if sec.bare}
-				{#each s.groups as g, i (i)}
-					{#each listOf(g) as card (card.ref)}{@render piece(card)}{/each}
-				{/each}
+				<span class="legend">Brighter is more of it on <span class="ramp"></span></span>
+			</div>
+		{:else if (place === 'side' && sec.bare) || (!sec.bare && !sec.headless)}
+			<h2 class="section-label">{s.title}</h2>
+		{/if}
+		{#if s.hidden}
+			<!-- Hidden: only its heading, to bring it back. -->
+		{:else if sec.bare}
+			{#each s.groups as g, i (i)}
+				{#each listOf(g) as card (card.ref)}{@render piece(
+						card,
+						undefined,
+						false,
+						'grid',
+						undefined,
+						place
+					)}{/each}
+			{/each}
+		{:else}
+			{#if sec.lead}{@render piece(sec.lead, undefined, false, 'grid', undefined, place)}{/if}
+			{#if arranging && sec.hint && s.groups.every((g) => listOf(g).length === 0)}
+				<p class="hint">{sec.hint}</p>
 			{:else}
-				{#if sec.lead}{@render piece(sec.lead)}{/if}
-				{#if arranging && sec.hint && s.groups.every((g) => listOf(g).length === 0)}
-					<p class="hint">{sec.hint}</p>
-				{:else}
-					{#each s.groups.length > 0 ? s.groups : [null] as g, i (i)}
-						{#each g ? runsOf(listOf(g), s.layout) : [{ layout: s.layout, cards: [] }] as run, j (j)}
-							<div class={run.layout}>
-								{#each run.cards as card (card.ref)}
-									{#if g && s.layout === 'field'}
-										<div class={`cell s${kindOf(card).span?.(card) ?? 1}`}>
+				{#each s.groups.length > 0 ? s.groups : [null] as g, i (i)}
+					{#each g ? runsOf(listOf(g), s.layout) : [{ layout: s.layout, cards: [] }] as run, j (j)}
+						{#if g && run.layout === 'field'}
+							<div class="fieldwrap">
+								<div class="field" class:arranging>
+									{#each planned(run.cards) as { card, plot } (card.ref)}
+										<div
+											class="cell"
+											style={`--cols: ${plot.cols}; --rows: ${plot.rows}; --phone-cols: ${plot.phoneCols}; --phone-rows: ${plot.phoneRows}`}
+										>
 											{@render piece(
 												card,
 												g,
 												sec.favourites,
 												s.layout,
-												sec.accepts ? sec.id : undefined
+												sec.accepts ? sec.id : undefined,
+												place,
+												plot.big ? 'large' : 'compact'
 											)}
 										</div>
-									{:else if g}
+									{/each}
+								</div>
+							</div>
+							{#if field && !arranging && sec.id === 'rooms'}
+								{@const n = run.cards.filter((c) => c.kind === 'room').length}
+								<p class="foot">
+									Sized by what is in each room · {n}
+									{n === 1 ? 'room' : 'rooms'} · tap one to open it
+								</p>
+							{/if}
+						{:else}
+							<div class={run.layout}>
+								{#each run.cards as card (card.ref)}
+									{#if g}
 										{@render piece(
 											card,
 											g,
 											sec.favourites,
 											s.layout,
-											sec.accepts ? sec.id : undefined
+											sec.accepts ? sec.id : undefined,
+											place
 										)}
 									{/if}
 								{/each}
 							</div>
-						{/each}
+						{/if}
 					{/each}
-				{/if}
+				{/each}
 			{/if}
-		</section>
-	{/if}
-{/each}
+		{/if}
+	</section>
+{/snippet}
+
+{#if field}
+	<!-- The room field (mockup A): the band, then the rooms with what's beside them. -->
+	<div class="fieldpage">
+		{#each inColumn('band') as s (s.section.id)}{@render block(s, 'band')}{/each}
+		{#if briefAlerts && !arranging}
+			<div class="brief">
+				{@render piece(briefAlerts, undefined, false, 'grid', undefined, 'brief')}
+			</div>
+		{/if}
+		<div class="cols">
+			<div class="column">
+				{#each inColumn('main') as s (s.section.id)}{@render block(s)}{/each}
+			</div>
+			<div class="column side" role="complementary" aria-label="Beside the rooms">
+				{#each inColumn('side') as s (s.section.id)}{@render block(s, 'side')}{/each}
+			</div>
+		</div>
+	</div>
+{:else}
+	{#each shown.sections as s (s.section.id)}
+		{#if drawn(s, arranging)}{@render block(s)}{/if}
+	{/each}
+{/if}
 
 {#if arranging}
 	<button class="new-section" onclick={() => (making = true)}
@@ -390,29 +508,152 @@
 	.list > :global(.arrange:has(.span-all)) {
 		grid-column: 1 / -1;
 	}
-	/* The room field (G-b): boxes as wide as what's in them, rows filled. */
+	/* The room field (mockup A): twelve columns of 84px rows, the busiest
+	   rooms biggest; on a phone, four columns of 74px. */
+	.fieldwrap {
+		container: field / inline-size;
+	}
 	.field {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 10px;
+		display: grid;
+		grid-template-columns: repeat(12, minmax(0, 1fr));
+		grid-auto-rows: 84px;
+		grid-auto-flow: row dense;
+		gap: 8px;
 	}
 	.cell {
 		display: grid;
 		min-width: 0;
-		height: 150px;
+		grid-column: span var(--cols);
+		grid-row: span var(--rows);
 	}
-	.cell.s1 {
-		flex: 1 1 140px;
+	@container field (max-width: 559px) {
+		.field {
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+			grid-auto-rows: 74px;
+			gap: 7px;
+		}
+		.cell {
+			grid-column: span var(--phone-cols);
+			grid-row: span var(--phone-rows);
+		}
 	}
-	.cell.s2 {
-		flex: 2 1 220px;
+	/* While arranging, in order and the same size, with room for the tools. */
+	.field.arranging {
+		grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+		grid-auto-rows: auto;
+		grid-auto-flow: row;
 	}
-	.cell.s3 {
-		flex: 3 1 320px;
+	.field.arranging .cell {
+		grid-column: auto;
+		grid-row: auto;
+		min-height: 150px;
 	}
-	.field :global(.arrange),
-	.cell:has(:global(.arrange)) {
-		height: auto;
+	.legend {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		font-size: 12px;
+		color: var(--ink-muted);
+	}
+	.ramp {
+		width: 72px;
+		height: 8px;
+		border-radius: 999px;
+		border: 1px solid var(--line);
+		background: linear-gradient(
+			90deg,
+			var(--surface),
+			color-mix(in srgb, var(--fill) 80%, transparent)
+		);
+	}
+	.foot {
+		margin: 0;
+		font-size: 12px;
+		color: var(--ink-muted);
+	}
+	/* Home in the room field: the band, then the rooms and the column beside them. */
+	.fieldpage {
+		container: fieldpage / inline-size;
+		display: flex;
+		flex-direction: column;
+		gap: 18px;
+	}
+	.cols,
+	.column {
+		display: flex;
+		flex-direction: column;
+		gap: 22px;
+		min-width: 0;
+	}
+	.side > section + section {
+		padding-top: 18px;
+		border-top: 1px solid var(--line);
+	}
+	/* On a phone the alerts are the one line after the numbers. */
+	.side > .alerts {
+		display: none;
+	}
+	.side > .alerts + section {
+		padding-top: 0;
+		border-top: none;
+	}
+	/* Beside the rooms: one card a row, scenes and modes as chips. */
+	.side :global(:is(.grid, .list, .tiles)) {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.side :global(.row) {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+	.side :global(.scene) {
+		min-height: 34px;
+		padding: 0 12px;
+		border-radius: 11px;
+		box-shadow: none;
+		font-size: 13px;
+		font-weight: 500;
+	}
+	.side :global(.scene .orb) {
+		display: none;
+	}
+	.side :global(.modes) {
+		gap: 6px;
+	}
+	.side :global(.mode) {
+		height: 34px;
+		padding: 0 12px;
+		font-size: 13px;
+	}
+	.side :global(.mode svg) {
+		display: none;
+	}
+	.side :global(.mode[aria-pressed='true']) {
+		background: var(--lit-bg);
+		border-color: var(--lit-card-line);
+		color: var(--lit-ink);
+	}
+	@container fieldpage (min-width: 860px) {
+		.cols {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
+			gap: 28px;
+			align-items: start;
+		}
+		.side {
+			padding-left: 24px;
+			border-left: 1px solid var(--line);
+		}
+		.side > .alerts {
+			display: flex;
+		}
+		.side > .alerts + section {
+			padding-top: 18px;
+			border-top: 1px solid var(--line);
+		}
+		.brief {
+			display: none;
+		}
 	}
 	.tiles {
 		display: grid;

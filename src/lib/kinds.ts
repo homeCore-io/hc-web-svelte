@@ -27,7 +27,6 @@ import {
 	weatherDescriptor,
 	worthDescriptor
 } from './options.js';
-import { fieldSize } from './roomBox.js';
 import AlertsKind from './components/kinds/AlertsKind.svelte';
 import ChipsKind from './components/kinds/ChipsKind.svelte';
 import DeviceKind from './components/kinds/DeviceKind.svelte';
@@ -56,7 +55,14 @@ export interface KindProps<K extends Card['kind'] = Card['kind']> {
 	layout?: Layout;
 	/** Settings to draw with instead of the page's — a settings sheet's preview. */
 	options?: Record<string, unknown>;
+	/**
+	 * Where the room field style draws it (mockup A): in the side column, as
+	 * the phone's one-line summary of the alerts, or as the band of numbers.
+	 */
+	place?: Place;
 }
+
+export type Place = 'side' | 'brief' | 'band';
 
 export interface Kind<K extends Card['kind'] = Card['kind']> {
 	/** The sizes it can be; none for a card that has one shape. */
@@ -73,8 +79,6 @@ export interface Kind<K extends Card['kind'] = Card['kind']> {
 	settable?: (card: CardOf<K>) => boolean;
 	/** The settings it has before anyone sets any. */
 	defaults: Record<string, unknown>;
-	/** Its size in a `field` section, 1–3; 1 where it doesn't say. */
-	span?: (card: CardOf<K>) => 1 | 2 | 3;
 	/** Whether Add offers it, and on which pages. */
 	addable: false | { pages: ('home' | 'room')[] };
 	/** How Add's Cards tab offers one of the app's own cards (G-c). */
@@ -129,7 +133,6 @@ export const kinds: { [K in Card['kind']]: Kind<K> } = {
 		name: (c) => c.name,
 		options: (c) => roomDescriptor(c.id === 'none' ? undefined : c.id),
 		defaults: ROOM_BUILT_IN,
-		span: (c) => fieldSize(c.devices.length),
 		component: RoomKind
 	},
 	plugin: {

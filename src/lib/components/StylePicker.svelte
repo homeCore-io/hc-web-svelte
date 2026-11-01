@@ -8,21 +8,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import X from '@lucide/svelte/icons/x';
-	import { apply } from '#lib/layers.js';
 	import { kindOptions } from '#lib/kindOptions.svelte.js';
-	import { STYLES, styleOf, type Style } from '#lib/styles.js';
+	import { STYLES, homeStyle, type Style } from '#lib/styles.js';
 	import { view } from '#lib/view.svelte.js';
 
 	let { page, close }: { page: string; close: () => void } = $props();
 
 	let dialog = $state<HTMLDialogElement>();
 	onMount(() => dialog?.showModal());
-	const layout = $derived(
-		apply(['section:rooms'], (r) => r, view.changes(page)).config('section:rooms')?.layout
-	);
-	const current = $derived(
-		styleOf(typeof layout === 'string' ? layout : 'list', kindOptions.shellRooms(page))
-	);
+	const current = $derived(homeStyle(view.changes(page), kindOptions.shellRooms(page)));
 	const who = $derived(
 		view.mode(page) === 'edit'
 			? 'For everyone — unless they chose their own.'

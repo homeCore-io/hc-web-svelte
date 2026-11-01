@@ -7,7 +7,7 @@
  * Whatever is switched off, a box always shows what's wrong in the room — a
  * leak, smoke, an open door, something offline (G6).
  */
-import { kindOf, type CardView } from './card.js';
+import { kindOf, type CardView, type IconName } from './card.js';
 import { displayName, unitOf, type CoreDevice, type Devices } from './devices.js';
 import { numbersOf, sourceOf, type NumberId, type Options, type Source } from './options.js';
 import { allOffTargets } from './summary.js';
@@ -56,6 +56,30 @@ export interface Line {
 	text: string;
 	/** Something wrong: drawn in the alert colour. */
 	alert: boolean;
+	/** What it's about, so the room field can tell its lines apart. */
+	what?: Said;
+}
+
+type Said =
+	| 'leak'
+	| 'smoke'
+	| 'jammed'
+	| 'open'
+	| 'offline'
+	| 'lights'
+	| 'temperature'
+	| 'humidity'
+	| 'fans'
+	| 'unlocked'
+	| 'playing'
+	| 'timers'
+	| 'battery';
+
+/** A tinted mark beside a field box's name (mockup A): what's wrong, what to mind, who's about. */
+export interface Mark {
+	icon: IconName | 'alert';
+	label: string;
+	tone: 'alert' | 'warn' | 'calm';
 }
 
 export interface Badge {
@@ -75,6 +99,14 @@ export interface Box {
 	alarm: boolean;
 	/** What "All off" would turn off — empty when the box doesn't offer it. */
 	allOff: CardView[];
+	/** The same, apart, for the room field: which reading is big, and the rest. */
+	bigIs?: 'temperature' | 'humidity' | 'lights';
+	temperature?: string;
+	humidity?: string;
+	/** Lights on, of how many, when lights are shown. */
+	lights?: { on: number; of: number };
+	/** The field's marks, what's wrong first. */
+	marks: Mark[];
 }
 
 const LIGHT = (c: CardView) => c.kind === 'light';
@@ -85,17 +117,23 @@ function wrong(cards: CardView[]): { lines: Line[]; alarm: boolean } {
 	const lines: Line[] = [];
 	const wet = cards.filter((c) => c.alarm === 'wet');
 	if (wet.length > 0)
-		lines.push({ text: wet.length === 1 ? 'Leak' : `${wet.length} leaks`, alert: true });
+		lines.push({
+			text: wet.length === 1 ? 'Leak' : `${wet.length} leaks`,
+			alert: true,
+			what: 'leak'
+		});
 	const smoke = cards.filter((c) => c.alarm === 'smoke');
-	if (smoke.length > 0) lines.push({ text: 'Smoke', alert: true });
+	if (smoke.length > 0) lines.push({ text: 'Smoke', alert: true, what: 'smoke' });
 	const jammed = cards.filter((c) => c.alarm === 'jammed');
-	for (const c of jammed) lines.push({ text: `${c.name} jammed`, alert: true });
+	for (const c of jammed) lines.push({ text: `${c.name} jammed`, alert: true, what: 'jammed' });
 	const open = cards.filter((c) => c.available && c.icon === 'door-open');
-	if (open.length === 1) lines.push({ text: `${open[0]!.name} open`, alert: true });
-	else if (open.length > 1) lines.push({ text: `${open.length} open`, alert: true });
+	if (open.length === 1) lines.push({ text: `${open[0]!.name} open`, alert: true, what: 'open' });
+	else if (open.length > 1) lines.push({ text: `${open.length} open`, alert: true, what: 'open' });
 	const off = cards.filter((c) => c.alarm === 'offline');
-	if (off.length === 1) lines.push({ text: `${off[0]!.name} offline`, alert: true });
-	else if (off.length > 1) lines.push({ text: `${off.length} offline`, alert: true });
+	if (off.length === 1)
+		lines.push({ text: `${off[0]!.name} offline`, alert: true, what: 'offline' });
+	else if (off.length > 1)
+		lines.push({ text: `${off.length} offline`, alert: true, what: 'offline' });
 	return { lines, alarm: wet.length + smoke.length + jammed.length > 0 };
 }
 
@@ -118,31 +156,35 @@ export function roomBox(devices: CoreDevice[], cards: CardView[], all: Devices, 
 					? `${on.length}/${lights.length}`
 					: undefined;
 
-	const said = (text: string | undefined) =>
-		text !== undefined && lines.push({ text, alert: false });
+	const said = (text: string | undefined, what: Said) =>
+		text !== undefined && lines.push({ text, alert: false, what });
 	if (o.lights && o.big !== 'lights' && lights.length > 0)
 		said(
 			on.length === 0
 				? 'Lights off'
-				: `${on.length} of ${lights.length} light${lights.length === 1 ? '' : 's'} on`
+				: `${on.length} of ${lights.length} light${lights.length === 1 ? '' : 's'} on`,
+			'lights'
 		);
-	if (o.big !== 'temperature') said(temperature);
-	if (o.big !== 'humidity') said(humidity);
+	if (o.big !== 'temperature') said(temperature, 'temperature');
+	if (o.big !== 'humidity') said(humidity, 'humidity');
 	if (o.fans) {
 		const fans = cards.filter((c) => c.available && c.kind === 'fan' && c.tone === 'on').length;
-		if (fans > 0) said(plural(fans, 'fan on', 'fans on'));
+		if (fans > 0) said(plural(fans, 'fan on', 'fans on'), 'fans');
 	}
 	if (o.doors) {
 		const unlocked = cards.filter((c) => c.available && c.icon === 'unlock');
-		if (unlocked.length === 1) said(`${unlocked[0]!.name} unlocked`);
-		else if (unlocked.length > 1) said(`${unlocked.length} unlocked`);
+		if (unlocked.length === 1) said(`${unlocked[0]!.name} unlocked`, 'unlocked');
+		else if (unlocked.length > 1) said(`${unlocked.length} unlocked`, 'unlocked');
 	}
 	const playing = cards.filter((c) => c.available && c.stateLine.startsWith('Playing'));
 	if (o.music && playing.length > 0)
-		said(playing.length === 1 ? `${playing[0]!.name} playing` : `${playing.length} playing`);
+		said(
+			playing.length === 1 ? `${playing[0]!.name} playing` : `${playing.length} playing`,
+			'playing'
+		);
 	if (o.timers) {
 		const timers = cards.filter((c) => c.control?.kind === 'timer' && c.control.running).length;
-		if (timers > 0) said(plural(timers, 'timer running', 'timers running'));
+		if (timers > 0) said(plural(timers, 'timer running', 'timers running'), 'timers');
 	}
 	const badges: Badge[] = [];
 	if (o.people) {
@@ -157,14 +199,38 @@ export function roomBox(devices: CoreDevice[], cards: CardView[], all: Devices, 
 	if (o.music && playing.length > 0) badges.push({ icon: 'speaker', label: 'Playing' });
 	if (o.battery) {
 		const low = cards.filter((c) => c.alarm === 'low battery');
-		for (const c of low) lines.push({ text: `${c.name} battery low`, alert: true });
+		for (const c of low)
+			lines.push({ text: `${c.name} battery low`, alert: true, what: 'battery' });
 		const levels = devices.flatMap(
 			(d) => num(d.attributes.battery) ?? num(d.attributes.battery_pct) ?? []
 		);
 		if (low.length === 0 && levels.length > 0)
-			said(`Lowest battery ${Math.round(Math.min(...levels))}%`);
+			said(`Lowest battery ${Math.round(Math.min(...levels))}%`, 'battery');
 		if (low.length > 0) badges.push({ icon: 'battery', label: 'Battery low' });
 	}
+
+	// The field's marks (mockup A): what's wrong always (G6), the rest as asked.
+	const marks: Mark[] = [];
+	const some = (f: (c: CardView) => boolean) => cards.filter((c) => c.available && f(c));
+	const mark = (n: number, icon: Mark['icon'], label: string, tone: Mark['tone']) =>
+		n > 0 && marks.push({ icon, label, tone });
+	mark(cards.filter((c) => c.alarm === 'wet').length, 'water', 'Leak', 'alert');
+	const open = some((c) => c.icon === 'door-open');
+	mark(open.length, 'door-open', open.length === 1 ? `${open[0]!.name} open` : 'Open', 'alert');
+	if (o.battery)
+		mark(cards.filter((c) => c.alarm === 'low battery').length, 'alert', 'Battery low', 'alert');
+	if (o.doors) mark(some((c) => c.icon === 'unlock').length, 'unlock', 'Unlocked', 'warn');
+	if (badges.some((b) => b.icon === 'motion')) mark(1, 'motion', 'Someone here', 'calm');
+	if (o.music) mark(playing.length, 'speaker', 'Playing', 'calm');
+	if (o.fans)
+		mark(some((c) => c.kind === 'fan' && c.tone === 'on').length, 'fan', 'Fan on', 'calm');
+	if (o.timers)
+		mark(
+			cards.filter((c) => c.control?.kind === 'timer' && c.control.running).length,
+			'timer',
+			'Timer running',
+			'calm'
+		);
 
 	return {
 		big,
@@ -172,12 +238,124 @@ export function roomBox(devices: CoreDevice[], cards: CardView[], all: Devices, 
 		badges,
 		glow: o.lights && lights.length > 0 ? on.length / lights.length : 0,
 		alarm,
-		allOff: o.allOff ? allOffTargets(cards) : []
+		allOff: o.allOff ? allOffTargets(cards) : [],
+		bigIs:
+			o.big === 'temperature' || o.big === 'humidity' || o.big === 'lights' ? o.big : undefined,
+		temperature,
+		humidity,
+		lights: o.lights && lights.length > 0 ? { on: on.length, of: lights.length } : undefined,
+		marks
 	};
 }
 
-/** A box's size in the room field: by how much is in the room. */
-export const fieldSize = (devices: number): 1 | 2 | 3 => (devices <= 4 ? 1 : devices <= 9 ? 2 : 3);
+// ---- the room field (G-b, mockup A) ----
+
+/** What a field box says, apart from its name and marks. */
+export interface FieldText {
+	/** A big box's line: lights, then humidity — "4 of 7 lights on · 50%". */
+	line: string;
+	/** A small box's: its big number, then lights — "71° · Lights off". */
+	short: string;
+	/** A phone's, where boxes are narrower: "4/7 on", "off". */
+	brief: string;
+	/** Lights on: the line in the lit colour. */
+	lit: boolean;
+	/** Under a big box's line: what's wrong first (G6), else what the line and marks don't say. */
+	note?: Line;
+	/** What's wrong, which a small box says in place of its line (G6). */
+	wrong?: Line;
+}
+
+/** Said by a field box's line or marks already, so never its note. */
+const SAID = new Set<Said | undefined>([
+	'lights',
+	'temperature',
+	'humidity',
+	'fans',
+	'unlocked',
+	'playing',
+	'timers',
+	'open'
+]);
+
+export function fieldText(b: Box): FieldText {
+	const l = b.lights;
+	const lightsLine =
+		l && b.bigIs !== 'lights'
+			? l.on === 0
+				? 'Lights off'
+				: `${l.on} of ${l.of} light${l.of === 1 ? '' : 's'} on`
+			: undefined;
+	const lightsShort = l ? (l.on === 0 ? 'Lights off' : `${l.on}/${l.of} on`) : undefined;
+	const join = (xs: (string | undefined)[]) => xs.filter((x) => x !== undefined).join(' · ');
+	return {
+		line: join([lightsLine, b.bigIs === 'humidity' ? undefined : b.humidity]),
+		short: join([b.bigIs === 'lights' ? undefined : b.big, lightsShort]) || 'All quiet',
+		brief: l ? (l.on === 0 ? 'off' : `${l.on}/${l.of} on`) : '',
+		lit: (l?.on ?? 0) > 0,
+		note: b.lines.find((x) => !SAID.has(x.what)),
+		wrong: b.lines.find((x) => x.alert && x.what !== 'open')
+	};
+}
+
+/** How much is going on in a room: lights on, marks, what's wrong. */
+export function busyness(b: Box): number {
+	return (
+		(b.lights?.on ?? 0) * 3 +
+		b.marks.length * 2 +
+		b.lines.filter((x) => x.alert).length * 3 +
+		(fieldText(b).note ? 1 : 0)
+	);
+}
+
+/** Where a box goes in the field: its columns and rows wide, and on a phone. */
+export interface Plot {
+	ref: string;
+	/** A big box: its number, a line, a note, All off. */
+	big: boolean;
+	cols: number;
+	rows: number;
+	phoneCols: number;
+	phoneRows: number;
+}
+
+/**
+ * The room field (mockup A): a 12-column grid, the busiest rooms first and
+ * biggest — the three busiest three rows tall (5, 4 and 3 columns, so they
+ * fill a row), the next two two rows tall, every other room two by two. On a
+ * phone's four columns: two by two, two by one, one by one. A room with
+ * nothing going on is never big. Rooms past the busiest keep their order.
+ */
+export function fieldPlan(rooms: { ref: string; box?: Box }[]): Plot[] {
+	const scored = rooms.map((r, i) => ({ ref: r.ref, i, s: r.box ? busyness(r.box) : 0 }));
+	const ranked = scored.filter((r) => r.s > 0).sort((a, b) => b.s - a.s || a.i - b.i);
+	const first = ranked.slice(0, 3);
+	const second = ranked.slice(3, 5).sort((a, b) => a.i - b.i);
+	const WIDE: Record<number, number[]> = { 1: [6], 2: [6, 6], 3: [5, 4, 3] };
+	const NEXT: Record<number, number[]> = { 1: [4], 2: [3, 3] };
+	const big = new Set([...first, ...second].map((r) => r.ref));
+	return [
+		...first.map((r, i) => ({
+			ref: r.ref,
+			big: true,
+			cols: WIDE[first.length]![i]!,
+			rows: 3,
+			phoneCols: 2,
+			phoneRows: 2
+		})),
+		...second.map((r, i) => ({
+			ref: r.ref,
+			big: true,
+			cols: NEXT[second.length]![i]!,
+			rows: 2,
+			phoneCols: 2,
+			phoneRows: 1
+		})),
+		...scored
+			.filter((r) => !big.has(r.ref))
+			.map((r) => ({ ref: r.ref, big: false, cols: 2, rows: 2, phoneCols: 1, phoneRows: 1 }))
+	];
+}
 
 // ---- the big numbers ----
 

@@ -1112,35 +1112,37 @@ regression shows plainly against today's Home.
 - Its plugin's card is drawn as the plugin made it; the sheet offers its
   size and says so.
 
-## G27 — A hand-built page is a page with nothing generated (2026-11-01)
+## G27: A hand-built page is a page with nothing generated (2026-11-01)
 
 - What it holds is its layer's own changes: sections of its own (`section`)
   and things added into them (`add … into`), drawn by the same renderer as
-  Home. Its name and symbol are listed in the owner's document (`built`);
-  its changes are kept under `pages['page:<id>']` beside Home's and the
-  rooms'. Nothing new to migrate; still shape 2.
+  Home. Its name and symbol are listed in the owner's document (`built`),
+  and its changes are kept under `pages['page:<id>']` beside Home's and the
+  rooms'. Nothing new to migrate; the shape is still 2.
 
-## G28 — The house's pages and a person's own (2026-11-01)
+## G28: The house's pages and a person's own (2026-11-01)
 
-- The house's are made and changed in Edit by people who may edit the
-  house's pages (`content:write`); each person can still hide, move and size
+- People who may edit the house's pages (`content:write`) make the house's
+  pages and change them in Edit. Each person can still hide, move and size
   things on them for themselves, as on Home. Anyone can make pages that are
-  just theirs, changed in Customise; nobody else sees them (user,
+  just theirs and change them in Customise; nobody else sees those pages
+  (user, 2026-11-01).
+
+## G29: A copy of Home or a room is a snapshot (2026-11-01)
+
+- A copy starts as the page looked when it was copied, with its sections
+  and cards and their names, sizes and settings. It doesn't follow the
+  original afterwards, so a new device doesn't appear in it by itself (user,
   2026-11-01).
 
-## G29 — A copy of Home or a room is a snapshot (2026-11-01)
+## G30: Pages in the phone bar (2026-11-01)
 
-- It starts as the page looked when copied — its sections and cards, their
-  names, sizes and settings — and doesn't follow the original afterwards: a
-  new device doesn't appear in it by itself (user, 2026-11-01).
+- Pages is a place in the bar again. It joins the default bar once the
+  house or the person has a page. A person can put a page in their own bar
+  in place of Pages, and Pages is then in More.
 
-## G30 — Pages in the phone bar (2026-11-01)
+## G31: Displays show the house's pages, never a person's (2026-11-01)
 
-- Pages is a place in the bar again, and joins the default bar once the
-  house or the person has a page. A page can be put in a person's own bar,
-  in place of Pages; Pages is then in More.
-
-## G31 — Displays show the house's pages, never a person's (2026-11-01)
-
-- A display isn't a person (D7), so it can show the house's pages only. A
-  page that's gone is skipped, as a room that's gone is.
+- A display isn't a person (D7), so it shows the house's pages only. A page
+  that's gone is skipped, as a room that's gone is. A display opened at the
+  app's front door rests on its first page.

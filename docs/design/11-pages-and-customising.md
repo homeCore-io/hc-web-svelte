@@ -1,6 +1,6 @@
 # 11 — Pages and customising
 
-Status: **decided** — see `decisions.md` (G1–G31) · 2026-11-01 · G-a to G-d **released** (0.1.35–0.1.39) · **G-e planned** (§9)
+Status: **decided**, see `decisions.md` (G1 to G31) · 2026-11-01 · G-a to G-d **released** (0.1.35 to 0.1.39) · **G-e built** on `redesign` (not released, §9)
 
 How Home, room pages, hand-built pages and displays become one thing that
 everyone can arrange, so each new customising feature is a new *kind of card*
@@ -785,106 +785,183 @@ version anyway, to keep the house's screens alike.
 
 ## 9. G-e plan (2026-11-01)
 
-Mockup: "G-e · Pages of your own, in the bar and on displays" on the canvas
-— agreed, with: pages that are just yours as well as the house's; a copy of
-Home or a room is a snapshot; only people who edit the house's pages make
-the house's; the canvas page type (D4) and per-size changes stay later.
+Mockup: "G-e · Pages of your own, in the bar and on displays" on the canvas.
+The user agreed to it, with four points: pages that are just yours as well
+as the house's; a copy of Home or a room is a snapshot; only people who edit
+the house's pages make the house's; the canvas page type (D4) and per-size
+changes stay for later.
 
-**Scope:** `/pages` lists the house's pages, then the person's; New page
-(a name, start from empty, a copy of Home or a copy of a room, who sees
-it); a page drawn by `PageView` and arranged with Edit or Customise like
-Home; its name, symbol and removal; "In my phone bar"; displays offered the
-house's pages. Nothing in homeCore.
+**Scope:** `/pages` lists the house's pages, then the person's. New page
+takes a name, what to start from (empty, a copy of Home or a copy of a
+room) and who sees it. A page is drawn by `PageView` and arranged with Edit
+or Customise, like Home. It has a name, a symbol and a way to remove it,
+plus "In my phone bar", and displays are offered the house's pages.
+Nothing changes in homeCore.
 
 **Found in the code, and how the plan handles it**
 
-- A page is a generated base with layers on top (`applyPage`), and since
-  G-c a layer can already make sections (`section`) and add cards into them
-  (`add … into`). A page of one's own is that with an empty base: its only
-  generated section holds what was added without a section ("Cards", drawn
-  without a heading but while arranging, as the big numbers are). No new
-  change shapes.
+- A page is a generated base with layers on top (`applyPage`). Since G-c a
+  layer can already make sections (`section`) and add cards into them
+  (`add … into`). A page of one's own is that with an empty base. Its only
+  generated section, "Cards", holds what was added without a section and
+  has a heading only while arranging, as the big numbers do. There are no
+  new change shapes.
 - `cardOf` turns refs into cards for Pinned and "Also here": devices,
-  scenes, plugin and app cards. A copy of Home holds room boxes, so `cardOf`
-  learns `room:<id>` too, with the room's devices. The house's own pieces
-  (alerts, chips, the big numbers, modes) have no ref to add, so a copy
-  leaves them out; alerts stay one tap away in the header.
-- `Synced` saves the whole document it was given, and the UI server keeps
-  any field, so a 0.1.39 app saving the household's or a person's document
-  keeps `built` and the `page:` lists. Its Edit → Done tidies only the page
-  being edited (`forget(key, …)`), and it never edits a `page:` key.
+  scenes, plugin cards and app cards. A copy of Home holds room boxes, so
+  `cardOf` learns `room:<id>` too, with the room's devices. The house's own
+  pieces (alerts, chips, the big numbers, modes) have no ref to add, so a
+  copy leaves them out. Alerts stay one tap away in the header.
+- `Synced` saves the whole document it is given, and the UI server keeps
+  every field. A 0.1.39 app saving the household's or a person's document
+  therefore keeps `built` and the `page:` lists. Its Edit → Done tidies only
+  the page being edited (`forget(key, …)`), and it never edits a `page:`
+  key.
 - Edit's "Back to the generated page" and Customise's "Reset to shared"
-  would empty a page of one's own: on such pages they become "Remove this
-  page" in its settings, with a question first. A person's layer over a
-  house page keeps "Reset to shared".
-- `pageKey` (nav.ts) says which pages can be arranged: `/pages/<id>` joins
-  as `page:<id>`. The pencil on a person's own page goes straight to
-  Customise; `?edit` on it does nothing.
-- The bar drops anything it doesn't know (`safeBar`): `pages` and
-  `page:<id>` become known, a page only while it exists — the house's for
+  would empty a page of one's own. On such pages they are left out, and the
+  page's sheet has "Remove this page", with a question first. A person's
+  layer over a house page keeps "Reset to shared".
+- `pageKey` (nav.ts) says which pages can be arranged, and `/pages/<id>`
+  joins as `page:<id>`. The pencil on a person's own page goes straight to
+  Customise, and `?edit` on it does nothing.
+- The bar drops anything it doesn't know (`safeBar`). `pages` and
+  `page:<id>` become known, a page only while it exists: the house's for
   everyone, a person's own for them.
-- `display.ts` names a display's pages as the bar does; `page:<id>` joins,
-  the house's only, and `allowedOn` lets the display be there. Displays read
-  the household's document already.
-- Budget: Home is at 147.8 KB of 150. The list, the page and its sheets are
-  their own routes and lazy sheets; Home gains only the bar's and the
+- `display.ts` names a display's pages as the bar does. `page:<id>` joins,
+  for the house's pages only, and `allowedOn` lets the display be there.
+  Displays already read the household's document.
+- Budget: Home is at 147.8 KB of 150. The list, the page and its sheets
+  are their own routes and lazy sheets; Home gains only the bar's and the
   sidebar's few lines.
 
 **The model** (`layers.ts`, `built.ts`)
 
 - `built?: { id, name, icon? }[]` on `HouseDoc` and on `PersonDoc`, in the
-  order shown; the page's changes at `pages['page:<id>']` in the same
+  order shown, with the page's changes at `pages['page:<id>']` in the same
   document.
-- A page's key is `page:<id>`, its address `/pages/<id>`. Which document
-  holds it says whose it is; ids are new random ones (`newId`), so a
-  house page and a person's never share one.
-- Making a page: the entry in `built`, and for a copy its changes —
-  a `section` per section shown on the original (title and layout), an
-  `add … into` per card, with its `rename`, `form` and `config`. A plugin's
-  or the app's own card gets a new ref, so the copy's settings are its own.
-  What the maker sees is copied: for a house page, the shared page (the
-  household's changes alone); for one's own, the page as they see it.
-- Removing a page: its entry and its changes; a person's changes to a
-  house page that's gone are left, and skipped (M2).
-- The bar: `pages` and `page:<id>` (G30). "In my phone bar" writes the
-  person's own bar: the page in place of Pages, else at the end if there's
-  room, else in place of the last. Off puts Pages back where it was.
-- Displays: `page:<id>` in a display's `pages` (G31). From a page's
-  settings, an admin can put it on a display — first, where the display
-  rests, as the mockup shows — or take it off.
+- A page's key is `page:<id>` and its address `/pages/<id>`. The document
+  that holds it says whose it is. Ids are new random ones (`newId`), so a
+  house page and a person's page never share one.
+- Making a page writes its entry in `built`. For a copy it also writes the
+  changes: a `section` per section shown on the original (title and
+  layout), and an `add … into` per card with its `rename`, `form` and
+  `config`. A plugin's card or one of the app's own gets a new ref, so the
+  copy's settings are its own. The copy is of what the maker sees: the
+  shared page (the household's changes alone) for a house page, and the
+  page as they see it for one's own.
+- Removing a page removes its entry and its changes. A person's changes to
+  a house page that's gone are left and skipped (M2).
+- The bar takes `pages` and `page:<id>` (G30). "In my phone bar" writes the
+  person's own bar: the page goes in place of Pages, else at the end if
+  there's room, else in place of the last. Switched off, Pages goes back
+  where the page was.
+- Displays take `page:<id>` in their `pages` (G31). From a page's sheet an
+  admin can put it on a display, first, where the display rests (as the
+  mockup shows), or take it off.
 
 **Modules**
 
-- `layers.ts`: `built`, bar choices with pages. `page.ts`: `builtPage`,
-  `cardOf` with rooms, own sections that keep a room layout. `built.ts`
+- `layers.ts`: `built`, and bar choices with pages. `page.ts`: `builtPage`,
+  `cardOf` with rooms, and own sections that keep a room layout. `built.ts`
   (new, not in Home's bundle): listing, making, copying, removing,
-  renaming, the bar switch. `nav.ts`: `pageKey`, `barFor` with pages,
-  Pages in the sidebar and More.
+  renaming, the bar switch. `nav.ts`: `pageKey`, `barFor` with pages, Pages
+  in the sidebar and More.
 - `routes/pages/+page.svelte` (the list and New page),
   `routes/pages/[id]/+page.svelte` (the page), `PageAbout.svelte` (lazy:
-  name, symbol, the bar, displays, remove).
-- `display.ts`, Settings → Displays, `Kiosk` tabs: pages by name.
+  name, symbol, the bar, displays, removal).
+- `display.ts`, Settings → Displays and the `Kiosk` tabs name pages.
 
-**Commits** (each gated on test, check, prettier, build + budget)
+**Commits** (each gated on test, check, prettier, build and budget)
 
-1. The model: `built`, `builtPage`, rooms in `cardOf`, `built.ts`, bar and
-   display choices; tests.
+1. The model: `built`, `builtPage`, rooms in `cardOf`, `built.ts`, and the
+   bar's and displays' choices, with tests.
 2. `/pages`: the list and New page.
-3. The page: drawn, arranged in Edit or Customise, its settings sheet
-   (name, symbol, remove), the bar switch, displays.
-4. Pages in the bar, the sidebar and More; Settings → Displays and the
-   Me / Settings bar choosers offered pages.
+3. The page: drawn, arranged in Edit or Customise, with its sheet (name,
+   symbol, removal), the bar switch and displays.
+4. Pages in the bar, the sidebar and More; Settings → Displays and the Me
+   and Settings bar choosers offer pages.
 5. Doc 11 §9 as built.
 
-**Proof:** unit tests over making, copying (a snapshot: a new device
-doesn't appear), whose a page is, the bar, display tabs, a page that's gone,
-a person's page never offered to a display, a non-editor never making a
-house page. On the sandbox at 390 and 1280, light and dark: the list, New
-page, an empty page ready to add, a page built with Add, a copy of Home, a
-page of one's own, the bar with a page in it, Settings → Displays offering
-a page; documents read back.
+**Proof:** unit tests cover making a page, copying (a snapshot, so a new
+device doesn't appear), whose a page is, the bar, display tabs, a page
+that's gone, a person's page never offered to a display, and a non-editor
+never making a house page. On the sandbox at 390 and 1280, light and dark:
+the list, New page, an empty page ready to add to, a page built with Add, a
+copy of Home, a page of one's own, the bar with a page in it, and Settings →
+Displays offering a page. The documents are read back.
 
-**Older apps (release note):** documents read unchanged. A 0.1.39 app
-shows "Pages — coming" and ignores `built`, the `page:` changes and a bar
-or display naming a page (it drops them from what it shows, not from what
-it saves); saving keeps them all. Release as one version anyway.
+**Older apps (release note):** documents read unchanged. A 0.1.39 app shows its Pages screen as still to come and ignores `built`, the `page:` changes,
+and a bar or display that names a page. It drops them from what it shows,
+and its saves keep them all. Release as one version anyway.
+
+**As built (2026-11-01).** Commits "Pages, own, step 1" to "step 4" and
+"Pages, own, fixes from the sandbox" on `redesign`.
+
+- A page someone made is `builtPage`: one generated section, "Cards", that
+  holds whatever its layer added. Sections and adds are the G-c changes, so
+  Edit, Customise, Add, New section, Move to, layouts and every card's
+  settings work on it unchanged. Add also offers rooms' boxes there (a
+  "Rooms" chip), and a room in a grid is drawn as its box at the grid's
+  size, since a room's line was too narrow in a grid.
+- New page offers "Everyone in the house" only to people who may edit the
+  house's pages; for anyone else the page is theirs. An empty house page
+  opens in Edit, and an empty page of one's own opens in Customise
+  (`?customise`, read once by the page). A copy opens as it is.
+- A copy of Home writes 42 changes on the sandbox house: Pinned, Favourites
+  (for one's own page), Scenes & modes and Rooms as sections of the page's
+  own, with sizes and names kept. Left out: alerts, chips, the big numbers,
+  the modes row and "Not in a room" (`room:none` has no box to add yet).
+- The page has a row with whose it is ("Everyone" or "Just you") and "This
+  page", which opens the sheet: who sees it; name and symbol (the rooms'
+  symbols) for whoever may change it; "In my phone bar" with the person's
+  bar drawn as it would be (labels, and the page's own symbol); for an
+  admin, each display with a switch; and "Remove this page". Name, symbol
+  and removal of a house page are saved straight to the household's
+  document, outside an Edit session.
+- The bar preview in the sheet shows labels only, without the bar's icons.
+  Importing those icons from the sheet would split them out of Home's
+  chunks.
+- Pages is in the sidebar and in More, and in the default phone bar once
+  there are pages. The bar draws a page with its symbol, or the Pages icon
+  if it has none.
+- Settings → Displays lists the house's pages among a display's choices.
+  `Kiosk` waits for the household's document before deciding where a
+  display may be, and a display opened at `/` (after it is set up, or on a
+  reload there) now rests on its first page. Before, it stayed on Home
+  whenever Home was one of its pages. A display draws a page without its
+  "This page" row.
+- Found and fixed on the sandbox: the bar switch did nothing, because
+  `Synced` runs a change twice (to show it, then to save it) and the second
+  run read the switch after the first had flipped it. New section, made
+  last, stored a move before itself, which `apply` read as "to the end", so
+  a section made first could end up last once more were made. NewSection
+  now reads where it goes before making the section, and a move before
+  itself does nothing.
+- Home's JavaScript: 148.4 KB compressed, up from 147.8. A first build was
+  at 149.5 because Rollup split modules shared with the new routes (`nav`,
+  `customise`, the plugin host, an icon) out of Home's chunks. The new code
+  no longer imports them. `page.ts` is still its own chunk (+0.5 KB),
+  because New page needs `homePage` to make a copy.
+- Proof: 549 unit tests, 18 of them new (`built.test.ts` and the move before itself); the own sections test now also covers a room layout. On the sandbox through the
+  app (`ge-shots/` in the session's scratchpad): the empty list, New page,
+  an empty page in Edit and as seen, a page built with Add (Scenes as a row
+  of two scenes, Lights with three lights, Rooms with Kitchen's box), a
+  copy of Home made "Just me", Customise on it without "Reset to shared",
+  the list with both, the sheet with the bar switch on and the page in the
+  phone bar, the page put on a new display, Settings → Displays showing it
+  first, and an enrolled display resting on it with "Kitchen panel · Home"
+  tabs. Each was shot at 390 and 1280, light and dark, except the Edit,
+  Customise and Settings shots (1280 light) and the display (1280×800,
+  light and dark). Documents read back: `built` and `page:` changes in the
+  household's and the person's, `bar: ["home", "page:…", "scenes",
+  "alerts"]`, and the display's `pages: ["page:…", "home"]`. The sandbox
+  display was deleted afterwards.
+- Proven by unit tests only: a non-editor not being offered the house's
+  pages (`mayMake`), a copy of a room, a page that's gone dropping out of
+  the bar and a display's tabs, and the bar switch's off path.
+- Against the mockup: the list, New page, the empty page and the page match
+  it. The page's details are a sheet opened from "This page"; the mockup
+  draws them beside the page. The sheet's bar preview has labels without
+  icons.
+- Release note: as planned above. A 0.1.39 app ignores pages and keeps
+  them when it saves. A display set to a page needs this version, because
+  an older one skips the page and shows its other tabs.

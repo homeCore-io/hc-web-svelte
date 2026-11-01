@@ -28,7 +28,11 @@
 		<p class="quiet">No weather station. Choose a device in its settings.</p>
 	{:else}
 		<div class="now">
-			<span class="temp">{w.available ? deg(w.temperature) : '—'}</span>
+			<span class="temp"
+				>{#if w.available && w.temperature !== undefined}{Math.round(w.temperature)}<span
+						class="unit">{w.temperatureUnit}</span
+					>{:else}—{/if}</span
+			>
 			<span class="readings">
 				{#each w.readings as r (r.label)}
 					<span><span class="label">{r.label}</span> {r.text}</span>
@@ -91,6 +95,10 @@
 		font-family: var(--font-num);
 		font-size: 40px;
 		line-height: 1;
+	}
+	.unit {
+		font-size: 18px;
+		color: var(--ink-muted);
 	}
 	.readings {
 		display: flex;

@@ -10,7 +10,7 @@ import { kindOf } from './card.js';
 import { sourceOf, type Options } from './options.js';
 import { readingOf } from './roomBox.js';
 import { roomOf } from './summary.js';
-import { toShown } from './units.js';
+import { shownUnit, toShown } from './units.js';
 
 export interface Item {
 	id: string;
@@ -165,6 +165,8 @@ export interface Weather {
 	name: string;
 	/** In the person's units, rounded by whoever draws it. */
 	temperature?: number;
+	/** "°F" or "°C", as the person reads. */
+	temperatureUnit: string;
 	/** "94%", "1.1 mph" — the device's other main readings, in words. */
 	readings: { label: string; text: string }[];
 	forecast: Day[];
@@ -266,6 +268,9 @@ const WEATHER: { label: string; names: [string, string][] }[] = [
 	}
 ];
 
+/** Readings said in whole numbers on a weather card. */
+const WHOLE = new Set(['Feels like', 'Wind', 'Gusts']);
+
 const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 /** 213° → "SW". */
 export const compass = (deg: number) => COMPASS[Math.round((((deg % 360) + 360) % 360) / 45) % 8]!;
@@ -285,6 +290,13 @@ export function weatherOf(d: CoreDevice, now: number, max = 4): Weather {
 		let text = reading(d.attributes, schema, name);
 		if (!text) return [];
 		if (label === 'UV') text = String(Math.round(num(d.attributes[name])!));
+		// Temperatures and wind in whole numbers, as the big temperature is: "58°F", "2 mph".
+		if (WHOLE.has(label)) {
+			const unit = spec?.unit ?? usual;
+			const shown = shownUnit(unit) ?? '';
+			const v = Math.round(toShown(num(d.attributes[name])!, unit));
+			text = shown.startsWith('°') ? `${v}${shown}` : `${v} ${shown}`;
+		}
 		const dir = num(d.attributes.wind_direction);
 		if (label === 'Wind' && dir !== undefined) text = `${text} ${compass(dir)}`;
 		return [{ label, text }];
@@ -292,6 +304,7 @@ export function weatherOf(d: CoreDevice, now: number, max = 4): Weather {
 	return {
 		name: displayName(d),
 		temperature: readingOf(d, 'temperature'),
+		temperatureUnit: shownUnit('°C') ?? '°',
 		readings: readings.slice(0, max),
 		forecast: forecastOf(d.attributes.forecast, now, 5, s.attributes.condition),
 		available: d.available

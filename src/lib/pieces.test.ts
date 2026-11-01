@@ -166,6 +166,26 @@ describe('the weather (G21)', () => {
 		expect(compass(350)).toBe('N');
 	});
 
+	it('says temperatures and wind in whole numbers and the person’s unit, as the big temperature', () => {
+		const d = {
+			...all.ecowitt_station!,
+			attributes: {
+				...all.ecowitt_station!.attributes,
+				feels_like: 14.2,
+				wind_speed: 1,
+				wind_gust: 21.5
+			}
+		};
+		followUnits(() => ({ temperature: 'F', measures: 'us' }));
+		const w = weatherOf(d, FIXTURE_NOW, 9);
+		const text = (l: string) => w.readings.find((r) => r.label === l)?.text;
+		expect(w.temperatureUnit).toBe('°F');
+		expect(text('Feels like')).toBe('58°F');
+		expect(text('Wind')).toMatch(/^2 mph/);
+		expect(text('Gusts')).toBe('48 mph');
+		followUnits(() => ({ temperature: 'C', measures: 'metric' }));
+	});
+
 	it('reads nothing from a forecast that isn’t a list', () => {
 		expect(forecastOf({ today: 1 }, FIXTURE_NOW)).toEqual([]);
 	});

@@ -1,7 +1,8 @@
 <!--
 	What needs attention (N7): the first three alerts, and the way to the rest.
 	In the room field (mockup A): beside the rooms, one short line each; on a
-	phone, one line after the big numbers ("2 doors open · 3 alerts").
+	phone, one line after the big numbers: the most serious alert, else the
+	doors open ("2 doors open · 3 alerts").
 -->
 <script lang="ts">
 	import { page } from '$app/state';
@@ -37,6 +38,13 @@
 	// The full list (its seen and ignore tools come with it) is fetched as this
 	// loads, not with Home: the alerts come from the network after it anyway.
 	const full = $derived(place === undefined ? import('../AlertList.svelte') : undefined);
+	// The phone's line leads with the most serious alert, when one is an error
+	// (a weather warning, a leak), and with the doors open otherwise.
+	const serious = $derived(
+		place === 'brief'
+			? alerts.list.find((a) => a.severity === 'critical' || a.severity === 'error')
+			: undefined
+	);
 	const many = (n: number, one: string, more: string) => `${n} ${n === 1 ? one : more}`;
 	const name = (id: string) => {
 		const d = devices.byId[id];
@@ -47,9 +55,13 @@
 {#if place === 'brief'}
 	<a class="brief" href="/alerts">
 		<Icon name="alert" size={16} />
-		<span class="says"
-			>{#if open > 0}<b>{many(open, 'door open', 'doors open')}</b> ·
-			{/if}{many(alerts.list.length, 'alert', 'alerts')}</span
+		{#if serious || open > 0}<b class="lead"
+				>{serious
+					? serious.message || `${name(serious.device_id)}: ${serious.reason}`
+					: many(open, 'door open', 'doors open')}</b
+			>{/if}
+		<span class="count"
+			>{#if serious || open > 0}{'· '}{/if}{many(alerts.list.length, 'alert', 'alerts')}</span
 		>
 	</a>
 {:else if place === 'side'}
@@ -103,9 +115,17 @@
 		color: var(--alert);
 		flex: none;
 	}
-	.says {
-		flex: 1;
+	/* The alert shortens; the count always shows. */
+	.lead {
 		min-width: 0;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.count {
+		flex: none;
+		margin-right: auto;
+		white-space: nowrap;
 	}
 	.side {
 		list-style: none;

@@ -29,6 +29,8 @@
 	--track-on: #c9701a;
 	--track-off: #cfc8ba;
 	--fill: #f6c987;
+	/* A thermostat cooling, beside --track-on heating. */
+	--cool: #2f7fc1;
 	--alert: #b42318;
 	--alert-ink: #ffffff;
 	--alert-bg: #fce9e6;
@@ -80,6 +82,7 @@
 		--track-on: #e0a23a;
 		--track-off: #3a414d;
 		--fill: #b9862e;
+		--cool: #5aa9e6;
 		--alert: #ff7a6b;
 		--alert-ink: #1a0806;
 		--alert-bg: #33191a;
@@ -109,6 +112,7 @@
 	--track-on: #e0a23a;
 	--track-off: #3a414d;
 	--fill: #b9862e;
+	--cool: #5aa9e6;
 	--alert: #ff7a6b;
 	--alert-ink: #1a0806;
 	--alert-bg: #33191a;

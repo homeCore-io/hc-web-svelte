@@ -172,7 +172,7 @@ describe('cards for the kinds in this house (03 §3)', () => {
 			expect(reading(a, s, 'temperature')).toBe('70.7°F');
 			expect(reading(a, s, 'pressure')).toBe('29.92 inHg');
 			const c = cardFor(
-				{ ...byId('ecowitt_den'), device_type: 'thermostat', attributes: a, schema: s },
+				{ ...byId('ecowitt_den'), device_type: 'water_heater', attributes: a, schema: s },
 				FIXTURE_NOW
 			);
 			expect(c.extras[0]).toMatchObject({ min: 41, max: 86, step: 1, unit: '°F', from: '°C' });

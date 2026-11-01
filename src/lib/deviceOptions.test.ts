@@ -101,3 +101,46 @@ describe('no reading offered twice', () => {
 		expect(main.options?.map((o) => o.value)).not.toContain('on');
 	});
 });
+
+describe('a thermostat’s sheet', () => {
+	const nuheat = {
+		device_id: 'nh_1',
+		name: 'Living Room',
+		device_type: 'thermostat',
+		available: true,
+		attributes: { temperature: 22, setpoint: 12.8, schedule_mode: 'auto', hvac_action: 'idle' },
+		schema: {
+			attributes: {
+				temperature: { kind: 'float', unit: '°C', writable: false },
+				setpoint: { kind: 'float', unit: '°C', writable: true, min: 5, max: 30 },
+				schedule_mode: { kind: 'enum', writable: true }
+			},
+			actions: [
+				{ id: 'resume_schedule', label: 'Resume', writes: 'schedule_mode' },
+				{
+					id: 'hold_temperature',
+					label: 'Hold',
+					writes: 'setpoint',
+					params: [
+						{ name: 'setpoint', kind: 'float' },
+						{ name: 'hours', kind: 'int' }
+					]
+				},
+				{
+					id: 'set_permanent_hold',
+					label: 'Hold indefinitely',
+					writes: 'setpoint',
+					params: [{ name: 'setpoint', kind: 'float' }]
+				}
+			]
+		}
+	} as CoreDevice;
+
+	it('offers how long − and + hold it, until the schedule changes unless chosen; no readings to lead', () => {
+		const fields = deviceDescriptor(nuheat).sections.flatMap((s) => s.fields);
+		const hold = fields.find((f) => f.key === 'hold');
+		expect(hold?.options?.map((o) => o.value)).toEqual(['next', 'hour', 'two', 'perm']);
+		expect(hold?.default).toBe('next');
+		expect(fields.some((f) => f.key === 'main' || f.key === 'last')).toBe(false);
+	});
+});

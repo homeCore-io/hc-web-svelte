@@ -13,6 +13,7 @@ import { remaining } from './helpers.js';
 import { isTemperature, numberText, readingUnit, shown, shownRange, toShown } from './units.js';
 import { displayName, type AttributeSchema, type CoreDevice, type Schema } from './devices.js';
 import { momentOf } from './when.js';
+import { targetWords, thermostatOf } from './thermostat.js';
 
 export type IconName =
 	| 'light'
@@ -428,6 +429,16 @@ function describe(
 			return v;
 		}
 		// A place's weather (a weather plugin's): its sky, drawn and said.
+		case 'thermostat': {
+			// Its card draws the dial (ThermostatBody); this is its line elsewhere.
+			const t = thermostatOf(d);
+			v.icon = 'thermometer';
+			const now = t.now === undefined ? undefined : `${Math.round(t.now)}${t.unit}`;
+			const aim = targetWords(t);
+			v.stateLine = [now, aim && aim[0]!.toLowerCase() + aim.slice(1)].filter(Boolean).join(' · ');
+			v.tone = t.doing === 'heating' ? 'on' : t.doing === 'off' ? 'off' : 'neutral';
+			return v;
+		}
 		case 'weather': {
 			v.icon = skyIcon(s.attributes.condition, a.condition, a.is_day !== false) ?? 'weather';
 			const parts = [reading(a, s, 'temperature'), reading(a, s, 'condition')].filter(

@@ -26,5 +26,12 @@
 		details={() => openDevice(d.device_id, here.url)}
 	/>
 {:else}
-	<DeviceCard device={d} {form} page={cardTools ? page : undefined} {label} options={o} />
+	<DeviceCard
+		device={d}
+		{form}
+		page={cardTools ? page : undefined}
+		{label}
+		options={o}
+		layer={page ? { page, ref: card.ref } : undefined}
+	/>
 {/if}

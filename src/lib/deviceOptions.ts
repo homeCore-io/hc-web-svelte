@@ -9,6 +9,7 @@ import type { Descriptor, Field, Section } from './descriptor.js';
 import type { CoreDevice, Schema } from './devices.js';
 import { kindLabel } from './inventory.js';
 import type { Form } from './layers.js';
+import { lengthsOf, thermostatOf, type HoldLength } from './thermostat.js';
 
 export { DEVICE_BUILT_IN, deviceKind } from './options.js';
 
@@ -131,6 +132,13 @@ export interface DeviceSheet {
 	everyCard?: boolean;
 }
 
+const HOLD_WORDS: Record<HoldLength, string> = {
+	next: 'Until the schedule changes',
+	hour: '1 hour',
+	two: '2 hours',
+	perm: 'Until changed'
+};
+
 export function deviceDescriptor(d: CoreDevice, o: DeviceSheet = {}): Descriptor {
 	const sections: Section[] = [];
 	if (o.forms && o.forms.all.length > 1)
@@ -165,7 +173,9 @@ export function deviceDescriptor(d: CoreDevice, o: DeviceSheet = {}): Descriptor
 	// ("Lock · Unlocked" beside "As usual · Unlocked").
 	const usual = (plain.stateLine.split(' · ')[0] ?? '').trim().toLowerCase();
 	const readings = cardReadings(d).filter((r) => r.value.trim().toLowerCase() !== usual);
-	if (readings.length > 0)
+	// A thermostat's card is its dial: no line to lead or add to.
+	const dial = plain.kind === 'thermostat';
+	if (readings.length > 0 && !dial)
 		sections.push({
 			id: 'main',
 			title: 'Main reading',
@@ -216,7 +226,8 @@ export function deviceDescriptor(d: CoreDevice, o: DeviceSheet = {}): Descriptor
 		...(last ? { help: last } : {}),
 		default: false
 	});
-	sections.push({ id: 'shown', title: light ? 'On the card' : 'Also show', fields: shown });
+	if (!dial)
+		sections.push({ id: 'shown', title: light ? 'On the card' : 'Also show', fields: shown });
 
 	const c = plain.control;
 	if (c && (c.kind === 'switch' || c.kind === 'lock' || c.kind === 'play'))
@@ -252,6 +263,24 @@ export function deviceDescriptor(d: CoreDevice, o: DeviceSheet = {}): Descriptor
 					kind: 'note',
 					text: 'A big target for wall panels. Its page opens from the arrow, or by pressing and holding.',
 					visible_when: { field: 'tap', eq: 'control' }
+				}
+			]
+		});
+
+	// A thermostat on a schedule: how long − and + hold a new target.
+	const lengths = plain.kind === 'thermostat' ? lengthsOf(thermostatOf(d)) : [];
+	if (lengths.length > 1)
+		sections.push({
+			id: 'hold',
+			title: '− and + hold it',
+			fields: [
+				{
+					kind: 'enum',
+					key: 'hold',
+					label: '− and + hold it',
+					render: 'segmented',
+					options: lengths.map((l) => ({ value: l, label: HOLD_WORDS[l] })),
+					default: 'next'
 				}
 			]
 		});

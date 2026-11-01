@@ -11,6 +11,13 @@
 	menu's "Open details", open its page — and the arrow is the named details
 	link for keyboards and screen readers.
 -->
+<script lang="ts" module>
+	import type { Component } from 'svelte';
+	// A thermostat's dial, loaded with the first thermostat's card and kept.
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	let thermoBody: Component<any> | undefined;
+</script>
+
 <script lang="ts">
 	import Play from '@lucide/svelte/icons/play';
 	import { session } from '#lib/me.svelte.js';
@@ -43,7 +50,8 @@
 		form = 'standard',
 		page: layerPage,
 		label,
-		options
+		options,
+		layer
 	}: {
 		device: CoreDevice;
 		form?: Form;
@@ -52,6 +60,8 @@
 		label?: string;
 		/** Its settings on this page (G23–G25). */
 		options?: Record<string, unknown>;
+		/** Where its own settings are kept, for what a card changes on itself (a thermostat's hold). */
+		layer?: { page: string; ref: string };
 	} = $props();
 
 	// Long-press (or right-click): the personalise shortcut — star or hide (N6).
@@ -81,6 +91,14 @@
 		commands.notes[device.device_id] ?? (raised?.kind === 'rule' ? raised.reason : undefined)
 	);
 	const off = $derived(!card.available);
+	// A thermostat draws its dial (ThermostatBody), loaded with the first one.
+	const thermo = $derived(card.kind === 'thermostat' && !off);
+	// Loaded in the browser only, so a page drawn on the server picks it up.
+	let Thermo = $state(thermoBody);
+	$effect(() => {
+		if (!thermo || Thermo) return;
+		void import('./ThermostatBody.svelte').then((m) => (Thermo = thermoBody = m.default));
+	});
 	// Someone who may only look sees the card as it is, with nothing to press.
 	const locked = $derived(off || !session.mayUse);
 
@@ -312,117 +330,125 @@
 			<button role="menuitem" class="cancel" onclick={() => (menu = false)}>Cancel</button>
 		</div>
 	{/if}
-	<div class="top">
-		<span class="icon" class:art={!!card.art}
-			><Art
-				src={card.art}
-				logo={card.artLogo}
-				icon={card.icon}
-				size={form === 'compact' ? 18 : 20}
-			/></span
-		>
-		{#if form === 'compact'}
-			<span class="text">
-				<span class="name">{name}</span>
-				<span class="state">{note ?? card.stateLine}</span>
-			</span>
-			{#if whole}{@render open()}{/if}
+	{#if thermo}
+		{#if Thermo}
+			<Thermo {device} {card} {form} {name} {locked} {options} {layer} />
+		{:else}
+			<span class="name">{name}</span>
 		{/if}
-		<!-- Offline: its last state is no longer true, so nothing to read or press. -->
-		{#if card.channels.length === 0 && !off}{@render control(card.control)}{/if}
-	</div>
-
-	{#if form !== 'compact'}
-		<div class="textrow">
-			<div class="text">
-				<span class="name">{name}</span>
-				<span class="state" class:note>
-					{#if card.waiting}<span class="working" aria-label="Waiting for the house"></span>{/if}
-					{note ?? card.stateLine}
+	{:else}
+		<div class="top">
+			<span class="icon" class:art={!!card.art}
+				><Art
+					src={card.art}
+					logo={card.artLogo}
+					icon={card.icon}
+					size={form === 'compact' ? 18 : 20}
+				/></span
+			>
+			{#if form === 'compact'}
+				<span class="text">
+					<span class="name">{name}</span>
+					<span class="state">{note ?? card.stateLine}</span>
 				</span>
-				{#if card.last}<span class="last">{card.last}</span>{/if}
+				{#if whole}{@render open()}{/if}
+			{/if}
+			<!-- Offline: its last state is no longer true, so nothing to read or press. -->
+			{#if card.channels.length === 0 && !off}{@render control(card.control)}{/if}
+		</div>
+
+		{#if form !== 'compact'}
+			<div class="textrow">
+				<div class="text">
+					<span class="name">{name}</span>
+					<span class="state" class:note>
+						{#if card.waiting}<span class="working" aria-label="Waiting for the house"></span>{/if}
+						{note ?? card.stateLine}
+					</span>
+					{#if card.last}<span class="last">{card.last}</span>{/if}
+				</div>
+				{#if whole}{@render open()}{/if}
 			</div>
-			{#if whole}{@render open()}{/if}
-		</div>
-	{/if}
+		{/if}
 
-	{#if card.channels.length > 0 && !off}
-		<ul class="channels">
-			{#each card.channels as ch (ch.attr)}
-				<li>
-					<span>{ch.label}</span>
-					<Toggle
-						on={ch.on}
-						label={`${name} ${ch.label}`}
-						disabled={locked}
-						onchange={(on) => set({ [ch.attr]: on })}
-					/>
-				</li>
-			{/each}
-		</ul>
-	{/if}
-
-	{#if form === 'large' && card.extras.length > 0}
-		<div class="extras">
-			{#each card.extras as e (e.kind + ('attr' in e ? e.attr : ''))}
-				{#if e.kind === 'slider'}
-					<label class="slider">
-						<span>{e.label}</span>
-						<input
-							type="range"
-							min={e.min}
-							max={e.max}
-							step={e.step}
-							value={dragging[e.attr] ?? e.value}
+		{#if card.channels.length > 0 && !off}
+			<ul class="channels">
+				{#each card.channels as ch (ch.attr)}
+					<li>
+						<span>{ch.label}</span>
+						<Toggle
+							on={ch.on}
+							label={`${name} ${ch.label}`}
 							disabled={locked}
-							oninput={(ev) => slide(e, Number(ev.currentTarget.value))}
-							onchange={(ev) => release(e, Number(ev.currentTarget.value))}
+							onchange={(on) => set({ [ch.attr]: on })}
 						/>
-						<span class="num"
-							>{Math.round(dragging[e.attr] ?? e.value)}{e.unit === '%'
-								? '%'
-								: e.unit?.startsWith('°')
-									? e.unit
-									: ''}</span
-						>
-					</label>
-				{:else if e.kind === 'steps'}
-					<div class="steps" role="radiogroup" aria-label={e.label}>
-						{#each e.options as o (o)}
-							<button
-								role="radio"
-								aria-checked={e.value === o}
+					</li>
+				{/each}
+			</ul>
+		{/if}
+
+		{#if form === 'large' && card.extras.length > 0}
+			<div class="extras">
+				{#each card.extras as e (e.kind + ('attr' in e ? e.attr : ''))}
+					{#if e.kind === 'slider'}
+						<label class="slider">
+							<span>{e.label}</span>
+							<input
+								type="range"
+								min={e.min}
+								max={e.max}
+								step={e.step}
+								value={dragging[e.attr] ?? e.value}
 								disabled={locked}
-								onclick={() => set({ [e.attr]: o })}>{o.replace(/[-_]/g, ' ')}</button
+								oninput={(ev) => slide(e, Number(ev.currentTarget.value))}
+								onchange={(ev) => release(e, Number(ev.currentTarget.value))}
+							/>
+							<span class="num"
+								>{Math.round(dragging[e.attr] ?? e.value)}{e.unit === '%'
+									? '%'
+									: e.unit?.startsWith('°')
+										? e.unit
+										: ''}</span
 							>
-						{/each}
-					</div>
-				{:else if e.kind === 'transport'}
-					<div class="transport">
-						{#if e.previous}
-							<button
-								class="round quiet"
-								aria-label="Previous"
-								disabled={locked}
-								onclick={() => commands.act(device.device_id, e.previous!)}
-								><SkipBack size={18} /></button
-							>
-						{/if}
-						{#if e.next}
-							<button
-								class="round quiet"
-								aria-label="Next"
-								disabled={locked}
-								onclick={() => commands.act(device.device_id, e.next!)}
-								><SkipForward size={18} /></button
-							>
-						{/if}
-					</div>
-				{:else}
-					<p class="reading"><span>{e.label}</span><span class="num">{e.value}</span></p>
-				{/if}
-			{/each}
-		</div>
+						</label>
+					{:else if e.kind === 'steps'}
+						<div class="steps" role="radiogroup" aria-label={e.label}>
+							{#each e.options as o (o)}
+								<button
+									role="radio"
+									aria-checked={e.value === o}
+									disabled={locked}
+									onclick={() => set({ [e.attr]: o })}>{o.replace(/[-_]/g, ' ')}</button
+								>
+							{/each}
+						</div>
+					{:else if e.kind === 'transport'}
+						<div class="transport">
+							{#if e.previous}
+								<button
+									class="round quiet"
+									aria-label="Previous"
+									disabled={locked}
+									onclick={() => commands.act(device.device_id, e.previous!)}
+									><SkipBack size={18} /></button
+								>
+							{/if}
+							{#if e.next}
+								<button
+									class="round quiet"
+									aria-label="Next"
+									disabled={locked}
+									onclick={() => commands.act(device.device_id, e.next!)}
+									><SkipForward size={18} /></button
+								>
+							{/if}
+						</div>
+					{:else}
+						<p class="reading"><span>{e.label}</span><span class="num">{e.value}</span></p>
+					{/if}
+				{/each}
+			</div>
+		{/if}
 	{/if}
 </article>
 

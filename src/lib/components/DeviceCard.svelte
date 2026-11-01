@@ -18,7 +18,8 @@
 		form = 'standard',
 		page,
 		label,
-		options
+		options,
+		layer
 	}: {
 		device: CoreDevice;
 		form?: Form;
@@ -27,6 +28,8 @@
 		label?: string;
 		/** Its settings on this page (G23), for the app's own card. */
 		options?: Record<string, unknown>;
+		/** Where its own settings are kept (GenericDeviceCard). */
+		layer?: { page: string; ref: string };
 	} = $props();
 
 	pluginUis.ensure();
@@ -81,7 +84,7 @@
 		/>
 	</div>
 {:else}
-	<GenericDeviceCard {device} {form} {page} {label} {options} />
+	<GenericDeviceCard {device} {form} {page} {label} {options} {layer} />
 {/if}
 
 <style>

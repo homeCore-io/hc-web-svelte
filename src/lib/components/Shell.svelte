@@ -76,7 +76,9 @@
 
 	// ---- Edit mode (N6), in the address (N5) ----
 	const key = $derived(pageKey(pathname));
-	const canEdit = $derived(session.can('content:write'));
+	// A page of one's own is changed in Customise only (G28).
+	const own = $derived(personal.doc.built?.some((p) => `page:${p.id}` === key) ?? false);
+	const canEdit = $derived(session.can('content:write') && !own);
 	const editingHere = $derived(key !== null && editing.on(key));
 	// Follows the address only: Done and Cancel leave the mode before they
 	// change the address, and must not be started again on the way out.

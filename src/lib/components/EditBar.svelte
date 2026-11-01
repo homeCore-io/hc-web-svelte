@@ -53,7 +53,8 @@
 		<button class="done" onclick={done}>Done</button>
 	</div>
 </div>
-{#if changed}
+<!-- A page someone made has no generated page to go back to (G27). -->
+{#if changed && !key.startsWith('page:')}
 	<p class="note">
 		<button
 			class="link"

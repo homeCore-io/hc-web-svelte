@@ -52,6 +52,8 @@
 	onMount(() => dialog?.showModal());
 
 	const room = $derived(key.startsWith('room:') ? key.slice(5) : null);
+	// A page someone made can hold rooms' boxes too (G27).
+	const built = $derived(key.startsWith('page:'));
 	const already = $derived(new Set(view.added(key)));
 	const intoTitle = $derived(sections.find((s) => s.id === into)?.title ?? '');
 
@@ -68,6 +70,16 @@
 						icon: 'scene',
 						what: 'Scene · homeCore',
 						room: ''
+					}))
+				: []),
+			...(built
+				? rooms.list.map((r): Offer => ({
+						ref: ref.room(r.id),
+						name: r.name,
+						shelf: 'room',
+						icon: 'door',
+						what: 'Room',
+						room: r.id
 					}))
 				: [])
 		]

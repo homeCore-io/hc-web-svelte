@@ -32,7 +32,14 @@
 	import KindView from './KindView.svelte';
 	import { adding } from '#lib/adding.svelte.js';
 
-	let { page }: { page: Page } = $props();
+	let {
+		page,
+		making = $bindable(false)
+	}: {
+		page: Page;
+		/** New section is open — also from outside, as an empty page offers it. */
+		making?: boolean;
+	} = $props();
 
 	pluginUis.ensure();
 	const key = $derived(page.id);
@@ -64,9 +71,11 @@
 	// Rooms in the sidebar, with their status (G3): their boxes' settings show there.
 	const sideRooms = $derived(page.id === 'home' && kindOptions.shellRooms(key) === 'status');
 	// Add (G-c): the sections it can add into, as headed here — and where
-	// added things go when none is said, Pinned or "Also here", which a room
-	// doesn't have until something's in it.
-	const home = $derived(page.id === 'home' ? 'pinned' : 'added');
+	// added things go when none is said, Pinned, a made page's Cards, or
+	// "Also here", which a room doesn't have until something's in it.
+	const home = $derived(
+		page.id === 'home' ? 'pinned' : page.id.startsWith('page:') ? 'cards' : 'added'
+	);
 	const into = $derived.by(() => {
 		const out = shown.sections
 			.filter((s) => s.section.accepts)
@@ -87,7 +96,6 @@
 			if (added(layer).includes(c.ref)) view.change(key, { op: 'remove', ref: c.ref });
 		view.change(key, { op: 'remove', ref: r });
 	}
-	let making = $state(false);
 	// Leaving Customise or Edit closes Add.
 	$effect(() => {
 		if (!arranging && adding.page === key) adding.close();

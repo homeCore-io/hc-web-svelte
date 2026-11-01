@@ -9,10 +9,12 @@ import { kindLabel, pluginLabel } from './inventory.js';
 import type { Room } from './house.js';
 import { roomOf } from './summary.js';
 
-export type Shelf = 'light' | 'sensor' | 'scene' | 'media' | 'lock' | 'mode' | 'hub' | 'other';
+export type Shelf =
+	'room' | 'light' | 'sensor' | 'scene' | 'media' | 'lock' | 'mode' | 'hub' | 'other';
 
 /** The chips, in order; a shelf with nothing on it is left out. */
 export const SHELVES: { id: Shelf; label: string }[] = [
+	{ id: 'room', label: 'Rooms' },
 	{ id: 'light', label: 'Lights & switches' },
 	{ id: 'sensor', label: 'Sensors' },
 	{ id: 'scene', label: 'Scenes' },

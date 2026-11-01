@@ -12,10 +12,13 @@
 	import { editing } from '#lib/edit.svelte.js';
 	import { session } from '#lib/me.svelte.js';
 	import { withEdit } from '#lib/nav.js';
+	import { personal } from '#lib/personal.svelte.js';
 
 	let { pageKey }: { pageKey: string } = $props();
 
-	const shared = $derived(session.can('content:write'));
+	// A page of one's own has no shared page: it's changed in Customise (G28).
+	const own = $derived(personal.doc.built?.some((p) => `page:${p.id}` === pageKey) ?? false);
+	const shared = $derived(session.can('content:write') && !own);
 	const shown = $derived(!session.isDisplay && !customise.on(pageKey) && !editing.on(pageKey));
 	let open = $state(false);
 

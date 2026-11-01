@@ -9,7 +9,16 @@
 	import { ask } from '#lib/confirm.svelte.js';
 	import { adding } from '#lib/adding.svelte.js';
 
-	let { page, home = false }: { page: string; home?: boolean } = $props();
+	let {
+		page,
+		home = false,
+		own = false
+	}: {
+		page: string;
+		home?: boolean;
+		/** A page of this person's own (G28): there is no shared page to go back to. */
+		own?: boolean;
+	} = $props();
 	let styling = $state(false);
 	const changed = $derived(
 		personal.changes(page).length > 0 || (home && (personal.doc.favourites?.length ?? 0) > 0)
@@ -25,20 +34,20 @@
 		<div class="actions">
 			<button class="reset" onclick={() => adding.open(page)}>Add</button>
 			{#if home}<button class="reset" onclick={() => (styling = true)}>Style</button>{/if}
-			<button
-				class="reset"
-				disabled={!changed}
-				onclick={async () => {
-					const yes = await ask({
-						title: 'Put this page back to how everyone else sees it?',
-						body: 'Your own changes to it are dropped.',
-						go: 'Reset to shared'
-					});
-					if (!yes) return;
-					void personal.resetPage(page);
-					if (home) void personal.change((d) => ({ ...d, favourites: [] }));
-				}}>Reset to shared</button
-			>
+			{#if !own}<button
+					class="reset"
+					disabled={!changed}
+					onclick={async () => {
+						const yes = await ask({
+							title: 'Put this page back to how everyone else sees it?',
+							body: 'Your own changes to it are dropped.',
+							go: 'Reset to shared'
+						});
+						if (!yes) return;
+						void personal.resetPage(page);
+						if (home) void personal.change((d) => ({ ...d, favourites: [] }));
+					}}>Reset to shared</button
+				>{/if}
 			<button class="done" onclick={() => (customise.page = null)}>Done</button>
 		</div>
 	</div>

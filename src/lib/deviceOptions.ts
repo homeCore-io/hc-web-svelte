@@ -161,7 +161,10 @@ export function deviceDescriptor(d: CoreDevice, o: DeviceSheet = {}): Descriptor
 
 	const now = Date.now();
 	const plain = cardFor(d, now);
-	const readings = cardReadings(d);
+	// What "As usual" leads with isn't offered again under another name
+	// ("Lock · Unlocked" beside "As usual · Unlocked").
+	const usual = (plain.stateLine.split(' · ')[0] ?? '').trim().toLowerCase();
+	const readings = cardReadings(d).filter((r) => r.value.trim().toLowerCase() !== usual);
 	if (readings.length > 0)
 		sections.push({
 			id: 'main',
@@ -201,7 +204,9 @@ export function deviceDescriptor(d: CoreDevice, o: DeviceSheet = {}): Descriptor
 				key: `show_${r.attr}`,
 				label: r.label,
 				help: r.value,
-				default: false
+				default: false,
+				// The main reading isn't also shown beside itself.
+				visible_when: { field: 'main', ne: r.attr }
 			});
 	const last = cardFor(d, now, { last: true }).last;
 	shown.push({

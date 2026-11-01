@@ -84,3 +84,20 @@ describe('grouped like the mockup', () => {
 		expect(main.options?.every((o) => typeof o.sub === 'string')).toBe(true);
 	});
 });
+
+describe('no reading offered twice', () => {
+	const fields = (id: string) => deviceDescriptor(byId(id)).sections.flatMap((s) => s.fields);
+	it('a lock: "As usual" already says locked, so Lock is not a second choice', () => {
+		const main = fields('yolink_front_lock').find((f) => f.key === 'main')!;
+		expect(main.options?.map((o) => o.value)).not.toContain('locked');
+		expect(main.options?.map((o) => o.value)).toContain('door_open');
+	});
+	it('the main reading is not offered under Also show beside itself', () => {
+		const door = fields('yolink_front_lock').find((f) => f.key === 'show_door_open')!;
+		expect(door.visible_when).toEqual({ field: 'main', ne: 'door_open' });
+	});
+	it('a light that is on: Power says what "As usual" says', () => {
+		const main = fields('hue_lamp').find((f) => f.key === 'main')!;
+		expect(main.options?.map((o) => o.value)).not.toContain('on');
+	});
+});

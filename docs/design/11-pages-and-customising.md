@@ -696,3 +696,48 @@ settings draws as it did. A 0.1.38 app ignores `config` on device refs and
 changes naming cards it has, and device refs are such). So an older app
 still open shows device cards as before and loses nothing. Release as one
 version anyway, to keep the house's screens alike.
+
+**As built (2026-10-31)** — "Device cards, step 1"–"step 4" on `redesign`.
+
+- `cardFor(device, now, options)` applies a card's settings after it is
+  described; with none it is the card it was. A card can only lead with,
+  add or drop what it found, and `tap: control` takes effect only where the
+  card already has a switch, lock or play control (tested over every device
+  in the fixture house).
+- **What a card offers to say** (`cardReadings`): what the device reports
+  now, primary first — not its settings (`category: config`) or
+  diagnostics, except its battery, and not a second form of another
+  reading (`temperature_f`, `illuminance_raw`, `color_temp_mirek`). Plugins
+  list a lot as primary (Hue's motion sensor lists nine), so this keeps the
+  sheet to what reads as news.
+- The sheet is built when it opens (`deviceOptions.ts`, in the lazy
+  `CardOptions` chunk); the registry carries `settable` for device cards
+  instead of a descriptor. Scenes a plugin publishes as devices have none.
+- Device cards' tools show settings instead of S/M/L; the sheet's Size
+  writes the same `form` change. Plugin cards (`plugin` kind) keep S/M/L.
+- "Same for every <type> card…" turns the sheet to `defaults['device:<type>']`
+  (no Size or Symbol there — those are one card's), and Done or close goes
+  back to the card's own sheet, which now starts from the new default.
+- Whole-card tapping: the card is a button named for what it does ("Turn
+  Holiday Lights 1 off"); its page opens from an arrow beside its name (a
+  44px target, the named details link) and from the long-press menu's
+  "Open details". Offline or for someone who may only look, the card opens
+  its page as usual.
+- Size's segmented control wraps in the form engine's two-column rows on a
+  wide screen (label left, control right); it reads, but the engine's row
+  layout is worth a look on its own later.
+- Home's JavaScript: 147.9 KB compressed (from 146.8).
+- Proof: unit tests (card options over the fixture house, the sheet per
+  device kind, the readings offered). On the sandbox (390/1280,
+  light/dark): Home unchanged before any setting; the sheets for a light, a
+  motion sensor and a lock; in Customise — the motion sensor leading with
+  its light level and saying when it last changed, the lamp without its
+  Warmth slider, Holiday Lights 1 drawn as a fan and switched by the whole
+  card (its tap sends `PATCH …/state {"on":false}`), "Open details" in its
+  long-press menu, every light card saying when it last changed while the
+  lamp opts out; in Edit — the lock locking from anywhere on it, with its
+  battery. Documents read back: `config` on `device:` refs in each layer,
+  `defaults: { "device:light": { "last": true } }`.
+- Release note: documents unchanged in shape; a 0.1.38 app ignores device
+  cards' settings and keeps them when it saves, so nothing is lost if one
+  is still open.

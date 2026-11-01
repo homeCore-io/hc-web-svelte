@@ -134,12 +134,87 @@ export interface CardView {
 	available: boolean;
 	/** A built-in alarming state (C9): wet, smoke, offline, jammed, low battery. */
 	alarm?: string;
+	/** "Changed 12 min ago", when the card's settings ask for it (G23). */
+	last?: string;
+	/** The whole card switches it, rather than opening its page (G24). */
+	tapControls?: boolean;
 }
+
+/**
+ * A device card's settings (G23–G25), as resolved for one card. Each only
+ * chooses among what the card already found: never a control the device
+ * doesn't declare. Unknown or missing values mean today's card.
+ */
+export type CardOptions = Record<string, unknown>;
+
+/** The device's readings a card can lead with or add: what it reports now, primary first. */
+export function cardReadings(d: CoreDevice): { attr: string; label: string; value: string }[] {
+	const s: Schema = d.schema ?? { attributes: {} };
+	const primary = s.primary ?? [];
+	const rank = (a: string) => {
+		const p = primary.indexOf(a);
+		return p >= 0 ? p : 500;
+	};
+	return Object.keys(d.attributes)
+		.filter((n) => {
+			const spec = s.attributes[n];
+			const v = d.attributes[n];
+			return (
+				!n.endsWith('_unit') &&
+				spec?.category !== 'diagnostic' &&
+				spec?.kind !== 'json' &&
+				v !== undefined &&
+				v !== null &&
+				typeof v !== 'object'
+			);
+		})
+		.map((attr) => ({
+			attr,
+			label: s.attributes[attr]?.display_name ?? cap(words(attr)),
+			value: reading(d.attributes, s, attr) ?? ''
+		}))
+		.filter((r) => r.value !== '')
+		.sort((a, b) => rank(a.attr) - rank(b.attr) || a.label.localeCompare(b.label));
+}
+
+/** What an extra on Large is called in settings: its attribute, or what it does. */
+export const extraKey = (e: Extra): string =>
+	e.kind === 'transport' ? 'transport' : e.kind === 'reading' ? `reading:${e.label}` : e.attr;
 
 /** How long a device may stay silent before its card says so. */
 const STALE_MS = 24 * 3600_000;
 /** How long a change made elsewhere is mentioned on the card. */
 const ELSEWHERE_MS = 30 * 60_000;
+
+/** A card's settings applied to what it found (G23–G25). */
+function dress(v: CardView, d: CoreDevice, s: Schema, o: CardOptions, now: number): void {
+	const a = d.attributes;
+	if (typeof o.main === 'string' && o.main !== 'auto') {
+		const lead = reading(a, s, o.main);
+		if (lead !== undefined) v.stateLine = lead;
+	}
+	const more = Object.keys(o)
+		.filter((k) => k.startsWith('show_') && o[k] === true)
+		.map((k) => k.slice(5))
+		.filter((attr) => attr !== o.main)
+		.map((attr) => reading(a, s, attr))
+		.filter((r): r is string => r !== undefined && r !== '');
+	if (more.length > 0 && v.channels.length === 0)
+		v.stateLine = [v.stateLine, ...more].filter((x) => x !== '').join(' · ');
+	v.extras = v.extras.filter((e) => o[`extra_${extraKey(e)}`] !== false);
+	if (o.last === true) {
+		const at = d.last_change?.changed_at ?? d.last_seen;
+		const ms = at ? now - Date.parse(at) : NaN;
+		if (Number.isFinite(ms)) v.last = ms < 60_000 ? 'Changed just now' : `Changed ${ago(ms)} ago`;
+	}
+	if (typeof o.symbol === 'string' && o.symbol !== 'auto')
+		v.icon = symbolFor(o.symbol, v.icon) ?? v.icon;
+	// Only a control the card already has; a card with none keeps opening its page.
+	v.tapControls =
+		o.tap === 'control' &&
+		v.control !== null &&
+		(v.control.kind === 'switch' || v.control.kind === 'lock' || v.control.kind === 'play');
+}
 
 /** The kind a card is drawn as: a person's hint wins over the plugin's type. */
 export function kindOf(d: CoreDevice): string {
@@ -172,7 +247,7 @@ export const SENSORS = new Set([
 	'binary_sensor'
 ]);
 
-export function cardFor(d: CoreDevice, now = Date.now()): CardView {
+export function cardFor(d: CoreDevice, now = Date.now(), options?: CardOptions): CardView {
 	const kind = kindOf(d);
 	const a = d.attributes;
 	const s: Schema = d.schema ?? { attributes: {} };
@@ -191,6 +266,7 @@ export function cardFor(d: CoreDevice, now = Date.now()): CardView {
 
 	const view = describe(kind, d, a, s, base, now);
 	view.icon = symbolFor(d.status_icon, view.icon) ?? view.icon;
+	if (options) dress(view, d, s, options, now);
 	view.alarm = alarmOf(d, kind);
 	if (view.alarm !== undefined) view.tone = 'alert';
 

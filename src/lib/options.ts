@@ -6,7 +6,9 @@
  * kind's own. Each layer keeps only what it set, so the household changing a
  * default still reaches a person who changed something else.
  */
+import { kindOf } from './card.js';
 import type { Descriptor, Field } from './descriptor.js';
+import type { CoreDevice } from './devices.js';
 import { same } from './descriptor.js';
 
 export type Options = Record<string, unknown>;
@@ -57,6 +59,18 @@ export const sourceOf = (v: unknown): Source =>
 		: Array.isArray(v) && v.every((x) => typeof x === 'string') && v.length > 0
 			? v
 			: 'auto';
+
+// ---- a device's card (G23–G26; its sheet is deviceOptions.ts) ----
+
+export const DEVICE_BUILT_IN: Options = {
+	main: 'auto',
+	last: false,
+	tap: 'details',
+	symbol: 'auto'
+};
+
+/** Where every card of a device's type keeps its default: `device:light`. */
+export const deviceKind = (d: CoreDevice): string => `device:${kindOf(d)}`;
 
 // ---- a room's box ----
 

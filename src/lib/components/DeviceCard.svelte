@@ -17,13 +17,16 @@
 		device,
 		form = 'standard',
 		page,
-		label
+		label,
+		options
 	}: {
 		device: CoreDevice;
 		form?: Form;
 		page?: string;
 		/** The name this page gives the card, if it was renamed there (M2). */
 		label?: string;
+		/** Its settings on this page (G23), for the app's own card. */
+		options?: Record<string, unknown>;
 	} = $props();
 
 	pluginUis.ensure();
@@ -78,7 +81,7 @@
 		/>
 	</div>
 {:else}
-	<GenericDeviceCard {device} {form} {page} {label} />
+	<GenericDeviceCard {device} {form} {page} {label} {options} />
 {/if}
 
 <style>

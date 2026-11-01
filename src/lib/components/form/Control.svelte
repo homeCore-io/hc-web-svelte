@@ -8,6 +8,7 @@
 	import X from '@lucide/svelte/icons/x';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Toggle from '../Toggle.svelte';
+	import Icon, { type Name } from '../Icon.svelte';
 	import Self from './Control.svelte';
 	import SensorField from './SensorField.svelte';
 	import OrderList from './OrderList.svelte';
@@ -190,6 +191,27 @@
 	<SensorField {field} {value} {label} {onchange} />
 {:else if field.kind === 'list' && field.render === 'order'}
 	<OrderList {field} {value} {label} {onchange} />
+{:else if field.kind === 'enum' && field.render === 'icons'}
+	<!-- This app's own: a choice of the app's symbols, each drawn (G25). A value
+	     that isn't a symbol ("auto") is a word. -->
+	<div class="icons" role="radiogroup" aria-label={label}>
+		{#each field.options ?? [] as o (String(o.value))}
+			<button
+				type="button"
+				role="radio"
+				class:word={o.value === 'auto'}
+				aria-checked={same(value ?? field.default, o.value)}
+				aria-label={o.label}
+				title={o.label}
+				{disabled}
+				onclick={() => onchange(o.value)}
+				>{#if o.value === 'auto'}{o.label}{:else}<Icon
+						name={o.value as Name}
+						size={18}
+					/>{/if}</button
+			>
+		{/each}
+	</div>
 {:else if field.kind === 'enum' && (field.render === 'segmented' || field.render === 'pills' || field.render === 'radio')}
 	<div class="segmented" role="radiogroup" aria-label={label}>
 		{#each field.options ?? [] as o (String(o.value))}
@@ -573,6 +595,30 @@
 	}
 	.small:disabled {
 		opacity: 0.5;
+	}
+	.icons {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+		gap: 6px;
+	}
+	.icons button {
+		height: 44px;
+		border: 1px solid var(--card-line);
+		border-radius: 12px;
+		background: var(--surface);
+		color: var(--ink);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font: inherit;
+		font-size: 13px;
+		font-weight: 600;
+	}
+	.icons button.word {
+		grid-column: span 2;
+	}
+	.icons button[aria-checked='true'] {
+		border: 2px solid var(--accent);
 	}
 	.segmented {
 		display: inline-flex;

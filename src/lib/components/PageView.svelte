@@ -113,8 +113,13 @@
 	);
 	const moveTargets = (card: Card, from: string) =>
 		card.kind === 'room' ? [] : targets.filter((t) => t.id !== from);
-	const hasSettings = (card: Card, layout: Layout) =>
-		kindOf(card).options !== null && (card.kind !== 'room' || layout !== 'list' || sideRooms);
+	const hasSettings = (card: Card, layout: Layout) => {
+		const k = kindOf(card);
+		return (
+			(k.settable ? k.settable(card) : k.options !== null) &&
+			(card.kind !== 'room' || layout !== 'list' || sideRooms)
+		);
+	};
 </script>
 
 {#snippet piece(

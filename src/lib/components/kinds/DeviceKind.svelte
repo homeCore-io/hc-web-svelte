@@ -1,7 +1,7 @@
 <!--
-	A device on a page: its card in the form it was given — or, for a plugin's
-	scene, a button that runs it (C2). On a room's page the card carries its
-	own Hide (`cardTools`).
+	A device on a page: its card in the form it was given, with the settings
+	that apply on this screen (G23) — or, for a plugin's scene, a button that
+	runs it (C2). On a room's page the card carries its own Hide (`cardTools`).
 -->
 <script lang="ts">
 	import { page as here } from '$app/state';
@@ -9,11 +9,14 @@
 	import { commands } from '#lib/commands.svelte.js';
 	import { openDevice } from '#lib/popup.js';
 	import type { KindProps } from '#lib/kinds.js';
+	import { kindOptions } from '#lib/kindOptions.svelte.js';
+	import { DEVICE_BUILT_IN, deviceKind } from '#lib/options.js';
 	import DeviceCard from '../DeviceCard.svelte';
 	import SceneCard from '../SceneCard.svelte';
 
-	let { card, form, label, page, cardTools }: KindProps<'device'> = $props();
+	let { card, form, label, page, cardTools, options }: KindProps<'device'> = $props();
 	const d = $derived(card.device);
+	const o = $derived(options ?? kindOptions.of(page, deviceKind(d), card.ref, DEVICE_BUILT_IN));
 </script>
 
 {#if card.scene}
@@ -23,5 +26,5 @@
 		details={() => openDevice(d.device_id, here.url)}
 	/>
 {:else}
-	<DeviceCard device={d} {form} page={cardTools ? page : undefined} {label} />
+	<DeviceCard device={d} {form} page={cardTools ? page : undefined} {label} options={o} />
 {/if}

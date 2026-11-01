@@ -37,13 +37,16 @@
 		device,
 		form = 'standard',
 		page: layerPage,
-		label
+		label,
+		options
 	}: {
 		device: CoreDevice;
 		form?: Form;
 		page?: string;
 		/** The name this page gives the card, if it was renamed there (M2). */
 		label?: string;
+		/** Its settings on this page (G23–G25). */
+		options?: Record<string, unknown>;
 	} = $props();
 
 	// Long-press (or right-click): the personalise shortcut — star or hide (N6).
@@ -64,7 +67,7 @@
 	const letGo = () => clearTimeout(hold);
 
 	const card = $derived(
-		withPending(cardFor(device, clock.now), commands.pending[device.device_id])
+		withPending(cardFor(device, clock.now, options), commands.pending[device.device_id])
 	);
 	const name = $derived(label ?? card.name);
 	// An alert homeCore raised for this device (H4) — a time rule's says why.

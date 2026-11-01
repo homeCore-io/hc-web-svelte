@@ -12,6 +12,7 @@ import type { Form } from './layers.js';
 import type { Card, Layout } from './page.js';
 import {
 	CHART_BUILT_IN,
+	DEVICE_BUILT_IN,
 	HEADING_BUILT_IN,
 	ROOM_BUILT_IN,
 	SUMMARY_BUILT_IN,
@@ -68,6 +69,8 @@ export interface Kind<K extends Card['kind'] = Card['kind']> {
 	star: boolean;
 	/** Its settings, for the settings sheet (G2); `null` while it has none. */
 	options: ((card: CardOf<K>) => Descriptor) | null;
+	/** Whether this card has a settings sheet, where `options` doesn't say (a device's is built when opened). */
+	settable?: (card: CardOf<K>) => boolean;
 	/** The settings it has before anyone sets any. */
 	defaults: Record<string, unknown>;
 	/** Its size in a `field` section, 1–3; 1 where it doesn't say. */
@@ -104,8 +107,10 @@ export const kinds: { [K in Card['kind']]: Kind<K> } = {
 		form: (c, given) => (c.scene ? undefined : (given ?? c.form ?? 'standard')),
 		name: (c) => displayName(c.device),
 		star: true,
+		// Built for the device when its sheet opens (deviceOptions.ts, G23).
 		options: null,
-		defaults: {},
+		settable: () => false,
+		defaults: DEVICE_BUILT_IN,
 		addable: { pages: ['home', 'room'] },
 		component: DeviceKind
 	},

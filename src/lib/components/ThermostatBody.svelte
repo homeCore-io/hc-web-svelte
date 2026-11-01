@@ -186,32 +186,34 @@
 {/snippet}
 
 {#snippet dialFace()}
-	<div class="dial">
-		<svg
-			width={DIAL.w}
-			height={DIAL.h}
-			viewBox={`0 0 ${DIAL.w} ${DIAL.h}`}
-			role="img"
-			aria-label={`${name}: ${now}${t.unit} now, ${aim}`}
-		>
-			<path class="track" d={dial.track} />
-			{#if dial.fill}<path class="fill" class:cool={dial.cooling} d={dial.fill} />{/if}
-			{#if dial.now}<circle class="now" cx={dial.now[0]} cy={dial.now[1]} r="4" />{/if}
-			{#if dial.target}
-				<circle
-					class="ring"
-					class:cool={dial.cooling && !t.dual}
-					cx={dial.target[0]}
-					cy={dial.target[1]}
-					r="11"
-				/>
-			{/if}
-			{#if dial.cool}<circle class="ring cool" cx={dial.cool[0]} cy={dial.cool[1]} r="11" />{/if}
-		</svg>
-		<div class="middle">
-			<span class="label">INSIDE</span>
-			<span class="temp">{now}<span class="unit">{t.unit}</span></span>
-			<span class="aim" class:waiting={pending !== undefined}>{aim}</span>
+	<div class="face">
+		<div class="dial">
+			<svg
+				width={DIAL.w}
+				height={DIAL.h}
+				viewBox={`0 0 ${DIAL.w} ${DIAL.h}`}
+				role="img"
+				aria-label={`${name}: ${now}${t.unit} now, ${aim}`}
+			>
+				<path class="track" d={dial.track} />
+				{#if dial.fill}<path class="fill" class:cool={dial.cooling} d={dial.fill} />{/if}
+				{#if dial.now}<circle class="now" cx={dial.now[0]} cy={dial.now[1]} r="4" />{/if}
+				{#if dial.target}
+					<circle
+						class="ring"
+						class:cool={dial.cooling && !t.dual}
+						cx={dial.target[0]}
+						cy={dial.target[1]}
+						r="11"
+					/>
+				{/if}
+				{#if dial.cool}<circle class="ring cool" cx={dial.cool[0]} cy={dial.cool[1]} r="11" />{/if}
+			</svg>
+			<div class="middle">
+				<span class="label">INSIDE</span>
+				<span class="temp">{now}<span class="unit">{t.unit}</span></span>
+				<span class="aim" class:waiting={pending !== undefined}>{aim}</span>
+			</div>
 		</div>
 		<div class="steps">{@render buttons(false)}</div>
 	</div>
@@ -306,6 +308,7 @@
 	}
 	.large {
 		gap: 10px;
+		container-type: inline-size;
 	}
 	.head {
 		display: flex;
@@ -385,23 +388,25 @@
 		align-items: center;
 		justify-content: center;
 	}
-	/* The dial fits its card: 236 × 200 at most, smaller in a narrow one. */
+	/* The dial and its − and +: 236 wide at most, smaller in a narrow card. */
+	.face {
+		width: 100%;
+		max-width: 236px;
+		align-self: center;
+		flex: none;
+		display: flex;
+		flex-direction: column;
+	}
 	.dial {
 		position: relative;
 		width: 100%;
-		max-width: 236px;
 		aspect-ratio: 236 / 200;
-		align-self: center;
-		flex: none;
 		container-type: inline-size;
 	}
 	.dial svg {
 		display: block;
 		width: 100%;
 		height: auto;
-	}
-	.split .dial {
-		max-width: 196px;
 	}
 	.track,
 	.fill {
@@ -462,14 +467,12 @@
 		color: var(--accent);
 		font-weight: 600;
 	}
+	/* Under the dial, either side of its opening: clear of the arc's ends. */
 	.steps {
-		position: absolute;
-		left: 0;
-		right: 0;
-		bottom: 3%;
 		display: flex;
 		justify-content: center;
-		gap: 24cqw;
+		gap: 72px;
+		margin-top: -12px;
 	}
 	.dial .temp {
 		font-size: min(46px, 19.5cqw);
@@ -583,35 +586,45 @@
 	}
 	.split {
 		display: flex;
-		align-items: center;
+		flex-direction: column;
+		align-items: stretch;
 		gap: 14px;
-		flex-wrap: wrap;
 	}
 	.side {
-		flex: 1 1 140px;
 		min-width: 0;
 		display: flex;
 		flex-direction: column;
 		gap: 12px;
+	}
+	@container (min-width: 520px) {
+		.split {
+			flex-direction: row;
+			align-items: center;
+			gap: 18px;
+		}
+		.side {
+			flex: 1;
+		}
 	}
 	.group {
 		display: flex;
 		flex-direction: column;
 		gap: 6px;
 	}
+	/* One line: four short choices, each as wide as its words. */
 	.seg {
 		position: relative;
 		z-index: 2;
 		display: flex;
-		flex-wrap: wrap;
+		flex-wrap: nowrap;
 		padding: 3px;
 		border-radius: 12px;
 		background: var(--surface-2);
 	}
 	.seg button {
-		flex: 1;
+		flex: 1 1 auto;
 		min-height: 36px;
-		padding: 0 8px;
+		padding: 0 7px;
 		border: 0;
 		border-radius: 9px;
 		background: transparent;

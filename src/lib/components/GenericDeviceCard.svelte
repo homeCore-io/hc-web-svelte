@@ -230,6 +230,7 @@
 
 <article
 	class="card {form}"
+	class:thermo
 	class:lit={card.tone === 'on'}
 	class:alert={card.tone === 'alert' || raised !== undefined}
 	class:offline={off}
@@ -559,6 +560,19 @@
 	}
 	.card.large {
 		grid-column: span 2;
+	}
+	/* A thermostat's dial needs room: in a grid its standard card takes two
+	   cells, and its large one three where the screen is wide enough to have
+	   them, so the dial sits beside its controls. */
+	:global(.grid) > .card.thermo.standard,
+	:global(.grid > .arrange:has(> .quiet > .card.thermo.standard)) {
+		grid-column: span 2;
+	}
+	@media (min-width: 1100px) {
+		:global(.grid) > .card.thermo.large,
+		:global(.grid > .arrange:has(> .quiet > .card.thermo.large)) {
+			grid-column: span 3;
+		}
 	}
 	.top {
 		display: flex;

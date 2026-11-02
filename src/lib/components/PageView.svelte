@@ -130,12 +130,41 @@
 	const home = $derived(
 		page.id === 'home' ? 'pinned' : page.id.startsWith('page:') ? 'cards' : 'added'
 	);
+	// Each with its cards in order, for the sheet's spots (G-f).
 	const into = $derived.by(() => {
 		const out = shown.sections
 			.filter((s) => s.section.accepts)
-			.map((s) => ({ id: s.section.id, title: s.title }));
-		return out.some((s) => s.id === home) ? out : [{ id: home, title: 'Also here' }, ...out];
+			.map((s) => ({
+				id: s.section.id,
+				title: s.title,
+				cards: s.groups.flatMap((g) =>
+					g.shown.map((c) => ({ ref: c.ref, name: g.name(c.ref) ?? kindOf(c).name(c) }))
+				)
+			}));
+		return out.some((s) => s.id === home)
+			? out
+			: [{ id: home, title: 'Also here', cards: [] }, ...out];
 	});
+	// Add in place (G-f): a + in the gap before each card a section took, and
+	// after its last; where the sheet will add shows as "Goes here".
+	function spots(from: string, card: Card, name: string) {
+		const sec = into.find((s) => s.id === from);
+		if (!sec) return {};
+		const at = (before: string | null) => () => adding.open(key, from, before);
+		return {
+			addBefore: { label: `Add to ${sec.title}, before ${name}`, pick: at(card.ref) },
+			addAfter:
+				sec.cards.at(-1)?.ref === card.ref
+					? { label: `Add to ${sec.title}, after ${name}`, pick: at(null) }
+					: undefined
+		};
+	}
+	const ghostIn = (sec: string) => adding.page === key && (adding.into ?? home) === sec;
+	/** The spot comes into view as it's chosen, from the page or the sheet. */
+	function seen(node: HTMLElement) {
+		const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		node.scrollIntoView({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+	}
 	// The layer this screen changes (G18): the household's in Edit, the person's in Customise.
 	const layer = $derived(mode === 'edit' ? view.changes(key) : personal.changes(key));
 	const mineSection = (own: 'house' | 'person' | undefined) =>
@@ -198,13 +227,18 @@
 	{@const form = kind.form(card, g?.form(card.ref))}
 	<!-- Beside the rooms, a card is as wide as the column: never Large (G32). -->
 	{@const drawnAs = sized ?? (place === 'side' && form === 'large' ? 'standard' : form)}
+	{@const name = label ?? kind.name(card)}
+	{@const at =
+		from !== undefined && layout !== 'field' && g !== undefined && !g.hidden.includes(card)
+			? spots(from, card, name)
+			: {}}
 	{#if g === undefined}
 		<KindView {card} page={key} cardTools={page.cardTools} {place} />
 	{:else}
 		<Arrange
 			page={key}
 			ref={card.ref}
-			name={label ?? kind.name(card)}
+			{name}
 			shown={g.shown.map((c) => c.ref)}
 			hidden={g.hidden.includes(card)}
 			star={kind.star}
@@ -214,9 +248,10 @@
 			added={card.added ?? false}
 			renamed={label !== undefined}
 			moveTo={from !== undefined ? moveTargets(card, from) : undefined}
-			settings={hasSettings(card, layout)
-				? () => (setting = { card, name: label ?? kind.name(card), form })
-				: undefined}
+			settings={hasSettings(card, layout) ? () => (setting = { card, name, form }) : undefined}
+			addBefore={at.addBefore}
+			addAfter={at.addAfter}
+			axis={layout === 'list' || (place === 'side' && layout !== 'row') ? 'y' : 'x'}
 		>
 			<KindView
 				{card}
@@ -230,6 +265,10 @@
 			/>
 		</Arrange>
 	{/if}
+{/snippet}
+
+{#snippet ghost()}
+	<div class="ghost" use:seen><Plus size={14} aria-hidden="true" />Goes here</div>
 {/snippet}
 
 {#snippet block(s: ShownSection, place?: Place)}
@@ -302,10 +341,13 @@
 		{:else}
 			{#if sec.lead}{@render piece(sec.lead, undefined, false, 'grid', undefined, place)}{/if}
 			{#if arranging && sec.hint && s.groups.every((g) => listOf(g).length === 0)}
+				{#if ghostIn(sec.id)}<div class={s.layout}>{@render ghost()}</div>{/if}
 				<p class="hint">{sec.hint}</p>
 			{:else}
 				{#each s.groups.length > 0 ? s.groups : [null] as g, i (i)}
-					{#each g ? runsOf(listOf(g), s.layout) : [{ layout: s.layout, cards: [] }] as run, j (j)}
+					{@const runs = g ? runsOf(listOf(g), s.layout) : [{ layout: s.layout, cards: [] }]}
+					{@const lastGroup = s.groups.length === 0 || i === s.groups.length - 1}
+					{#each runs as run, j (j)}
 						{#if g && run.layout === 'field'}
 							<div class="fieldwrap">
 								<div class="field" class:arranging>
@@ -338,6 +380,7 @@
 							<div class={run.layout}>
 								{#each run.cards as card (card.ref)}
 									{#if g}
+										{#if ghostIn(sec.id) && adding.before === card.ref}{@render ghost()}{/if}
 										{@render piece(
 											card,
 											g,
@@ -348,6 +391,9 @@
 										)}
 									{/if}
 								{/each}
+								{#if ghostIn(sec.id) && adding.before === null && lastGroup && j === runs.length - 1}
+									{@render ghost()}
+								{/if}
 							</div>
 						{/if}
 					{/each}
@@ -493,6 +539,28 @@
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
+	}
+	/* Where Add will put what's picked next (G-f). */
+	.ghost {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		min-height: 72px;
+		box-sizing: border-box;
+		border: 2px dashed var(--accent);
+		border-radius: var(--radius);
+		background: color-mix(in srgb, var(--accent) 8%, transparent);
+		color: var(--accent);
+		font-size: 13px;
+		font-weight: 700;
+		/* Clear of the bottom bar; on a phone, of Add's sheet under the page too. */
+		scroll-margin: 24px 24px 96px;
+	}
+	@media (max-width: 899px) {
+		.ghost {
+			scroll-margin-bottom: calc(55dvh + 24px);
+		}
 	}
 	/* The big numbers take the whole width, whatever the list's columns. */
 	.list > :global(.clip),

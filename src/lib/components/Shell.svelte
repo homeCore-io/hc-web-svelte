@@ -32,6 +32,7 @@
 	import Mark from './Mark.svelte';
 	import UnlockedBar from './UnlockedBar.svelte';
 	import { alerts } from '#lib/alerts.svelte.js';
+	import { adding } from '#lib/adding.svelte.js';
 	import RoomIcon from './RoomIcon.svelte';
 	import SideRoomStatus from './SideRoomStatus.svelte';
 	import { kindOptions } from '#lib/kindOptions.svelte.js';
@@ -214,7 +215,7 @@
 		</a>
 	</nav>
 
-	<div class="body">
+	<div class="body" class:with-sheet={adding.page !== null}>
 		<UnlockedBar />
 		<header bind:offsetHeight={headerHeight}>
 			<div class="titles">
@@ -457,6 +458,18 @@
 	}
 	.bar a[aria-current='page'] {
 		color: var(--accent);
+	}
+
+	/* Add's sheet (G-f) sits under the page on a phone and beside it on a
+	   wide screen; the page makes room, so all of it stays in reach. */
+	.body.with-sheet {
+		padding-bottom: 55dvh;
+	}
+	@media (min-width: 900px) {
+		.body.with-sheet {
+			padding-bottom: 0;
+			margin-right: 420px;
+		}
 	}
 
 	/* ---- Tablets held sideways (and phones turned): the rail ---- */

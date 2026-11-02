@@ -1,6 +1,10 @@
 <!--
-	Add (M2 `add`, G-c): into the section chosen, in the layer being changed —
-	the household's in Edit, this person's own in Customise.
+	Add (M2 `add`, G-c, G-f): into the section and spot chosen, in the layer
+	being changed: the household's in Edit, this person's own in Customise.
+
+	A sheet beside the page (under it on a phone), not over it, so the page
+	stays in reach: tapping a + on it moves the spot, and "Goes here" there
+	shows it. It stays open while things are added; each goes after the last.
 
 	Two tabs. Things in the house: anything not already on this page, with
 	chips that narrow it to a kind of thing and a heading per room, so the
@@ -10,7 +14,7 @@
 	card can be added twice, set differently.
 -->
 <script lang="ts">
-	import { onMount, untrack } from 'svelte';
+	import { onMount } from 'svelte';
 	import SearchIcon from '@lucide/svelte/icons/search';
 	import Puzzle from '@lucide/svelte/icons/puzzle';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -37,8 +41,8 @@
 		close
 	}: {
 		key: string;
-		/** The sections it can add into, as headed on the page. */
-		sections: { id: string; title: string }[];
+		/** The sections it can add into, as headed on the page, with their cards in order. */
+		sections: { id: string; title: string; cards: { ref: string; name: string }[] }[];
 		/** Where added things go when no section is said: Pinned, or "Also here". */
 		home: string;
 		close: () => void;
@@ -48,14 +52,38 @@
 	let query = $state('');
 	let shelf = $state<Shelf | 'all'>('all');
 	let tab = $state<'things' | 'cards'>('things');
-	let into = $state(untrack(() => adding.into ?? home));
-	onMount(() => dialog?.showModal());
+	// Beside the page, not over it: the page's + still work while it's open.
+	onMount(() => {
+		dialog?.show();
+		dialog?.focus();
+	});
+	const into = $derived(adding.into ?? home);
+	const target = $derived(sections.find((s) => s.id === into) ?? sections[0]);
+	/** Added while the sheet is open: shown as added, not taken off the list. */
+	let addedNow = $state<string[]>([]);
+
+	// The spots in a section: at its start, after each card. A spot is the
+	// card it goes in front of, or the end.
+	const END = '';
+	const spotsHere = $derived.by(() => {
+		const cards = target?.cards ?? [];
+		if (cards.length === 0) return [{ before: END, label: 'In it' }];
+		return [
+			{ before: cards[0]!.ref, label: 'At the start' },
+			...cards.map((c, i) => {
+				const next = cards[i + 1];
+				return next
+					? { before: next.ref, label: `After ${c.name}` }
+					: { before: END, label: `At the end, after ${c.name}` };
+			})
+		];
+	});
+	const spot = $derived(adding.before ?? END);
 
 	const room = $derived(key.startsWith('room:') ? key.slice(5) : null);
 	// A page someone made can hold rooms' boxes too (G27).
 	const built = $derived(key.startsWith('page:'));
 	const already = $derived(new Set(view.added(key)));
-	const intoTitle = $derived(sections.find((s) => s.id === into)?.title ?? '');
 
 	const offers = $derived(
 		[
@@ -84,7 +112,10 @@
 				: [])
 		]
 			// On a room's page its own things are already there.
-			.filter((o) => (room === null || o.room !== room) && !already.has(o.ref))
+			.filter(
+				(o) =>
+					(room === null || o.room !== room) && (!already.has(o.ref) || addedNow.includes(o.ref))
+			)
 	);
 	const pluginCards = $derived(
 		pluginUis.cards().map((c) => ({
@@ -124,10 +155,9 @@
 	);
 
 	function add(r: string) {
-		const to = into === home ? {} : { into };
-		view.change(key, { op: 'add', ref: r, ...to });
+		view.change(key, { op: 'add', ref: r, into, before: adding.before });
 		adding.added = r;
-		dialog?.close();
+		addedNow = [...addedNow, r];
 	}
 	function addCard(pluginId: string, element: string) {
 		add(ref.card(pluginId, element, newId()));
@@ -137,28 +167,48 @@
 		// A note, a heading, a chart show nothing until set: their settings open as they appear.
 		if (kinds[k].setFirst) adding.settle = r;
 		add(r);
+		// Its settings open over the page as it appears; this sheet makes way.
+		if (kinds[k].setFirst) dialog?.close();
 	}
 </script>
 
 <dialog
 	bind:this={dialog}
-	aria-label={`Add to ${intoTitle}`}
+	aria-label="Add"
+	tabindex="-1"
 	onclose={close}
-	onclick={(e) => {
-		if (e.target === dialog) dialog?.close();
+	onkeydown={(e) => {
+		if (e.key === 'Escape') dialog?.close();
 	}}
 >
 	<div class="box">
 		<div class="top">
-			<label class="into"
-				><span>Add to</span>
-				<select bind:value={into}>
-					{#each sections as s (s.id)}
-						<option value={s.id}>{s.title}</option>
-					{/each}
-				</select>
-			</label>
-			<button class="x" aria-label="Close" onclick={() => dialog?.close()}><X size={20} /></button>
+			<h2>Add</h2>
+			<button class="done" onclick={() => dialog?.close()}>Done adding</button>
+		</div>
+		<div class="where">
+			<span class="where-title">Where it goes</span>
+			<div class="pick">
+				<label
+					>Section
+					<select value={into} onchange={(e) => adding.spot(e.currentTarget.value, null)}>
+						{#each sections as s (s.id)}
+							<option value={s.id}>{s.title}</option>
+						{/each}
+					</select>
+				</label>
+				<label
+					>Spot
+					<select value={spot} onchange={(e) => adding.spot(into, e.currentTarget.value || null)}>
+						{#each spotsHere as o (o.before)}
+							<option value={o.before}>{o.label}</option>
+						{/each}
+					</select>
+				</label>
+			</div>
+			<span class="where-note"
+				>Or tap another + on the page. Add several and each goes after the last.</span
+			>
 		</div>
 		<div class="tabs" role="tablist" aria-label="What to add">
 			<button role="tab" aria-selected={tab === 'things'} onclick={() => (tab = 'things')}
@@ -170,14 +220,12 @@
 		</div>
 		<label class="field">
 			<SearchIcon size={20} aria-hidden="true" />
-			<!-- svelte-ignore a11y_autofocus -->
 			<input
 				bind:value={query}
 				placeholder={tab === 'things' ? 'A light, a scene, a sensor…' : 'A note, a chart…'}
 				aria-label="Find something to add"
 				autocomplete="off"
 				spellcheck="false"
-				autofocus
 			/>
 			{#if query}
 				<button class="clear" aria-label="Clear the search" onclick={() => (query = '')}>
@@ -240,14 +288,20 @@
 					<h3>{g.name}</h3>
 					<ul>
 						{#each g.offers as o (o.ref)}
+							{@const done = addedNow.includes(o.ref)}
 							<li>
-								<button class="row" onclick={() => add(o.ref)}>
+								<button
+									class="row"
+									disabled={done}
+									aria-label={done ? `${o.name}, added` : `Add ${o.name}`}
+									onclick={() => add(o.ref)}
+								>
 									<span class="ico"><Icon name={o.icon} size={18} /></span>
 									<span class="words">
 										<span class="title">{o.name}</span>
 										<span class="detail">{o.what}</span>
 									</span>
-									<span class="plus"><Plus size={16} aria-hidden="true" /></span>
+									<span class="plus" class:done>{done ? 'Added' : 'Add'}</span>
 								</button>
 							</li>
 						{/each}
@@ -262,60 +316,122 @@
 </dialog>
 
 <style>
+	/* Beside the page on a wide screen; on a phone, under it. The page makes
+	   room for it (Shell, .with-sheet), so nothing it covers is out of reach. */
 	dialog {
-		margin: 10vh auto auto;
+		position: fixed;
+		inset: auto 0 0 0;
+		z-index: 40;
+		margin: 0;
 		padding: 0;
-		width: min(600px, calc(100vw - 24px));
+		width: 100%;
+		max-width: none;
+		height: 55dvh;
 		border: none;
-		border-radius: var(--radius-sheet);
+		border-top: 1px solid var(--line);
+		border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
 		background: var(--sheet);
 		color: var(--ink);
-		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+		box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.25);
 	}
-	dialog::backdrop {
-		background: var(--scrim);
+	@media (min-width: 900px) {
+		dialog {
+			inset: 0 0 0 auto;
+			width: 420px;
+			height: 100dvh;
+			max-height: none;
+			border-top: none;
+			border-left: 1px solid var(--line);
+			border-radius: 0;
+			box-shadow: -12px 0 40px rgba(0, 0, 0, 0.2);
+		}
+	}
+	dialog:focus {
+		outline: none;
 	}
 	.box {
 		display: flex;
 		flex-direction: column;
-		max-height: 80vh;
+		height: 100%;
 	}
 	.top {
 		display: flex;
 		align-items: center;
+		justify-content: space-between;
 		gap: 10px;
-		padding: 12px 12px 4px 16px;
+		padding: 14px 14px 6px 18px;
 	}
-	.into {
-		flex: 1;
-		display: flex;
-		align-items: center;
-		gap: 10px;
+	.top h2 {
+		margin: 0;
+		font-size: 20px;
 		font-weight: 700;
-		min-width: 0;
 	}
-	.into select {
-		flex: 1;
-		min-width: 0;
+	.done {
+		height: 36px;
+		padding: 0 16px;
+		border: none;
+		border-radius: 999px;
+		background: var(--accent);
+		color: var(--accent-ink);
+		font-size: 13px;
+		font-weight: 700;
+	}
+	.where {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		margin: 6px 12px 0;
+		padding: 12px;
+		border-radius: 14px;
+		background: var(--surface-2);
+	}
+	.where-title {
+		font-size: 13px;
+		font-weight: 700;
+	}
+	.pick {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+		gap: 8px;
+	}
+	.pick label {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		font-size: 12px;
+		color: var(--ink-muted);
+	}
+	.pick select {
 		height: 40px;
+		min-width: 0;
 		padding: 0 10px;
 		border: 1px solid var(--line);
 		border-radius: 10px;
 		background: var(--surface);
 		color: var(--ink);
 		font: inherit;
-		font-weight: 600;
+		font-size: 14px;
 	}
-	.x {
-		flex: none;
-		display: grid;
-		place-items: center;
-		width: 40px;
-		height: 40px;
-		border: 1px solid var(--line);
-		border-radius: 999px;
-		background: var(--surface);
+	.where-note {
+		font-size: 12px;
 		color: var(--ink-muted);
+	}
+	/* On a phone the list needs the room; the + on the page say the rest. */
+	@media (max-width: 899px) {
+		.top {
+			padding: 10px 12px 4px 16px;
+		}
+		.where {
+			padding: 8px 10px;
+			gap: 6px;
+		}
+		.where-title,
+		.where-note {
+			display: none;
+		}
+		.pick select {
+			height: 36px;
+		}
 	}
 	.tabs {
 		display: flex;
@@ -406,6 +522,8 @@
 		opacity: 0.8;
 	}
 	.list {
+		flex: 1;
+		min-height: 0;
 		overflow-y: auto;
 		padding: 0 6px 10px;
 		border-top: 1px solid var(--line);
@@ -476,15 +594,33 @@
 		color: var(--ink-muted);
 		font-size: 12.5px;
 	}
+	/* Always there, so it's plain what a tap does. */
 	.plus {
 		flex: none;
 		display: flex;
+		align-items: center;
+		height: 30px;
+		padding: 0 12px;
+		border: 1px solid var(--accent);
+		border-radius: 999px;
 		color: var(--accent);
-		opacity: 0;
+		font-size: 12px;
+		font-weight: 700;
 	}
 	.row:hover .plus,
 	.row:focus-visible .plus {
-		opacity: 1;
+		background: var(--accent);
+		color: var(--accent-ink);
+	}
+	.plus.done,
+	.row:disabled .plus {
+		border-color: transparent;
+		background: none;
+		color: var(--ink-muted);
+	}
+	.row:disabled {
+		cursor: default;
+		background: none;
 	}
 	.cards {
 		display: grid;

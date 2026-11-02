@@ -337,6 +337,29 @@ describe('adding into a section (G16)', () => {
 		expect(shown(p, 'scenes', changes).slice(0, 2)).toEqual(['device:hue_lamp', 'scene:evening']);
 	});
 
+	it('places a card in Pinned too, before the one it names (G-f)', () => {
+		const q = home({ added: ['scene:evening', 'device:hue_lamp'] });
+		const changes: Change[] = [
+			{ op: 'add', ref: 'scene:evening' },
+			{ op: 'add', ref: 'device:hue_lamp', into: 'pinned', before: 'scene:evening' }
+		];
+		expect(shown(q, 'pinned', changes)).toEqual(['device:hue_lamp', 'scene:evening']);
+	});
+
+	it('keeps things added in front of the same card in the order they were added (G-f)', () => {
+		const q = home({ added: ['scene:evening', 'device:hue_lamp', 'device:caseta_porch'] });
+		const changes: Change[] = [
+			{ op: 'add', ref: 'scene:evening' },
+			{ op: 'add', ref: 'device:hue_lamp', into: 'pinned', before: 'scene:evening' },
+			{ op: 'add', ref: 'device:caseta_porch', into: 'pinned', before: 'scene:evening' }
+		];
+		expect(shown(q, 'pinned', changes)).toEqual([
+			'device:hue_lamp',
+			'device:caseta_porch',
+			'scene:evening'
+		]);
+	});
+
 	it('lets a later move still win', () => {
 		const changes: Change[] = [
 			{ op: 'add', ref: 'device:hue_lamp', into: 'scenes' },

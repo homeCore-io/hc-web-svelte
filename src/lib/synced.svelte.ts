@@ -7,6 +7,9 @@
  * it has, and the same change is made again on top of that — so two people's
  * changes, or one person's on two screens, both survive. Other screens hear
  * of the save on the UI server's change stream and reload.
+ *
+ * A change that couldn't be saved stays shown, and goes again with the next
+ * save, so a blip loses nothing and the screen never quietly drops a change.
  */
 
 export type Edit<D> = (doc: D) => D;
@@ -24,7 +27,7 @@ export class Synced<D extends { version: number }> {
 	#listeners = new Set<(doc: D) => void>();
 	/** What the server last confirmed. */
 	#saved: D;
-	/** Changes made here and not yet saved, oldest first. */
+	/** Changes made here and not yet saved, oldest first, including any that failed. */
 	#pending: Edit<D>[] = [];
 
 	/** `migrate` reads an older shape of the document in today's (04 §7). */
@@ -65,8 +68,12 @@ export class Synced<D extends { version: number }> {
 		this.#pending.push(edit);
 		this.#show();
 		this.#queue = this.#queue.then(async () => {
-			await this.#save(edit);
-			this.#pending.shift();
+			// Everything still unsaved goes together; a failed change is kept for the next try.
+			const edits = [...this.#pending];
+			if (edits.length === 0) return;
+			const all: Edit<D> = (d) => edits.reduce((x, e) => e(x), d);
+			// Refused (no right to change it) can never succeed, so it isn't kept.
+			if ((await this.#save(all)) !== 'failed') this.#pending.splice(0, edits.length);
 			this.#show();
 		});
 		return this.#queue;
@@ -79,7 +86,7 @@ export class Synced<D extends { version: number }> {
 		};
 	}
 
-	async #save(edit: Edit<D>, tries = 0): Promise<void> {
+	async #save(edit: Edit<D>, tries = 0): Promise<'saved' | 'failed' | 'refused'> {
 		// Saved against the server's last word, not against our optimistic copy.
 		const base = this.#saved;
 		const next = { ...edit(base), version: base.version };
@@ -92,22 +99,24 @@ export class Synced<D extends { version: number }> {
 			});
 		} catch {
 			this.trouble = "Couldn't save — this change is only on this screen for now.";
-			return;
+			return 'failed';
 		}
 		if (res.status === 409 && tries < 3) {
 			const body = (await res.json().catch(() => ({}))) as { current?: D };
 			this.#saved = this.#migrate(body.current ?? ({ version: 0 } as D));
 			return this.#save(edit, tries + 1);
 		}
+		if (res.status === 403) {
+			this.trouble = "You can't change this — ask an admin.";
+			return 'refused';
+		}
 		if (!res.ok) {
-			this.trouble =
-				res.status === 403
-					? "You can't change this — ask an admin."
-					: "Couldn't save — this change is only on this screen for now.";
-			return;
+			this.trouble = "Couldn't save — this change is only on this screen for now.";
+			return 'failed';
 		}
 		this.trouble = null;
 		this.#saved = (await res.json()) as D;
+		return 'saved';
 	}
 
 	#take(doc: D): void {

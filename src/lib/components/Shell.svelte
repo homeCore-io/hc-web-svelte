@@ -257,6 +257,10 @@
 		</header>
 		<main class:editing={editingHere}>
 			{#if editingHere}<EditBar key={key!} />{/if}
+			<!-- Edit saves as it closes, so a save that fails is told here, once the bar has gone. -->
+			{#if key !== null && !editingHere && household.trouble}<p class="trouble" role="alert">
+					{household.trouble}
+				</p>{/if}
 			{@render children()}
 		</main>
 		<DetailsHost />
@@ -402,6 +406,11 @@
 	main {
 		flex: 1;
 		padding: var(--space-1) var(--space-4) var(--space-6);
+	}
+	.trouble {
+		margin: 0 0 var(--space-3);
+		font-size: 13px;
+		color: var(--alert);
 	}
 	/* Edit mode's frame: the household's page never looks like one's own (N6). */
 	main.editing {

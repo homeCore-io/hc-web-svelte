@@ -126,6 +126,7 @@
 	function add(r: string) {
 		const to = into === home ? {} : { into };
 		view.change(key, { op: 'add', ref: r, ...to });
+		adding.added = r;
 		dialog?.close();
 	}
 	function addCard(pluginId: string, element: string) {

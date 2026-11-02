@@ -11,6 +11,8 @@ class Adding {
 	into = $state<string | undefined>(undefined);
 	/** A card just added whose settings should open when it's drawn. */
 	settle = $state<string | null>(null);
+	/** The card just added, so the page can bring it into view: it goes at its section's end. */
+	added = $state<string | null>(null);
 
 	open(page: string, into?: string): void {
 		this.page = page;

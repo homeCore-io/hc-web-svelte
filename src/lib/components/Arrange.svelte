@@ -9,6 +9,7 @@
 	import type { Snippet } from 'svelte';
 	import type { Form } from '#lib/layers.js';
 	import { view } from '#lib/view.svelte.js';
+	import { adding } from '#lib/adding.svelte.js';
 	import Tools from './Tools.svelte';
 
 	let {
@@ -46,10 +47,30 @@
 	} = $props();
 
 	const mode = $derived(view.mode(page));
+
+	// Just added from Add: it went to its section's end, so bring it into view and mark it.
+	let box = $state<HTMLElement>();
+	let fresh = $state(false);
+	$effect(() => {
+		if (adding.added !== ref || !box) return;
+		adding.added = null;
+		const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		box.scrollIntoView({ block: 'center', behavior: still ? 'auto' : 'smooth' });
+		fresh = true;
+		// No cleanup: clearing `added` above re-runs this, which must not cut the mark short.
+		setTimeout(() => (fresh = false), 2000);
+	});
 </script>
 
 {#if mode !== null}
-	<div class="arrange" class:hidden class:wide class:shared={mode === 'edit'}>
+	<div
+		bind:this={box}
+		class="arrange"
+		class:hidden
+		class:wide
+		class:fresh
+		class:shared={mode === 'edit'}
+	>
 		<div class="quiet" inert>{@render children()}</div>
 		<Tools
 			{page}
@@ -94,5 +115,10 @@
 	}
 	.hidden > .quiet {
 		opacity: 0.4;
+	}
+	.fresh > .quiet {
+		outline-style: solid;
+		outline-color: var(--accent);
+		transition: outline-color 0.6s;
 	}
 </style>

@@ -70,6 +70,8 @@ export interface PersonDoc {
 	theme?: 'system' | 'light' | 'dark';
 	/** A theme other than the house's (D9a). */
 	palette?: string;
+	/** A look other than the house's (12, L1). */
+	look?: string;
 	/** °F or °C, US measures or metric; unset, the browser's (`units.ts`). */
 	units?: UnitsChoice;
 }
@@ -96,6 +98,8 @@ export interface HouseDoc {
 	bar?: string[];
 	/** The house's theme (D9a). */
 	palette?: string;
+	/** The house's look (12, L1); absent is Classic (L3). */
+	look?: string;
 	/** Confirmation overrides (D2): by device id, and by kind. */
 	confirm?: { devices?: Record<string, Ask>; kinds?: Record<string, Ask> };
 }
@@ -374,6 +378,23 @@ export const PALETTES = [
 	{ id: 'harbour', name: 'Harbour', swatch: '#1f5f8b' },
 	{ id: 'plum', name: 'Plum', swatch: '#7a3b74' }
 ] as const;
+
+// ---- looks (12) ----
+
+/** How rooms, Home and displays are drawn (12, L2): today's, or Lit. */
+export const LOOKS = [
+	{ id: 'classic', name: 'Classic', sub: 'Cards of one size, a switch on each.' },
+	{ id: 'lit', name: 'Lit', sub: 'Rooms glow as they are lit; drag to dim; a panel of switches.' }
+] as const;
+export type LookId = (typeof LOOKS)[number]['id'];
+
+/** The look a person sees: their own, else the house's, else Classic (L1, L3). */
+export function lookOf(doc?: PersonDoc, house?: HouseDoc): LookId {
+	const known = (l?: string): l is LookId => LOOKS.some((x) => x.id === l);
+	const mine = doc?.look;
+	const ours = house?.look;
+	return known(mine) ? mine : known(ours) ? ours : 'classic';
+}
 
 /** The theme a person sees: their own, else the house's, else Amber. */
 export function paletteOf(doc?: PersonDoc, house?: HouseDoc): string {

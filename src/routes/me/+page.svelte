@@ -7,7 +7,8 @@
 	import { personal } from '#lib/personal.svelte.js';
 	import { household } from '#lib/household.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
-	import { BAR_SIZE, PALETTES, barOf, paletteOf } from '#lib/layers.js';
+	import { BAR_SIZE, LOOKS, PALETTES, barOf, lookOf, paletteOf, type LookId } from '#lib/layers.js';
+	import LookPicker from '#lib/components/LookPicker.svelte';
 	import BarChooser from '#lib/components/BarChooser.svelte';
 	import { roleName } from '#lib/people.js';
 	import { changeMyPassword } from '#lib/peopleAdmin.js';
@@ -88,6 +89,15 @@
 		void personal.change((d) => {
 			const { palette: _drop, ...rest } = d;
 			return id === undefined ? rest : { ...rest, palette: id };
+		});
+	}
+
+	// ---- look (12, L1): the house's, unless they choose another ----
+	const myLook = $derived(LOOKS.find((l) => l.id === personal.doc.look)?.id);
+	function setLook(id: LookId | undefined) {
+		void personal.change((d) => {
+			const { look: _drop, ...rest } = d;
+			return id === undefined ? rest : { ...rest, look: id };
 		});
 	}
 
@@ -178,6 +188,16 @@
 				>
 			{/each}
 		</div>
+	</section>
+
+	<section>
+		<h2 class="section-label">Look</h2>
+		<LookPicker
+			label="Your look"
+			current={myLook}
+			house={lookOf(undefined, household.doc)}
+			pick={setLook}
+		/>
 	</section>
 
 	<section>

@@ -14,6 +14,7 @@ import {
 	migrate,
 	SCHEMA,
 	paletteOf,
+	lookOf,
 	withAsk,
 	nudge,
 	nudgeFavourite,
@@ -271,6 +272,15 @@ describe('themes (D9a)', () => {
 			'plum'
 		);
 		expect(paletteOf({ version: 1, palette: 'neon' }, { version: 1 })).toBe('amber');
+	});
+});
+
+describe('looks (12)', () => {
+	it('a person 19s own, else the house 19s, else Classic; unknown ones are ignored', () => {
+		expect(lookOf()).toBe('classic');
+		expect(lookOf({ version: 1 }, { version: 1, look: 'lit' })).toBe('lit');
+		expect(lookOf({ version: 1, look: 'classic' }, { version: 1, look: 'lit' })).toBe('classic');
+		expect(lookOf({ version: 1, look: 'neon' }, { version: 1 })).toBe('classic');
 	});
 });
 

@@ -22,7 +22,8 @@
 	import { theme } from '#lib/theme.svelte.js';
 	import { household } from '#lib/household.svelte.js';
 	import { alerts } from '#lib/alerts.svelte.js';
-	import { paletteOf } from '#lib/layers.js';
+	import { lookOf, paletteOf } from '#lib/layers.js';
+	import { look } from '#lib/look.svelte.js';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -56,6 +57,10 @@
 	// The theme: the person's own, else the house's (D9a).
 	$effect(() => {
 		if (personal.loaded && household.loaded) theme.paint(paletteOf(personal.doc, household.doc));
+	});
+	// The look (12): the person's own, else the house's, else Classic.
+	$effect(() => {
+		if (personal.loaded && household.loaded) look.show(lookOf(personal.doc, household.doc));
 	});
 </script>
 

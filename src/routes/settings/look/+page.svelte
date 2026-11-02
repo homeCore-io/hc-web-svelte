@@ -1,13 +1,14 @@
 <!--
-	Look (D9a, N2): the house's theme, and the phone bar for anyone who hasn't
-	chosen their own. Each person may still choose differently on Me.
+	Look (D9a, N2, 12): the house's look and theme, and the phone bar for anyone
+	who hasn't chosen their own. Each person may still choose differently on Me.
 -->
 <script lang="ts">
 	import { household } from '#lib/household.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { session } from '#lib/me.svelte.js';
-	import { BAR_SIZE, PALETTES, houseBar, paletteOf } from '#lib/layers.js';
+	import { BAR_SIZE, PALETTES, houseBar, lookOf, paletteOf } from '#lib/layers.js';
 	import BarChooser from '#lib/components/BarChooser.svelte';
+	import LookPicker from '#lib/components/LookPicker.svelte';
 
 	const current = $derived(paletteOf(undefined, household.doc));
 	const bar = $derived(
@@ -23,6 +24,18 @@
 	<p class="quiet">Settings are for people who may change the house.</p>
 {:else}
 	<div class="stack">
+		<section>
+			<h2 class="section-label">The house's look</h2>
+			<p class="quiet">
+				How rooms, Home and displays are drawn, for everyone who hasn't chosen their own on Me.
+			</p>
+			<LookPicker
+				label="The house's look"
+				current={lookOf(undefined, household.doc)}
+				pick={(id) => household.change((d) => ({ ...d, look: id }))}
+			/>
+		</section>
+
 		<section>
 			<h2 class="section-label" id="palette">The house's theme</h2>
 			<p class="quiet">What everyone sees, unless they choose another on Me.</p>

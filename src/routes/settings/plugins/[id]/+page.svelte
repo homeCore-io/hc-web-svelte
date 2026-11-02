@@ -5,7 +5,7 @@
 -->
 <script lang="ts">
 	import { timeOf } from '#lib/when.js';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { core } from '#lib/core.svelte.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -154,6 +154,29 @@
 	const page_ = $derived(pluginUis.find(id, 'plugin.page'));
 	let pageFailed = $state(false);
 	const ownPanel = $derived(!!page_ && !pageFailed);
+
+	// Just installed (Plugins › Add, `?new`): start where it needs you. One
+	// with its own page (a sign-in, say) opens on it; any other on its
+	// settings, which most need filled in first. Which it is shows only once
+	// it has started and said, so wait for that, a few seconds at most.
+	let settled = $state(untrack(() => !page.url.searchParams.has('new')));
+	function settle(t: 'overview' | 'settings') {
+		settled = true;
+		const u = new URL(page.url.href);
+		u.searchParams.delete('new');
+		if (t === 'settings') u.searchParams.set('tab', t);
+		void goto(`${u.pathname}${u.search}`, { replace: true, reset: false });
+	}
+	$effect(() => {
+		if (settled) return;
+		if (page_) return settle('overview');
+		// Turned off, it won't start: nothing to wait for.
+		if (plugin && !plugin.enabled) return settle('settings');
+		// Started and its screens listed: a moment more for them to arrive.
+		const up = plugin?.status === 'active' && pluginUis.loaded;
+		const t = setTimeout(() => settle('settings'), up ? 2000 : 8000);
+		return () => clearTimeout(t);
+	});
 
 	// ---- running ----
 	async function act(what: 'start' | 'stop' | 'restart') {
@@ -452,7 +475,10 @@
 				/>
 			{/if}
 
-			{#if actions.length && canWrite && !ownPanel}
+			{#if !settled}
+				<!-- Just installed: its own page or its settings follow once it has started. -->
+				<p class="quiet">Starting {name}…</p>
+			{:else if actions.length && canWrite && !ownPanel}
 				<section class="actions">
 					<h2>Actions</h2>
 					{#each actions as a (a.id)}

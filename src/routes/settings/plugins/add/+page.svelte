@@ -114,7 +114,8 @@
 			note = null;
 			return;
 		}
-		void goto(`/settings/plugins/${encodeURIComponent(r.data.installed)}?tab=settings`);
+		// Its own page, if it has one (a sign-in, say), else its settings: the page decides.
+		void goto(`/settings/plugins/${encodeURIComponent(r.data.installed)}?new`);
 	}
 </script>
 

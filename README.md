@@ -34,19 +34,20 @@ npm run build && npm start  # PORT, HOST, HC_CORE_URL, HC_DATA_DIR
 ### Beside homeCore, as a container
 
 Tagged releases publish `ghcr.io/homecore-io/hc-web-svelte` (`:<version>` and
-`:latest`); a `:dev` image is built on request from the Actions tab. Until it
-replaces hc-web-flutter (A7) it runs on a port of its own:
+`:latest`); a `:dev` image is built on request from the Actions tab. The
+[docker repository](https://github.com/homeCore-io/docker)'s stack runs it on
+port 3001. On its own:
 
 ```sh
 docker run -d --name hc-web-svelte --restart unless-stopped \
-  -p 8090:3000 \
+  -p 3001:3000 \
   -e HC_CORE_URL=http://homecore:8080 \
   -v hc-web-svelte-data:/data \
   ghcr.io/homecore-io/hc-web-svelte:latest
 ```
 
 `HC_CORE_URL` is how the container reaches homeCore — a compose service name,
-or the host's address (`http://10.0.10.150:8080`). `/data` holds the UI
+or the host's address (`http://192.168.1.50:8080`). `/data` holds the UI
 server's documents (pages, themes, displays): keep it on a volume, and back it
 up with the house. `GET /ui/health` answers `{"ok":true}`.
 

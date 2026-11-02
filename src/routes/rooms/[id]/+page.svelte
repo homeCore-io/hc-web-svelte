@@ -2,6 +2,9 @@
 	A generated room page (N4): the room's devices as cards — things to use,
 	its scenes, its readings, then infrastructure (C6) — and what the household
 	added from elsewhere. `/rooms/none` holds the devices that are in no room.
+
+	In the Lit look (12) the room is drawn by LitRoom, loaded only then; while
+	the page is being arranged it is drawn as it is today, with its tools.
 -->
 <script lang="ts">
 	import { page } from '$app/state';
@@ -15,6 +18,7 @@
 	import { view } from '#lib/view.svelte.js';
 	import CustomiseBar from '#lib/components/CustomiseBar.svelte';
 	import PageView from '#lib/components/PageView.svelte';
+	import { look } from '#lib/look.svelte.js';
 
 	const id = $derived(page.params.id ?? '');
 	const room = $derived(rooms.list.find((r) => r.id === id));
@@ -51,7 +55,13 @@
 		{#if doc.sections.length === 0}
 			<p class="quiet">Nothing in {name} yet.</p>
 		{/if}
-		<PageView page={doc} />
+		{#if look.lit && view.mode(key) === null}
+			{#await import('#lib/lit/LitRoom.svelte') then { default: LitRoom }}
+				<LitRoom {doc} room={id} />
+			{/await}
+		{:else}
+			<PageView page={doc} />
+		{/if}
 	</div>
 {/if}
 

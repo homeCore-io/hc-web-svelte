@@ -1,6 +1,7 @@
 <!--
 	Edit mode's bar (N6): it says plainly that everyone sees these changes, and
-	holds Undo, Add, Cancel and Done. Changes that name something the
+	holds Undo, Add, Cancel and Done. On a phone it is one row, the buttons as
+	symbols, and only its words while Add's sheet is open under the page. Changes that name something the
 	page no longer has do nothing; Done tidies them away without asking (#4).
 -->
 <script lang="ts">
@@ -8,6 +9,8 @@
 	import { page } from '$app/state';
 	import Undo from '@lucide/svelte/icons/undo-2';
 	import Plus from '@lucide/svelte/icons/plus';
+	import Palette from '@lucide/svelte/icons/palette';
+	import X from '@lucide/svelte/icons/x';
 	import { editing, LEAVE } from '#lib/edit.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
 	import { household } from '#lib/household.svelte.js';
@@ -36,20 +39,37 @@
 	}
 </script>
 
-<div class="bar" role="region" aria-label="Editing the shared page">
+<div
+	class="bar"
+	class:sheet={adding.page === key}
+	role="region"
+	aria-label="Editing the shared page"
+>
 	<div class="text">
-		<strong>Editing the shared page</strong>
+		<strong
+			><span class="long">Editing the shared page</span><span class="short">Editing</span></strong
+		>
 		<span>Everyone sees this.</span>
 	</div>
 	<div class="actions">
-		<button class="plain" disabled={editing.count === 0} onclick={() => editing.undo()}>
-			<Undo size={16} aria-hidden="true" /> Undo
+		<button
+			class="plain"
+			aria-label="Undo"
+			disabled={editing.count === 0}
+			onclick={() => editing.undo()}
+		>
+			<Undo size={16} aria-hidden="true" /><span class="word">Undo</span>
 		</button>
-		<button class="plain" onclick={() => adding.open(key)}>
-			<Plus size={16} aria-hidden="true" /> Add
+		<button class="plain" aria-label="Add" onclick={() => adding.open(key)}>
+			<Plus size={16} aria-hidden="true" /><span class="word">Add</span>
 		</button>
-		{#if key === 'home'}<button class="plain" onclick={() => (styling = true)}>Style</button>{/if}
-		<button class="plain" onclick={cancel}>Cancel</button>
+		{#if key === 'home'}<button class="plain" aria-label="Style" onclick={() => (styling = true)}
+				><Palette size={16} aria-hidden="true" class="symbol" /><span class="word">Style</span
+				></button
+			>{/if}
+		<button class="plain" aria-label="Cancel" onclick={cancel}>
+			<X size={16} aria-hidden="true" class="symbol" /><span class="word">Cancel</span>
+		</button>
 		<button class="done" onclick={done}>Done</button>
 	</div>
 </div>
@@ -105,16 +125,64 @@
 		flex-wrap: wrap;
 		gap: 6px;
 	}
-	/* On a phone the buttons take a row of their own, Done at the end. */
+	.short {
+		display: none;
+	}
+	/* Style and Cancel are words on a wide screen, symbols on a phone. */
+	.actions :global(.symbol) {
+		display: none;
+	}
+	/* On a phone, one row: short words, the buttons as symbols, Done in words.
+	   While Add's sheet is open under the page, only the words: the sheet has
+	   its own Done, and the page needs the room. */
 	@media (max-width: 699px) {
-		.actions {
-			flex: 1 1 100%;
+		.bar {
+			flex-wrap: nowrap;
+			gap: 8px;
+			padding: 6px 6px 6px 12px;
 		}
-		.actions button {
-			padding: 0 11px;
+		.text {
+			flex: 1 1 auto;
+		}
+		.text > span,
+		strong {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+		.long,
+		.word {
+			display: none;
+		}
+		.short {
+			display: inline;
+		}
+		.actions {
+			flex-wrap: nowrap;
+			gap: 4px;
+		}
+		.actions :global(.symbol) {
+			display: block;
+		}
+		.plain {
+			width: 40px;
+			height: 40px;
+			padding: 0;
+			justify-content: center;
 		}
 		.done {
-			margin-left: auto;
+			height: 40px;
+		}
+		.sheet {
+			padding: 8px 12px;
+		}
+		.sheet .text {
+			flex-direction: row;
+			gap: 6px;
+			align-items: baseline;
+		}
+		.sheet .actions {
+			display: none;
 		}
 	}
 	button {

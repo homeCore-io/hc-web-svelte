@@ -29,6 +29,8 @@ export interface UiSlot {
 	values?: number;
 	artboard?: string;
 	stateMachine?: string;
+	/** A look drawing's choices, on or off, shown under it in the look editor. */
+	options?: { id: string; label: string; type: 'boolean'; default?: boolean }[];
 }
 
 /** One of a plugin's slots for the looks (13 §12), with its id in a look: `plugin:{plugin}/{element}`. */

@@ -4,11 +4,20 @@
  * while the app is open.
  */
 
+/** A choice a drawing offers (on or off), shown under it in the look editor. */
+export interface DrawingOption {
+	id: string;
+	label: string;
+	type: 'boolean';
+	default: boolean;
+}
+
 interface Element {
 	id: string;
 	label: string;
 	/** The look family it draws. */
 	draws: string;
+	options?: DrawingOption[];
 }
 export type ExtensionElement =
 	| (Element & { kind: 'rive'; file: string; artboard?: string; stateMachine?: string })

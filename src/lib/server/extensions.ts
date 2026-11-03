@@ -15,11 +15,20 @@ import path from 'node:path';
 import { dataDir } from '#server/config.js';
 import { RIVE_VALUES } from '#lib/rive/values.js';
 
+/** A choice a drawing offers, shown under it in the look editor: on or off. */
+export interface DrawingOption {
+	id: string;
+	label: string;
+	type: 'boolean';
+	default: boolean;
+}
+
 interface Element {
 	id: string;
 	label: string;
 	/** The look family it draws (13 §6). */
 	draws: string;
+	options?: DrawingOption[];
 }
 export type ExtensionElement =
 	| (Element & { kind: 'rive'; file: string; artboard?: string; stateMachine?: string })
@@ -70,11 +79,28 @@ export const extensionsDir = () => path.join(dataDir(), 'extensions');
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
 
+/** An element's options, those that are well formed; none is fine. */
+export function readOptions(raw: unknown): DrawingOption[] | undefined {
+	if (!Array.isArray(raw)) return undefined;
+	const out: DrawingOption[] = [];
+	for (const o of raw.slice(0, 8)) {
+		const x = (o ?? {}) as Record<string, unknown>;
+		const id = str(x.id);
+		const label = str(x.label);
+		if (!id || !/^[a-z][a-zA-Z0-9_]{0,31}$/.test(id) || !label || x.type !== 'boolean') continue;
+		if (out.some((y) => y.id === id)) continue;
+		out.push({ id, label: label.slice(0, 60), type: 'boolean', default: x.default !== false });
+	}
+	return out.length ? out : undefined;
+}
+
 function readElement(x: Record<string, unknown>): ExtensionElement | undefined {
 	const id = str(x.id);
 	const label = str(x.label);
 	const draws = str(x.draws);
 	if (!id || !ID.test(id) || !label || !draws) return undefined;
+	const options = readOptions(x.options);
+	const opts = options ? { options } : {};
 	if (x.kind === 'rive') {
 		const file = str(x.file);
 		if (!file || !typed(file, '.riv')) return undefined;
@@ -85,7 +111,8 @@ function readElement(x: Record<string, unknown>): ExtensionElement | undefined {
 			draws,
 			file,
 			artboard: str(x.artboard),
-			stateMachine: str(x.stateMachine)
+			stateMachine: str(x.stateMachine),
+			...opts
 		};
 	}
 	if (x.kind === 'code') {
@@ -93,7 +120,7 @@ function readElement(x: Record<string, unknown>): ExtensionElement | undefined {
 		const element = str(x.element);
 		if (!module || !typed(module, '.js', '.mjs') || !element || !TAG.test(element))
 			return undefined;
-		return { id, kind: 'code', label, draws, module, element };
+		return { id, kind: 'code', label, draws, module, element, ...opts };
 	}
 	return undefined;
 }

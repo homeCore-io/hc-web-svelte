@@ -148,3 +148,26 @@ describe('a plugin’s drawings and pieces in a look (13 §12)', () => {
 		expect(drawingOf(child, 'switches')).toBe('plugin:plugin.acme/acme-rocker');
 	});
 });
+
+describe('options for drawings', () => {
+	it('keeps on-or-off choices for plugins’ and extensions’ drawings, and nothing else', () => {
+		const l = readLook({
+			id: 'mine',
+			name: 'Mine',
+			from: 'lit',
+			version: 1,
+			options: {
+				'ext:hc-thermostat/dial': { pulse: false, colour: 'red', 'Bad name': true },
+				'plugin:plugin.x/hc-x-dial': { glow: true },
+				lit: { pulse: true },
+				'ext:empty/x': { n: 3 }
+			}
+		});
+		expect(typeof l === 'string' ? l : l.options).toEqual({
+			'ext:hc-thermostat/dial': { pulse: false },
+			'plugin:plugin.x/hc-x-dial': { glow: true }
+		});
+		const plain = readLook({ id: 'p', name: 'P', version: 1 });
+		expect(typeof plain === 'string' ? plain : plain.options).toBeUndefined();
+	});
+});

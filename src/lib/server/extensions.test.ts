@@ -2,7 +2,13 @@ import { mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { extensionFile, filePath, listExtensions, readManifest } from './extensions.js';
+import {
+	extensionFile,
+	filePath,
+	listExtensions,
+	readManifest,
+	readOptions
+} from './extensions.js';
 
 const dial = { id: 'dial', kind: 'rive', label: 'Animated', draws: 'climate', file: 't.riv' };
 const gauge = {
@@ -73,5 +79,29 @@ describe('UI extensions', () => {
 		expect(await listExtensions(path.join(dir, 'none'))).toEqual([]);
 		expect(filePath('art/a.riv')).toBe(true);
 		expect(filePath('a/../b.riv')).toBe(false);
+	});
+
+	it('reads the options a drawing offers: on or off, with a name and a label', () => {
+		expect(
+			readOptions([
+				{ id: 'pulse', label: 'Pulse while it works', type: 'boolean', default: true },
+				{ id: 'glow', label: 'Glow', type: 'boolean', default: false },
+				{ id: 'glow', label: 'Again', type: 'boolean' },
+				{ id: 'Size', label: 'Size', type: 'boolean' },
+				{ id: 'speed', label: 'Speed', type: 'number' },
+				{ id: 'quiet', label: ' ', type: 'boolean' }
+			])
+		).toEqual([
+			{ id: 'pulse', label: 'Pulse while it works', type: 'boolean', default: true },
+			{ id: 'glow', label: 'Glow', type: 'boolean', default: false }
+		]);
+		expect(readOptions('no')).toBeUndefined();
+		const ext = readManifest('a', {
+			id: 'a',
+			elements: [{ ...dial, options: [{ id: 'pulse', label: 'Pulse', type: 'boolean' }] }]
+		});
+		expect(typeof ext === 'string' ? ext : ext.elements[0]!.options).toEqual([
+			{ id: 'pulse', label: 'Pulse', type: 'boolean', default: true }
+		]);
 	});
 });

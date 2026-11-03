@@ -41,5 +41,8 @@
 	},
 	"engines": {
 		"node": ">=22"
+	},
+	"dependencies": {
+		"@rive-app/canvas-advanced": "2.49.1"
 	}
 }

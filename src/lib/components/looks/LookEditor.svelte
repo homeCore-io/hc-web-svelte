@@ -42,6 +42,7 @@
 	import { litRoom } from '#lib/lit/room.js';
 	import { moved, reorder } from '#lib/reorder.js';
 	import { pluginUis, type LookSlot } from '#lib/pluginUi/uis.svelte.js';
+	import { extensions } from '#lib/extensions.svelte.js';
 	import LookPreview from './LookPreview.svelte';
 	import DrawingSample from './DrawingSample.svelte';
 	import DrawingEditor from './DrawingEditor.svelte';
@@ -134,7 +135,8 @@
 				cards
 					.filter((c) => ['media_player', 'tv'].includes(views[c.ref]!.kind))
 					.sort((a, b) => Number(!!views[b.ref]!.nowPlaying) - Number(!!views[a.ref]!.nowPlaying))
-			)
+			),
+			climate: three(cards.filter((c) => views[c.ref]!.kind === 'thermostat'))
 		} satisfies Record<Family, Card[]>;
 	});
 	const FAMILY_NAMES: Record<Family, string> = {
@@ -144,18 +146,23 @@
 		doors: 'Doors and locks',
 		readings: 'Readings',
 		watching: 'Watching',
-		media: 'Players'
+		media: 'Players',
+		climate: 'Thermostats'
 	};
 	const layoutFor = (f: Family): Layout | undefined =>
 		f === 'watching' ? 'lines' : f === 'scenes' ? 'swatches' : undefined;
 	// Plugins' drawings and pieces (13 §12), labelled with their plugin.
 	pluginUis.ensure();
+	extensions.ensure();
 	const fromPlugin = (s: LookSlot) =>
 		`${s.slot.label ?? s.slot.element} · ${s.pluginId.replace(/^plugin\./, '')}`;
 	const optionsFor = (f: Family): { id: string; name: string; made?: MadeDrawing }[] => [
 		...DRAWINGS[f],
 		...draft.made.filter((m) => m.family === f).map((m) => ({ id: m.id, name: m.name, made: m })),
-		...pluginUis.looks('look.drawing', f).map((s) => ({ id: s.id, name: fromPlugin(s) }))
+		...pluginUis.looks('look.drawing', f).map((s) => ({ id: s.id, name: fromPlugin(s) })),
+		...extensions
+			.drawing(f)
+			.map((e) => ({ id: e.id, name: `${e.element.label} · ${e.extension.name}` }))
 	];
 	const headers = $derived(pluginUis.looks('look.piece', 'header'));
 	const rests = $derived(pluginUis.looks('look.piece', 'rest'));

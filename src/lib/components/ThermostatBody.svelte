@@ -32,6 +32,9 @@
 		type HoldLength
 	} from '#lib/thermostat.js';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import { lookHere } from '#lib/look.svelte.js';
+	import { extensions } from '#lib/extensions.svelte.js';
+	import { climateValues } from '#lib/rive/values.js';
 	import Icon from './Icon.svelte';
 
 	let {
@@ -54,6 +57,17 @@
 	} = $props();
 
 	const t = $derived(thermostatOf(device));
+
+	// A look that draws thermostats with an extension's Rive drawing (13 §6):
+	// the dial is that drawing, while the extension offers it; else today's.
+	const look = lookHere();
+	extensions.ensure();
+	const rive = $derived.by(() => {
+		const d = look.draws('climate');
+		const e = d.startsWith('ext:') ? extensions.find(d) : undefined;
+		return e?.element.kind === 'rive' && e.element.draws === 'climate' ? e : undefined;
+	});
+	const RiveDrawing = $derived(rive ? import('#lib/rive/RiveDrawing.svelte') : undefined);
 
 	// ---- − and + ----
 	let pending = $state<number | undefined>();
@@ -187,35 +201,56 @@
 
 {#snippet dialFace()}
 	<div class="face">
-		<div class="dial">
-			<svg
-				width={DIAL.w}
-				height={DIAL.h}
-				viewBox={`0 0 ${DIAL.w} ${DIAL.h}`}
-				role="img"
-				aria-label={`${name}: ${now}${t.unit} now, ${aim}`}
-			>
-				<path class="track" d={dial.track} />
-				{#if dial.fill}<path class="fill" class:cool={dial.cooling} d={dial.fill} />{/if}
-				{#if dial.now}<circle class="now" cx={dial.now[0]} cy={dial.now[1]} r="4" />{/if}
-				{#if dial.target}
-					<circle
-						class="ring"
-						class:cool={dial.cooling && !t.dual}
-						cx={dial.target[0]}
-						cy={dial.target[1]}
-						r="11"
-					/>
-				{/if}
-				{#if dial.cool}<circle class="ring cool" cx={dial.cool[0]} cy={dial.cool[1]} r="11" />{/if}
-			</svg>
-			<div class="middle">
-				<span class="label">INSIDE</span>
-				<span class="temp">{now}<span class="unit">{t.unit}</span></span>
-				<span class="aim" class:waiting={pending !== undefined}>{aim}</span>
-			</div>
-		</div>
+		{#if rive && RiveDrawing}
+			{#await RiveDrawing then { default: Drawing }}
+				<Drawing
+					src={rive.src}
+					artboard={rive.element.artboard}
+					stateMachine={rive.element.stateMachine}
+					values={climateValues(t, target, look.def.feel.motion === 'lively')}
+					motion={look.def.feel.motion}
+					label={`${name}: ${now}${t.unit} now, ${aim}`}
+					width={236}
+					height={236}
+				>
+					{@render plainDial()}
+				</Drawing>
+			{/await}
+		{:else}
+			{@render plainDial()}
+		{/if}
 		<div class="steps">{@render buttons(false)}</div>
+	</div>
+{/snippet}
+
+{#snippet plainDial()}
+	<div class="dial">
+		<svg
+			width={DIAL.w}
+			height={DIAL.h}
+			viewBox={`0 0 ${DIAL.w} ${DIAL.h}`}
+			role="img"
+			aria-label={`${name}: ${now}${t.unit} now, ${aim}`}
+		>
+			<path class="track" d={dial.track} />
+			{#if dial.fill}<path class="fill" class:cool={dial.cooling} d={dial.fill} />{/if}
+			{#if dial.now}<circle class="now" cx={dial.now[0]} cy={dial.now[1]} r="4" />{/if}
+			{#if dial.target}
+				<circle
+					class="ring"
+					class:cool={dial.cooling && !t.dual}
+					cx={dial.target[0]}
+					cy={dial.target[1]}
+					r="11"
+				/>
+			{/if}
+			{#if dial.cool}<circle class="ring cool" cx={dial.cool[0]} cy={dial.cool[1]} r="11" />{/if}
+		</svg>
+		<div class="middle">
+			<span class="label">INSIDE</span>
+			<span class="temp">{now}<span class="unit">{t.unit}</span></span>
+			<span class="aim" class:waiting={pending !== undefined}>{aim}</span>
+		</div>
 	</div>
 {/snippet}
 

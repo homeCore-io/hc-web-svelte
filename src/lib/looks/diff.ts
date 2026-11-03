@@ -17,7 +17,8 @@ const FAMILY_WORDS = {
 	doors: 'Doors and locks',
 	readings: 'Readings',
 	watching: 'Watching',
-	media: 'Players'
+	media: 'Players',
+	climate: 'Thermostats'
 } as const;
 /** How the built-in drawings beyond Classic's and Lit's read in a sentence. */
 const PHRASES: Record<string, string> = {
@@ -44,7 +45,7 @@ export function changesFrom(l: Look, base: Look): string[] {
 		if (d === drawingOf(base, f)) continue;
 		const made = l.made.find((m) => m.id === d);
 		out.push(
-			`${FAMILY_WORDS[f]} drawn ${made ? `as “${made.name}”` : d === 'lit' ? 'the Lit way' : d === 'classic' ? 'the Classic way' : d.startsWith('plugin:') ? 'by a plugin' : (PHRASES[d] ?? `as “${DRAWINGS[f].find((x) => x.id === d)?.name ?? d}”`)}`
+			`${FAMILY_WORDS[f]} drawn ${made ? `as “${made.name}”` : d === 'lit' ? 'the Lit way' : d === 'classic' ? 'the Classic way' : d.startsWith('plugin:') ? 'by a plugin' : d.startsWith('ext:') ? 'by an extension' : (PHRASES[d] ?? `as “${DRAWINGS[f].find((x) => x.id === d)?.name ?? d}”`)}`
 		);
 	}
 	for (const m of l.made) {

@@ -29,7 +29,8 @@ export const FAMILIES = [
 	'doors',
 	'readings',
 	'watching',
-	'media'
+	'media',
+	'climate'
 ] as const;
 export type Family = (typeof FAMILIES)[number];
 
@@ -68,13 +69,19 @@ export const DRAWINGS: Record<Family, readonly { id: string; name: string }[]> =
 	media: [
 		{ id: 'classic', name: 'Card with its controls' },
 		{ id: 'art', name: 'Its artwork, while playing' }
-	]
+	],
+	climate: [{ id: 'classic', name: 'Dial' }]
 };
 
 /** A plugin's drawing or piece, by its id in a look (§12): `plugin:{plugin}/{element}`. */
 export type PluginRef = `plugin:${string}/${string}`;
 export const isPluginRef = (v: unknown): v is PluginRef =>
 	typeof v === 'string' && /^plugin:[a-z0-9._-]{1,64}\/[a-z][a-z0-9._-]*-[a-z0-9._-]*$/.test(v);
+
+/** A UI extension's element, by its id in a look: `ext:{extension}/{element}`. */
+export type ExtRef = `ext:${string}/${string}`;
+export const isExtRef = (v: unknown): v is ExtRef =>
+	typeof v === 'string' && /^ext:[a-z0-9][a-z0-9._-]{0,63}\/[a-z0-9][a-z0-9._-]{0,63}$/.test(v);
 
 /** The pieces around a page's cards (§7). */
 export interface Frame {
@@ -215,9 +222,9 @@ export interface Look {
 	ownColors: boolean;
 	feel: Feel;
 	/**
-	 * How each family is drawn: `classic`, `lit`, a made drawing's id or a
-	 * plugin's (`plugin:…`); left out, Classic's. A plugin's that's gone draws
-	 * as Classic does (principle 6).
+	 * How each family is drawn: `classic`, `lit`, a made drawing's id, a
+	 * plugin's (`plugin:…`) or a UI extension's (`ext:…`); left out, Classic's.
+	 * One that's gone draws as Classic does (principle 6).
 	 */
 	drawings: Partial<Record<Family, string>>;
 	/** Drawings made in the editor (§6.4). */
@@ -460,7 +467,8 @@ export function readLook(raw: unknown, known: readonly Look[] = BUILT_IN): Look 
 	const usable = (fam: Family, d: unknown) =>
 		DRAWINGS[fam].some((x) => x.id === d) ||
 		made.some((m) => m.id === d && m.family === fam) ||
-		isPluginRef(d);
+		isPluginRef(d) ||
+		isExtRef(d);
 	const drawings: Partial<Record<Family, string>> = { ...base.drawings };
 	for (const fam of FAMILIES) if (!usable(fam, drawings[fam])) delete drawings[fam];
 	if (o.drawings && typeof o.drawings === 'object')

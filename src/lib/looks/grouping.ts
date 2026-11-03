@@ -9,13 +9,30 @@
  * grouping can't lose a device (principle 6). Sections keep their rules' ids,
  * and each look keeps its own arrangements (§8.4).
  */
-import { cardFor, type CardView } from '../card.js';
+import { batteryOf, cardFor, type CardView } from '../card.js';
 import type { Card, Page, Section } from '../page.js';
 import { roomPage, type RoomInput } from '../page.js';
 import { byRoom } from '../summary.js';
 import { ref } from '../layers.js';
 import { isGroup, litRoom } from '../lit/room.js';
-import type { Frame, Place, Rule, Take } from './model.js';
+import type { Family, Frame, Place, Rule, Take } from './model.js';
+
+/** The family of things a take holds, for how the look draws them. */
+const FAMILY_OF: Partial<Record<Take, Family>> = {
+	lights: 'lights',
+	'switches.lights': 'switches',
+	'switches.power': 'switches',
+	readings: 'readings'
+};
+
+/** A grid or panel of rows becomes a list, of chips a line of chips; a layout chosen otherwise stays. */
+function layoutFor(r: Rule, drawn: Partial<Record<Family, string>>): Rule['layout'] {
+	if (r.layout !== 'grid' && r.layout !== 'panel') return r.layout;
+	const ways = r.takes.flatMap((t) => (FAMILY_OF[t] ? [drawn[FAMILY_OF[t]!] ?? 'classic'] : []));
+	if (ways.length && ways.every((w) => w === 'row')) return 'list';
+	if (ways.length && ways.every((w) => w === 'chip')) return 'chips';
+	return r.layout;
+}
 
 const FIELD: Record<Place, Section['field']> = {
 	band: { column: 'band' },
@@ -30,7 +47,9 @@ export function groupRoom(
 	given: readonly Rule[],
 	frame?: Pick<Frame, 'needs' | 'more'>,
 	/** Lights that share a name drawn as one card, as Lit draws them; else each its own. */
-	lampGroups = true
+	lampGroups = true,
+	/** How the look draws each family: a section of rows is a list, of chips a line of chips. */
+	drawn: Partial<Record<Family, string>> = {}
 ): Page {
 	// The frame can leave out what needs someone, and unfold what's rarely used (13 §7).
 	const rules = given
@@ -82,17 +101,21 @@ export function groupRoom(
 		readings: sorted.readings.map((r) => r.card),
 		watching: sorted.watch.map((w) => w.card),
 		rest: sorted.rest,
-		more: sorted.more
+		more: sorted.more,
+		// Every battery in the room, as one piece: it lists them, and they stay where they are.
+		batteries: inRoom.some((d) => batteryOf(d) !== undefined)
+			? [{ ref: `piece:batteries/${id}`, kind: 'batteries', id, devices: inRoom }]
+			: []
 	};
 	const taken = new Set<Take>();
 	const sections: Section[] = rules.map((r) => {
 		const mine = r.takes.filter((t) => !taken.has(t));
 		for (const t of mine) taken.add(t);
-		const piece = mine.some((t) => t === 'header' || t === 'needs');
+		const piece = mine.some((t) => t === 'header' || t === 'needs' || t === 'batteries');
 		return {
 			id: r.id,
 			title: r.title,
-			layout: r.layout,
+			layout: layoutFor(r, drawn),
 			cards: mine.flatMap((t) => holds[t]),
 			field: FIELD[r.place],
 			accepts: !piece,
@@ -102,7 +125,7 @@ export function groupRoom(
 	});
 	// What the household added from elsewhere, as Classic has it, and what no rule took.
 	const left = (Object.keys(holds) as Take[])
-		.filter((t) => !taken.has(t) && t !== 'header' && t !== 'needs')
+		.filter((t) => !taken.has(t) && t !== 'header' && t !== 'needs' && t !== 'batteries')
 		.flatMap((t) => holds[t]);
 	const added = classic.sections.find((s) => s.id === 'added');
 	if (added || left.length)

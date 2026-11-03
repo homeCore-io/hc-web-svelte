@@ -85,3 +85,26 @@ describe('a look’s frame in a room (13 §7)', () => {
 		expect(more.headless).toBeFalsy();
 	});
 });
+
+describe('a section laid out for how its things are drawn (13 §13.1)', () => {
+	it('lists rows, lines up chips, and keeps a layout chosen otherwise', () => {
+		const p = groupRoom('r-den', input, LIT.grouping.room!, undefined, false, {
+			lights: 'chip',
+			switches: 'row',
+			readings: 'band'
+		});
+		const layout = (id: string) => p.sections.find((s) => s.id === id)?.layout;
+		expect(layout('lights')).toBe('chips');
+		expect(layout('switches')).toBe('list');
+		expect(layout('power')).toBe('list');
+		expect(layout('readings')).toBe('grid');
+		expect(layout('scenes')).toBe('swatches');
+	});
+
+	it('includes every battery in the room as one piece, leaving each thing where it is', () => {
+		const p = page('r-hall');
+		const batteries = p.sections.find((s) => s.id === 'batteries');
+		expect(batteries?.cards.map((c) => c.kind)).toEqual(['batteries']);
+		expect(where(p, 'device:yolink_front_lock')).toBe('doors');
+	});
+});

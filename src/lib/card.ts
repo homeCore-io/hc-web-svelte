@@ -624,6 +624,18 @@ export const judgeBatteriesBy = (judge: typeof batteryJudge) => (batteryJudge = 
 /** homeCore's `[battery] threshold_pct` unless changed. */
 const BATTERY_LINE = 20;
 
+/** A device's battery level, 0 to 100, where it reports one. */
+export const batteryOf = (d: CoreDevice): number | undefined =>
+	num(d.attributes?.battery) ?? num(d.attributes?.battery_pct);
+
+/** Whether a device's battery is low, as homeCore says (its alerts), else by homeCore's default line. */
+export function batteryLow(d: CoreDevice): boolean {
+	const judged = batteryJudge?.(d.device_id);
+	if (judged !== undefined) return judged;
+	const battery = batteryOf(d);
+	return d.attributes?.battery_low === true || (battery !== undefined && battery <= BATTERY_LINE);
+}
+
 /** C9's built-in set; offline is added by `cardFor`. */
 function alarmOf(d: CoreDevice, kind: string): string | undefined {
 	const a = d.attributes;
@@ -631,12 +643,10 @@ function alarmOf(d: CoreDevice, kind: string): string | undefined {
 	if (a.smoke === true || a.smoke_detected === true) return 'smoke';
 	if (kind === 'lock' && typeof a.last_alert === 'string' && /jam/i.test(a.last_alert))
 		return 'jammed';
+	// homeCore's word where it gives one, with or without a level to show.
 	const judged = batteryJudge?.(d.device_id);
 	if (judged !== undefined) return judged ? 'low battery' : undefined;
-	const battery = num(a.battery) ?? num(a.battery_pct);
-	if (a.battery_low === true || (battery !== undefined && battery <= BATTERY_LINE))
-		return 'low battery';
-	return undefined;
+	return batteryLow(d) ? 'low battery' : undefined;
 }
 
 /** "Turned on at the wall", "by Night rule", and "2 d ago" for a quiet sensor. */

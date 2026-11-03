@@ -241,6 +241,13 @@ export const kinds: { [K in Card['kind']]: Kind<K> } = {
 		wide: true,
 		load: lazy(() => import('./lit/NeedsKind.svelte'))
 	},
+	batteries: {
+		...one,
+		...fixed,
+		name: () => 'Batteries',
+		wide: true,
+		load: lazy(() => import('./lit/BatteriesKind.svelte'))
+	},
 	lampgroup: {
 		...one,
 		...fixed,

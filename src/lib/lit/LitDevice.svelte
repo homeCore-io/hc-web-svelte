@@ -20,6 +20,8 @@
 	import LitScene from './LitScene.svelte';
 	import LitSwitch from './LitSwitch.svelte';
 	import LitWatch from './LitWatch.svelte';
+	import LitChip from './LitChip.svelte';
+	import LitRow from './LitRow.svelte';
 	import { lookHere } from '#lib/look.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { roomOf } from '#lib/summary.js';
@@ -99,6 +101,23 @@
 		if (!(await goAhead(d.device_id, view.kind, `Turn ${name} ${sw.on ? 'off' : 'on'}?`))) return;
 		void commands.set(d.device_id, view.kind, { [sw.attr]: !sw.on }, d.attributes);
 	}
+	// A light's brightness, sent once a slider is let go (as Lit's light does).
+	function setLevel(v: number) {
+		if (!lamp || !session.mayUse) return;
+		void commands.set(
+			d.device_id,
+			view.kind,
+			v === 0 ? { [lamp.attr]: false } : { brightness_pct: v, [lamp.attr]: true },
+			d.attributes
+		);
+	}
+	const open = () => openDevice(d.device_id, here.url);
+	// A chip's or row's tint when on: the light's own color where the look allows, else the theme's.
+	const ink = $derived(
+		lamp && look.def.ownColors && family === 'lights' ? `rgb(${lamp.rgb})` : 'var(--accent)'
+	);
+	// A reading in a chip: its value, the first of its state's words ("44°F").
+	const readingWords = $derived(view.stateLine.split(' · ')[0] ?? view.stateLine);
 	const power = $derived(
 		view.kind === 'outlet' || /\b(heat|heater|plug|valve|pump|charger|fan|ac)\b/i.test(name)
 	);
@@ -133,6 +152,32 @@
 		}}
 		onfail={() => (pluginFailed = true)}
 	/>
+{:else if drawing === 'chip' && (lamp || reading)}
+	<LitChip
+		{name}
+		words={reading ? readingWords : view.stateLine}
+		icon={view.icon}
+		on={lamp?.on ?? false}
+		{ink}
+		alarm={!!view.alarm}
+		reading={!!reading}
+		flip={lamp ? flip : undefined}
+		{open}
+	/>
+{:else if drawing === 'row' && lamp}
+	<LitRow
+		{name}
+		words={view.stateLine}
+		icon={view.icon}
+		on={lamp.on}
+		{ink}
+		level={family === 'lights' ? lamp.level : null}
+		{flip}
+		{setLevel}
+		{open}
+	/>
+{:else if drawing === 'band' && reading}
+	<LitReading r={reading} band />
 {:else if drawing !== 'lit'}
 	{@render children()}
 {:else if card.scene}

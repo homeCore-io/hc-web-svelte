@@ -21,7 +21,7 @@ import { byRoom, roomSections, type Chip } from './summary.js';
  * packed into a panel).
  */
 export type Layout =
-	'grid' | 'row' | 'list' | 'field' | 'tiles' | 'swatches' | 'lines' | 'fold' | 'panel';
+	'grid' | 'row' | 'list' | 'field' | 'tiles' | 'swatches' | 'lines' | 'fold' | 'panel' | 'chips';
 
 interface Base {
 	/** What the layers call it: `device:…`, `scene:…`, `room:…`, `card:…`, `piece:…`. */
@@ -54,6 +54,7 @@ export type Card = Base &
 		| { kind: 'roomhead'; id: string; name: string; devices: CoreDevice[] }
 		/** What in a room needs someone, each with its fix (13 §7). */
 		| { kind: 'needs'; id: string; devices: CoreDevice[] }
+		| { kind: 'batteries'; id: string; devices: CoreDevice[] }
 		/** Lights that belong together, one card ("Holiday Lights 1" to "4"). */
 		| { kind: 'lampgroup'; name: string; devices: CoreDevice[] }
 	);

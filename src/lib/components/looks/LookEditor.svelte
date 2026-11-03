@@ -215,7 +215,8 @@
 		panel: 'Panel',
 		swatches: 'Swatches',
 		lines: 'Lines',
-		fold: 'Folded'
+		fold: 'Folded',
+		chips: 'Chips'
 	};
 	const PLACES: [Place, string][] = [
 		['band', 'Across the top'],

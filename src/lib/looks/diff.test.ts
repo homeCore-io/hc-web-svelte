@@ -23,3 +23,15 @@ describe('what changed from the look it was made from (13 §11)', () => {
 		]);
 	});
 });
+
+describe('the new drawings in what changed (13 §13.1)', () => {
+	it('names a chip, a row and a band', () => {
+		const l = copyOf(LIT, 'Calm', BUILT_IN);
+		l.drawings = { ...l.drawings, lights: 'chip', switches: 'row', readings: 'band' };
+		expect(changesFrom(l, LIT)).toEqual([
+			'Lights drawn as chips',
+			'Switches drawn as rows',
+			'Readings drawn with their usual range'
+		]);
+	});
+});

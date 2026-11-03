@@ -823,3 +823,13 @@ before the next step.
   off the Alerts page, for seeing every level before one is low.
 - **F3. Chips are a drawing for readings too** ("Freezer 6.3°"), as for
   lights and switches.
+
+**As built in step 6a:** new built-in drawings: lights and switches as
+`chip` or `row` (a light's row has its slider), readings as `band` or
+`chip`. A section of a grouped room whose things are all drawn as rows is laid
+out as a list, and as chips as a new `chips` layout, unless a layout was chosen
+for it. Batteries are a `batteries` take holding one piece that lists every
+battery in the room (things stay in their own sections); Lit's rooms have it
+in the side column. "All batteries" is `/alerts/batteries`. "Usual" is the
+middle 80% of the week before's readings (`looks/band.ts`), and needs at
+least a dozen of them.

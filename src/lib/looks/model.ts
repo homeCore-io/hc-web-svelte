@@ -29,11 +29,15 @@ export type Family = (typeof FAMILIES)[number];
 export const DRAWINGS: Record<Family, readonly { id: string; name: string }[]> = {
 	lights: [
 		{ id: 'classic', name: 'Card with a switch' },
-		{ id: 'lit', name: 'Fills as it dims' }
+		{ id: 'lit', name: 'Fills as it dims' },
+		{ id: 'chip', name: 'Chip' },
+		{ id: 'row', name: 'Row with a slider' }
 	],
 	switches: [
 		{ id: 'classic', name: 'Card with a switch' },
-		{ id: 'lit', name: 'Rocker' }
+		{ id: 'lit', name: 'Rocker' },
+		{ id: 'chip', name: 'Chip' },
+		{ id: 'row', name: 'Row' }
 	],
 	scenes: [
 		{ id: 'classic', name: 'Button' },
@@ -45,7 +49,9 @@ export const DRAWINGS: Record<Family, readonly { id: string; name: string }[]> =
 	],
 	readings: [
 		{ id: 'classic', name: 'Card' },
-		{ id: 'lit', name: 'Number with its day' }
+		{ id: 'lit', name: 'Number with its day' },
+		{ id: 'band', name: 'With its usual range' },
+		{ id: 'chip', name: 'Chip' }
 	],
 	watching: [
 		{ id: 'classic', name: 'Card' },
@@ -155,7 +161,8 @@ export const TAKES = {
 	readings: 'Readings: temperature, humidity, air',
 	watching: 'Sensors worth a glance',
 	rest: 'Everything else',
-	more: 'Rarely used: remotes, hubs, bridges'
+	more: 'Rarely used: remotes, hubs, bridges',
+	batteries: 'Every battery’s level, lowest first'
 } as const;
 export type Take = keyof typeof TAKES;
 
@@ -282,6 +289,7 @@ export const LIT: Look = {
 			{ id: 'readings', title: 'Readings', takes: ['readings'], layout: 'grid', place: 'side' },
 			{ id: 'watching', title: 'Watching', takes: ['watching'], layout: 'lines', place: 'side' },
 			{ id: 'things', title: 'Everything else', takes: ['rest'], layout: 'grid', place: 'side' },
+			{ id: 'batteries', title: 'Batteries', takes: ['batteries'], layout: 'list', place: 'side' },
 			{
 				id: 'more',
 				title: 'More in this room',
@@ -326,7 +334,7 @@ export function feelVars(f: Feel): Record<string, string> {
 const oneOf = <T extends string>(v: unknown, all: readonly T[], or: T): T =>
 	all.includes(v as T) ? (v as T) : or;
 const PLACES = ['band', 'main', 'side'] as const;
-const LAYOUTS = ['grid', 'row', 'list', 'panel', 'swatches', 'lines', 'fold'] as const;
+const LAYOUTS = ['grid', 'row', 'list', 'panel', 'swatches', 'lines', 'fold', 'chips'] as const;
 const ID = /^[a-z0-9][a-z0-9-]{0,47}$/;
 const bool = (v: unknown, or: boolean): boolean => (typeof v === 'boolean' ? v : or);
 const text = (v: unknown, max: number): string | undefined =>

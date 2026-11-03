@@ -57,7 +57,14 @@
 		const rules = draft.grouping.room;
 		const doc =
 			rules && grouping
-				? grouping.groupRoom(room, input, rules, draft.frame, drawingOf(draft, 'lights') === 'lit')
+				? grouping.groupRoom(
+						room,
+						input,
+						rules,
+						draft.frame,
+						drawingOf(draft, 'lights') === 'lit',
+						draft.drawings
+					)
 				: roomPage(room, input);
 		// Its own key, so no one's arranging of the real room shows here.
 		return { ...doc, id: `preview|${doc.id}` };

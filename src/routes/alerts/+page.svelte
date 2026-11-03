@@ -41,6 +41,7 @@
 		{#if note}<p class="note" role="alert">{note}</p>{/if}
 		<AlertList list={alerts.list} act />
 	{/if}
+	<a class="link" href="/alerts/batteries">All batteries, lowest first</a>
 	{#if session.can('automations:write')}
 		<a class="link" href="/settings/alerts">Alert rules, and what’s ignored</a>
 	{/if}

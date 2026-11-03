@@ -3,7 +3,7 @@
  * made from, in the editor's own words, so a person can always find their
  * way back.
  */
-import { drawingOf, FAMILIES, type Look } from './model.js';
+import { DRAWINGS, drawingOf, FAMILIES, type Look } from './model.js';
 
 const FEEL_WORDS = {
 	density: { roomy: 'roomy', standard: 'standard', compact: 'compact' },
@@ -18,6 +18,12 @@ const FAMILY_WORDS = {
 	readings: 'Readings',
 	watching: 'Watching'
 } as const;
+/** How the built-in drawings beyond Classic's and Lit's read in a sentence. */
+const PHRASES: Record<string, string> = {
+	chip: 'as chips',
+	row: 'as rows',
+	band: 'with their usual range'
+};
 const on = (b: boolean) => (b ? 'on' : 'off');
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -36,7 +42,7 @@ export function changesFrom(l: Look, base: Look): string[] {
 		if (d === drawingOf(base, f)) continue;
 		const made = l.made.find((m) => m.id === d);
 		out.push(
-			`${FAMILY_WORDS[f]} drawn ${made ? `as “${made.name}”` : d === 'lit' ? 'the Lit way' : d.startsWith('plugin:') ? 'by a plugin' : 'the Classic way'}`
+			`${FAMILY_WORDS[f]} drawn ${made ? `as “${made.name}”` : d === 'lit' ? 'the Lit way' : d === 'classic' ? 'the Classic way' : d.startsWith('plugin:') ? 'by a plugin' : (PHRASES[d] ?? `as “${DRAWINGS[f].find((x) => x.id === d)?.name ?? d}”`)}`
 		);
 	}
 	for (const m of l.made) {

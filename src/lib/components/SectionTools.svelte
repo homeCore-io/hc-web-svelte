@@ -74,7 +74,8 @@
 		swatches: 'Swatches',
 		lines: 'Lines',
 		fold: 'Folded',
-		panel: 'Panel'
+		panel: 'Panel',
+		chips: 'Chips'
 	};
 	async function removeIt() {
 		const yes = await ask({

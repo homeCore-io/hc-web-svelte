@@ -690,6 +690,12 @@
 		flex-wrap: wrap;
 		gap: 16px 12px;
 	}
+	/* Things drawn as chips (13 §13.1): a line of pills, wrapping. */
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
 	.lines,
 	.fold {
 		display: flex;

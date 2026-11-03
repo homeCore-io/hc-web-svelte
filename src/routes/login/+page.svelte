@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { session } from '#lib/me.svelte.js';
+	import Mark from '#lib/components/Mark.svelte';
 
 	let username = $state('');
 	let password = $state('');
@@ -21,7 +22,7 @@
 
 <main>
 	<form onsubmit={submit}>
-		<h1>homeCore</h1>
+		<h1><Mark size={36} />homeCore</h1>
 		{#if page.url.searchParams.get('changed')}
 			<p class="said" role="status">Your password is changed. Sign in with the new one.</p>
 		{/if}
@@ -65,6 +66,9 @@
 		box-shadow: var(--shadow);
 	}
 	h1 {
+		display: flex;
+		align-items: center;
+		gap: 12px;
 		margin: 0 0 var(--space-2);
 		font-size: 24px;
 		font-weight: 700;

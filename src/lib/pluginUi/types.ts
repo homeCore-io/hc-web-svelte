@@ -32,6 +32,32 @@
  * module): it is given `host` and `config`, and answers with a `change`
  * event whose `detail` is `{ config }` — saved with the page, by the app.
  *
+ * The looks' slots draw any device in the house, once a look chooses them
+ * (Settings › Look); they need a `label`, the name the look editor shows:
+ *
+ * - `look.drawing` — how a family of things is drawn (its slot's `draws`:
+ *   lights, switches, scenes, doors, readings, watching). Given `thing`, the
+ *   thing's values (below), `deviceId` and `form`. It draws from `thing`,
+ *   which is set afresh as the thing changes, and asks for what a tap does
+ *   with an `act` event, `detail: { do: 'switch' | 'run' | 'open' }`: the
+ *   app does it, asking first where the house says to. It never commands a
+ *   device itself — `host` is still scoped to the plugin's own.
+ * - `look.piece` — a piece of a page's frame (its slot's `draws`): a
+ *   room's `header`, given `room` (`{ id, name, things }`); or a display's
+ *   `rest` view, given `things` (the house's), which asks to `wake` with a
+ *   `wake` event.
+ * - `look.symbol` — symbols a person can give a device (its slot's
+ *   `symbols`, by name). Its element draws the one named by its `name`
+ *   property, at the size of its text (`1em`), in `currentColor`.
+ *
+ * If one of these fails to load, or throws, the app draws the thing as
+ * Classic does.
+ *
+ * A `device.card` element's class may have a static `accepts(device)` —
+ * whether it draws this one of the slot's devices; when it says no, the app's
+ * own card is shown instead (a plugin's card for its temperature probes, say,
+ * leaving its room sensors the app's). Checked once its module has loaded.
+ *
  * A `rule.step` element's class may also have, as statics:
  * - `accepts(value)` — whether it can edit that step; when it says no, the
  *   editor's generic form is shown instead;
@@ -41,7 +67,16 @@
  *
  * Added after the first release of version 1 (app 0.1.18): `fetch`,
  * `upload`, `store`, `Device.sw_version` and the `rule.step` slot. Check for
- * them (`typeof host.upload === 'function'`) to run on an older app.
+ * them (`typeof host.upload === 'function'`) to run on an older app. Later
+ * (app 0.1.21): `units` — without it, show the schema's own units. Later
+ * still (the app after 0.1.25): a `device.card` class's `accepts` — an older app shows
+ * the plugin's card for every device of the slot's types.
+ * Later (the app after 0.1.27): `fileUrl` — without it, draw no picture the
+ * plugin keeps.
+ * Later (the app after 0.1.33): `alerts` — without it, decide for yourself
+ * (a low battery from `battery_low` and the level).
+ * Later (the app after 0.1.45): the looks' slots and `Thing` — an older app
+ * offers none of them.
  *
  * A component runs inside the app, as the person using it: what it can do is
  * what they can. Everything here is scoped to the plugin's own devices and
@@ -50,6 +85,27 @@
  */
 
 export type Result<T> = { ok: true; data: T } | { ok: false; error: string };
+
+/**
+ * One of homeCore's alerts on one of the plugin's devices, as the app's
+ * Alerts page shows it: homeCore decided it (its low-battery line, its
+ * alert rules, what someone ignored), so a screen that shows it agrees.
+ */
+export interface Alert {
+	/** Stable while it lasts: `low_battery:{device}`, `rule:{rule}:{device}`. */
+	id: string;
+	/** `offline`, `wet`, `smoke`, `jammed`, `low_battery`, `rule`, `plugin`, … */
+	kind: string;
+	device_id: string;
+	/** In words, with the device's name: "Hallway Sensor: battery low (14%)". */
+	message: string;
+	/** The same without the name, for the device's own screen: "Battery low (14%)". */
+	reason: string;
+	severity: 'info' | 'warning' | 'error' | 'critical';
+	raised_at: string;
+	/** Someone has seen it; it stays until it clears. */
+	acknowledged: boolean;
+}
 
 /** One of the plugin's devices, as homeCore reports it. */
 export interface Device {
@@ -111,6 +167,18 @@ export interface Host {
 		): Promise<Result<{ at: string; value: unknown }[]>>;
 	};
 
+	/**
+	 * homeCore's alerts on the plugin's devices, live — what the Alerts page
+	 * lists. Show these instead of deciding again ("is this battery low?").
+	 * Absent on an app before 0.1.34: decide for yourself there.
+	 */
+	readonly alerts?: {
+		/** `undefined` until homeCore has said (or on one too old to have alerts). */
+		list(): Alert[] | undefined;
+		/** Called now, and again on every change; returns the way to stop. */
+		subscribe(f: (alerts: Alert[] | undefined) => void): () => void;
+	};
+
 	/** A command to one of its devices, in the device's own words. */
 	command(deviceId: string, body: Record<string, unknown>): Promise<Result<void>>;
 	/** One of the plugin's manifest actions; its declared role applies. */
@@ -123,6 +191,14 @@ export interface Host {
 	 * (`/automations`). For what the rest of `host` doesn't cover.
 	 */
 	fetch(path: string, init?: RequestInit): Promise<Response>;
+
+	/**
+	 * Where a picture the plugin keeps while it runs is — a channel's icon,
+	 * say: `path` in its files folder (`icons/837-2.23.png`). For an `<img
+	 * src>`; the browser keeps it for good, as the plugin names a file by what
+	 * is in it. Absent before the app after 0.1.27.
+	 */
+	fileUrl?(path: string): string;
 
 	/**
 	 * One of the plugin's manifest actions, sent a file (up to 32 MiB) — the
@@ -154,6 +230,15 @@ export interface Host {
 		restartPlugin(): Promise<Result<void>>;
 	};
 
+	/**
+	 * The units the person reads in, as they chose them in the app: °F or °C,
+	 * and US (inHg, mph, in, in/h) or metric (hPa, m/s, mm, mm/h) for the
+	 * rest. homeCore's readings are °C and metric (the schema's `unit`); show
+	 * them with `show`, and turn a number the person typed back with `toCore`.
+	 * Absent on an app before 0.1.21 — show the schema's unit there.
+	 */
+	readonly units?: Units;
+
 	/** The app's own ways of asking and going. */
 	readonly ui: {
 		confirm(q: Question): Promise<boolean>;
@@ -178,7 +263,57 @@ export interface Host {
 	};
 }
 
+/** The person's units (`host.units`). */
+export interface Units {
+	readonly temperature: 'F' | 'C';
+	readonly measures: 'us' | 'metric';
+	/**
+	 * A reading in `unit` — the schema's: `°C`, `hPa`, `m/s`, `mm`, `mm/h`,
+	 * `km` — as the person reads it: `{ value: 70.7, unit: '°F', text:
+	 * '70.7°F' }` (degrees and % against the number, other units after a
+	 * space), rounded as that unit reads. Any other unit (`%`, `lux`)
+	 * comes back as it was, the value untouched.
+	 */
+	show(
+		value: number,
+		unit: string | undefined
+	): { value: number; unit: string | undefined; text: string };
+	/** A number the person gave in their unit, back in `unit`: 70 (°F) → 21.111 for `°C`. */
+	toCore(value: number, unit: string | undefined): number;
+	/** Called now, and again whenever the person changes them; returns the way to stop. */
+	subscribe(f: (units: { temperature: 'F' | 'C'; measures: 'us' | 'metric' }) => void): () => void;
+}
+
 /** The properties the app sets on a plugin's element. */
+/**
+ * A thing as a look's drawing reads it (`look.drawing`, and a piece's
+ * `things`): its values in plain names, the same as a drawing made in the
+ * look editor reads.
+ */
+export interface Thing {
+	name: string;
+	/** Whether it's on; for a scene, whether it's the one on now. */
+	on: boolean;
+	/** How bright, 0 to 100; null if it doesn't dim. */
+	level: number | null;
+	/** The color it gives off, `#rrggbb`. */
+	color: string;
+	/** A scene's colors, `#rrggbb` with commas between; '' otherwise. */
+	colors: string;
+	room: string;
+	/** Its state in words, in the person's units: "On · 80%", "Closed · 4 d ago". */
+	state: string;
+	/** Readings, in °C and percent; null when it has none. */
+	temperature: number | null;
+	humidity: number | null;
+	/** Whether it's responding. */
+	available: boolean;
+	/** What's wrong, if anything: "Wet", "Battery low". */
+	alarm: string | null;
+	/** What kind of thing it is: light, switch, door, scene, … */
+	kind: string;
+}
+
 export interface PluginElement extends HTMLElement {
 	host: Host;
 	/** On a `device.panel` element. */
@@ -190,6 +325,19 @@ export interface PluginElement extends HTMLElement {
 	form?: 'compact' | 'standard' | 'large';
 	/** On a `dashboard.card` element, and its settings element. */
 	config?: Record<string, unknown>;
+	/** On a `look.drawing` element. */
+	thing?: Thing;
+	/** On a `look.piece` header. */
+	room?: { id: string; name: string; things: Thing[] };
+	/** On a `look.piece` rest view. */
+	things?: Thing[];
+	/** On a `look.symbol` element: the symbol to draw. */
+	name?: string;
+}
+
+/** What a `device.card` element's class may say about a device. */
+export interface CardElementClass {
+	accepts?(device: Device): boolean;
 }
 
 /** What a `rule.step` element's class may offer the editor. */

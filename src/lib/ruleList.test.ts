@@ -1,3 +1,4 @@
+import { timeOf } from './when.js';
 import { describe, expect, test } from 'vitest';
 import { DEVICES, RULES } from './fixtures/rules.js';
 import {
@@ -74,8 +75,31 @@ describe('the list', () => {
 	});
 
 	test('chips count what the search leaves', () => {
-		expect(counts(rows, '')).toEqual({ all: 10, attention: 2, off: 2, families: 6 });
+		expect(counts(rows, '')).toEqual({ all: 10, attention: 2, off: 2, families: 6, alerts: 0 });
 		expect(counts(rows, 'pantry').attention).toBe(1);
+	});
+
+	test('started by alerts: its own chip, and a kept rule whose alert was deleted says so', () => {
+		const started = {
+			id: 'r-door',
+			name: 'Door',
+			enabled: true,
+			links: [],
+			other_triggers: 0,
+			waiting: false,
+			alert_deleted: false
+		};
+		const kept = {
+			...RULES[0]!,
+			id: 'r-kept',
+			enabled: false,
+			error: 'its alert was deleted — choose another trigger or delete it'
+		};
+		const list = rowsOf([...RULES, kept], h, {}, {}, { 'r-door': started });
+		expect(list.filter((r) => shows(r, '', 'alerts')).map((r) => r.rule.id)).toEqual(['r-door']);
+		expect(list.find((r) => r.rule.id === 'r-kept')!.trouble).toEqual([
+			'Its alert was deleted — choose another trigger or delete it'
+		]);
 	});
 
 	test('by tag, rooms first, a family in one place, untagged last', () => {
@@ -140,11 +164,10 @@ test('when it ran, as the list says it', () => {
 	const now = Date.parse('2026-10-16T15:00:00');
 	expect(whenText(new Date(now - 30_000).toISOString(), now)).toBe('just now');
 	expect(whenText(new Date(now - 12 * 60_000).toISOString(), now)).toBe('12 min ago');
-	expect(whenText(new Date(Date.parse('2026-10-16T08:49:00')).toISOString(), now)).toBe(
-		'today 08:49'
-	);
-	expect(whenText(new Date(Date.parse('2026-10-15T22:10:00')).toISOString(), now)).toBe(
-		'yesterday 22:10'
-	);
+	// In the person's own clock (lib/when.ts), never zero-padded.
+	const morning = new Date(Date.parse('2026-10-16T08:49:00'));
+	expect(whenText(morning.toISOString(), now)).toBe(`today ${timeOf(morning)}`);
+	const night = new Date(Date.parse('2026-10-15T22:10:00'));
+	expect(whenText(night.toISOString(), now)).toBe(`yesterday ${timeOf(night)}`);
 	expect(whenText(undefined, now)).toBe('');
 });

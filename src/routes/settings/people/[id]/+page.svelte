@@ -4,6 +4,7 @@
 	The house always keeps an admin.
 -->
 <script lang="ts">
+	import { fullDateOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { onReturn } from '#lib/refresh.js';
 	import { page } from '$app/state';
@@ -117,7 +118,7 @@
 				r.status === 404 || r.status === 405
 					? 'This homeCore can’t clear someone else’s PIN yet.'
 					: r.error);
-		pinNote = `Cleared. ${person.username} can choose another on Me.`;
+		pinNote = `Removed. ${person.username} can choose another on Me.`;
 		await load();
 	}
 
@@ -135,7 +136,7 @@
 	async function remove() {
 		if (!person) return;
 		const ok = await ask({
-			title: `Remove ${person.username}?`,
+			title: `Delete ${person.username}?`,
 			body: 'They can’t sign in any more. Rules, scenes and pages they made stay.',
 			lost: [
 				'Their own Home, phone bar and preferences',
@@ -143,7 +144,7 @@
 					? [`${theirs.length === 1 ? 'The key' : `The ${theirs.length} keys`} they made`]
 					: [])
 			],
-			go: 'Remove',
+			go: 'Delete',
 			danger: true
 		});
 		if (!ok) return;
@@ -166,13 +167,7 @@
 		<span class="face" aria-hidden="true">{initialOf(person.username)}</span>
 		<span class="whotext">
 			<strong>{person.username}{isMe ? ' (you)' : ''}</strong>
-			<span class="sub"
-				>Since {new Date(person.created_at).toLocaleDateString(undefined, {
-					day: 'numeric',
-					month: 'short',
-					year: 'numeric'
-				})}</span
-			>
+			<span class="sub">Since {fullDateOf(person.created_at)}</span>
 		</span>
 	</header>
 	{#if page.url.searchParams.get('added')}
@@ -240,10 +235,10 @@
 				>
 			{:else if person.has_pin}
 				<span class="sub"
-					>{person.username} has a PIN. If it’s forgotten, clear it here so they can choose another on
-					Me.</span
+					>{isMe ? 'You have a PIN' : `${person.username} has a PIN`}. If it’s forgotten, remove it
+					here so {isMe ? 'you' : 'they'} can choose another on Me.</span
 				>
-				<button class="plain" onclick={forgetPin}>Clear {isMe ? 'my' : 'their'} PIN</button>
+				<button class="plain" onclick={forgetPin}>Remove PIN</button>
 			{:else}
 				<span class="sub"
 					>No PIN. {isMe ? 'You set yours' : `${person.username} sets their own`} on Me.</span
@@ -278,7 +273,7 @@
 				{#if lastAdmin(people, person)}
 					<span class="sub">The house’s only admin can’t be removed.</span>
 				{:else}
-					<button class="plain bad" onclick={remove}>Remove…</button>
+					<button class="plain bad" onclick={remove}>Delete…</button>
 				{/if}
 				{#if removeNote}<p class="note bad" role="alert">{removeNote}</p>{/if}
 			</section>

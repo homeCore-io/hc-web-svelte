@@ -6,8 +6,18 @@
 	what a control asks for.
 
 	Only visible controls act (D2); tapping anywhere else on the card opens the
-	device's details (D3), in the address (N5).
+	device's details (D3), in the address (N5). A card set to (G24) works its
+	control from anywhere on it instead: then a small arrow, and the long-press
+	menu's "Open details", open its page — and the arrow is the named details
+	link for keyboards and screen readers.
 -->
+<script lang="ts" module>
+	import type { Component } from 'svelte';
+	// A thermostat's dial, loaded with the first thermostat's card and kept.
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	let thermoBody: Component<any> | undefined;
+</script>
+
 <script lang="ts">
 	import Play from '@lucide/svelte/icons/play';
 	import { session } from '#lib/me.svelte.js';
@@ -16,6 +26,7 @@
 	import SkipForward from '@lucide/svelte/icons/skip-forward';
 	import { cardFor, type Control, type Extra } from '#lib/card.js';
 	import { withPending } from '#lib/pending.js';
+	import { fromShown } from '#lib/units.js';
 	import { commands } from '#lib/commands.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import type { CoreDevice } from '#lib/devices.js';
@@ -27,6 +38,8 @@
 	import { alerts } from '#lib/alerts.svelte.js';
 	import Star from '@lucide/svelte/icons/star';
 	import EyeOff from '@lucide/svelte/icons/eye-off';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import ExternalLink from '@lucide/svelte/icons/square-arrow-out-up-right';
 	import Icon from './Icon.svelte';
 	import Art from './Art.svelte';
 	import Toggle from './Toggle.svelte';
@@ -36,13 +49,19 @@
 		device,
 		form = 'standard',
 		page: layerPage,
-		label
+		label,
+		options,
+		layer
 	}: {
 		device: CoreDevice;
 		form?: Form;
 		page?: string;
 		/** The name this page gives the card, if it was renamed there (M2). */
 		label?: string;
+		/** Its settings on this page (G23–G25). */
+		options?: Record<string, unknown>;
+		/** Where its own settings are kept, for what a card changes on itself (a thermostat's hold). */
+		layer?: { page: string; ref: string };
 	} = $props();
 
 	// Long-press (or right-click): the personalise shortcut — star or hide (N6).
@@ -63,7 +82,7 @@
 	const letGo = () => clearTimeout(hold);
 
 	const card = $derived(
-		withPending(cardFor(device, clock.now), commands.pending[device.device_id])
+		withPending(cardFor(device, clock.now, options), commands.pending[device.device_id])
 	);
 	const name = $derived(label ?? card.name);
 	// An alert homeCore raised for this device (H4) — a time rule's says why.
@@ -72,6 +91,14 @@
 		commands.notes[device.device_id] ?? (raised?.kind === 'rule' ? raised.reason : undefined)
 	);
 	const off = $derived(!card.available);
+	// A thermostat draws its dial (ThermostatBody), loaded with the first one.
+	const thermo = $derived(card.kind === 'thermostat' && !off);
+	// Loaded in the browser only, so a page drawn on the server picks it up.
+	let Thermo = $state(thermoBody);
+	$effect(() => {
+		if (!thermo || Thermo) return;
+		void import('./ThermostatBody.svelte').then((m) => (Thermo = thermoBody = m.default));
+	});
 	// Someone who may only look sees the card as it is, with nothing to press.
 	const locked = $derived(off || !session.mayUse);
 
@@ -117,6 +144,24 @@
 		}
 	}
 
+	// The whole card works its control (G24), where it has one and may be pressed.
+	const whole = $derived(!!card.tapControls && !locked && card.control !== null);
+	const wholeLabel = $derived.by(() => {
+		const c = card.control;
+		if (c?.kind === 'switch') return `Turn ${name} ${c.on ? 'off' : 'on'}`;
+		if (c?.kind === 'lock') return `${c.locked ? 'Unlock' : 'Lock'} ${name}`;
+		if (c?.kind === 'play') return `${c.playing ? 'Pause' : 'Play'} ${name}`;
+		return name;
+	});
+	async function actWhole() {
+		const c = card.control;
+		if (c?.kind === 'switch') {
+			if (await goAhead(device.device_id, card.kind, `Turn ${name} ${c.on ? 'off' : 'on'}?`))
+				set({ [c.attr]: !c.on });
+		} else if (c) await run(c);
+	}
+	const details = () => openDevice(device.device_id, page.url);
+
 	// A slider follows the finger, and sends once, when it is let go.
 	let dragging = $state<Record<string, number>>({});
 	function slide(e: Extra & { kind: 'slider' }, value: number) {
@@ -126,9 +171,24 @@
 		const rest = { ...dragging };
 		delete rest[e.attr];
 		dragging = rest;
-		set({ [e.attr]: value, ...(e.attr === 'brightness_pct' ? { on: true } : {}) });
+		// Shown in the person's unit, sent in the schema's: 70 °F as 21.111 °C.
+		const sent = e.from ? fromShown(value, e.from) : value;
+		set({ [e.attr]: sent, ...(e.attr === 'brightness_pct' ? { on: true } : {}) });
 	}
 </script>
+
+{#snippet open()}
+	<a
+		class="open"
+		href={deviceHref(device.device_id, page.url)}
+		aria-label={`${name} — details`}
+		onclick={(e) => {
+			if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+			e.preventDefault();
+			details();
+		}}><span><ChevronRight size={16} /></span></a
+	>
+{/snippet}
 
 {#snippet control(c: Control | null)}
 	{#if c?.kind === 'switch'}
@@ -170,34 +230,58 @@
 
 <article
 	class="card {form}"
+	class:thermo
 	class:lit={card.tone === 'on'}
 	class:alert={card.tone === 'alert' || raised !== undefined}
 	class:offline={off}
 	aria-label={name}
 >
-	<a
-		class="cover"
-		href={deviceHref(device.device_id, page.url)}
-		aria-label={`${name} — details`}
-		onclick={(e) => {
-			if (e.metaKey || e.ctrlKey || e.shiftKey) return;
-			e.preventDefault();
-			if (held) {
-				held = false;
-				return;
-			}
-			openDevice(device.device_id, page.url);
-		}}
-		onpointerdown={press}
-		onpointerup={letGo}
-		onpointerleave={letGo}
-		onpointercancel={letGo}
-		oncontextmenu={(e) => {
-			e.preventDefault();
-			letGo();
-			menu = true;
-		}}
-	></a>
+	{#if whole}
+		<button
+			class="cover"
+			aria-label={wholeLabel}
+			onclick={() => {
+				if (held) {
+					held = false;
+					return;
+				}
+				void actWhole();
+			}}
+			onpointerdown={press}
+			onpointerup={letGo}
+			onpointerleave={letGo}
+			onpointercancel={letGo}
+			oncontextmenu={(e) => {
+				e.preventDefault();
+				letGo();
+				menu = true;
+			}}
+		></button>
+	{:else}
+		<a
+			class="cover"
+			href={deviceHref(device.device_id, page.url)}
+			aria-label={`${name} — details`}
+			onclick={(e) => {
+				if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+				e.preventDefault();
+				if (held) {
+					held = false;
+					return;
+				}
+				details();
+			}}
+			onpointerdown={press}
+			onpointerup={letGo}
+			onpointerleave={letGo}
+			onpointercancel={letGo}
+			oncontextmenu={(e) => {
+				e.preventDefault();
+				letGo();
+				menu = true;
+			}}
+		></a>
+	{/if}
 	{#if menu}
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
@@ -207,6 +291,18 @@
 			tabindex="-1"
 			onkeydown={(e) => e.key === 'Escape' && (menu = false)}
 		>
+			{#if whole}
+				<button
+					role="menuitem"
+					onclick={() => {
+						menu = false;
+						details();
+					}}
+				>
+					<ExternalLink size={16} />
+					Open details
+				</button>
+			{/if}
 			<button
 				role="menuitem"
 				onclick={() => {
@@ -235,107 +331,125 @@
 			<button role="menuitem" class="cancel" onclick={() => (menu = false)}>Cancel</button>
 		</div>
 	{/if}
-	<div class="top">
-		<span class="icon" class:art={!!card.art}
-			><Art
-				src={card.art}
-				logo={card.artLogo}
-				icon={card.icon}
-				size={form === 'compact' ? 18 : 20}
-			/></span
-		>
-		{#if form === 'compact'}
-			<span class="text">
-				<span class="name">{name}</span>
-				<span class="state">{note ?? card.stateLine}</span>
-			</span>
-		{/if}
-		{#if card.channels.length === 0}{@render control(card.control)}{/if}
-	</div>
-
-	{#if form !== 'compact'}
-		<div class="text">
+	{#if thermo}
+		{#if Thermo}
+			<Thermo {device} {card} {form} {name} {locked} {options} {layer} />
+		{:else}
 			<span class="name">{name}</span>
-			<span class="state" class:note>
-				{#if card.waiting}<span class="working" aria-label="Waiting for the house"></span>{/if}
-				{note ?? card.stateLine}
-			</span>
+		{/if}
+	{:else}
+		<div class="top">
+			<span class="icon" class:art={!!card.art}
+				><Art
+					src={card.art}
+					logo={card.artLogo}
+					icon={card.icon}
+					size={form === 'compact' ? 18 : 20}
+				/></span
+			>
+			{#if form === 'compact'}
+				<span class="text">
+					<span class="name">{name}</span>
+					<span class="state">{note ?? card.stateLine}</span>
+				</span>
+				{#if whole}{@render open()}{/if}
+			{/if}
+			<!-- Offline: its last state is no longer true, so nothing to read or press. -->
+			{#if card.channels.length === 0 && !off}{@render control(card.control)}{/if}
 		</div>
-	{/if}
 
-	{#if card.channels.length > 0}
-		<ul class="channels">
-			{#each card.channels as ch (ch.attr)}
-				<li>
-					<span>{ch.label}</span>
-					<Toggle
-						on={ch.on}
-						label={`${name} ${ch.label}`}
-						disabled={locked}
-						onchange={(on) => set({ [ch.attr]: on })}
-					/>
-				</li>
-			{/each}
-		</ul>
-	{/if}
+		{#if form !== 'compact'}
+			<div class="textrow">
+				<div class="text">
+					<span class="name">{name}</span>
+					<span class="state" class:note>
+						{#if card.waiting}<span class="working" aria-label="Waiting for the house"></span>{/if}
+						{note ?? card.stateLine}
+					</span>
+					{#if card.last}<span class="last">{card.last}</span>{/if}
+				</div>
+				{#if whole}{@render open()}{/if}
+			</div>
+		{/if}
 
-	{#if form === 'large' && card.extras.length > 0}
-		<div class="extras">
-			{#each card.extras as e (e.kind + ('attr' in e ? e.attr : ''))}
-				{#if e.kind === 'slider'}
-					<label class="slider">
-						<span>{e.label}</span>
-						<input
-							type="range"
-							min={e.min}
-							max={e.max}
-							step={e.step}
-							value={dragging[e.attr] ?? e.value}
+		{#if card.channels.length > 0 && !off}
+			<ul class="channels">
+				{#each card.channels as ch (ch.attr)}
+					<li>
+						<span>{ch.label}</span>
+						<Toggle
+							on={ch.on}
+							label={`${name} ${ch.label}`}
 							disabled={locked}
-							oninput={(ev) => slide(e, Number(ev.currentTarget.value))}
-							onchange={(ev) => release(e, Number(ev.currentTarget.value))}
+							onchange={(on) => set({ [ch.attr]: on })}
 						/>
-						<span class="num"
-							>{Math.round(dragging[e.attr] ?? e.value)}{e.unit === '%' ? '%' : ''}</span
-						>
-					</label>
-				{:else if e.kind === 'steps'}
-					<div class="steps" role="radiogroup" aria-label={e.label}>
-						{#each e.options as o (o)}
-							<button
-								role="radio"
-								aria-checked={e.value === o}
+					</li>
+				{/each}
+			</ul>
+		{/if}
+
+		{#if form === 'large' && card.extras.length > 0}
+			<div class="extras">
+				{#each card.extras as e (e.kind + ('attr' in e ? e.attr : ''))}
+					{#if e.kind === 'slider'}
+						<label class="slider">
+							<span>{e.label}</span>
+							<input
+								type="range"
+								min={e.min}
+								max={e.max}
+								step={e.step}
+								value={dragging[e.attr] ?? e.value}
 								disabled={locked}
-								onclick={() => set({ [e.attr]: o })}>{o.replace(/[-_]/g, ' ')}</button
+								oninput={(ev) => slide(e, Number(ev.currentTarget.value))}
+								onchange={(ev) => release(e, Number(ev.currentTarget.value))}
+							/>
+							<span class="num"
+								>{Math.round(dragging[e.attr] ?? e.value)}{e.unit === '%'
+									? '%'
+									: e.unit?.startsWith('°')
+										? e.unit
+										: ''}</span
 							>
-						{/each}
-					</div>
-				{:else if e.kind === 'transport'}
-					<div class="transport">
-						{#if e.previous}
-							<button
-								class="round quiet"
-								aria-label="Previous"
-								disabled={locked}
-								onclick={() => commands.act(device.device_id, e.previous!)}
-								><SkipBack size={18} /></button
-							>
-						{/if}
-						{#if e.next}
-							<button
-								class="round quiet"
-								aria-label="Next"
-								disabled={locked}
-								onclick={() => commands.act(device.device_id, e.next!)}
-								><SkipForward size={18} /></button
-							>
-						{/if}
-					</div>
-				{:else}
-					<p class="reading"><span>{e.label}</span><span class="num">{e.value}</span></p>
-				{/if}
-			{/each}
-		</div>
+						</label>
+					{:else if e.kind === 'steps'}
+						<div class="steps" role="radiogroup" aria-label={e.label}>
+							{#each e.options as o (o)}
+								<button
+									role="radio"
+									aria-checked={e.value === o}
+									disabled={locked}
+									onclick={() => set({ [e.attr]: o })}>{o.replace(/[-_]/g, ' ')}</button
+								>
+							{/each}
+						</div>
+					{:else if e.kind === 'transport'}
+						<div class="transport">
+							{#if e.previous}
+								<button
+									class="round quiet"
+									aria-label="Previous"
+									disabled={locked}
+									onclick={() => commands.act(device.device_id, e.previous!)}
+									><SkipBack size={18} /></button
+								>
+							{/if}
+							{#if e.next}
+								<button
+									class="round quiet"
+									aria-label="Next"
+									disabled={locked}
+									onclick={() => commands.act(device.device_id, e.next!)}
+									><SkipForward size={18} /></button
+								>
+							{/if}
+						</div>
+					{:else}
+						<p class="reading"><span>{e.label}</span><span class="num">{e.value}</span></p>
+					{/if}
+				{/each}
+			</div>
+		{/if}
 	{/if}
 </article>
 
@@ -393,6 +507,47 @@
 		border-radius: var(--radius);
 		z-index: 1;
 	}
+	button.cover {
+		border: none;
+		background: none;
+		padding: 0;
+		cursor: pointer;
+	}
+	/* The whole card switches it (G24): its page opens from here. A 44px target
+	   beside its name, drawn smaller. */
+	.textrow {
+		display: flex;
+		align-items: flex-end;
+		justify-content: space-between;
+		gap: 6px;
+		min-width: 0;
+	}
+	.open {
+		position: relative;
+		z-index: 2;
+		flex: none;
+		margin: -10px -10px -10px 0;
+		width: 44px;
+		height: 44px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--ink-muted);
+	}
+	.open span {
+		width: 26px;
+		height: 26px;
+		border-radius: 13px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.last {
+		font-size: 12px;
+		color: var(--ink-muted);
+	}
 	.channels,
 	.extras {
 		position: relative;
@@ -405,6 +560,19 @@
 	}
 	.card.large {
 		grid-column: span 2;
+	}
+	/* A thermostat's dial needs room: in a grid its standard card takes two
+	   cells, and its large one three where the screen is wide enough to have
+	   them, so the dial sits beside its controls. */
+	:global(.grid) > .card.thermo.standard,
+	:global(.grid > .arrange:has(> .quiet > .card.thermo.standard)) {
+		grid-column: span 2;
+	}
+	@media (min-width: 1100px) {
+		:global(.grid) > .card.thermo.large,
+		:global(.grid > .arrange:has(> .quiet > .card.thermo.large)) {
+			grid-column: span 3;
+		}
 	}
 	.top {
 		display: flex;

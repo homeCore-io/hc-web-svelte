@@ -40,7 +40,12 @@
 
 	async function load() {
 		const [c, d] = await Promise.all([loadConfig(pluginId), loadDescriptor(pluginId)]);
-		if (!c.ok) return void (trouble = c.error);
+		if (!c.ok)
+			// homeCore reads an installed plugin's file itself; one that keeps its
+			// settings to itself can only say them while it runs.
+			return void (trouble = running
+				? c.error
+				: `${name} is turned off — turn it on to see its settings.`);
 		config = c.data;
 		// Its own descriptor; failing that, a form made from its schema.
 		let described = d.ok && d.data.descriptor?.sections?.length ? d.data.descriptor : null;

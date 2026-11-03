@@ -4,6 +4,7 @@
 	homeCore's own scopes. Adding a person; API keys; displays.
 -->
 <script lang="ts">
+	import { fullDateOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { onReturn } from '#lib/refresh.js';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -51,14 +52,9 @@
 
 	const said = $derived(people ? advice(people, roles) : null);
 	const liveKeys = $derived(keys ? keyGroups(keys, clock.now).live.length : null);
-	const since = (iso: string) =>
-		new Date(iso).toLocaleDateString(undefined, {
-			day: 'numeric',
-			month: 'short',
-			year: 'numeric'
-		});
+	const since = (iso: string) => fullDateOf(iso);
 	const pin = (p: Person) => (p.has_pin === undefined ? '' : p.has_pin ? 'PIN set' : 'No PIN');
-	const last = (p: Person) => (seen[p.id] ? `Last about ${daysAgo(seen[p.id]!)}` : '');
+	const last = (p: Person) => (seen[p.id] ? `Last seen ${daysAgo(seen[p.id]!)}` : '');
 	const href = (p: Person) => `/settings/people/${encodeURIComponent(p.id)}`;
 	const me = (p: Person) => p.id === session.me?.id;
 </script>
@@ -319,8 +315,10 @@
 		color: var(--ink);
 		font-weight: 700;
 	}
+	/* "no" (uses devices but not scenes) is a gap worth noticing, not an alarm. */
 	.cell.no {
-		color: var(--alert);
+		color: var(--ink);
+		font-weight: 600;
 	}
 	.plainlist {
 		list-style: none;

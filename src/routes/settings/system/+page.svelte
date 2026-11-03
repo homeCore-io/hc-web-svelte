@@ -4,6 +4,7 @@
 	versions, and restarting it.
 -->
 <script lang="ts">
+	import { dateOf, fullDateOf, momentOf, timeOf } from '#lib/when.js';
 	import { page } from '$app/state';
 	import { deviceHref } from '#lib/popup.js';
 	import { displayName, type CoreDevice } from '#lib/devices.js';
@@ -17,6 +18,8 @@
 	import { alerts } from '#lib/alerts.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
 	import { backupDue, daysAgo, size, uptime } from '#lib/settings.js';
+	import { houseDevices } from '#lib/inventory.js';
+	import { isRunning } from '#lib/plugins.js';
 	import { PRESETS, directiveOf, keptOf, readLevel, type Preset } from '#lib/system.js';
 	import { loadConfig } from '#lib/config.js';
 	import {
@@ -40,7 +43,8 @@
 	let versions = $state<Record<string, unknown>>({});
 	let level = $state<string | null>(null);
 	let levelMissing = $state(false);
-	let plugins = $state<{ running: number; all: number } | null>(null);
+	// Turned off on purpose isn't trouble: counted apart from the ones meant to run.
+	let plugins = $state<{ running: number; all: number; off: number } | null>(null);
 
 	let connections = $state<Connection[] | null>(null);
 	async function load() {
@@ -60,8 +64,9 @@
 		else levelMissing = true;
 		if (p.ok)
 			plugins = {
-				running: p.data.filter((x) => x.status === 'active').length,
-				all: p.data.length
+				running: p.data.filter(isRunning).length,
+				all: p.data.filter((x) => x.enabled).length,
+				off: p.data.filter((x) => !x.enabled).length
 			};
 	}
 	let updates = $state.raw<{ core?: Latest; app?: Latest }>({});
@@ -74,14 +79,32 @@
 		return () => clearInterval(every);
 	});
 
-	const deviceList = $derived(Object.values(devices.byId));
+	// Counted as the Devices page counts them, plugin scenes left out.
+	/** Connections grouped by who, where and which browser — a person's tabs, once. */
+	const sameAs = (list: Connection[]) => {
+		const by = new Map<
+			string,
+			{ key: string; user: string; where: string; browser: string; since: string; count: number }
+		>();
+		for (const c of list) {
+			const user = c.user.replace(/^api_key:/, '');
+			const where = c.endpoint === 'logs_stream' ? 'the log' : 'the house';
+			const browser = browserOf(c.user_agent);
+			const key = `${user}|${where}|${browser}`;
+			const g = by.get(key);
+			if (g) {
+				g.count++;
+				if (c.connected_at < g.since) g.since = c.connected_at;
+			} else by.set(key, { key, user, where, browser, since: c.connected_at, count: 1 });
+		}
+		return [...by.values()];
+	};
+	const deviceList = $derived(houseDevices(devices.byId));
 	const offline = $derived(deviceList.filter((d) => !d.available).length);
 	const since = (iso: string) => {
 		const d = new Date(iso);
 		const today = d.toDateString() === new Date(clock.now).toDateString();
-		return today
-			? `since ${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })} today`
-			: `since ${d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`;
+		return today ? `since ${timeOf(d)} today` : `since ${dateOf(d)}`;
 	};
 
 	interface Tile {
@@ -105,13 +128,16 @@
 				value: plugins
 					? `${plugins.running} of ${plugins.all} running`
 					: `${status.plugins_active} running`,
-				detail: plugins && plugins.running < plugins.all ? 'Some aren’t running' : 'All well',
+				detail:
+					plugins && plugins.running < plugins.all
+						? 'Some aren’t running'
+						: `All well${plugins?.off ? ` · ${plugins.off} turned off` : ''}`,
 				href: '/settings/plugins',
 				bad: !!plugins && plugins.running < plugins.all
 			},
 			{
 				label: 'Devices',
-				value: String(status.devices_total),
+				value: String(devices.loaded ? deviceList.length : status.devices_total),
 				detail: offline ? `${offline} offline` : 'none offline',
 				href: '/settings/devices'
 			},
@@ -125,7 +151,7 @@
 			{
 				label: 'Last backup',
 				value: status.last_backup_at ? daysAgo(status.last_backup_at, clock.now) : 'None recorded',
-				detail: due ? 'Back up now' : new Date(status.last_backup_at!).toLocaleDateString(),
+				detail: due ? 'Back up now' : fullDateOf(status.last_backup_at!),
 				href: '/settings/data',
 				bad: due
 			},
@@ -338,25 +364,24 @@
 		</section>
 
 		{#if connections}
-			<section class="card">
+			<section class="card connected">
 				<h2>Connected now</h2>
 				<p class="sub">
 					Screens following the house live — each tab of the app, each display — and anyone reading
 					the log.
 				</p>
 				{#if connections.length === 0}<p class="sub">Nobody.</p>{/if}
+				<!-- The same person, place and browser said once, with how many (#88). -->
 				<ul class="conns">
-					{#each connections as c (c.connection_id)}
+					{#each sameAs(connections) as g (g.key)}
 						<li>
-							<strong>{c.user.replace(/^api_key:/, '')}</strong>
+							<strong>{g.user}</strong>
 							<span class="sub"
-								>{c.endpoint === 'logs_stream' ? 'the log' : 'the house'} · {browserOf(
-									c.user_agent
-								)} · since {new Date(c.connected_at).toLocaleString(undefined, {
-									weekday: 'short',
-									hour: '2-digit',
-									minute: '2-digit'
-								})}</span
+								>{g.where} · {g.browser}{g.count > 1 ? ` × ${g.count}` : ''} · since {momentOf(
+									g.since,
+									Date.now(),
+									true
+								)}</span
 							>
 						</li>
 					{/each}
@@ -636,6 +661,14 @@
 		margin: 0;
 		color: var(--ink-muted);
 		font-size: 13px;
+	}
+	/* Sized as the other cards' headings, without the browser's margins (#88). */
+	.connected h2 {
+		margin: 0;
+		font-size: 16px;
+	}
+	.connected > p {
+		margin: 0;
 	}
 	.conns {
 		list-style: none;

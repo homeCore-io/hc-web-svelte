@@ -9,6 +9,7 @@
 	are matched in what's loaded.
 -->
 <script lang="ts">
+	import { fullDateOf, momentOf } from '#lib/when.js';
 	import { onMount, untrack } from 'svelte';
 	import { onReturn } from '#lib/refresh.js';
 	import { page } from '$app/state';
@@ -121,19 +122,13 @@
 		entries.some((e) => /^(automation|device|area|scene|helper|mode|plugin)\./.test(e.event_type))
 	);
 	function when(r: { first: AuditEntry; all: AuditEntry[] }): string {
-		const fmt = (ts: string) => {
-			const d = new Date(ts);
-			const today = d.toDateString() === new Date(clock.now).toDateString();
-			const time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-			return today
-				? `Today, ${time}`
-				: `${d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}, ${time}`;
-		};
+		const fmt = (ts: string) => momentOf(ts, clock.now);
 		if (r.all.length === 1) return fmt(r.first.ts);
 		const first = new Date(r.all[r.all.length - 1]!.ts);
 		const last = new Date(r.first.ts);
-		const t = (d: Date) => d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-		return `${fmt(r.first.ts).split(',')[0]}, ${t(first)}–${t(last)}`;
+		// "8:45 – 8:46 PM": the locale's own range, said once and short.
+		const range = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
+		return `${fmt(r.first.ts).split(',')[0]}, ${range.formatRange(first, last)}`;
 	}
 	function detailOf(a: AuditEntry): string[] {
 		const out = [`${a.event_type} · ${a.result}`];
@@ -243,9 +238,9 @@
 			{#if more}
 				{#if query.trim() || what === 'changes' || what === 'signins' || who.startsWith('as:')}
 					<p class="quiet">
-						Matched in the {entries.length} loaded, back to {new Date(
+						Matched in the {entries.length} loaded, back to {fullDateOf(
 							entries[entries.length - 1]!.ts
-						).toLocaleDateString()} — older ones may match too.
+						)} — older ones may match too.
 					</p>
 				{/if}
 				<button class="plain" onclick={() => load(true)} disabled={busy}

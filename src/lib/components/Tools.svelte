@@ -3,9 +3,10 @@
 	meanwhile (`Arrange`) so nothing can be switched by accident.
 
 	In Customise, for this person: star for Home's favourites, hide or show,
-	move up or down, and — for device cards — their form (C1).
-	In Edit, for the household: the same, without the star, plus rename and,
-	for a card that was added, take it off the page.
+	move up or down, and their form (C1) — for a device card, in its settings.
+	In Edit, for the household: the same, without the star, plus rename.
+	In either, a card this layer added can be taken off the page (G18), and a
+	card can be moved into another section that takes cards (G22).
 -->
 <script lang="ts">
 	import Star from '@lucide/svelte/icons/star';
@@ -16,6 +17,7 @@
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import X from '@lucide/svelte/icons/x';
 	import Settings from '@lucide/svelte/icons/settings-2';
+	import FolderInput from '@lucide/svelte/icons/folder-input';
 	import { apply, cardRef } from '#lib/layers.js';
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
 	import CardSettings from './CardSettings.svelte';
@@ -33,7 +35,9 @@
 		form,
 		list = 'page',
 		added = false,
-		renamed = false
+		renamed = false,
+		settings,
+		moveTo = []
 	}: {
 		page: string;
 		ref: string;
@@ -50,7 +54,18 @@
 		added?: boolean;
 		/** Whether `name` is a label given on this page. */
 		renamed?: boolean;
+		/** Opens its kind's settings sheet (G2). */
+		settings?: () => void;
+		/** The other sections it can be moved into, as headed on the page (G22). */
+		moveTo?: { id: string; title: string }[];
 	} = $props();
+
+	let moving = $state(false);
+	/** Into another section, at its end; up and down place it from there. */
+	function moveInto(id: string) {
+		moving = false;
+		view.change(page, { op: 'move', ref, before: null, into: id });
+	}
 
 	const shared = $derived(view.mode(page) === 'edit');
 	const fav = $derived(personal.isFavourite(ref));
@@ -130,7 +145,7 @@
 				<Star size={18} fill={fav ? 'currentColor' : 'none'} />
 			</button>
 		{/if}
-		{#if added && shared}
+		{#if added && view.addedHere(page, ref)}
 			<button
 				aria-label={`Take ${name} off this page`}
 				onclick={() => view.change(page, { op: 'remove', ref })}><X size={18} /></button
@@ -157,12 +172,22 @@
 			<button aria-label={`Move ${name} down`} disabled={!down} onclick={() => move(1)}
 				><ArrowDown size={18} /></button
 			>
-			{#if card?.slot.settings}
+			{#if moveTo.length > 0}
+				<button
+					aria-label={`Move ${name} to another section`}
+					aria-expanded={moving}
+					onclick={() => (moving = !moving)}><FolderInput size={18} /></button
+				>
+			{/if}
+			{#if settings}
+				<button aria-label={`${name}: settings`} onclick={settings}><Settings size={18} /></button>
+			{:else if card?.slot.settings}
 				<button aria-label={`${name}: settings`} onclick={() => (setting = true)}
 					><Settings size={18} /></button
 				>
 			{/if}
-			{#if form && FORMS.length > 1}
+			<!-- A device card's size is in its settings sheet (G23). -->
+			{#if form && FORMS.length > 1 && !settings}
 				<span class="forms" role="radiogroup" aria-label={`${name} size`}>
 					{#each FORMS as [f, letter] (f)}
 						<button
@@ -174,6 +199,14 @@
 					{/each}
 				</span>
 			{/if}
+		{/if}
+		{#if moving && !hidden}
+			<div class="move-to" role="group" aria-label={`Move ${name} to`}>
+				<span class="move-label">Move to</span>
+				{#each moveTo as s (s.id)}
+					<button class="text-plain" onclick={() => moveInto(s.id)}>{s.title}</button>
+				{/each}
+			</div>
 		{/if}
 	</div>
 {/if}
@@ -206,7 +239,7 @@
 	}
 	button {
 		min-width: 34px;
-		height: 34px;
+		height: 40px;
 		border: none;
 		border-radius: 9px;
 		background: none;
@@ -216,6 +249,14 @@
 		font-size: 13px;
 		font-weight: 700;
 		color: var(--ink);
+	}
+	/* The icons share the row: 40px each where there's room, narrower on a
+	   half-width card on a phone, so star to Move to stays one tidy row. */
+	.tools > button {
+		/* A small basis, so they fit a row before it wraps; then up to 40px. */
+		flex: 1 1 28px;
+		min-width: 28px;
+		max-width: 40px;
 	}
 	button:disabled {
 		opacity: 0.3;
@@ -230,6 +271,28 @@
 	.forms button[aria-checked='true'] {
 		background: var(--accent);
 		color: var(--accent-ink);
+	}
+	.move-to {
+		flex-basis: 100%;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 4px;
+		padding: 4px 2px 2px;
+		border-top: 1px solid var(--line);
+	}
+	.move-label {
+		font-size: 12px;
+		color: var(--ink-muted);
+		padding: 0 6px;
+	}
+	.text-plain {
+		padding: 0 12px;
+		height: 40px;
+		border: 1px solid var(--line);
+		border-radius: 999px;
+		background: var(--surface);
+		font-weight: 600;
 	}
 	.naming {
 		flex-wrap: nowrap;

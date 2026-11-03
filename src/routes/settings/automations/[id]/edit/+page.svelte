@@ -53,7 +53,8 @@
 	});
 
 	$effect(() =>
-		heading.show(draft?.name ? `Change “${draft.name}”` : 'Change a rule', {
+		// The back link already names the rule; saying it again wraps a phone's title (#58).
+		heading.show('Change automation', {
 			href: back,
 			label: saved?.name ?? 'Automation'
 		})

@@ -4,7 +4,8 @@
 	its log; its devices; how much it logs; turning it off or removing it.
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { timeOf } from '#lib/when.js';
+	import { onMount, untrack } from 'svelte';
 	import { core } from '#lib/core.svelte.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -17,7 +18,7 @@
 	import { ask } from '#lib/confirm.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
 	import { displayName } from '#lib/devices.js';
-	import { ago, kindOf } from '#lib/card.js';
+	import { ago, cap, kindOf } from '#lib/card.js';
 	import { kindLabel, knownPluginName, pluginLabel } from '#lib/inventory.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { roomOf } from '#lib/summary.js';
@@ -69,6 +70,29 @@
 	let failed = $state<string | null>(null);
 	let reg = $state<RegistryPlugin | undefined>(undefined);
 	let note = $state<string | null>(null);
+	// A note about a change on its way ("…is restarting") goes once it has
+	// happened, instead of staying up while the status underneath moves on.
+	// "Running" here means running again: a new start, or the new version —
+	// the old process can still read as active for a moment.
+	let until = $state<{ want: 'running' | 'stopped'; since?: string; version?: string } | null>(
+		null
+	);
+	$effect(() => {
+		if (!until || !plugin) return;
+		const running = plugin.enabled && plugin.status === 'active';
+		const again =
+			running &&
+			(until.version ? versionOf(plugin) === until.version : plugin.uptime_started !== until.since);
+		if (until.want === 'running' ? again : !running) {
+			note = null;
+			until = null;
+		}
+	});
+	const expect = (want: 'running' | 'stopped', version?: string) => {
+		until = { want, since: plugin?.uptime_started, version };
+		// While it changes, look again often — events can be missed on a reconnect.
+		for (const ms of [1500, 4000, 8000, 15000]) setTimeout(load, ms);
+	};
 	let busy = $state(false);
 
 	async function load() {
@@ -114,6 +138,9 @@
 		plugin?.capabilities?.actions?.filter((a) => a.requires_role !== 'admin' || session.isAdmin) ??
 			[]
 	);
+	// One count everywhere on the page — the one its Devices tab shows.
+	const its = (n: number, one: string, many: string) =>
+		n === 1 ? `its device ${one}` : `its ${n} devices ${many}`;
 	const mine = $derived(
 		Object.values(devices.byId)
 			.filter((d) => d.plugin_id === id)
@@ -128,6 +155,29 @@
 	let pageFailed = $state(false);
 	const ownPanel = $derived(!!page_ && !pageFailed);
 
+	// Just installed (Plugins › Add, `?new`): start where it needs you. One
+	// with its own page (a sign-in, say) opens on it; any other on its
+	// settings, which most need filled in first. Which it is shows only once
+	// it has started and said, so wait for that, a few seconds at most.
+	let settled = $state(untrack(() => !page.url.searchParams.has('new')));
+	function settle(t: 'overview' | 'settings') {
+		settled = true;
+		const u = new URL(page.url.href);
+		u.searchParams.delete('new');
+		if (t === 'settings') u.searchParams.set('tab', t);
+		void goto(`${u.pathname}${u.search}`, { replace: true, reset: false });
+	}
+	$effect(() => {
+		if (settled) return;
+		if (page_) return settle('overview');
+		// Turned off, it won't start: nothing to wait for.
+		if (plugin && !plugin.enabled) return settle('settings');
+		// Started and its screens listed: a moment more for them to arrive.
+		const up = plugin?.status === 'active' && pluginUis.loaded;
+		const t = setTimeout(() => settle('settings'), up ? 2000 : 8000);
+		return () => clearTimeout(t);
+	});
+
 	// ---- running ----
 	async function act(what: 'start' | 'stop' | 'restart') {
 		busy = true;
@@ -140,14 +190,15 @@
 					? `${name} is stopping.`
 					: `${name} is starting.`
 			: r.error;
-		setTimeout(load, 1500);
+		if (r.ok) expect(what === 'stop' ? 'stopped' : 'running');
+		else setTimeout(load, 1500);
 	}
 
 	async function doUpdate() {
 		if (!update) return;
 		const yes = await ask({
 			title: `Update ${name} to ${update}?`,
-			body: `Downloads it from the registry (${sizeOf(reg!, update) ?? 'signed'}), checks its signature, and restarts ${name}. Its settings stay; its ${plugin?.device_count ?? 0} devices are back within moments.`,
+			body: `Downloads it from the registry (${sizeOf(reg!, update) ?? 'signed'}), checks its signature, and restarts ${name}. Its settings stay${mine.length ? `; ${its(mine.length, 'is', 'are')} back within moments` : ''}.`,
 			go: 'Update'
 		});
 		if (!yes) return;
@@ -161,6 +212,7 @@
 			: wasPlaced(r.data)
 				? `${name} ${r.data.version} is going to ${runsOn?.name ?? r.data.placed_on}, which updates it the next time it checks in.`
 				: `${name} ${r.data.version} is installed${r.data.activated ? ' and starting' : ' (it’s turned off, so it isn’t running)'}.`;
+		if (r.ok && !wasPlaced(r.data) && r.data.activated) expect('running', r.data.version);
 		await load();
 	}
 
@@ -170,9 +222,11 @@
 			const yes = await ask({
 				title: `Turn ${name} off?`,
 				body: `It stops, and stays off when homeCore restarts. Its settings are kept.`,
-				lost: [
-					`Its ${plugin?.device_count ?? 0} devices stop reporting and can’t be controlled until it’s back on.`
-				],
+				lost: mine.length
+					? [
+							`${cap(its(mine.length, 'stops', 'stop'))} reporting and can’t be controlled until it’s back on.`
+						]
+					: [],
 				go: 'Turn off'
 			});
 			if (!yes) return;
@@ -183,17 +237,22 @@
 		if (!r.ok) return void (note = r.error);
 		plugin = r.data;
 		note = on ? `${name} is on and starting.` : `${name} is off.`;
+		if (on) expect('running');
 	}
 
 	async function remove() {
 		const yes = await ask({
-			title: `Remove ${name}?`,
-			body: 'It’s stopped and its program removed. You can add it again from the registry.',
+			title: `Uninstall ${name}?`,
+			body: 'It’s stopped and its program deleted. You can add it again from the registry.',
 			lost: [
-				`Its ${mine.length} devices go, with their names and rooms; rules that use them are turned off.`,
+				...(mine.length
+					? [
+							`${cap(its(mine.length, 'goes', 'go'))}, with names and rooms; rules that use them are turned off.`
+						]
+					: []),
 				'You choose next whether its settings go too.'
 			],
-			go: 'Remove',
+			go: 'Uninstall',
 			danger: true,
 			typed: mine.length > 5 ? name.toLowerCase() : undefined
 		});
@@ -215,12 +274,12 @@
 
 	async function clearDevices() {
 		const yes = await ask({
-			title: `Remove ${name}’s ${mine.length} devices?`,
+			title: `Delete ${name}’s ${mine.length === 1 ? 'device' : `${mine.length} devices`}?`,
 			body: `${name} keeps running; any it still reports come back as new.`,
 			lost: ['Their names and rooms in homeCore.', 'Rules that use them are turned off.'],
-			go: 'Remove them',
+			go: 'Delete them',
 			danger: true,
-			typed: mine.length > 5 ? 'remove' : undefined
+			typed: mine.length > 5 ? 'delete' : undefined
 		});
 		if (!yes) return;
 		const r = await removeDevices(id);
@@ -262,13 +321,7 @@
 		const t = setInterval(readLog, 5000);
 		return () => clearInterval(t);
 	});
-	const time = (iso: string) =>
-		new Date(iso).toLocaleTimeString([], {
-			hour: '2-digit',
-			minute: '2-digit',
-			second: '2-digit',
-			hour12: false
-		});
+	const time = (iso: string) => timeOf(iso, true);
 	// Someone who may read plugins but not change them (plugins:read) sees how
 	// each is and what it has, and nothing to press; its log is admins' (logs).
 	const canWrite = $derived(session.isAdmin || session.can('plugins:write'));
@@ -330,9 +383,19 @@
 		</header>
 
 		{#if note}<p class="note" role="status">{note}</p>{/if}
+		{#if page_ && pageFailed}
+			<!-- Never a silent swap: this generic page stands in only when its own didn't load. -->
+			<p class="note" role="alert">
+				{name}’s own page didn’t load, so this is the general one.
+				<button type="button" class="reload" onclick={() => location.reload()}>Reload</button>
+			</p>
+		{/if}
 
 		{#if tab === 'settings' && canWrite}
-			<PluginSettings pluginId={id} {name} running={plugin.enabled} />
+			<!-- Read again when it restarts: a new version can bring a new form. -->
+			{#key plugin.uptime_started}
+				<PluginSettings pluginId={id} {name} running={plugin.enabled} />
+			{/key}
 		{:else if tab === 'logs' && session.isAdmin}
 			<section class="logs">
 				<label class="lvl">
@@ -379,8 +442,9 @@
 							</li>
 						{/each}
 					</ul>
-					<button type="button" class="plain danger" onclick={clearDevices}
-						>Remove all its devices…</button
+					<!-- Its own size, at the end — not a full-width red bar over the list (#113). -->
+					<button type="button" class="plain danger end" onclick={clearDevices}
+						>Delete all its devices…</button
 					>
 				{/if}
 			</section>
@@ -397,8 +461,7 @@
 			{#each plugin.notices ?? [] as n (n.code)}
 				<div class="banner {n.level === 'error' ? 'bad' : n.level === 'warning' ? 'lit' : 'info'}">
 					<span
-						><strong>{n.message}</strong>{#if n.remedy}
-							{n.remedy}{/if}</span
+						><strong>{n.message}</strong>{#if n.remedy}{' '}{n.remedy}{/if}</span
 					>
 				</div>
 			{/each}
@@ -412,7 +475,10 @@
 				/>
 			{/if}
 
-			{#if actions.length && canWrite && !ownPanel}
+			{#if !settled}
+				<!-- Just installed: its own page or its settings follow once it has started. -->
+				<p class="quiet">Starting {name}…</p>
+			{:else if actions.length && canWrite && !ownPanel}
 				<section class="actions">
 					<h2>Actions</h2>
 					{#each actions as a (a.id)}
@@ -456,7 +522,7 @@
 						{#if runsOn}<a href="/settings/plugins/runtimes">{runsOn.name}</a>, a plugin runtime{:else}homeCore{/if}
 					</dd>
 					<dt>Devices</dt>
-					<dd>{plugin.device_count}</dd>
+					<dd>{mine.length}</dd>
 					<dt>Last heard</dt>
 					<dd>
 						{plugin.last_heartbeat
@@ -476,6 +542,10 @@
 						disabled={!running || !canWrite}
 					>
 						{#if level === ''}<option value="">As its settings say</option>{/if}
+						<!-- A finer rule ("hc_sonos=debug,info") is shown as it is, not as a blank box. -->
+						{#if level !== '' && !(LEVELS as readonly string[]).includes(level)}<option
+								value={level}>Custom — {level}</option
+							>{/if}
 						{#each LEVELS as l (l)}<option value={l}>{l}</option>{/each}
 					</select>
 					<span class="quiet"
@@ -488,10 +558,12 @@
 
 			{#if canWrite}
 				<section class="card danger-zone">
-					<h2>Turn off or remove</h2>
+					<h2>{plugin.enabled ? 'Turn off or uninstall' : 'Uninstall'}</h2>
 					<p class="quiet">
-						Turning it off keeps its settings and stays off through restarts; its {plugin.device_count}
-						devices go quiet. Removing it takes its program and its devices — rules that use them are
+						{#if plugin.enabled}Turning it off keeps its settings and stays off through restarts{mine.length
+								? `; ${its(mine.length, 'goes', 'go')} quiet`
+								: ''}.
+						{/if}{' '}Uninstalling it deletes its program and its devices — rules that use them are
 						turned off.
 					</p>
 					<div class="buttons">
@@ -502,7 +574,7 @@
 								onclick={() => turn(false)}>Turn off</button
 							>{/if}
 						<button type="button" class="plain danger" disabled={busy} onclick={remove}
-							>Remove…</button
+							>Uninstall…</button
 						>
 					</div>
 				</section>
@@ -794,5 +866,17 @@
 		margin: 0;
 		color: var(--ink-muted);
 		font-size: 13px;
+	}
+	.reload {
+		padding: 0;
+		border: none;
+		background: none;
+		color: var(--accent);
+		font: inherit;
+		font-weight: 600;
+	}
+	.end {
+		align-self: flex-start;
+		margin-top: var(--space-2);
 	}
 </style>

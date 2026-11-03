@@ -4,9 +4,12 @@
 
 	With `act`, each can be marked seen (it stays, dimmed, until it clears)
 	or ignored — just this, every one like it, or the whole device; for good
-	or a while (homeCore 0.1.81).
+	or a while (homeCore 0.1.81) — and "Do something…" makes an automation
+	that starts when it (or one like it) happens. What each already starts is
+	said under it.
 -->
 <script lang="ts">
+	import { pluginLabel } from '#lib/inventory.js';
 	import { page } from '$app/state';
 	import { KIND_WORDS, ignoreFor, type Alert, type IgnoreScope } from '#lib/alerts.js';
 	import { acknowledgeAlert, ignoreAlerts } from '#lib/admin.js';
@@ -21,6 +24,20 @@
 	import Icon from './Icon.svelte';
 	import { alertKinds } from '#lib/alertKinds.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
+	import { onMount } from 'svelte';
+	import { alertLinks } from '#lib/alertLinks.svelte.js';
+	import { houseNames } from '#lib/alertNames.svelte.js';
+	import { alertRules } from '#lib/admin.js';
+	import {
+		placeOf,
+		scopesForAlert,
+		startedBy,
+		startsText,
+		tieOf,
+		type Scope
+	} from '#lib/alertStarts.js';
+	import type { AlertRule } from '#lib/alerts.js';
+	import DoSomething from './DoSomething.svelte';
 
 	let { list, act = false }: { list: Alert[]; act?: boolean } = $props();
 
@@ -32,12 +49,32 @@
 		return d ? displayName(d) : a.device_id;
 	};
 
+	// ---- what each starts, and "Do something…" ----
+	const canDo = $derived(act && alertLinks.known && session.can('automations:write'));
+	onMount(() => {
+		if (act) alertKinds.ensure();
+		if (act && session.can('automations:read')) void alertLinks.load();
+	});
+	let rulesOfAlerts = $state<AlertRule[]>([]);
+	let doing = $state<{ a: Alert; scopes: Scope[] } | null>(null);
+	async function doSomething(a: Alert) {
+		if (a.kind === 'rule') rulesOfAlerts = (await alertRules()) ?? [];
+		doing = { a, scopes: scopesForAlert(a, houseNames(rulesOfAlerts)) };
+	}
+
 	let note = $state<string | null>(null);
 	async function seen(a: Alert) {
 		note = await acknowledgeAlert(a.id);
 	}
 
 	// ---- ignoring: one alert's choices open at a time ----
+	// The quieter choices — skip, stop these, ignore — wait behind "⋯".
+	let menu = $state<string | null>(null);
+	const pick = (f: () => unknown) => {
+		menu = null;
+		void f();
+	};
+
 	let ignoring = $state<string | null>(null);
 	let scope = $state<IgnoreScope>('this');
 	let span = $state('');
@@ -79,7 +116,8 @@
 
 	const where = (a: Alert) => {
 		const d = devices.byId[a.device_id];
-		return d ? (roomOf(d, rooms.list)?.name ?? 'Not in a room') : '';
+		// Its room; with none, where it comes from — never "Not in a room" on every alert.
+		return d ? (roomOf(d, rooms.list)?.name ?? (d.plugin_id ? pluginLabel(d.plugin_id) : '')) : '';
 	};
 	function since(at: string): string {
 		const mins = Math.max(0, Math.round((clock.now - Date.parse(at)) / 60_000));
@@ -145,7 +183,21 @@
 	}
 </script>
 
+<svelte:window
+	onclick={(e) => {
+		if (menu && !(e.target as Element).closest?.('.more')) menu = null;
+	}}
+/>
 {#if note}<p class="note" role="alert">{note}</p>{/if}
+{#if doing}
+	<DoSomething
+		title={doing.a.message}
+		scopes={doing.scopes}
+		tie={tieOf(doing.a.kind)}
+		href={placeOf(doing.a)}
+		onclose={() => (doing = null)}
+	/>
+{/if}
 <ul>
 	{#each list as a (a.id)}
 		<li
@@ -172,24 +224,71 @@
 				</span>
 				<span class="since">{since(a.raised_at)}</span>
 			</a>
-			{#if canSee || canIgnore}
+			{#if canSee || canIgnore || canDo}
 				<div class="acts">
+					{#if act && alertLinks.known}
+						{@const starts = startedBy(a, alertLinks.list)}
+						{#if starts.length}
+							<a
+								class="starts"
+								href={starts.length === 1
+									? `/settings/automations/${encodeURIComponent(starts[0]!.id)}`
+									: '/settings/automations?show=alerts'}>{startsText(starts)}</a
+							>
+						{/if}
+					{/if}
+					{#if canDo}
+						<button type="button" class="do" onclick={() => doSomething(a)}>Do something…</button>
+					{/if}
 					{#if a.action && canSee}
 						<button type="button" class="go" onclick={() => press(a)}>{a.action.label}</button>
 					{/if}
-					{#if a.kind === 'plugin' && a.key && canIgnore}
-						<button type="button" onclick={() => skip(a)}>Skip this one</button>
-					{/if}
-					{#if a.kind === 'plugin' && a.topic && canIgnore && session.can('automations:write')}
-						<button type="button" onclick={() => quiet(a)}>Don’t tell me about these</button>
-					{/if}
 					{#if canSee && !a.acknowledged}
-						<button type="button" onclick={() => seen(a)}>Seen</button>
+						<button type="button" class="seen-wide" onclick={() => seen(a)}>Seen</button>
 					{/if}
-					{#if canIgnore}
-						<button type="button" aria-expanded={ignoring === a.id} onclick={() => open(a)}
-							>Ignore…</button
-						>
+					{#if (canSee && !a.acknowledged) || canIgnore}
+						<span class="more">
+							<button
+								type="button"
+								class="dots"
+								aria-label={`More for ${a.message}`}
+								aria-expanded={menu === a.id}
+								onclick={() => (menu = menu === a.id ? null : a.id)}>⋯</button
+							>
+							{#if menu === a.id}
+								<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+								<div
+									class="menu"
+									role="menu"
+									tabindex="-1"
+									onkeydown={(e) => e.key === 'Escape' && (menu = null)}
+								>
+									{#if canSee && !a.acknowledged}
+										<button
+											type="button"
+											role="menuitem"
+											class="seen-narrow"
+											onclick={() => pick(() => seen(a))}>Seen</button
+										>
+									{/if}
+									{#if a.kind === 'plugin' && a.key && canIgnore}
+										<button type="button" role="menuitem" onclick={() => pick(() => skip(a))}
+											>Skip this one</button
+										>
+									{/if}
+									{#if a.kind === 'plugin' && a.topic && canIgnore && session.can('automations:write')}
+										<button type="button" role="menuitem" onclick={() => pick(() => quiet(a))}
+											>Don’t tell me about these</button
+										>
+									{/if}
+									{#if canIgnore}
+										<button type="button" role="menuitem" onclick={() => pick(() => open(a))}
+											>Ignore…</button
+										>
+									{/if}
+								</div>
+							{/if}
+						</span>
 					{/if}
 				</div>
 				{#if ignoring === a.id}
@@ -236,30 +335,99 @@
 		flex-direction: column;
 		gap: 6px;
 	}
-	a {
+	/* One card per alert: what it is, then what can be done, inside it. */
+	li {
+		display: flex;
+		flex-direction: column;
+		border-radius: var(--radius);
+		background: var(--surface);
+		border: 1px solid var(--card-line);
+		container-type: inline-size;
+	}
+	li > a {
 		display: flex;
 		align-items: center;
 		gap: 12px;
 		min-height: 60px;
 		padding: 8px 14px 8px 10px;
 		border-radius: var(--radius);
-		background: var(--surface);
-		border: 1px solid var(--card-line);
 		text-decoration: none;
 		color: var(--ink);
 	}
-	li {
-		display: flex;
-		flex-direction: column;
-		gap: 4px;
-	}
-	.seen a {
+	.seen > a {
 		opacity: 0.6;
 	}
 	.acts {
 		display: flex;
-		justify-content: flex-end;
+		align-items: center;
 		gap: 6px;
+		padding: 8px 10px;
+		border-top: 1px solid var(--card-line);
+	}
+	.acts > :first-child:not(.starts) {
+		margin-left: auto;
+	}
+	.more {
+		position: relative;
+	}
+	.acts .dots {
+		width: 34px;
+		padding: 0;
+		font-size: 16px;
+		line-height: 1;
+	}
+	.menu {
+		position: absolute;
+		right: 0;
+		top: calc(100% + 4px);
+		z-index: 5;
+		display: flex;
+		flex-direction: column;
+		min-width: 220px;
+		padding: 4px;
+		border-radius: 12px;
+		background: var(--surface);
+		border: 1px solid var(--line);
+		box-shadow: 0 6px 20px rgb(0 0 0 / 0.12);
+	}
+	.acts .menu button {
+		height: 36px;
+		border: none;
+		border-radius: 8px;
+		text-align: left;
+		background: none;
+		font-weight: 500;
+	}
+	.acts .menu button:hover {
+		background: var(--surface-2);
+	}
+	.seen-narrow {
+		display: none;
+	}
+	/* On a phone, Seen goes behind "⋯" too, so the row never wraps. */
+	@container (max-width: 480px) {
+		.acts .seen-wide {
+			display: none;
+		}
+		.acts .menu .seen-narrow {
+			display: block;
+		}
+	}
+	.acts .starts {
+		display: inline;
+		margin-right: auto;
+		min-height: 0;
+		padding: 0 0 0 4px;
+		border: none;
+		border-radius: 0;
+		background: none;
+		font-size: 13px;
+		color: var(--accent);
+	}
+	.acts .do {
+		border-color: color-mix(in srgb, var(--lit-ink) 40%, transparent);
+		background: var(--lit-bg);
+		color: var(--lit-ink);
 	}
 	.acts button,
 	.ignore button {
@@ -283,9 +451,7 @@
 		flex-direction: column;
 		gap: var(--space-2);
 		padding: var(--space-3);
-		border-radius: var(--radius);
-		background: var(--surface);
-		border: 1px solid var(--card-line);
+		border-top: 1px solid var(--card-line);
 	}
 	.ignore fieldset {
 		margin: 0;
@@ -326,7 +492,7 @@
 		color: var(--alert);
 		font-weight: 600;
 	}
-	.critical a {
+	.critical {
 		background: var(--alert-bg);
 		border-color: var(--alert-line);
 	}
@@ -372,7 +538,7 @@
 		color: var(--ink-muted);
 	}
 	.since {
-		font-family: var(--font-num);
+		font-variant-numeric: tabular-nums;
 		font-size: 12px;
 		flex: none;
 	}

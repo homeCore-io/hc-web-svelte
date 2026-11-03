@@ -112,10 +112,35 @@ everything).
 | **Keypad** | Last button pressed | — | Its buttons | Buttons (press, LEDs), button names |
 | **Pico remote** | Last button pressed | — (it can't be pressed remotely) | — | Button history |
 | **Gateway / bridge** | Online / Offline | — | — | Its actions (refresh, pair), devices behind it |
+| **Thermostat** | 72°F · heating to 75° | A dial with − and + (see below) | Schedule, how long − and + hold, its modes | Every reading, its actions, history |
 
 **Alarming states are emphasised** on the card itself — wet, open at night,
 motion where none is expected, offline — in the design system's alert colour,
 and they feed Alerts (N7).
+
+**The thermostat card (2026-11-01).** Built from the board "The thermostat
+card" on the canvas, for any device of type `thermostat` in the shared names
+(`temperature`, `setpoint` or `heat_setpoint` and `cool_setpoint`,
+`hvac_mode`, `hvac_action`, `schedule_mode`, `hold_until`). Standard is a
+dial: a 270° arc across the thermostat's range, a ring at the target and a
+dot at the temperature now, filled between them in orange while it heats and
+blue while it cools, grey when idle. In its middle are "INSIDE", the
+temperature in whole degrees with its unit, and "Heating to 75°" or "Target
+55°". Under it are − and +, then the schedule: "Following its schedule",
+"Held until the schedule changes" or until a time, "Held until changed", or
+"No schedule", with Resume when held. Compact is one row with − and +. Large
+adds how long − and + hold (next change, 1 h, 2 h, until changed) and its
+modes when a person may change them. The card is warm while it heats.
+
+− and + move the target shown at once and send one command when the presses
+stop. A thermostat with a schedule holds the new target through the actions
+its schema declares: one that writes `setpoint` and takes `hours` holds it
+for that long, or until the schedule changes with no hours (the default the
+user chose); one that writes `setpoint` without hours holds it until
+changed, and a permanent hold stays one. One without a schedule just sets the
+target. The hold length is a card setting, per card or for every thermostat
+card, also chosen on Large. The dial loads with the first thermostat on a
+page, so pages without one don't carry it.
 
 ## 4. Any other device — the generic rule
 

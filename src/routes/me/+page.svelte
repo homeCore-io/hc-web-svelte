@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { momentOf } from '#lib/when.js';
 	import { goto } from '$app/navigation';
 	import { session } from '#lib/me.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
@@ -6,13 +7,17 @@
 	import { personal } from '#lib/personal.svelte.js';
 	import { household } from '#lib/household.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
-	import { BAR_SIZE, PALETTES, barOf, paletteOf } from '#lib/layers.js';
+	import { BAR_SIZE, PALETTES, barOf, lookOf, looksOf, paletteOf } from '#lib/layers.js';
+	import { allLooks, findLook } from '#lib/looks/model.js';
+	import LookShelf from '#lib/components/LookShelf.svelte';
+	import LookPicker from '#lib/components/LookPicker.svelte';
 	import BarChooser from '#lib/components/BarChooser.svelte';
 	import { roleName } from '#lib/people.js';
 	import { changeMyPassword } from '#lib/peopleAdmin.js';
 	import { onMount } from 'svelte';
 	import { core } from '#lib/core.svelte.js';
 	import { browserOf } from '#lib/systemAdmin.js';
+	import { units, type Measures, type TemperatureUnit } from '#lib/units.js';
 
 	// ---- where you're signed in (homeCore 0.1.83) ----
 	interface SignedIn {
@@ -35,14 +40,7 @@
 	onMount(() => {
 		if (!session.isDisplay && !session.me?.unlocked_on) void loadSessions();
 	});
-	const day = (iso: string) =>
-		new Date(iso).toLocaleString(undefined, {
-			weekday: 'short',
-			day: 'numeric',
-			month: 'short',
-			hour: '2-digit',
-			minute: '2-digit'
-		});
+	const day = (iso: string) => momentOf(iso, Date.now(), true);
 	async function endSession(x: SignedIn) {
 		const res = await fetch(`/api/v1/auth/sessions/${encodeURIComponent(x.id)}`, {
 			method: 'DELETE'
@@ -95,6 +93,30 @@
 			return id === undefined ? rest : { ...rest, palette: id };
 		});
 	}
+
+	// ---- look (12, L1): the house's, unless they choose another ----
+	const looks = $derived(looksOf(personal.doc, household.doc));
+	const myLook = $derived(looks.find((l) => l.id === personal.doc.look)?.id);
+	const houseLook = $derived(lookOf(undefined, household.doc));
+	// Their own: those after the built-in ones and the house's.
+	const mine = $derived(looks.slice(allLooks(household.doc.looks).length));
+	function setLook(id: string | undefined) {
+		void personal.change((d) => {
+			const { look: _drop, ...rest } = d;
+			return id === undefined ? rest : { ...rest, look: id };
+		});
+	}
+
+	// ---- units: theirs, else this browser's language says ----
+	const myUnits = $derived(units());
+	const temperatures: { value: TemperatureUnit; label: string }[] = [
+		{ value: 'F', label: '°F' },
+		{ value: 'C', label: '°C' }
+	];
+	const measures: { value: Measures; label: string }[] = [
+		{ value: 'us', label: 'inHg · mph · in' },
+		{ value: 'metric', label: 'hPa · m/s · mm' }
+	];
 
 	const choices: { value: ThemeChoice; label: string }[] = [
 		{ value: 'system', label: 'Like this device' },
@@ -175,11 +197,26 @@
 	</section>
 
 	<section>
+		<h2 class="section-label">Look</h2>
+		<LookPicker label="Your look" {looks} current={myLook} house={houseLook} pick={setLook} />
+		<LookShelf
+			label="Your own looks"
+			own={mine}
+			all={looks}
+			chosen={myLook ? findLook(looks, myLook) : houseLook}
+			save={(next) => void personal.change((d) => ({ ...d, looks: next }))}
+			pick={setLook}
+			admin={session.isAdmin || session.can('plugins:write')}
+			editHref={(id) => `/me/looks/${id}`}
+		/>
+	</section>
+
+	<section>
 		<h2 class="section-label" id="palette">Theme</h2>
 		<div class="swatches" role="radiogroup" aria-labelledby="palette">
 			<button role="radio" aria-checked={myTheme === undefined} onclick={() => setTheme(undefined)}>
 				<span class="swatch" style:background={houseTheme?.swatch}></span>
-				The house's ({houseTheme?.name})
+				Same as the house
 			</button>
 			{#each PALETTES as p (p.id)}
 				<button role="radio" aria-checked={myTheme === p.id} onclick={() => setTheme(p.id)}>
@@ -191,9 +228,49 @@
 	</section>
 
 	<section>
+		<h2 class="section-label" id="units">Units</h2>
+		<p class="note">
+			How readings are shown to you. Only yours — homeCore keeps them in °C and metric.
+		</p>
+		<!-- Each row says what it sets (#98). -->
+		<span class="unit-label">Temperature</span>
+		<div class="segmented two" role="radiogroup" aria-label="Temperature">
+			{#each temperatures as c (c.value)}
+				<button
+					role="radio"
+					aria-checked={myUnits.temperature === c.value}
+					onclick={() => void personal.setUnits({ temperature: c.value })}>{c.label}</button
+				>
+			{/each}
+		</div>
+		<span class="unit-label">Pressure, wind and rain</span>
+		<div class="segmented two" role="radiogroup" aria-label="Pressure, wind and rain">
+			{#each measures as c (c.value)}
+				<button
+					role="radio"
+					aria-checked={myUnits.measures === c.value}
+					onclick={() => void personal.setUnits({ measures: c.value })}>{c.label}</button
+				>
+			{/each}
+		</div>
+		{#if personal.doc.units !== undefined}
+			<button
+				class="link"
+				onclick={() => void personal.setUnits({ temperature: undefined, measures: undefined })}
+				>Back to this device's language</button
+			>
+		{/if}
+	</section>
+
+	<section>
 		<h2 class="section-label" id="bar">Phone bar</h2>
 		<p class="note">Up to {BAR_SIZE} places at the bottom of your phone, then More. Only yours.</p>
-		<BarChooser {bar} label="Your phone bar" set={setBar} />
+		<BarChooser
+			{bar}
+			label="Your phone bar"
+			set={setBar}
+			pages={[...(household.doc.built ?? []), ...(personal.doc.built ?? [])]}
+		/>
 		{#if personal.doc.bar !== undefined}
 			<button class="link" onclick={usualBar}>Back to the household's bar</button>
 		{/if}
@@ -230,7 +307,7 @@
 		{:else}
 			<div class="row">
 				<button class="link" onclick={() => (settingPin = true)}>Change your PIN</button>
-				<button class="link" onclick={removePin}>Remove it</button>
+				<button class="link" onclick={removePin}>Remove PIN…</button>
 			</div>
 		{/if}
 		{#if pinNote}<p class="note" role="status">{pinNote}</p>{/if}
@@ -361,6 +438,9 @@
 		border-radius: 26px;
 		background: var(--surface-2);
 	}
+	.segmented.two {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
 	.segmented button {
 		height: 40px;
 		border: none;
@@ -455,5 +535,12 @@
 	.sessions li > span {
 		display: flex;
 		flex-direction: column;
+	}
+	.unit-label {
+		display: block;
+		margin: var(--space-2) 0 4px;
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--ink-muted);
 	}
 </style>

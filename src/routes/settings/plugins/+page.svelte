@@ -72,7 +72,7 @@
 				>
 			{/if}
 			{#if session.isAdmin || session.can('plugins:write')}
-				<a class="go" href="/settings/plugins/add">+ Add a plugin</a>
+				<a class="go" href="/settings/plugins/add">Catalog</a>
 			{/if}
 		</div>
 
@@ -247,6 +247,10 @@
 	}
 	.state b {
 		color: var(--ink);
+	}
+	/* Running reads the same here as on the plugin's own page. */
+	.state.good b {
+		color: light-dark(#2f6b3a, #8fd19e);
 	}
 	.state.bad b,
 	.sub.bad,

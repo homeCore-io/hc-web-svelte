@@ -39,7 +39,9 @@ const PLUGIN_NAMES: Record<string, string> = {
 	sonos: 'Sonos',
 	roku: 'Roku',
 	wled: 'WLED',
-	matter: 'Matter'
+	matter: 'Matter',
+	isy: 'ISY',
+	thermostat: 'Thermostat'
 };
 
 /** The house's own spelling of a plugin it knows ("WLED", not "Wled"). */
@@ -90,6 +92,16 @@ export function rowOf(d: CoreDevice, rooms: Room[], now = Date.now()): Row {
 		scene: kind === 'scene'
 	};
 }
+
+/** The house's devices as the Devices page counts them: a plugin's scenes
+ *  are devices in homeCore's model but not things in a room, so they are
+ *  left out — everywhere a count of devices is shown. */
+export const houseDevices = (devices: Devices): CoreDevice[] =>
+	Object.values(devices).filter((d) => kindOf(d) !== 'scene');
+
+/** How many plugin scenes there are (counted with scenes, not devices). */
+export const pluginSceneCount = (devices: Devices): number =>
+	Object.values(devices).filter((d) => kindOf(d) === 'scene').length;
 
 export function rowsOf(devices: Devices, rooms: Room[], now = Date.now()): Row[] {
 	return Object.values(devices)

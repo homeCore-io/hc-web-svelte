@@ -5,6 +5,7 @@
 	`detailsFor` — this only draws it and sends what is asked.
 -->
 <script lang="ts">
+	import { momentOf, timeOf } from '#lib/when.js';
 	import X from '@lucide/svelte/icons/x';
 	import { session } from '#lib/me.svelte.js';
 	import Power from '@lucide/svelte/icons/power';
@@ -15,12 +16,14 @@
 	import { rgbValue, actionBody, detailsFor, ready, type ActionView } from '#lib/details.js';
 	import { activityOf, type StateEvent } from '#lib/activity.js';
 	import { withPending } from '#lib/pending.js';
+	import { fromShown, toShown } from '#lib/units.js';
 	import { roomOf } from '#lib/summary.js';
 	import { commands } from '#lib/commands.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import type { CoreDevice } from '#lib/devices.js';
+	import { kindOf } from '#lib/card.js';
 	import BigBar from './BigBar.svelte';
 	import Chart from './Chart.svelte';
 	import Icon, { drawn } from './Icon.svelte';
@@ -40,13 +43,45 @@
 	const custom = $derived(pluginUis.find(device.plugin_id, 'device.panel', device.device_type));
 	let customFailed = $state(false);
 	const view = $derived(detailsFor(device, Object.values(devices.byId), clock.now));
+	// A media player's own panel draws what is playing, its transport, its
+	// volume and its power itself; the generic cover, buttons, bars and the
+	// power switch it shows while off would say them twice. Any other panel
+	// sits under the generic main control.
+	const panelPlays = $derived(
+		!!custom &&
+			!customFailed &&
+			(device.device_type === 'media_player' ||
+				view.card.control?.kind === 'play' ||
+				view.card.extras.some((e) => e.kind === 'transport'))
+	);
 	const pending = $derived(commands.pending[id]);
 	const card = $derived(withPending(view.card, pending));
+	// A lock's own panel draws its lock control (and asks before unlocking),
+	// its door, bolt and battery, and what it last did; the generic button
+	// and readings would say them twice.
+	const panelLocks = $derived(!!custom && !customFailed && card.control?.kind === 'lock');
+	// A remote's or keypad's own panel draws its buttons, the last press and
+	// what each starts; its button readings, a chart of "last button" and a
+	// list of raw presses would only repeat it.
+	const panelButtons = $derived(
+		!!custom && !customFailed && ['pico_remote', 'keypad'].includes(kindOf(device))
+	);
+	// A thermostat's own panel draws the room's temperature, the target and its
+	// modes, what it reads and a chart of the day; the generic target bar,
+	// readings and chart would say them twice.
+	const panelClimate = $derived(!!custom && !customFailed && kindOf(device) === 'thermostat');
 	const note = $derived(commands.notes[id]);
 	const room = $derived(roomOf(device, rooms.list));
 	// Offline, or someone who may only look: every control here is still.
 	const off = $derived(!device.available || !session.mayUse);
 	const want = (attr: string, value: unknown) => pending?.want[attr] ?? value;
+	// A number in the person's units (°F) is sent in the schema's (°C), and
+	// one waiting to be confirmed shows back in theirs.
+	const back = (c: { from?: string }, v: number) => (c.from ? fromShown(v, c.from) : v);
+	const wantShown = (c: { attr: string; value: number; from?: string }) => {
+		const w = pending?.want[c.attr];
+		return typeof w === 'number' ? (c.from ? toShown(w, c.from) : w) : c.value;
+	};
 
 	const brightness = $derived(
 		card.extras.find((e) => e.kind === 'slider' && e.attr === 'brightness_pct')
@@ -101,9 +136,7 @@
 	const time = (iso: string) => {
 		const d = new Date(iso);
 		const today = new Date().toDateString() === d.toDateString();
-		return today
-			? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-			: d.toLocaleDateString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+		return today ? timeOf(d) : momentOf(d);
 	};
 
 	// ---- colour ----
@@ -141,7 +174,7 @@
 </header>
 
 <div class="body">
-	{#if card.art}
+	{#if card.art && !panelPlays}
 		<!-- Made afresh per track, so one that wouldn't load doesn't hide the next. -->
 		{#key card.art}
 			<img
@@ -157,9 +190,11 @@
 	{#if brightness && brightness.kind === 'slider' && card.control?.kind === 'switch'}
 		{@const sw = card.control}
 		<div class="hero-row">
+			<!-- Off keeps its level, shown resting: turning it on returns there (#29). -->
 			<BigBar
-				label="Brightness"
-				value={sw.on ? brightness.value : 0}
+				label={sw.on ? 'Brightness' : 'Brightness · off'}
+				value={brightness.value}
+				resting={!sw.on}
 				min={0}
 				max={brightness.max}
 				unit="%"
@@ -178,7 +213,7 @@
 				}}><Power size={22} /></button
 			>
 		</div>
-	{:else if card.control?.kind === 'switch'}
+	{:else if card.control?.kind === 'switch' && !panelPlays}
 		{@const sw = card.control}
 		<div class="row big">
 			<span>{sw.on ? 'On' : 'Off'}</span>
@@ -192,7 +227,7 @@
 				}}
 			/>
 		</div>
-	{:else if card.control?.kind === 'lock'}
+	{:else if card.control?.kind === 'lock' && !panelLocks}
 		{@const lk = card.control}
 		<button
 			class="wide"
@@ -234,7 +269,7 @@
 		>
 	{/if}
 
-	{#if card.control?.kind === 'play' || card.extras.some((e) => e.kind === 'transport')}
+	{#if !panelPlays && (card.control?.kind === 'play' || card.extras.some((e) => e.kind === 'transport'))}
 		{@const tr = card.extras.find((e) => e.kind === 'transport')}
 		<div class="transport">
 			{#if tr?.kind === 'transport' && tr.previous}
@@ -282,7 +317,7 @@
 		</div>
 	{/each}
 
-	{#each card.extras as e ('attr' in e ? e.attr : e.kind)}
+	{#each panelPlays || panelClimate ? [] : card.extras as e ('attr' in e ? e.attr : e.kind)}
 		{#if e.kind === 'slider' && e.attr !== 'brightness_pct'}
 			<BigBar
 				label={e.label}
@@ -292,7 +327,7 @@
 				step={e.step}
 				unit={e.unit}
 				disabled={off}
-				oncommit={(v) => set({ [e.attr]: v })}
+				oncommit={(v) => set({ [e.attr]: back(e, v) })}
 			/>
 		{:else if e.kind === 'steps'}
 			<div class="field">
@@ -336,13 +371,13 @@
 			{:else if c.kind === 'slider'}
 				<BigBar
 					label={c.label}
-					value={Number(want(c.attr, c.value))}
+					value={wantShown(c)}
 					min={c.min}
 					max={c.max}
 					step={c.step}
 					unit={c.unit}
 					disabled={off}
-					oncommit={(v) => set({ [c.attr]: v })}
+					oncommit={(v) => set({ [c.attr]: back(c, v) })}
 				/>
 			{:else if c.kind === 'choice'}
 				<div class="field">
@@ -402,7 +437,7 @@
 					onsubmit={(ev) => {
 						ev.preventDefault();
 						const v = new FormData(ev.currentTarget).get('v');
-						if (v !== null && String(v) !== '') set({ [c.attr]: Number(v) });
+						if (v !== null && String(v) !== '') set({ [c.attr]: back(c, Number(v)) });
 					}}
 				>
 					<label class="label" for={`n-${c.attr}`}>{c.label}</label>
@@ -504,9 +539,13 @@
 												f.name,
 												ev.currentTarget.value === ''
 													? Number.NaN
-													: Math.round(Number(ev.currentTarget.value) * per)
+													: f.duration
+														? Math.round(Number(ev.currentTarget.value) * per)
+														: // 70.5 °F stays 70.5: only seconds are whole.
+															Number(ev.currentTarget.value)
 											)}
 									/>
+									{#if f.unit && !f.duration}<span class="unit">{f.unit}</span>{/if}
 									{#if f.duration}
 										<select
 											aria-label={`${f.label}: unit`}
@@ -573,7 +612,7 @@
 		{/each}
 	{/if}
 
-	{#if view.readings.length > 0}
+	{#if view.readings.length > 0 && !panelLocks && !panelButtons && !panelClimate}
 		<section>
 			<h3 class="section-label">Readings</h3>
 			<dl>
@@ -587,7 +626,7 @@
 		</section>
 	{/if}
 
-	{#if view.chart}
+	{#if view.chart && !panelButtons && !panelClimate}
 		<Chart
 			deviceId={id}
 			attr={view.chart.attr}
@@ -598,20 +637,22 @@
 		/>
 	{/if}
 
-	<section>
-		<h3 class="section-label">Activity</h3>
-		{#if activity === null}
-			<p class="quiet">…</p>
-		{:else if lines.length === 0}
-			<p class="quiet">Nothing since homeCore last started.</p>
-		{:else}
-			<ul class="activity">
-				{#each lines as l (l.at + l.text)}
-					<li><span class="num when">{time(l.at)}</span><span>{l.text}</span></li>
-				{/each}
-			</ul>
-		{/if}
-	</section>
+	{#if !panelButtons}
+		<section>
+			<h3 class="section-label">Activity</h3>
+			{#if activity === null}
+				<p class="quiet">…</p>
+			{:else if lines.length === 0}
+				<p class="quiet">Nothing since homeCore last started.</p>
+			{:else}
+				<ul class="activity">
+					{#each lines as l (l.at + l.text)}
+						<li><span class="num when">{time(l.at)}</span><span>{l.text}</span></li>
+					{/each}
+				</ul>
+			{/if}
+		</section>
+	{/if}
 
 	{#if view.more.length > 0}
 		<details>
@@ -861,6 +902,9 @@
 		background: var(--surface-2);
 		font-size: 14px;
 		font-weight: 600;
+	}
+	.unit {
+		color: var(--ink-muted);
 	}
 	.action {
 		display: flex;

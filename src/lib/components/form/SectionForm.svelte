@@ -60,7 +60,10 @@
 			{@const problem = form.errors[key]}
 			<div
 				class="field"
-				class:wide={f.kind === 'table' || f.kind === 'list'}
+				class:wide={f.kind === 'table' ||
+					f.kind === 'list' ||
+					f.render === 'choices' ||
+					f.render === 'icons'}
 				class:inline={f.kind === 'toggle'}
 			>
 				<div class="about">
@@ -94,9 +97,13 @@
 </div>
 
 <style>
+	/* Label beside control only where the form is wide enough — a settings
+	   page, not a sheet: in a sheet each control takes the full width under
+	   its label, so a segmented choice never wraps. */
 	.fields {
 		display: flex;
 		flex-direction: column;
+		container-type: inline-size;
 	}
 	.field {
 		display: grid;
@@ -120,6 +127,8 @@
 		code {
 			display: block;
 		}
+	}
+	@container (min-width: 620px) {
 		.field:not(.wide) {
 			grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
 			align-items: start;

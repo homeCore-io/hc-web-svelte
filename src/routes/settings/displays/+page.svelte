@@ -5,6 +5,7 @@
 	Its name is homeCore's, and can be changed from homeCore 0.1.81.
 -->
 <script lang="ts">
+	import { agoOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { onReturn } from '#lib/refresh.js';
 	import ArrowUp from '@lucide/svelte/icons/arrow-up';
@@ -13,8 +14,10 @@
 	import { session } from '#lib/me.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
-	import { nudgeFavourite } from '#lib/layers.js';
+	import { lookOf, looksOf, nudgeFavourite } from '#lib/layers.js';
 	import { tabsFor, type DisplayDoc } from '#lib/display.js';
+	import { displayPages } from '#lib/built.js';
+	import { household } from '#lib/household.svelte.js';
 	import { core } from '#lib/core.svelte.js';
 
 	interface Display {
@@ -59,9 +62,9 @@
 
 	async function remove(d: Display) {
 		const yes = await ask({
-			title: `Remove ${d.name}?`,
+			title: `Delete ${d.name}?`,
 			body: 'The tablet stops working until it is set up again with a new key.',
-			go: 'Remove',
+			go: 'Delete',
 			danger: true
 		});
 		if (!yes) return;
@@ -112,21 +115,26 @@
 		{ key: 'home', label: 'Home' },
 		{ key: 'scenes', label: 'Scenes' },
 		{ key: 'alerts', label: 'Alerts' },
-		...rooms.list.map((r) => ({ key: `room:${r.id}`, label: r.name }))
+		...rooms.list.map((r) => ({ key: `room:${r.id}`, label: r.name })),
+		// The house's own pages, never a person's (G31).
+		...displayPages(household.doc).map((p) => ({ key: `page:${p.id}`, label: p.name }))
 	]);
-	const chosen = $derived(tabsFor(doc, rooms.list));
+	const chosen = $derived(tabsFor(doc, rooms.list, displayPages(household.doc)));
 	const setPages = (pages: string[]) => save({ ...doc, pages });
 	const setKiosk = (k: Partial<NonNullable<DisplayDoc['kiosk']>>) =>
 		save({ ...doc, kiosk: { ...doc.kiosk, ...k } });
+	// Its own look (13 §10), among the house's; none is the house's.
+	const looks = $derived(looksOf(undefined, household.doc));
+	const houseLook = $derived(lookOf(undefined, household.doc, looks));
+	function setLook(id: string) {
+		const { look: _drop, ...rest } = doc;
+		void save(id ? { ...rest, look: id } : rest);
+	}
 
 	const ago = (at: string | null) => {
 		if (!at) return 'not set up yet';
 		const mins = Math.round((Date.now() - Date.parse(at)) / 60_000);
-		return mins < 2
-			? 'in use now'
-			: mins < 120
-				? `seen ${mins} min ago`
-				: `seen ${Math.round(mins / 60)} h ago`;
+		return mins < 2 ? 'in use now' : `seen ${agoOf(at)}`;
 	};
 </script>
 
@@ -141,7 +149,11 @@
 		</p>
 
 		<form class="new" onsubmit={create}>
-			<input bind:value={name} placeholder="Kitchen panel" aria-label="New display's name" />
+			<input
+				bind:value={name}
+				placeholder="A name — Hall tablet, say"
+				aria-label="New display's name"
+			/>
 			<button type="submit" disabled={name.trim() === ''}>Make a display</button>
 		</form>
 
@@ -171,9 +183,7 @@
 								<strong>{d.name}</strong>
 								<span>{ago(d.last_used_at)}</span>
 							</button>
-							<button class="bin" aria-label={`Remove ${d.name}`} onclick={() => remove(d)}
-								><X size={18} /></button
-							>
+							<button class="del" onclick={() => remove(d)}>Delete…</button>
 						</div>
 						{#if open === d.id}
 							<div class="edit">
@@ -249,6 +259,15 @@
 								</label>
 
 								<h3 class="section-label">As a kiosk</h3>
+								<label class="add">
+									<span>Look</span>
+									<select value={doc.look ?? ''} onchange={(e) => setLook(e.currentTarget.value)}>
+										<option value="">The house’s ({houseLook.name})</option>
+										{#each looks as l (l.id)}
+											<option value={l.id}>{l.name}</option>
+										{/each}
+									</select>
+								</label>
 								<label class="check"
 									><input
 										type="checkbox"
@@ -397,7 +416,6 @@
 		font-weight: 400;
 		color: var(--ink-muted);
 	}
-	.bin,
 	ol button {
 		min-height: 0;
 		width: 36px;
@@ -409,6 +427,19 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+	}
+	/* Delete… in words, like everywhere else — not a bare ✕. */
+	.line .del {
+		align-self: center;
+		width: auto;
+		min-height: 34px;
+		margin-right: 8px;
+		padding: 0 14px;
+		border-radius: 17px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--alert);
+		font-weight: 600;
 	}
 	.edit {
 		display: flex;

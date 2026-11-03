@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
 	counts,
+	houseDevices,
+	pluginSceneCount,
 	kindLabel,
 	pluginLabel,
 	plugins,
@@ -62,6 +64,15 @@ describe('the device list', () => {
 		expect(counts(rows, s)).toEqual({ all: 3, noroom: 1, battery: 1, offline: 1 });
 		expect(counts(rows, { ...s, scenes: true }).all).toBe(4);
 		expect(shownRows(rows, { ...s, filter: 'noroom' }).map((r) => r.id)).toEqual(['a']);
+	});
+
+	it('counts devices elsewhere exactly as this list does', () => {
+		// Settings and System said 257 devices while this list said 176:
+		// they counted the plugins' scenes as devices.
+		const house = houseDevices(devices);
+		expect(house.length).toBe(counts(rows, s).all);
+		expect(house.filter((d) => !d.available).length).toBe(counts(rows, s).offline);
+		expect(pluginSceneCount(devices)).toBe(1);
 	});
 
 	it('finds by name, room, kind, id or plugin', () => {

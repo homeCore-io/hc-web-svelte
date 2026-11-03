@@ -11,6 +11,8 @@
 export interface Opt {
 	value: unknown;
 	label: string;
+	/** This app's own: a second line under the label — a reading's value now. */
+	sub?: string;
 }
 
 /** `visible_when` / `required_when`, exactly as core serialises a `Cond`. */
@@ -64,6 +66,8 @@ export interface Field {
 	generated?: boolean;
 	visible_when?: Cond;
 	required_when?: Cond;
+	/** This app's own (not core's): a `sensor` field lists this room's sensors first. */
+	near?: string;
 }
 
 export interface Section {
@@ -98,7 +102,9 @@ const VALUED = new Set([
 	'select',
 	'list',
 	'table',
-	'map'
+	'map',
+	// This app's own: a reading from the house — `auto`, `none` or device ids (G-b).
+	'sensor'
 ]);
 export const holdsValue = (f: Field): f is Field & { key: string } =>
 	f.key !== undefined && VALUED.has(f.kind);
@@ -264,6 +270,8 @@ export function describe(f: Field, v: unknown): string {
 		const o = f.options.find((x) => same(x.value, v));
 		if (o) return o.label;
 	}
+	if (f.kind === 'sensor' && Array.isArray(v))
+		return v.length === 1 ? 'one sensor' : `an average of ${v.length} sensors`;
 	if (Array.isArray(v))
 		return v.length === 0 ? 'none' : `${v.length} item${v.length === 1 ? '' : 's'}`;
 	if (f.kind === 'map' && v !== null && typeof v === 'object') {

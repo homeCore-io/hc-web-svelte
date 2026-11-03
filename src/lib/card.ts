@@ -10,7 +10,10 @@
  * data — including that no card offers a control a device doesn't declare.
  */
 import { remaining } from './helpers.js';
+import { isTemperature, numberText, readingUnit, shown, shownRange, toShown } from './units.js';
 import { displayName, type AttributeSchema, type CoreDevice, type Schema } from './devices.js';
+import { momentOf } from './when.js';
+import { targetWords, thermostatOf } from './thermostat.js';
 
 export type IconName =
 	| 'light'
@@ -23,12 +26,22 @@ export type IconName =
 	| 'timer'
 	| 'door'
 	| 'door-open'
+	| 'garage'
+	| 'garage-open'
 	| 'water'
 	| 'motion'
 	| 'thermometer'
 	| 'weather'
 	| 'rain'
 	| 'lightning'
+	| 'sun'
+	| 'moon'
+	| 'cloud'
+	| 'fog'
+	| 'drizzle'
+	| 'hail'
+	| 'snow'
+	| 'showers'
 	| 'vibration'
 	| 'keypad'
 	| 'remote'
@@ -48,6 +61,7 @@ export const SYMBOLS: { icon: IconName; label: string }[] = [
 	{ icon: 'fan', label: 'Fan' },
 	{ icon: 'lock', label: 'Lock' },
 	{ icon: 'door', label: 'Door' },
+	{ icon: 'garage', label: 'Garage door' },
 	{ icon: 'tv', label: 'TV' },
 	{ icon: 'speaker', label: 'Speaker' },
 	{ icon: 'timer', label: 'Timer' },
@@ -65,11 +79,26 @@ export const SYMBOLS: { icon: IconName; label: string }[] = [
 	{ icon: 'scene', label: 'Scene' },
 	{ icon: 'device', label: 'Box' }
 ];
+/** A plugin's symbol (13 §12, `look.symbol`): `plugin:{plugin}/{element}#{name}`. */
+export type PluginSymbol = `plugin:${string}#${string}`;
+export const isPluginSymbol = (v: unknown): v is PluginSymbol =>
+	typeof v === 'string' &&
+	/^plugin:[a-z0-9._-]{1,64}\/[a-z][a-z0-9._-]*-[a-z0-9._-]*#[a-z0-9-]{1,40}$/.test(v);
+
+/** What a card draws as its symbol: one of the app's, or a plugin's. */
+export type CardSymbol = IconName | PluginSymbol;
+
+/** Whether a card shows something open: a door, or a garage door (its own symbol). */
+export const isOpen = (c: { icon: CardSymbol }): boolean =>
+	c.icon === 'door-open' || c.icon === 'garage-open';
+
 /** A chosen symbol, kept in step with the state it shows: open, unlocked. */
-function symbolFor(chosen: string | undefined, drawn: IconName): IconName | undefined {
+function symbolFor(chosen: string | undefined, drawn: CardSymbol): CardSymbol | undefined {
+	if (isPluginSymbol(chosen)) return chosen;
 	if (!chosen || !SYMBOLS.some((s) => s.icon === chosen)) return undefined;
 	if (chosen === 'lock' && drawn === 'unlock') return 'unlock';
 	if (chosen === 'door' && drawn === 'door-open') return 'door-open';
+	if (chosen === 'garage' && drawn === 'door-open') return 'garage-open';
 	return chosen as IconName;
 }
 
@@ -91,7 +120,10 @@ export type Extra =
 			min: number;
 			max: number;
 			step: number;
+			/** The unit shown — the person's, e.g. °F. */
 			unit?: string;
+			/** The schema's unit when the slider is in another: what it sends is turned back. */
+			from?: string;
 	  }
 	| { kind: 'steps'; attr: string; label: string; value: string; options: string[] }
 	| { kind: 'transport'; previous?: string; next?: string }
@@ -109,7 +141,7 @@ export interface CardView {
 	id: string;
 	kind: string;
 	name: string;
-	icon: IconName;
+	icon: CardSymbol;
 	stateLine: string;
 	tone: Tone;
 	control: Control | null;
@@ -124,17 +156,76 @@ export interface CardView {
 	 * no album — so it is shown whole, not cropped to fill.
 	 */
 	artLogo?: boolean;
+	/** What a player is playing or paused on, in words: a title, else its app or input. */
+	nowPlaying?: string;
 	/** Multi-channel devices: a switch per channel, and no single control (C7). */
 	channels: Channel[];
 	available: boolean;
 	/** A built-in alarming state (C9): wet, smoke, offline, jammed, low battery. */
 	alarm?: string;
+	/** "Changed 12 min ago", when the card's settings ask for it (G23). */
+	last?: string;
+	/** The whole card switches it, rather than opening its page (G24). */
+	tapControls?: boolean;
 }
+
+/**
+ * A device card's settings (G23–G25), as resolved for one card. Each only
+ * chooses among what the card already found: never a control the device
+ * doesn't declare. Unknown or missing values mean today's card.
+ */
+export type CardOptions = Record<string, unknown>;
+
+/** How the last change was made, where the device says: "by fingerprint", "by Night rule". */
+function byWhom(d: CoreDevice): string {
+	const a = d.attributes;
+	const how = typeof a.last_lock_method === 'string' ? a.last_lock_method : undefined;
+	if (how) return ` by ${words(uncamel(how)).toLowerCase()}`;
+	const c = d.last_change;
+	if (c?.kind === 'physical') return ' at the wall';
+	if (c?.actor_name) return ` by ${c.actor_name}`;
+	return '';
+}
+
+/** What an extra on Large is called in settings: its attribute, or what it does. */
+export const extraKey = (e: Extra): string =>
+	e.kind === 'transport' ? 'transport' : e.kind === 'reading' ? `reading:${e.label}` : e.attr;
 
 /** How long a device may stay silent before its card says so. */
 const STALE_MS = 24 * 3600_000;
 /** How long a change made elsewhere is mentioned on the card. */
 const ELSEWHERE_MS = 30 * 60_000;
+
+/** A card's settings applied to what it found (G23–G25). */
+function dress(v: CardView, d: CoreDevice, s: Schema, o: CardOptions, now: number): void {
+	const a = d.attributes;
+	if (typeof o.main === 'string' && o.main !== 'auto') {
+		const lead = reading(a, s, o.main);
+		if (lead !== undefined) v.stateLine = lead;
+	}
+	const more = Object.keys(o)
+		.filter((k) => k.startsWith('show_') && o[k] === true)
+		.map((k) => k.slice(5))
+		.filter((attr) => attr !== o.main)
+		.map((attr) => reading(a, s, attr))
+		.filter((r): r is string => r !== undefined && r !== '');
+	if (more.length > 0 && v.channels.length === 0)
+		v.stateLine = [v.stateLine, ...more].filter((x) => x !== '').join(' · ');
+	v.extras = v.extras.filter((e) => o[`extra_${extraKey(e)}`] !== false);
+	if (o.last === true) {
+		const at = d.last_change?.changed_at ?? d.last_seen;
+		const ms = at ? now - Date.parse(at) : NaN;
+		if (Number.isFinite(ms))
+			v.last = (ms < 60_000 ? 'Changed just now' : `Changed ${ago(ms)} ago`) + byWhom(d);
+	}
+	if (typeof o.symbol === 'string' && o.symbol !== 'auto')
+		v.icon = symbolFor(o.symbol, v.icon) ?? v.icon;
+	// Only a control the card already has; a card with none keeps opening its page.
+	v.tapControls =
+		o.tap === 'control' &&
+		v.control !== null &&
+		(v.control.kind === 'switch' || v.control.kind === 'lock' || v.control.kind === 'play');
+}
 
 /** The kind a card is drawn as: a person's hint wins over the plugin's type. */
 export function kindOf(d: CoreDevice): string {
@@ -160,6 +251,7 @@ export const SENSORS = new Set([
 	'occupancy_sensor',
 	'temperature_sensor',
 	'weather_station',
+	'weather',
 	'rain_sensor',
 	'lightning_sensor',
 	'vibration_sensor',
@@ -167,7 +259,7 @@ export const SENSORS = new Set([
 	'binary_sensor'
 ]);
 
-export function cardFor(d: CoreDevice, now = Date.now()): CardView {
+export function cardFor(d: CoreDevice, now = Date.now(), options?: CardOptions): CardView {
 	const kind = kindOf(d);
 	const a = d.attributes;
 	const s: Schema = d.schema ?? { attributes: {} };
@@ -186,6 +278,7 @@ export function cardFor(d: CoreDevice, now = Date.now()): CardView {
 
 	const view = describe(kind, d, a, s, base, now);
 	view.icon = symbolFor(d.status_icon, view.icon) ?? view.icon;
+	if (options) dress(view, d, s, options, now);
 	view.alarm = alarmOf(d, kind);
 	if (view.alarm !== undefined) view.tone = 'alert';
 
@@ -353,6 +446,25 @@ function describe(
 			v.stateLine = parts.join(' · ') || primaryLine(a, s);
 			return v;
 		}
+		// A place's weather (a weather plugin's): its sky, drawn and said.
+		case 'thermostat': {
+			// Its card draws the dial (ThermostatBody); this is its line elsewhere.
+			const t = thermostatOf(d);
+			v.icon = 'thermometer';
+			const now = t.now === undefined ? undefined : `${Math.round(t.now)}${t.unit}`;
+			const aim = targetWords(t);
+			v.stateLine = [now, aim && aim[0]!.toLowerCase() + aim.slice(1)].filter(Boolean).join(' · ');
+			v.tone = t.doing === 'heating' ? 'on' : t.doing === 'off' ? 'off' : 'neutral';
+			return v;
+		}
+		case 'weather': {
+			v.icon = skyIcon(s.attributes.condition, a.condition, a.is_day !== false) ?? 'weather';
+			const parts = [reading(a, s, 'temperature'), reading(a, s, 'condition')].filter(
+				(p): p is string => p !== undefined
+			);
+			v.stateLine = parts.join(' · ') || primaryLine(a, s);
+			return v;
+		}
 		case 'rain_sensor':
 		case 'lightning_sensor':
 		case 'vibration_sensor': {
@@ -389,8 +501,10 @@ function media(d: CoreDevice, a: Record<string, unknown>, s: Schema, v: CardView
 	// On a radio stream the "track" is the stream's own file, and its title
 	// can be its address (`hls.m3u8?rj-ttl=5&…`). Never say that; the station
 	// shows in its logo, and the line just says it's playing.
-	const title = raw && !streamAddress(raw) ? raw : undefined;
-	const app = str(a.app_name) ?? (a.source !== 'Home' ? str(a.source) : undefined);
+	// A Sonos playing its line-in or TV gives its own id ("RINCON_542A…") as the title.
+	const title = raw && !streamAddress(raw) && !idLike(raw) ? raw : undefined;
+	const source = str(a.app_name) ?? (a.source !== 'Home' ? str(a.source) : undefined);
+	const app = source && !idLike(source) ? source : undefined;
 	const isSpeaker = (d.plugin_id ?? '').includes('sonos') || d.ui_hint === 'speaker';
 	v.icon = isSpeaker ? 'speaker' : 'tv';
 	const playing = state === 'playing';
@@ -404,6 +518,7 @@ function media(d: CoreDevice, a: Record<string, unknown>, s: Schema, v: CardView
 				: app
 					? `On · ${app}`
 					: 'On';
+	if (on && (playing || state === 'paused')) v.nowPlaying = title ?? app;
 	const ids = new Set((s.actions ?? []).map((x) => x.id));
 	const toggle = ids.has('play_pause') ? 'play_pause' : playing ? 'pause' : 'play';
 	if (on && ids.has(toggle)) v.control = { kind: 'play', playing, action: toggle };
@@ -429,6 +544,9 @@ function media(d: CoreDevice, a: Record<string, unknown>, s: Schema, v: CardView
 /** A "title" that is really a stream's address (as hc-web-flutter judged it too). */
 export const streamAddress = (t: string) =>
 	t.includes('://') || t.includes('.m3u8') || (t.includes('?') && t.includes('&')) || t.length > 60;
+
+/** A device's or input's id rather than its name: long, no spaces, capitals, digits and "_". */
+export const idLike = (t: string) => t.length >= 12 && /^[A-Z0-9_:.-]+$/.test(t) && /\d/.test(t);
 
 /** homeCore's artwork for a player, keyed by the track's own art address. */
 export function artUrl(deviceId: string, published: string): string {
@@ -506,6 +624,18 @@ export const judgeBatteriesBy = (judge: typeof batteryJudge) => (batteryJudge = 
 /** homeCore's `[battery] threshold_pct` unless changed. */
 const BATTERY_LINE = 20;
 
+/** A device's battery level, 0 to 100, where it reports one. */
+export const batteryOf = (d: CoreDevice): number | undefined =>
+	num(d.attributes?.battery) ?? num(d.attributes?.battery_pct);
+
+/** Whether a device's battery is low, as homeCore says (its alerts), else by homeCore's default line. */
+export function batteryLow(d: CoreDevice): boolean {
+	const judged = batteryJudge?.(d.device_id);
+	if (judged !== undefined) return judged;
+	const battery = batteryOf(d);
+	return d.attributes?.battery_low === true || (battery !== undefined && battery <= BATTERY_LINE);
+}
+
 /** C9's built-in set; offline is added by `cardFor`. */
 function alarmOf(d: CoreDevice, kind: string): string | undefined {
 	const a = d.attributes;
@@ -513,12 +643,10 @@ function alarmOf(d: CoreDevice, kind: string): string | undefined {
 	if (a.smoke === true || a.smoke_detected === true) return 'smoke';
 	if (kind === 'lock' && typeof a.last_alert === 'string' && /jam/i.test(a.last_alert))
 		return 'jammed';
+	// homeCore's word where it gives one, with or without a level to show.
 	const judged = batteryJudge?.(d.device_id);
 	if (judged !== undefined) return judged ? 'low battery' : undefined;
-	const battery = num(a.battery) ?? num(a.battery_pct);
-	if (a.battery_low === true || (battery !== undefined && battery <= BATTERY_LINE))
-		return 'low battery';
-	return undefined;
+	return batteryLow(d) ? 'low battery' : undefined;
 }
 
 /** "Turned on at the wall", "by Night rule", and "2 d ago" for a quiet sensor. */
@@ -551,22 +679,64 @@ function pushSlider(
 ): void {
 	const spec = s.attributes[attr];
 	if (!spec?.writable) return;
-	const min = spec.min ?? 0;
-	const max = spec.max ?? 100;
+	// In the person's units: a setpoint in °F, sent back in °C.
+	const r = shownRange(
+		{
+			min: spec.min ?? 0,
+			max: spec.max ?? 100,
+			step: spec.step ?? (spec.kind === 'color_temp' ? 50 : 1)
+		},
+		spec.unit
+	);
+	const at = shown(0, spec.unit);
+	const value = num(a[attr]);
 	v.extras.push({
 		kind: 'slider',
 		attr,
 		label: name,
-		value: num(a[attr]) ?? min,
-		min,
-		max,
-		step: spec.step ?? (spec.kind === 'color_temp' ? 50 : 1),
-		unit: spec.unit
+		value: value === undefined ? r.min! : toShown(value, spec.unit),
+		min: r.min!,
+		max: r.max!,
+		step: r.step!,
+		unit: at.unit,
+		...(at.converted ? { from: spec.unit } : {})
 	});
 }
 
 function optionsOf(spec: AttributeSchema | undefined): string[] {
 	return (spec?.options ?? []).map((o) => (typeof o === 'string' ? o : o.value));
+}
+
+/** The weather icons a plugin's schema may name for its options, as the app's. */
+const SKY: Record<string, IconName> = {
+	sun: 'sun',
+	'cloud-sun': 'weather',
+	cloud: 'cloud',
+	'cloud-fog': 'fog',
+	'cloud-drizzle': 'drizzle',
+	'cloud-rain': 'rain',
+	'cloud-hail': 'hail',
+	'cloud-snow': 'snow',
+	'cloud-rain-wind': 'showers',
+	'cloud-lightning': 'lightning'
+};
+
+/**
+ * The icon a weather condition's option names (`condition` on a weather
+ * device, or a forecast day's): the sun, a cloud, rain. A clear night is the
+ * moon. Undefined where the plugin names none the app draws.
+ */
+export function skyIcon(
+	spec: AttributeSchema | undefined,
+	value: unknown,
+	day = true
+): IconName | undefined {
+	const named = (spec?.options ?? []).find(
+		(o) => typeof o !== 'string' && o.value === String(value)
+	);
+	const icon = typeof named === 'object' ? named.icon : undefined;
+	const drawn = icon ? SKY[icon] : undefined;
+	return drawn === 'sun' && !day ? 'moon' : drawn;
 }
 
 /** Attribute names, `primary` first, then the rest alphabetically. */
@@ -602,29 +772,48 @@ export function reading(a: Record<string, unknown>, s: Schema, name: string): st
 	const value = a[name];
 	if (value === undefined || value === null) return undefined;
 	const spec = s.attributes[name];
-	const moment = epochOf(name, value);
-	if (moment !== undefined)
-		return new Date(moment).toLocaleString([], {
-			day: 'numeric',
-			month: 'short',
-			hour: '2-digit',
-			minute: '2-digit'
-		});
+	const moment = epochOf(name, value) ?? isoMoment(value);
+	if (moment !== undefined) return momentText(moment);
+	// A number or word the plugin names in its schema: WLED's effect 51.
+	const named = spec?.options
+		?.map((o) => (typeof o === 'string' ? { value: o, label: undefined } : o))
+		.find((o) => o.value === String(value));
+	if (named?.label) return named.label;
 	if (typeof value === 'boolean') {
 		const said = value ? spec?.states?.when_true.label : spec?.states?.when_false.label;
 		return cap(said ?? (value ? words(name) : `Not ${words(name).toLowerCase()}`));
 	}
 	if (typeof value === 'number') {
-		const unit = spec?.unit ?? str(a[`${name}_unit`]);
-		if (name === 'temperature' || name.endsWith('_temperature'))
-			return `${fmt(value)}°${unitLetter(unit)}`;
-		if (unit === '%') return `${fmt(value)}%`;
-		return unit ? `${fmt(value)} ${unit}` : fmt(value);
+		// In the person's units: °F or °C, inHg or hPa.
+		const r = shown(value, readingUnit(spec?.unit, a[`${name}_unit`]));
+		const n = numberText(r, fmt);
+		if (name === 'temperature' || name.endsWith('_temperature') || isTemperature(r.unit))
+			return `${n}°${unitLetter(r.unit)}`;
+		if (r.unit === '%') return `${Math.round(r.value)}%`;
+		return r.unit ? `${n} ${r.unit}` : n;
 	}
 	if (typeof value === 'string')
 		// An address is said as it is, never capitalised or split into words.
-		return /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : cap(words(value));
+		return /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : cap(words(uncamel(value)));
 	return undefined;
+}
+
+/** A moment as the app says one in a reading: "Oct 21, 1:20 PM". */
+export const momentText = (ms: number): string => momentOf(ms);
+
+/** An ISO 8601 time — "2026-10-21T17:20:56Z" — in ms; never anything else. */
+export function isoMoment(value: unknown): number | undefined {
+	if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) return undefined;
+	const t = Date.parse(value);
+	return Number.isFinite(t) ? t : undefined;
+}
+
+/** A word run together the way some devices send them — "LockFailed" — as
+ *  "Lock failed". Only words in that shape: "HDMI1" and "TV Input" stay. */
+export function uncamel(s: string): string {
+	return /^[A-Z][a-z]+(?:[A-Z][a-z]+)+$/.test(s)
+		? s.replace(/(?<=[a-z])(?=[A-Z])/g, ' ').replace(/ [A-Z]/g, (m) => m.toLowerCase())
+		: s;
 }
 
 /**

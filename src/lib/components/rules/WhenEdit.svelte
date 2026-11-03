@@ -35,8 +35,15 @@
 		value,
 		onchange,
 		onremove,
-		open = $bindable(false)
-	}: { value: Json; onchange: (v: Json) => void; onremove?: () => void; open?: boolean } = $props();
+		open = $bindable(false),
+		badge
+	}: {
+		value: Json;
+		onchange: (v: Json) => void;
+		onremove?: () => void;
+		open?: boolean;
+		badge?: string;
+	} = $props();
 
 	const ctx = editor();
 	const kind = $derived(whenKindOf(value));
@@ -98,7 +105,7 @@
 	}
 </script>
 
-<Row words={whenPhrase(ctx.house, value)} bind:open {onremove}>
+<Row words={whenPhrase(ctx.house, value)} bind:open {onremove} {badge}>
 	<label class="kind">
 		<span>When</span>
 		<select value={kind} onchange={(e) => onchange(newWhen(e.currentTarget.value as WhenKind))}>

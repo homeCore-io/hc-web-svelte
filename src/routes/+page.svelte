@@ -1,335 +1,78 @@
 <!--
-	The generated home (D1): what needs attention and what's on, as chips; this
-	person's favourites; the house's modes and the scenes that belong to no
-	room; then every room, with its summary and "All off" (C5).
+	The generated home (D1): what needs attention and what's on, as chips;
+	the cards the household pinned; this person's favourites; the house's
+	modes and the scenes that belong to no room; then every room, with its
+	summary and "All off" (C5).
 
-	The household's changes apply, then the person's own on top (M2, M3):
-	order, what was hidden, names, and cards the household pinned. Customise
+	Computed into a page document (`homePage`) and drawn by `PageView`, with
+	the household's changes, then the person's own on top (M2, M3): order,
+	what was hidden, names and sizes — of cards and of sections. Customise
 	arranges it for one person; Edit, for everyone (N6).
 -->
 <script lang="ts">
-	import { cardFor, kindOf } from '#lib/card.js';
-	import { displayName, type CoreDevice } from '#lib/devices.js';
-	import { byRoom, houseChips } from '#lib/summary.js';
-	import { added, apply, cardRef, ref, type Form } from '#lib/layers.js';
+	import { kindOf } from '#lib/card.js';
+	import { displayName } from '#lib/devices.js';
+	import { heading } from '#lib/heading.svelte.js';
+	import { kindOptions } from '#lib/kindOptions.svelte.js';
+	import { homeStyle } from '#lib/styles.js';
+	import { homeDocument } from '#lib/homeDoc.js';
 	import { devices } from '#lib/devices.svelte.js';
-	import { rooms } from '#lib/rooms.svelte.js';
-	import { scenes } from '#lib/scenes.svelte.js';
-	import { commands } from '#lib/commands.svelte.js';
-	import { personal } from '#lib/personal.svelte.js';
-	import { household } from '#lib/household.svelte.js';
-	import { editing } from '#lib/edit.svelte.js';
 	import { view } from '#lib/view.svelte.js';
-	import { alerts } from '#lib/alerts.svelte.js';
-	import AlertList from '#lib/components/AlertList.svelte';
 	import { clock } from '#lib/clock.svelte.js';
-	import { page } from '$app/state';
-	import { openDevice } from '#lib/popup.js';
-	import Icon from '#lib/components/Icon.svelte';
-	import RoomRow from '#lib/components/RoomRow.svelte';
-	import SceneCard from '#lib/components/SceneCard.svelte';
-	import ModeChips from '#lib/components/ModeChips.svelte';
-	import DeviceCard from '#lib/components/DeviceCard.svelte';
-	import PluginCard from '#lib/components/PluginCard.svelte';
-	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
-	import Arrange from '#lib/components/Arrange.svelte';
 	import CustomiseBar from '#lib/components/CustomiseBar.svelte';
-	import CustomiseButton from '#lib/components/CustomiseButton.svelte';
+	import PageView from '#lib/components/PageView.svelte';
+	import { page } from '$app/state';
+	import { pushState } from '$app/navigation';
+	import { look } from '#lib/look.svelte.js';
+
+	// A room opened over Home where the look says so (13 §7, G1), as a step in
+	// the history, so Back closes it (G2). Not while Home is being arranged,
+	// and not when someone asks for a new tab.
+	function openOver(e: MouseEvent) {
+		if (!look.def.frame.sheet || view.mode(HOME) !== null) return;
+		if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
+			return;
+		const a = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[href^="/rooms/"]');
+		const id = a?.getAttribute('href')?.slice('/rooms/'.length);
+		if (!id || id.includes('/')) return;
+		e.preventDefault();
+		pushState('', { sheet: decodeURIComponent(id) });
+	}
 
 	const HOME = 'home';
-	const mode = $derived(view.mode(HOME));
-	const arranging = $derived(mode !== null);
-	const changes = $derived(view.changes(HOME));
+	const doc = $derived(homeDocument());
 
-	const list = $derived(Object.values(devices.byId));
-	const cards = $derived(new Map(list.map((d) => [d.device_id, cardFor(d, clock.now)])));
-	const grouped = $derived(byRoom(devices.byId, rooms.list));
-	const chips = $derived(houseChips([...cards.values()]));
-	const loose = $derived(grouped.get('') ?? []);
-	const cardsOf = (ids: { device_id: string }[]) => ids.map((d) => cards.get(d.device_id)!);
-	const isScene = (d: CoreDevice) => kindOf(d) === 'scene';
-
-	// ---- favourites ----
-	type Fav =
-		| { ref: string; kind: 'device'; device: CoreDevice }
-		| { ref: string; kind: 'scene'; id: string; name: string };
-	const favourites = $derived(
-		(personal.doc.favourites ?? [])
-			.map((r): Fav | undefined => {
-				if (r.startsWith('device:')) {
-					const d = devices.byId[r.slice(7)];
-					return d ? { ref: r, kind: 'device', device: d } : undefined;
-				}
-				if (r.startsWith('scene:')) {
-					const s = scenes.list.find((x) => x.id === r.slice(6));
-					return s ? { ref: r, kind: 'scene', id: s.id, name: s.name } : undefined;
-				}
-				return undefined;
-			})
-			.filter((f): f is Fav => f !== undefined)
-	);
-	const favRefs = $derived(favourites.map((f) => f.ref));
-	const favLayer = $derived(apply(favourites, (f) => f.ref, personal.changes(HOME)));
-	const favForm = (r: string) => favLayer.form(r) ?? 'standard';
-
-	// ---- cards the household pinned to Home (M2 `add`) ----
-	type Pin =
-		| { ref: string; kind: 'device'; device: CoreDevice }
-		| { ref: string; kind: 'scene'; id: string; name: string }
-		| { ref: string; kind: 'card'; name: string; forms?: Form[] };
-	const pins = $derived(
-		added(changes)
-			.map((r): Pin | undefined => {
-				if (r.startsWith('device:')) {
-					const d = devices.byId[r.slice(7)];
-					return d ? { ref: r, kind: 'device', device: d } : undefined;
-				}
-				if (r.startsWith('scene:')) {
-					const s = scenes.list.find((x) => x.id === r.slice(6));
-					return s ? { ref: r, kind: 'scene', id: s.id, name: s.name } : undefined;
-				}
-				const c = cardRef(r);
-				if (c) {
-					// Kept even while its plugin is away, so it can be taken off.
-					const found = pluginUis.card(c.pluginId, c.element);
-					return {
-						ref: r,
-						kind: 'card',
-						name: found?.slot.label ?? 'A plugin’s card',
-						forms: found?.slot.forms
-					};
-				}
-				return undefined;
-			})
-			.filter((p): p is Pin => p !== undefined)
-	);
-	const pinLayer = $derived(apply(pins, (p) => p.ref, changes));
-	const pinList = $derived(arranging ? [...pinLayer.shown, ...pinLayer.hidden] : pinLayer.shown);
-	const pinRefs = $derived(pinLayer.shown.map((p) => p.ref));
-	const pinName = (p: Pin) =>
-		pinLayer.name(p.ref) ?? (p.kind === 'device' ? displayName(p.device) : p.name);
-	/** A pin's size: what it was given, if its card can be that, else its first. */
-	const pinForm = (p: Pin): Form => {
-		const f = pinLayer.form(p.ref) ?? (p.kind === 'card' ? p.forms?.[0] : undefined) ?? 'standard';
-		return p.kind === 'card' && p.forms?.length && !p.forms.includes(f) ? p.forms[0]! : f;
-	};
-
-	// ---- scenes in no room, homeCore's and plugins' alike ----
-	type SceneItem = {
-		ref: string;
-		name: string;
-		run: () => Promise<boolean | string>;
-		details?: () => void;
-	};
-	const sceneItems = $derived(
-		[
-			...scenes.list.map((s): SceneItem => ({
-				ref: ref.scene(s.id),
-				name: s.name,
-				run: () => scenes.run(s.id)
-			})),
-			...loose.filter(isScene).map((d): SceneItem => ({
-				ref: ref.device(d.device_id),
-				name: displayName(d),
-				run: () => commands.act(d.device_id, 'activate'),
-				details: () => openDevice(d.device_id, page.url)
-			}))
-		].sort((a, b) => a.name.localeCompare(b.name))
-	);
-	const sceneLayer = $derived(apply(sceneItems, (s) => s.ref, changes));
-	const sceneList = $derived(
-		arranging ? [...sceneLayer.shown, ...sceneLayer.hidden] : sceneLayer.shown
-	);
-	const sceneRefs = $derived(sceneLayer.shown.map((s) => s.ref));
-
-	// ---- rooms ----
-	type RoomItem = { ref: string; href: string; name: string; devices: CoreDevice[] };
-	const roomItems = $derived([
-		...rooms.list
-			.map((r): RoomItem => ({
-				ref: ref.room(r.id),
-				href: `/rooms/${r.id}`,
-				name: r.name,
-				devices: grouped.get(r.id) ?? []
-			}))
-			.filter((r) => r.devices.length > 0),
-		...(loose.some((d) => !isScene(d) && kindOf(d) !== 'mode')
-			? [
-					{
-						ref: 'room:none',
-						href: '/rooms/none',
-						name: 'Not in a room',
-						devices: loose.filter((d) => !isScene(d) && kindOf(d) !== 'mode')
-					}
-				]
-			: [])
-	]);
-	const roomLayer = $derived(apply(roomItems, (r) => r.ref, changes));
-	const roomList = $derived(
-		arranging ? [...roomLayer.shown, ...roomLayer.hidden] : roomLayer.shown
-	);
-	const roomRefs = $derived(roomLayer.shown.map((r) => r.ref));
-
-	$effect(() => {
-		if (editing.on(HOME))
-			editing.present = new Set([
-				...pins.map((p) => p.ref),
-				...sceneItems.map((s) => s.ref),
-				...roomItems.map((r) => r.ref)
-			]);
+	// The room field (mockup A): wider, and the day and the house's mode above the title.
+	const field = $derived(homeStyle(view.changes(HOME), kindOptions.shellRooms(HOME)) === 'field');
+	const kicker = $derived.by(() => {
+		if (!field) return null;
+		const at = new Date(clock.now);
+		const day = (o: Intl.DateTimeFormatOptions) => at.toLocaleDateString(undefined, o);
+		const mode = Object.values(devices.byId).find(
+			(d) => kindOf(d) === 'mode' && d.attributes.on === true
+		);
+		const withMode = (s: string) => (mode ? `${s} · ${displayName(mode)}` : s);
+		return {
+			long: withMode(day({ weekday: 'long', day: 'numeric', month: 'long' })),
+			short: withMode(day({ weekday: 'short', day: 'numeric', month: 'short' }))
+		};
 	});
+	$effect(() => heading.showKicker(kicker));
 </script>
 
 {#if !devices.loaded}
 	<p class="quiet">Loading the house…</p>
 {:else}
-	<div class="home">
-		<CustomiseButton page={HOME} />
+	<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+	<div class="home" class:field onclickcapture={openOver}>
 		<CustomiseBar page={HOME} home />
-
-		{#if alerts.list.length > 0 && mode !== 'edit'}
-			<section aria-label="Needs attention">
-				<AlertList list={alerts.list.slice(0, 3)} />
-				{#if alerts.list.length > 3}
-					<a class="more" href="/alerts">All {alerts.list.length} alerts</a>
-				{/if}
-			</section>
-		{/if}
-
-		{#if chips.length > 0}
-			<nav class="chips" aria-label="What's going on">
-				{#each chips as c (c.key)}
-					<a class="chip" class:alert={c.alert} href={`/on/${c.key}`}>
-						<Icon name={c.icon} size={16} />
-						{c.text}
-					</a>
-				{/each}
-			</nav>
-		{/if}
-
-		{#if pinList.length > 0}
-			<section>
-				<h2 class="section-label">Pinned</h2>
-				<div class="grid">
-					{#each pinList as p (p.ref)}
-						{@const form = pinForm(p)}
-						<Arrange
-							page={HOME}
-							ref={p.ref}
-							name={pinName(p)}
-							shown={pinRefs}
-							hidden={pinLayer.hidden.includes(p)}
-							form={(p.kind === 'device' && !isScene(p.device)) || p.kind === 'card'
-								? form
-								: undefined}
-							wide={form === 'large'}
-							star={p.kind !== 'card'}
-							added
-							renamed={pinLayer.name(p.ref) !== undefined}
-						>
-							{#if p.kind === 'card'}
-								<PluginCard cardId={p.ref} {form} config={pinLayer.config(p.ref)} />
-							{:else if p.kind === 'scene'}
-								<SceneCard name={pinName(p)} run={() => scenes.run(p.id)} />
-							{:else if isScene(p.device)}
-								<SceneCard
-									name={pinName(p)}
-									run={() => commands.act(p.device.device_id, 'activate')}
-									details={() => openDevice(p.device.device_id, page.url)}
-								/>
-							{:else}
-								<DeviceCard device={p.device} {form} label={pinLayer.name(p.ref)} />
-							{/if}
-						</Arrange>
-					{/each}
-				</div>
-			</section>
-		{/if}
-
-		{#if mode === 'edit'}
-			<!-- Favourites are each person's own; the shared page has none. -->
-		{:else if favourites.length > 0}
-			<section>
-				<h2 class="section-label">Favourites</h2>
-				<div class="grid">
-					{#each favourites as f (f.ref)}
-						{@const form = favForm(f.ref)}
-						<Arrange
-							page={HOME}
-							ref={f.ref}
-							name={f.kind === 'device' ? displayName(f.device) : f.name}
-							shown={favRefs}
-							list="favourites"
-							form={f.kind === 'device' && !isScene(f.device) ? form : undefined}
-							wide={form === 'large'}
-						>
-							{#if f.kind === 'scene'}
-								<SceneCard name={f.name} run={() => scenes.run(f.id)} />
-							{:else if isScene(f.device)}
-								<SceneCard
-									name={displayName(f.device)}
-									run={() => commands.act(f.device.device_id, 'activate')}
-									details={() => openDevice(f.device.device_id, page.url)}
-								/>
-							{:else}
-								<DeviceCard device={f.device} {form} />
-							{/if}
-						</Arrange>
-					{/each}
-				</div>
-			</section>
-		{:else if mode === 'customise'}
-			<p class="hint">
-				Star anything — here or in a room — and it appears in Favourites at the top of Home.
-			</p>
-		{/if}
-
-		{#if sceneList.length > 0 || list.some((d) => kindOf(d) === 'mode')}
-			<section>
-				<h2 class="section-label">Scenes &amp; modes</h2>
-				<ModeChips />
-				<div class="scenes">
-					{#each sceneList as s (s.ref)}
-						<Arrange
-							page={HOME}
-							ref={s.ref}
-							name={sceneLayer.name(s.ref) ?? s.name}
-							shown={sceneRefs}
-							hidden={sceneLayer.hidden.includes(s)}
-							renamed={sceneLayer.name(s.ref) !== undefined}
-						>
-							<SceneCard name={sceneLayer.name(s.ref) ?? s.name} run={s.run} details={s.details} />
-						</Arrange>
-					{/each}
-				</div>
-			</section>
-		{/if}
-
-		<section>
-			<h2 class="section-label">Rooms</h2>
-			<div class="rooms">
-				{#each roomList as r (r.ref)}
-					<Arrange
-						page={HOME}
-						ref={r.ref}
-						name={roomLayer.name(r.ref) ?? r.name}
-						shown={roomRefs}
-						hidden={roomLayer.hidden.includes(r)}
-						star={false}
-						renamed={roomLayer.name(r.ref) !== undefined}
-					>
-						<RoomRow
-							href={r.href}
-							name={roomLayer.name(r.ref) ?? r.name}
-							icon={household.iconOf(r.ref.slice(5))}
-							devices={r.devices}
-							cards={cardsOf(r.devices)}
-						/>
-					</Arrange>
-				{/each}
-			</div>
-		</section>
+		<PageView page={doc} />
 	</div>
+	{#if page.state.sheet}
+		{#await import('#lib/components/rooms/RoomSheet.svelte') then { default: RoomSheet }}
+			<RoomSheet id={page.state.sheet} close={() => history.back()} />
+		{/await}
+	{/if}
 {/if}
 
 <style>
@@ -339,72 +82,11 @@
 		gap: 22px;
 		max-width: 1100px;
 	}
-	section {
-		display: flex;
-		flex-direction: column;
-		gap: 10px;
+	.home.field {
+		max-width: 1240px;
 	}
-	.more {
-		align-self: flex-start;
-		color: var(--accent);
-		font-weight: 600;
-		text-decoration: none;
-	}
-	.quiet,
-	.hint {
+	.quiet {
 		color: var(--ink-muted);
 		margin: 0;
-	}
-	.chips {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
-	}
-	.chip {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		height: 36px;
-		padding: 0 12px 0 10px;
-		border-radius: 18px;
-		border: 1px solid var(--lit-card-line);
-		background: var(--lit-bg);
-		color: var(--lit-ink);
-		font-size: 13px;
-		font-weight: 600;
-		text-decoration: none;
-	}
-	.chip.alert {
-		border-color: var(--alert-line);
-		background: var(--alert-bg);
-		color: var(--alert);
-	}
-	.grid {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 10px;
-		align-items: start;
-	}
-	.scenes {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 8px;
-	}
-	.rooms {
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-	}
-	@media (min-width: 700px) {
-		.grid {
-			grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-		}
-		.scenes {
-			grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-		}
-		.rooms {
-			display: grid;
-			grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-		}
 	}
 </style>

@@ -62,7 +62,7 @@
 	.bar {
 		position: sticky;
 		top: 0;
-		z-index: 5;
+		z-index: 21; /* over the header, which it replaces while unlocked */
 		display: flex;
 		align-items: center;
 		justify-content: space-between;

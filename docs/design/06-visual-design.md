@@ -122,7 +122,7 @@ a **base iPad**, on the home network:
 | Reload with the app cached | ≤ 0.5 s |
 | Tap to visible response | ≤ 100 ms |
 | Device change to the screen showing it | ≤ 250 ms after homeCore announces it |
-| JavaScript for the home, compressed | ≤ 150 KB |
+| JavaScript for the home, compressed | ≤ 200 KB (150 KB until 2026-11-02, V5) |
 | Elements on the home page, this house (184 devices) | ≤ 1,500 |
 | Scrolling | Smooth at 60 fps |
 

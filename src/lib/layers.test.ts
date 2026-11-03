@@ -2,14 +2,19 @@ import { describe, expect, it } from 'vitest';
 import {
 	addChange,
 	cardRef,
+	kindRef,
 	ref,
 	added,
 	apply,
 	asks,
 	barOf,
 	gone,
+	homeRoomOrder,
 	layered,
+	migrate,
+	SCHEMA,
 	paletteOf,
+	lookOf,
 	withAsk,
 	nudge,
 	nudgeFavourite,
@@ -29,6 +34,10 @@ describe('a personal layer over a generated page (M2)', () => {
 		const l = apply(items, id, [{ op: 'hide', ref: 'b' }]);
 		expect(l.shown).toEqual(['a', 'c', 'd']);
 		expect(l.hidden).toEqual(['b']);
+	});
+
+	it('a move before itself leaves it where it is', () => {
+		expect(apply(items, id, [{ op: 'move', ref: 'a', before: 'a' }]).shown).toEqual(items);
 	});
 
 	it('moves before another, or to the end', () => {
@@ -130,7 +139,7 @@ describe('favourites', () => {
 
 describe('the phone bar (N2)', () => {
 	it('defaults to Home, Pages, Scenes', () => {
-		expect(barOf(undefined, [])).toEqual(['home', 'pages', 'scenes']);
+		expect(barOf(undefined, [])).toEqual(['home', 'scenes', 'alerts']);
 	});
 
 	it('keeps known destinations and real rooms, no repeats, at most four', () => {
@@ -146,7 +155,7 @@ describe('the phone bar (N2)', () => {
 	});
 
 	it('an emptied bar falls back to the default', () => {
-		expect(barOf({ version: 1, bar: [] }, [])).toEqual(['home', 'pages', 'scenes']);
+		expect(barOf({ version: 1, bar: [] }, [])).toEqual(['home', 'scenes', 'alerts']);
 	});
 });
 
@@ -266,6 +275,27 @@ describe('themes (D9a)', () => {
 	});
 });
 
+describe('looks (12)', () => {
+	it('a person 19s own, else the house 19s, else Classic; unknown ones are ignored', () => {
+		expect(lookOf().id).toBe('classic');
+		expect(lookOf({ version: 1 }, { version: 1, look: 'lit' }).id).toBe('lit');
+		expect(lookOf({ version: 1, look: 'classic' }, { version: 1, look: 'lit' }).id).toBe('classic');
+		expect(lookOf({ version: 1, look: 'neon' }, { version: 1 }).id).toBe('classic');
+	});
+
+	it('finds the house’s own looks and a person’s, and a look’s theme under theirs (13 §15)', () => {
+		const ours = { id: 'evening', name: 'Evening', from: 'lit', theme: 'plum', version: 1 };
+		const mine = { id: 'mine', name: 'Mine', version: 1 };
+		const house = { version: 1, look: 'evening', looks: [ours] };
+		const l = lookOf({ version: 1 }, house);
+		expect(l.id).toBe('evening');
+		expect(l.grouping.room?.[0]?.id).toBe('head');
+		expect(lookOf({ version: 1, look: 'mine', looks: [mine] }, house).id).toBe('mine');
+		expect(paletteOf({ version: 1 }, house, l)).toBe('plum');
+		expect(paletteOf({ version: 1 }, { ...house, palette: 'sage' }, l)).toBe('sage');
+	});
+});
+
 describe('plugin cards on a page', () => {
 	it('a card is added with its own ref, and its settings are the last ones given', () => {
 		const r = ref.card('plugin.wled', 'hc-wled-presets', 'a1');
@@ -279,5 +309,65 @@ describe('plugin cards on a page', () => {
 		const l = apply([r], (x) => x, list);
 		expect(l.config(r)).toEqual({ presets: [14, 16] });
 		expect(added(list)).toEqual([r]);
+	});
+});
+
+describe("Home's room order, for the shell and settings", () => {
+	const rooms = ['room:a', 'room:b', 'room:c'];
+
+	it('follows moves among the rooms, as before', () => {
+		const changes: Change[] = [{ op: 'move', ref: 'room:c', before: 'room:a' }];
+		expect(homeRoomOrder(rooms, id, changes).shown).toEqual(apply(rooms, id, changes).shown);
+		expect(homeRoomOrder(rooms, id, changes).shown).toEqual(['room:c', 'room:a', 'room:b']);
+	});
+
+	it('counts a move into the rooms section, but not one out of it', () => {
+		const changes: Change[] = [
+			{ op: 'move', ref: 'room:c', before: 'room:a', into: 'rooms' },
+			{ op: 'move', ref: 'room:a', before: null, into: 'pinned' }
+		];
+		expect(homeRoomOrder(rooms, id, changes).shown).toEqual(['room:c', 'room:a', 'room:b']);
+	});
+
+	it('is not moved by changes to sections', () => {
+		const changes: Change[] = [
+			{ op: 'move', ref: 'section:rooms', before: 'section:chips' },
+			{ op: 'hide', ref: 'section:rooms' }
+		];
+		expect(homeRoomOrder(rooms, id, changes).shown).toEqual(rooms);
+	});
+});
+
+describe("the documents' shape (04 §7)", () => {
+	it('reads a version 1 document as today’s, keeping everything', () => {
+		const old = {
+			version: 7,
+			pages: { home: [{ op: 'hide', ref: 'room:a' }] as Change[] },
+			someday: { kept: true }
+		};
+		const doc = migrate(old);
+		expect(doc).toEqual({ ...old, schema: SCHEMA });
+		expect(doc.version).toBe(7);
+	});
+
+	it('leaves a document already in this shape, or a newer one, alone', () => {
+		const now = { version: 1, schema: SCHEMA };
+		expect(migrate(now)).toBe(now);
+		const newer = { version: 1, schema: SCHEMA + 1, more: 1 };
+		expect(migrate(newer)).toBe(newer);
+	});
+});
+
+describe('things added to a page (G-c)', () => {
+	it('reads an app card’s ref back', () => {
+		expect(kindRef(ref.kind('chart', 'x1'))).toEqual({ kind: 'chart', n: 'x1' });
+		expect(kindRef('card:plugin.hue/x/1')).toBeUndefined();
+	});
+
+	it('keeps the last of making and removing a section', () => {
+		const made: Change = { op: 'section', ref: 'section:own-a', title: 'A', layout: 'grid' };
+		const list = addChange(addChange([], made), { op: 'remove', ref: 'section:own-a' });
+		expect(list).toEqual([{ op: 'remove', ref: 'section:own-a' }]);
+		expect(addChange(list, made)).toEqual([made]);
 	});
 });

@@ -3,6 +3,7 @@ import { actionBody, detailsFor, ready, rgbValue } from './details.js';
 import { activityOf, byWhom } from './activity.js';
 import { HOUSE, FIXTURE_NOW } from './fixtures/house.js';
 import type { CoreDevice } from './devices.js';
+import { followUnits } from './units.js';
 
 const byId = (id: string): CoreDevice => HOUSE.find((d) => d.device_id === id)!;
 const details = (id: string) => detailsFor(byId(id), HOUSE, FIXTURE_NOW);
@@ -234,5 +235,46 @@ describe('numbers with no range, and RGB colours (WLED)', () => {
 		});
 		expect(rgbValue('#0080ff', 'array')).toEqual([0, 128, 255]);
 		expect(rgbValue('#0080ff', 'object')).toEqual({ r: 0, g: 128, b: 255 });
+	});
+});
+
+describe('in the person’s units', () => {
+	const thermostat: CoreDevice = {
+		device_id: 't',
+		name: 'Office Thermostat',
+		available: true,
+		device_type: 'thermostat',
+		attributes: { setpoint: 21.7, temperature: 20 },
+		schema: {
+			attributes: {
+				temperature: { kind: 'float', writable: false, unit: '°C' },
+				setpoint: { kind: 'float', writable: true, unit: '°C' }
+			},
+			actions: [
+				{
+					id: 'set_setpoint',
+					label: 'Set the target temperature',
+					writes: 'setpoint',
+					params: [{ name: 'value', kind: 'float', required: true }]
+				}
+			]
+		}
+	};
+
+	it('a setpoint is set in °F and sent in °C', () => {
+		followUnits(() => ({ temperature: 'F', measures: 'us' }));
+		try {
+			const set = detailsFor(thermostat, [thermostat]).groups.flatMap((g) => g.actions)[0]!;
+			expect(set.fields[0]).toMatchObject({ kind: 'number', value: 71.1, unit: '°F', from: '°C' });
+			expect(actionBody(set, { value: 70 })).toEqual({ action: 'set_setpoint', value: 21.111 });
+		} finally {
+			followUnits(() => ({ temperature: 'C', measures: 'metric' }));
+		}
+	});
+
+	it('in °C, as it is', () => {
+		const set = detailsFor(thermostat, [thermostat]).groups.flatMap((g) => g.actions)[0]!;
+		expect(set.fields[0]).toMatchObject({ kind: 'number', value: 21.7 });
+		expect(actionBody(set, {})).toEqual({ action: 'set_setpoint', value: 21.7 });
 	});
 });

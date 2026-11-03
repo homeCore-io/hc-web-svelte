@@ -121,6 +121,18 @@ describe('events, in words', () => {
 		expect(text(out[0]!.words)).toBe('Office AC — Power changed 3 times');
 		expect(text(out[1]!.words)).toBe('Exhaust Fan re-declared its controls 2 times');
 		expect(out[1]!.kind).toBe('warn');
+		// "Media position updated at changed 66 times" said the position moved.
+		const pos = {
+			type: 'device_state_changed',
+			device_id: 'plug',
+			changed: ['media_position', 'media_position_updated_at'],
+			current: { media_position: 12, media_position_updated_at: '2026-10-28T12:00:00Z' }
+		};
+		const moved = folded(
+			[1, 2].map(() => eventRow({ ...pos, timestamp: 't' }, house)!),
+			() => true
+		);
+		expect(text(moved[0]!.words)).toBe('Office AC — Media position changed 2 times');
 	});
 });
 

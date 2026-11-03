@@ -3,7 +3,9 @@
 	"at the same time". Add one by what it does.
 -->
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import StepEdit from './StepEdit.svelte';
+	import KindPicker from './KindPicker.svelte';
 	import { STEP_KINDS, newStep, offered, type StepKind } from '#lib/ruleEdit.js';
 	import { editor } from './context.js';
 
@@ -14,7 +16,8 @@
 		onchange,
 		enabled,
 		onenabled,
-		addLabel = '+ Add a step'
+		addLabel = '+ Add a step',
+		openFirst = false
 	}: {
 		steps: Json[];
 		onchange: (steps: Json[]) => void;
@@ -22,11 +25,13 @@
 		enabled?: boolean[];
 		onenabled?: (i: number, on: boolean) => void;
 		addLabel?: string;
+		/** Open the first step's form at once: one just chosen to start from. */
+		openFirst?: boolean;
 	} = $props();
 
 	const ctx = editor();
 	let adding = $state(false);
-	let opened = $state<number | null>(null);
+	let opened = $state<number | null>(untrack(() => openFirst) ? 0 : null);
 
 	const move = (i: number, by: number) => {
 		const next = [...steps];
@@ -57,14 +62,12 @@
 		/>
 	{/each}
 	{#if adding}
-		<div class="menu" role="group" aria-label="What the step does">
-			{#each offered(STEP_KINDS, ctx.features) as k (k.kind)}
-				<button type="button" onclick={() => add(k.kind)}
-					><strong>{k.label}</strong>{#if k.sub}<span>{k.sub}</span>{/if}</button
-				>
-			{/each}
-			<button type="button" class="cancel" onclick={() => (adding = false)}>Cancel</button>
-		</div>
+		<KindPicker
+			kinds={offered(STEP_KINDS, ctx.features)}
+			label="What the step does"
+			onpick={add}
+			oncancel={() => (adding = false)}
+		/>
 	{:else}
 		<button type="button" class="add" onclick={() => (adding = true)}>{addLabel}</button>
 	{/if}
@@ -89,34 +92,5 @@
 		font: inherit;
 		font-weight: 600;
 		font-size: 13px;
-	}
-	.menu {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-		gap: 6px;
-		padding: var(--space-2);
-		border-radius: 12px;
-		border: 1px dashed var(--line);
-	}
-	.menu button {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 2px;
-		padding: 8px 10px;
-		border-radius: 10px;
-		border: 1px solid var(--card-line);
-		background: var(--surface);
-		color: var(--ink);
-		font: inherit;
-		text-align: left;
-	}
-	.menu span {
-		font-size: 12px;
-		color: var(--ink-muted);
-	}
-	.menu .cancel {
-		justify-content: center;
-		color: var(--ink-muted);
 	}
 </style>

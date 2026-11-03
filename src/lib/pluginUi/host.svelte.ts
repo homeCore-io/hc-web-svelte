@@ -6,6 +6,8 @@
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import { devices } from '../devices.svelte.js';
+import { alerts } from '../alerts.svelte.js';
+import type { Alert as CoreAlert } from '../alerts.js';
 import { displayName, type CoreDevice } from '../devices.js';
 import { rooms } from '../rooms.svelte.js';
 import { roomOf } from '../summary.js';
@@ -14,7 +16,8 @@ import { session } from '../me.svelte.js';
 import { ask } from '../confirm.svelte.js';
 import { openDevice } from '../popup.js';
 import { lifecycle, loadConfig, runAction, saveConfig } from '../pluginAdmin.js';
-import type { Device, Host, Result } from './types.js';
+import { fromShown, readingText, shown, units } from '../units.js';
+import type { Alert, Device, Host, Result } from './types.js';
 import kit from './kit.css?raw';
 
 let sheet: CSSStyleSheet | undefined;
@@ -26,7 +29,8 @@ function theSheet(): CSSStyleSheet {
 	return sheet;
 }
 
-const view = (d: CoreDevice): Device => ({
+/** A device as a plugin's screens are given it. */
+export const deviceView = (d: CoreDevice): Device => ({
 	device_id: d.device_id,
 	name: d.name,
 	name_override: d.name_override ?? null,
@@ -43,7 +47,25 @@ const mine = (pluginId: string) =>
 	Object.values(devices.byId)
 		.filter((d) => d.plugin_id === pluginId)
 		.sort((a, b) => displayName(a).localeCompare(displayName(b)))
-		.map(view);
+		.map(deviceView);
+
+/** An alert as a plugin's screens are given it. */
+export const alertView = (a: CoreAlert): Alert => ({
+	id: a.id,
+	kind: a.kind,
+	device_id: a.device_id,
+	message: a.message,
+	reason: a.reason,
+	severity: a.severity,
+	raised_at: a.raised_at,
+	acknowledged: a.acknowledged !== undefined
+});
+
+/** homeCore's alerts on the plugin's devices; `undefined` until it has said. */
+const alertsOf = (pluginId: string): Alert[] | undefined =>
+	alerts.known
+		? alerts.list.filter((a) => devices.byId[a.device_id]?.plugin_id === pluginId).map(alertView)
+		: undefined;
 
 const storeUrl = (pluginId: string, key: string) =>
 	`/ui/plugin-store/${encodeURIComponent(pluginId)}/${encodeURIComponent(key)}`;
@@ -80,7 +102,7 @@ export function createHost(pluginId: string): Host {
 		},
 		devices: {
 			list: () => mine(pluginId),
-			get: (id) => (owns(id) ? view(devices.byId[id]!) : undefined),
+			get: (id) => (owns(id) ? deviceView(devices.byId[id]!) : undefined),
 			label: (d) => d.name_override || d.name,
 			subscribe(f) {
 				// Svelte's own reactivity, outside any component: called now
@@ -110,6 +132,17 @@ export function createHost(pluginId: string): Host {
 				}
 			}
 		},
+		alerts: {
+			list: () => alertsOf(pluginId),
+			subscribe(f) {
+				// As `devices.subscribe`: now, and whenever the alerts change.
+				return $effect.root(() => {
+					$effect(() => {
+						f(alertsOf(pluginId));
+					});
+				});
+			}
+		},
 		async command(deviceId, body) {
 			if (!owns(deviceId)) return fail('Not one of this plugin’s devices.');
 			return (await commands.send(deviceId, body))
@@ -133,6 +166,12 @@ export function createHost(pluginId: string): Host {
 			}
 		},
 		fetch: (path, init) => fetch(`/api/v1${path.startsWith('/') ? '' : '/'}${path}`, init),
+		fileUrl: (path) =>
+			`/api/v1/plugins/${encodeURIComponent(pluginId)}/files/${path
+				.replace(/^\/+/, '')
+				.split('/')
+				.map(encodeURIComponent)
+				.join('/')}`,
 		async upload(action, file, params = {}, name) {
 			const q = new URLSearchParams(params);
 			if (name ?? (file as File).name) q.set('name', name ?? (file as File).name);
@@ -193,6 +232,28 @@ export function createHost(pluginId: string): Host {
 			async restartPlugin() {
 				const r = await lifecycle(pluginId, 'restart');
 				return r.ok ? { ok: true, data: undefined } : fail(r.error);
+			}
+		},
+		units: {
+			get temperature() {
+				return units().temperature;
+			},
+			get measures() {
+				return units().measures;
+			},
+			show(value, unit) {
+				const s = shown(value, unit);
+				return { value: s.value, unit: s.unit, text: readingText(value, unit) };
+			},
+			toCore: (value, unit) => fromShown(value, unit),
+			subscribe(f) {
+				// As `devices.subscribe`: now, and whenever the person's choice changes.
+				return $effect.root(() => {
+					$effect(() => {
+						const { temperature, measures } = units();
+						f({ temperature, measures });
+					});
+				});
 			}
 		},
 		ui: {

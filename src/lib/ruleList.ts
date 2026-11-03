@@ -5,7 +5,10 @@
  */
 import { displayName, type CoreDevice } from './devices.js';
 import { found } from './settings.js';
+import { knownPluginName } from './inventory.js';
 import { plain, refsOf, sentence, tagOf, type House, type Phrase, type Rule } from './ruleWords.js';
+import type { AutomationAlerts } from './alertStarts.js';
+import { dateOf, timeOf } from './when.js';
 
 /** What the list knows of a rule's recent runs (from its history). */
 export interface LastRuns {
@@ -31,6 +34,8 @@ export interface Row {
 	trouble: string[];
 	/** Everything search looks through. */
 	text: string;
+	/** Started by an alert: which, and whether it's waiting (`GET /alerts/automations`). */
+	byAlert?: AutomationAlerts;
 }
 
 export interface Family {
@@ -39,13 +44,17 @@ export interface Family {
 	ids: string[];
 }
 
-export type Show = 'all' | 'attention' | 'off' | 'families';
+export type Show = 'all' | 'attention' | 'off' | 'families' | 'alerts';
+
+/** What homeCore says of an automation kept after its alert rule was deleted. */
+export const alertDeleted = (r: Rule) => r.error?.startsWith('its alert was deleted') ?? false;
 
 export function rowsOf(
 	rules: Rule[],
 	h: House,
 	runs: Record<string, LastRuns> = {},
-	byMode: Record<string, string> = {}
+	byMode: Record<string, string> = {},
+	byAlert: Record<string, AutomationAlerts> = {}
 ): Row[] {
 	const families = familiesOf(rules);
 	return rules.map((rule) => {
@@ -54,7 +63,9 @@ export function rowsOf(
 			.filter((r) => r.missing)
 			.map((r) => r.id);
 		const trouble: string[] = [];
-		if (rule.error) trouble.push(`homeCore can’t run it: ${rule.error}`);
+		if (alertDeleted(rule))
+			trouble.push('Its alert was deleted — choose another trigger or delete it');
+		else if (rule.error) trouble.push(`homeCore can’t run it: ${rule.error}`);
 		if (missing.length)
 			trouble.push(
 				missing.length === 1
@@ -72,6 +83,7 @@ export function rowsOf(
 			alertish: onlyTells(rule),
 			family: families.get(rule.id),
 			trouble,
+			byAlert: byAlert[rule.id],
 			text: `${rule.name} ${plain(words)} ${tags.join(' ')} ${refsOf(h, rule)
 				.map((r) => r.id)
 				.join(' ')}`
@@ -87,12 +99,19 @@ export function shows(row: Row, query: string, show: Show): boolean {
 	if (show === 'attention') return row.trouble.length > 0;
 	if (show === 'off') return !row.rule.enabled;
 	if (show === 'families') return row.family !== undefined;
+	if (show === 'alerts') return row.byAlert !== undefined;
 	return true;
 }
 
 export function counts(rows: Row[], query: string): Record<Show, number> {
 	const n = (show: Show) => rows.filter((r) => shows(r, query, show)).length;
-	return { all: n('all'), attention: n('attention'), off: n('off'), families: n('families') };
+	return {
+		all: n('all'),
+		attention: n('attention'),
+		off: n('off'),
+		families: n('families'),
+		alerts: n('alerts')
+	};
 }
 
 // ---- groups: by tag (E9) ----
@@ -205,6 +224,9 @@ export function commonName(names: string[]): string {
 
 /** Whether a rule's steps only tell someone (and wait, and re-check). */
 export function onlyTells(r: Rule): boolean {
+	// Started by an alert, a message is the point: the alert can't do it itself.
+	const triggers = [r.trigger, ...(r.triggers ?? [])];
+	if (triggers.some((x) => tagOf(x)[0].startsWith('Alert'))) return false;
 	let tells = false;
 	const leaves = (a: unknown): boolean => {
 		const [kind, f] = tagOf(a);
@@ -235,7 +257,8 @@ export function houseOf(
 		device: (id: string) => CoreDevice | undefined,
 		ids: string[],
 		state: unknown
-	) => string | undefined
+	) => string | undefined,
+	alertRules: { id: string; name: string }[] = []
 ): House {
 	const byCanonical = new Map<string, CoreDevice>();
 	const byName = new Map<string, CoreDevice | null>();
@@ -256,7 +279,9 @@ export function houseOf(
 		scene: (id) => scenes.find((s) => s.id === id)?.name,
 		rule: (id) => rules.find((r) => r.id === id)?.name,
 		alertKind: (plugin, topic) =>
-			alertKinds.find((k) => k.plugin_id === plugin && k.topic === topic)?.label
+			alertKinds.find((k) => k.plugin_id === plugin && k.topic === topic)?.label,
+		plugin: knownPluginName,
+		alertRule: (id) => alertRules.find((r) => r.id === id)?.name
 	};
 }
 
@@ -320,7 +345,7 @@ export function whenText(iso: string | undefined, now = Date.now()): string {
 	if (ms < 60_000) return 'just now';
 	if (ms < 3_600_000) return `${Math.floor(ms / 60_000)} min ago`;
 	const day = dayOf(iso, now);
-	const time = at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+	const time = timeOf(at);
 	if (day === 'Today') return `today ${time}`;
 	if (day === 'Yesterday') return `yesterday ${time}`;
 	return day;
@@ -334,5 +359,5 @@ export function dayOf(iso: string, now = Date.now()): string {
 	const days = Math.floor((start.getTime() - at.getTime()) / 86_400_000) + 1;
 	if (at.getTime() >= start.getTime()) return 'Today';
 	if (days === 1) return 'Yesterday';
-	return at.toLocaleDateString([], { day: 'numeric', month: 'short' });
+	return dateOf(at, now);
 }

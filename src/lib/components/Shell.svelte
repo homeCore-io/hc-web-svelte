@@ -3,20 +3,25 @@
 	them. A bottom bar on phones and on tablets held upright; a rail on tablets
 	held sideways; a sidebar with the rooms in it on laptops and desktops.
 	Chosen by CSS alone, so turning a tablet changes the frame without a reload.
+
+	The sidebar folds to the rail's icons for more room; this screen remembers
+	it (`hc.sidebar`, read before the first paint in `app.html`), as folding
+	suits a small laptop and not a big monitor.
 -->
 <script lang="ts">
 	import { untrack, type Snippet } from 'svelte';
 	import { hasSettings } from '#lib/settings.js';
 	import { page } from '$app/state';
 	import { beforeNavigate, goto } from '$app/navigation';
-	import Pencil from '@lucide/svelte/icons/pencil';
+	import EditMenu from './EditMenu.svelte';
 	import Search from '@lucide/svelte/icons/search';
 	import Bell from '@lucide/svelte/icons/bell';
 	import Settings from '@lucide/svelte/icons/settings';
-	import House from '@lucide/svelte/icons/house';
 	import { SIDEBAR, backFor, barFor, isAt, pageKey, titleFor, withEdit } from '#lib/nav.js';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
-	import { apply, barOf, ref } from '#lib/layers.js';
+	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
+	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
+	import { barOf, homeRoomOrder, ref } from '#lib/layers.js';
 	import { personal } from '#lib/personal.svelte.js';
 	import { household } from '#lib/household.svelte.js';
 	import { editing, LEAVE } from '#lib/edit.svelte.js';
@@ -24,9 +29,16 @@
 	import { customise } from '#lib/customise.svelte.js';
 	import { view } from '#lib/view.svelte.js';
 	import EditBar from './EditBar.svelte';
+	import Mark from './Mark.svelte';
 	import UnlockedBar from './UnlockedBar.svelte';
 	import { alerts } from '#lib/alerts.svelte.js';
+	import { adding } from '#lib/adding.svelte.js';
 	import RoomIcon from './RoomIcon.svelte';
+	import SideRoomStatus from './SideRoomStatus.svelte';
+	import { kindOptions } from '#lib/kindOptions.svelte.js';
+	import { devices } from '#lib/devices.svelte.js';
+	import { byRoom } from '#lib/summary.js';
+	import { homeStyle } from '#lib/styles.js';
 	import { session } from '#lib/me.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { live } from '#lib/live.svelte.js';
@@ -47,17 +59,34 @@
 				rooms.list.map((r) => r.id),
 				household.doc
 			),
-			rooms.list
+			rooms.list,
+			// The house's pages and this person's own (G30).
+			[...(household.doc.built ?? []), ...(personal.doc.built ?? [])]
 		)
 	);
 	// The rooms in the order Home shows them: the household's, then this person's.
+	// Bars that stick under the header (Customise, Edit, the rule editor's)
+	// follow its real height: on a phone the title and back link can wrap.
+	let headerHeight = $state(64);
+	$effect(() => {
+		document.documentElement.style.setProperty('--header-h', `${headerHeight}px`);
+	});
+	// "Rooms in the sidebar" (G3): each room with its status.
+	const withStatus = $derived(kindOptions.shellRooms('home') === 'status');
+	// The room field shows every room on Home, so the sidebar doesn't (11 §2.3, mockup A).
+	const field = $derived(
+		homeStyle(view.changes('home'), kindOptions.shellRooms('home')) === 'field'
+	);
+	const grouped = $derived(withStatus ? byRoom(devices.byId, rooms.list) : null);
 	const roomsInOrder = $derived(
-		apply(rooms.list, (r) => ref.room(r.id), view.changes('home')).shown
+		homeRoomOrder(rooms.list, (r) => ref.room(r.id), view.changes('home')).shown
 	);
 
 	// ---- Edit mode (N6), in the address (N5) ----
 	const key = $derived(pageKey(pathname));
-	const canEdit = $derived(session.can('content:write'));
+	// A page of one's own is changed in Customise only (G28).
+	const own = $derived(personal.doc.built?.some((p) => `page:${p.id}` === key) ?? false);
+	const canEdit = $derived(session.can('content:write') && !own);
 	const editingHere = $derived(key !== null && editing.on(key));
 	// Follows the address only: Done and Cancel leave the mode before they
 	// change the address, and must not be started again on the way out.
@@ -84,6 +113,27 @@
 			void goto(`${to.pathname}${to.search}${to.hash}`);
 		});
 	});
+	let folded = $state(
+		typeof document !== 'undefined' && document.documentElement.dataset.sidebar === 'folded'
+	);
+	function fold() {
+		folded = !folded;
+		if (folded) document.documentElement.dataset.sidebar = 'folded';
+		else delete document.documentElement.dataset.sidebar;
+		try {
+			if (folded) localStorage.setItem('hc.sidebar', 'folded');
+			else localStorage.removeItem('hc.sidebar');
+		} catch {
+			// Folded for now; open again next time.
+		}
+	}
+	function foldKey(e: KeyboardEvent) {
+		if (e.key === '\\' && (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey) {
+			e.preventDefault();
+			fold();
+		}
+	}
+
 	const initial = $derived((session.me?.username ?? '?').slice(0, 1).toUpperCase());
 	const liveLabel = $derived(
 		live.state === 'live'
@@ -94,12 +144,29 @@
 	);
 </script>
 
+<svelte:window onkeydown={foldKey} />
+
 <div class="app">
 	<nav class="side" aria-label="Main">
-		<a class="brand" href="/">
-			<span class="mark"><House size={18} strokeWidth={2} aria-hidden="true" /></span>
-			<span class="label">homeCore</span>
-		</a>
+		<div class="top">
+			<a class="brand" href="/" title="Home">
+				<Mark />
+				<span class="label">homeCore</span>
+			</a>
+			<button
+				class="fold"
+				aria-label={folded ? 'Open the sidebar' : 'Fold the sidebar'}
+				aria-expanded={!folded}
+				title={folded ? 'Open the sidebar (Ctrl+\\)' : 'Fold the sidebar (Ctrl+\\)'}
+				onclick={fold}
+			>
+				{#if folded}
+					<PanelLeftOpen size={18} strokeWidth={1.8} aria-hidden="true" />
+				{:else}
+					<PanelLeftClose size={18} strokeWidth={1.8} aria-hidden="true" />
+				{/if}
+			</button>
+		</div>
 
 		{#each SIDEBAR as d (d.id)}
 			<a
@@ -113,7 +180,7 @@
 			</a>
 		{/each}
 
-		{#if rooms.list.length > 0}
+		{#if rooms.list.length > 0 && !field}
 			<div class="rooms">
 				<p class="section-label">Rooms</p>
 				{#each roomsInOrder as r (r.id)}
@@ -121,7 +188,9 @@
 						class="room"
 						href={`/rooms/${r.id}`}
 						aria-current={pathname === `/rooms/${r.id}` ? 'page' : undefined}
-						><RoomIcon name={household.iconOf(r.id)} size={16} />{r.name}</a
+						><RoomIcon name={household.iconOf(r.id)} size={16} /><span class="room-name"
+							>{r.name}</span
+						>{#if grouped}<SideRoomStatus room={r.id} list={grouped.get(r.id) ?? []} />{/if}</a
 					>
 				{/each}
 			</div>
@@ -146,14 +215,19 @@
 		</a>
 	</nav>
 
-	<div class="body">
+	<div class="body" class:with-sheet={adding.page !== null}>
 		<UnlockedBar />
-		<header>
+		<header bind:offsetHeight={headerHeight}>
 			<div class="titles">
 				{#if back}<a class="back" href={back.href}
 						><ChevronLeft size={16} strokeWidth={2} aria-hidden="true" />{back.label}</a
 					>{/if}
-				<h1>{title}</h1>
+				{#if heading.kicker}<span class="kicker"
+						><span class="long">{heading.kicker.long}</span><span class="short"
+							>{heading.kicker.short}</span
+						></span
+					>{/if}
+				{#if !heading.owned}<h1>{title}</h1>{/if}
 			</div>
 			<span
 				class="live"
@@ -162,16 +236,7 @@
 				aria-label={liveLabel}
 				title={liveLabel}
 			></span>
-			{#if key !== null && canEdit && !editingHere}
-				<button
-					class="icon"
-					aria-label="Edit the shared page"
-					title="Edit the shared page"
-					onclick={() => goto(withEdit(page.url, true))}
-				>
-					<Pencil size={20} strokeWidth={1.8} aria-hidden="true" />
-				</button>
-			{/if}
+			{#if key !== null}<EditMenu pageKey={key} />{/if}
 			<button
 				class="icon"
 				aria-label="Search"
@@ -193,6 +258,10 @@
 		</header>
 		<main class:editing={editingHere}>
 			{#if editingHere}<EditBar key={key!} />{/if}
+			<!-- Edit saves as it closes, so a save that fails is told here, once the bar has gone. -->
+			{#if key !== null && !editingHere && household.trouble}<p class="trouble" role="alert">
+					{household.trouble}
+				</p>{/if}
 			{@render children()}
 		</main>
 		<DetailsHost />
@@ -210,7 +279,11 @@
 					finder.open = true;
 				}}
 			>
-				<d.icon size={22} strokeWidth={1.8} aria-hidden="true" />
+				{#if d.symbol}<RoomIcon name={d.symbol} size={22} />{:else}<d.icon
+						size={22}
+						strokeWidth={1.8}
+						aria-hidden="true"
+					/>{/if}
 				<span>{d.label}</span>
 			</a>
 		{/each}
@@ -237,7 +310,8 @@
 	header {
 		position: sticky;
 		top: 0;
-		z-index: 2;
+		/* Above anything a card raises inside itself, so nothing scrolls over it (#27). */
+		z-index: 20;
 		display: flex;
 		align-items: center;
 		gap: var(--space-1);
@@ -261,6 +335,25 @@
 		font-size: 14px;
 		font-weight: 600;
 		text-decoration: none;
+	}
+	/* Above Home's title in the room field: the day, and the house's mode (mockup A). */
+	.kicker {
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		color: var(--ink-muted);
+	}
+	.kicker .long {
+		display: none;
+	}
+	@media (min-width: 700px) {
+		.kicker .long {
+			display: inline;
+		}
+		.kicker .short {
+			display: none;
+		}
 	}
 	h1 {
 		margin: 0;
@@ -315,6 +408,11 @@
 		flex: 1;
 		padding: var(--space-1) var(--space-4) var(--space-6);
 	}
+	.trouble {
+		margin: 0 0 var(--space-3);
+		font-size: 13px;
+		color: var(--alert);
+	}
 	/* Edit mode's frame: the household's page never looks like one's own (N6). */
 	main.editing {
 		display: flex;
@@ -362,6 +460,18 @@
 		color: var(--accent);
 	}
 
+	/* Add's sheet (G-f) sits under the page on a phone and beside it on a
+	   wide screen; the page makes room, so all of it stays in reach. */
+	.body.with-sheet {
+		padding-bottom: 55dvh;
+	}
+	@media (min-width: 900px) {
+		.body.with-sheet {
+			padding-bottom: 0;
+			margin-right: 420px;
+		}
+	}
+
 	/* ---- Tablets held sideways (and phones turned): the rail ---- */
 	@media (min-width: 700px) and (orientation: landscape) {
 		.bar {
@@ -385,8 +495,12 @@
 			border-right: 1px solid var(--line);
 		}
 		.label,
-		.rooms {
+		.rooms,
+		.fold {
 			display: none;
+		}
+		.top {
+			flex-direction: column;
 		}
 		.brand,
 		.dest {
@@ -425,10 +539,46 @@
 			display: flex;
 			flex-direction: column;
 		}
+		/* After the base rule below, so more specific than it. */
+		.side .fold {
+			display: inline-flex;
+		}
+		.top {
+			flex-direction: row;
+		}
 		.brand,
 		.dest {
 			width: auto;
 			justify-content: flex-start;
+		}
+		.brand {
+			flex: 1;
+			min-width: 0;
+		}
+		/* Folded: the rail's icons, the button to open it again under the mark. */
+		:global(html[data-sidebar='folded']) .side {
+			width: 76px;
+			align-items: center;
+			padding: 18px 10px;
+		}
+		:global(html[data-sidebar='folded']) .top {
+			flex-direction: column;
+		}
+		:global(html[data-sidebar='folded']) .label,
+		:global(html[data-sidebar='folded']) .rooms {
+			display: none;
+		}
+		:global(html[data-sidebar='folded']) .brand,
+		:global(html[data-sidebar='folded']) .dest {
+			flex: none;
+			width: var(--target);
+			justify-content: center;
+		}
+		:global(html[data-sidebar='folded']) .brand {
+			margin-bottom: 0;
+		}
+		:global(html[data-sidebar='folded']) .fold {
+			margin-bottom: var(--space-3);
 		}
 		header {
 			padding: 18px var(--space-6) 10px 28px;
@@ -441,6 +591,28 @@
 		}
 	}
 
+	.top {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+	}
+	.fold {
+		display: none;
+		flex: none;
+		align-items: center;
+		justify-content: center;
+		width: 36px;
+		height: 36px;
+		margin-bottom: var(--space-3);
+		border: none;
+		border-radius: 10px;
+		background: none;
+		color: var(--ink-muted);
+	}
+	.fold:hover {
+		background: var(--nav-on);
+		color: var(--ink);
+	}
 	.brand {
 		display: flex;
 		align-items: center;
@@ -451,17 +623,6 @@
 		text-decoration: none;
 		font-size: 17px;
 		font-weight: 700;
-	}
-	.mark {
-		width: 30px;
-		height: 30px;
-		flex: none;
-		border-radius: 9px;
-		background: var(--accent);
-		color: var(--accent-ink);
-		display: flex;
-		align-items: center;
-		justify-content: center;
 	}
 	.dest {
 		display: flex;
@@ -508,6 +669,12 @@
 		padding: 0 10px;
 		border-radius: 8px;
 		text-decoration: none;
+	}
+	.room-name {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.room[aria-current='page'] {
 		background: var(--nav-on);

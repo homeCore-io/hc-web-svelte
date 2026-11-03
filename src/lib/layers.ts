@@ -4,7 +4,8 @@
  * page. So a new device still appears in its room, and the changes survive.
  *
  * Ids name what a card is about: `device:{id}`, `room:{id}`, `scene:{id}`,
- * or `card:{plugin}/{element}/{n}` for a plugin's own card, added to a page.
+ * `card:{plugin}/{element}/{n}` for a plugin's own card added to a page, or
+ * `kind:{kind}/{n}` for one of the app's own cards added to a page (G-c).
  * A change naming something that no longer exists is kept and skipped.
  *
  * Two owners, the same kind of list (04 §3): the household's edits, made in
@@ -14,33 +15,68 @@
  * again what the household hid (M3).
  */
 
+import type { UnitsChoice } from './units.js';
+import { allLooks, findLook, type Look } from './looks/model.js';
+
 export type Form = 'compact' | 'standard' | 'large';
 
 export type Change =
 	| { op: 'hide'; ref: string }
 	| { op: 'show'; ref: string }
-	| { op: 'move'; ref: string; before: string | null }
+	/** Within its own list; with `into`, to that section of the page (G5). */
+	| { op: 'move'; ref: string; before: string | null; into?: string }
 	| { op: 'form'; ref: string; form: Form }
 	/** A card's label on this page — the device keeps its own name elsewhere. */
 	| { op: 'rename'; ref: string; name: string }
 	/** A card for something that isn't generated here, added to the page. */
-	| { op: 'add'; ref: string }
+	| { op: 'add'; ref: string; into?: string; before?: string | null }
 	| { op: 'remove'; ref: string }
-	/** A plugin card's settings on this page, as its settings element made them. */
+	/**
+	 * A section of this layer's own (G17): `ref` is `section:own-<n>`. Taken
+	 * away with `remove`; placed, renamed and hidden like any section.
+	 */
+	| { op: 'section'; ref: string; title: string; layout: string }
+	/**
+	 * A card's settings on this page: a plugin card's, as its settings element
+	 * made them; a room's or the big numbers', only what this layer set (G13);
+	 * a section's `layout` (G3).
+	 */
 	| { op: 'config'; ref: string; config: Record<string, unknown> };
+
+/** A page someone made (G27): its changes are kept at `pages['page:<id>']`. */
+export interface BuiltPage {
+	id: string;
+	name: string;
+	/** One of the rooms' symbols (`ROOM_ICONS`); none, a page's own. */
+	icon?: string;
+}
 
 export interface PersonDoc {
 	version: number;
+	/** The document's shape (`SCHEMA`); `version` counts saves. Absent is 1. */
+	schema?: number;
+	/** Every-room settings, by kind of card (G4): the room box's, the big numbers'. */
+	defaults?: Record<string, Record<string, unknown>>;
+	/** The frame: the sidebar's rooms as names, or with their status (G3). */
+	shell?: { rooms?: 'names' | 'status' };
 	/** Starred cards, in the order they appear in Favourites on Home. */
 	favourites?: string[];
-	/** Changes per page: `home`, `room:{id}`. */
+	/** Changes per page: `home`, `room:{id}`, `page:{id}`. */
 	pages?: Record<string, Change[]>;
+	/** Pages that are just this person's (G28), in their order. */
+	built?: BuiltPage[];
 	/** The phone bar's destinations, More always last (N2). */
 	bar?: string[];
 	/** Light or dark, or follow the device (V2). */
 	theme?: 'system' | 'light' | 'dark';
 	/** A theme other than the house's (D9a). */
 	palette?: string;
+	/** A look other than the house's (12, L1): a built-in one's id, the house's, or their own. */
+	look?: string;
+	/** Looks of their own (13 §15), read with `readLook`. */
+	looks?: unknown[];
+	/** °F or °C, US measures or metric; unset, the browser's (`units.ts`). */
+	units?: UnitsChoice;
 }
 
 /** Whether to ask before a command: always, never, or as the device declares (D2). */
@@ -49,14 +85,26 @@ export type Ask = 'always' | 'never';
 /** The household's presentation settings and shared edits (M1, 04 §4). */
 export interface HouseDoc {
 	version: number;
-	/** The household's edits per page: `home`, `room:{id}`. */
+	/** The document's shape (`SCHEMA`); `version` counts saves. Absent is 1. */
+	schema?: number;
+	/** The household's edits per page: `home`, `room:{id}`, `page:{id}`. */
 	pages?: Record<string, Change[]>;
+	/** The house's own pages (G28), in their order. */
+	built?: BuiltPage[];
+	/** Every-room settings, by kind of card (G4): the room box's, the big numbers'. */
+	defaults?: Record<string, Record<string, unknown>>;
+	/** The frame: the sidebar's rooms as names, or with their status (G3). */
+	shell?: { rooms?: 'names' | 'status' };
 	/** Each room's icon, by room id (D10). */
 	icons?: Record<string, string>;
 	/** The phone bar for anyone who hasn't chosen their own (N2). */
 	bar?: string[];
 	/** The house's theme (D9a). */
 	palette?: string;
+	/** The house's look (12, L1); absent is Classic (L3). */
+	look?: string;
+	/** The house's own looks (13 §15), read with `readLook`. */
+	looks?: unknown[];
 	/** Confirmation overrides (D2): by device id, and by kind. */
 	confirm?: { devices?: Record<string, Ask>; kinds?: Record<string, Ask> };
 }
@@ -66,8 +114,19 @@ export const ref = {
 	room: (id: string) => `room:${id}`,
 	scene: (id: string) => `scene:${id}`,
 	/** A new plugin card: its own `n`, so the same card can be added twice. */
-	card: (pluginId: string, element: string, n: string) => `card:${pluginId}/${element}/${n}`
+	card: (pluginId: string, element: string, n: string) => `card:${pluginId}/${element}/${n}`,
+	/** One of the app's own cards, added to a page (G-c): its own `n`, as a plugin card's. */
+	kind: (kind: string, n: string) => `kind:${kind}/${n}`
 };
+
+/** An app card's ref, read back. */
+export function kindRef(r: string): { kind: string; n: string } | undefined {
+	const m = /^kind:([a-z]+)\/([^/]+)$/.exec(r);
+	return m ? { kind: m[1]!, n: m[2]! } : undefined;
+}
+
+/** A short id for something new: a card's `n`, an own section's. */
+export const newId = () => Math.random().toString(36).slice(2, 10);
 
 /** A plugin card's ref, read back. */
 export function cardRef(r: string): { pluginId: string; element: string; n: string } | undefined {
@@ -86,7 +145,8 @@ export function addChange(list: Change[] = [], change: Change): Change[] {
 }
 
 /** Changes that undo each other share a group; only the last of a group counts. */
-const group = (op: Change['op']) => (op === 'show' ? 'hide' : op === 'remove' ? 'add' : op);
+const group = (op: Change['op']) =>
+	op === 'show' ? 'hide' : op === 'remove' || op === 'section' ? 'add' : op;
 
 export interface Layered<T> {
 	/** In the person's order, hidden ones left out. */
@@ -137,6 +197,7 @@ export function apply<T>(
 			case 'move': {
 				const from = order.indexOf(c.ref);
 				if (from < 0) break; // It isn't here any more.
+				if (c.before === c.ref) break; // Before itself: where it is.
 				order.splice(from, 1);
 				const to = c.before === null ? -1 : order.indexOf(c.before);
 				if (to < 0) order.push(c.ref);
@@ -169,6 +230,37 @@ export function added(changes: Change[] = []): string[] {
 		if (c.op === 'remove') out = out.filter((r) => r !== c.ref);
 	}
 	return out;
+}
+
+/**
+ * The rooms in the order Home shows them (the Shell, More, Settings → Rooms).
+ * Only changes among Home's rooms count: a move into another section takes
+ * a card out of the rooms, it doesn't reorder them.
+ */
+export function homeRoomOrder<T>(
+	rooms: T[],
+	refOf: (room: T) => string,
+	changes: Change[] = []
+): Layered<T> {
+	return apply(
+		rooms,
+		refOf,
+		changes.filter((c) => c.op !== 'move' || c.into === undefined || c.into === 'rooms')
+	);
+}
+
+// ---- the documents' shape (04 §7) ----
+
+/**
+ * The shape the documents are written in. 2 (G5): changes may name sections
+ * (`section:<id>`) and move cards `into` one. Version 1 changes read the same
+ * in 2, so moving up is only saying so; a newer shape is left as it is.
+ */
+export const SCHEMA = 2;
+
+/** A household's or person's document, read in today's shape. Nothing is dropped. */
+export function migrate<D extends { version: number; schema?: number }>(doc: D): D {
+	return (doc.schema ?? 1) >= SCHEMA ? doc : { ...doc, schema: SCHEMA };
 }
 
 /** What a person sees: the household's changes, then their own on top (M3). */
@@ -213,30 +305,43 @@ export function nudgeFavourite(list: string[], r: string, by: -1 | 1): string[] 
 
 // ---- the phone bar (N2) ----
 
-/** Where the phone bar can take you, besides More. */
+/** Where the phone bar can take you, besides More — and rooms and pages (G30). */
 export const BAR_CHOICES = ['home', 'pages', 'scenes', 'alerts', 'search'] as const;
-export const DEFAULT_BAR = ['home', 'pages', 'scenes'];
+export const DEFAULT_BAR = ['home', 'scenes', 'alerts'];
+/** Once there are pages to go to, Pages joins the default bar (N2, G30). */
+const WITH_PAGES = ['home', 'pages', 'scenes', 'alerts'];
 /** The bar holds this many destinations, then More. */
 export const BAR_SIZE = 4;
 
-/** A bar made safe: known destinations or rooms, no repeats, at most four. */
-function safeBar(bar: string[] | undefined, rooms: string[]): string[] {
+/**
+ * A bar made safe: known destinations, rooms or pages that are still there,
+ * no repeats, at most four.
+ */
+function safeBar(bar: string[] | undefined, rooms: string[], pages: string[]): string[] {
 	const ok = (d: string) =>
 		(BAR_CHOICES as readonly string[]).includes(d) ||
-		(d.startsWith('room:') && rooms.includes(d.slice(5)));
+		(d.startsWith('room:') && rooms.includes(d.slice(5))) ||
+		(d.startsWith('page:') && pages.includes(d.slice(5)));
 	return [...new Set((bar ?? []).filter(ok))].slice(0, BAR_SIZE);
 }
 
+const ids = (doc?: { built?: BuiltPage[] }) => (doc?.built ?? []).map((p) => p.id);
+
 /** The household's bar (N2): what an admin chose, or the default. */
-export function houseBar(house: HouseDoc | undefined, rooms: string[]): string[] {
-	const bar = safeBar(house?.bar, rooms);
-	return bar.length > 0 ? bar : DEFAULT_BAR;
+export function houseBar(
+	house: HouseDoc | undefined,
+	rooms: string[],
+	mine: string[] = []
+): string[] {
+	const bar = safeBar(house?.bar, rooms, ids(house));
+	if (bar.length > 0) return bar;
+	return ids(house).length + mine.length > 0 ? WITH_PAGES : DEFAULT_BAR;
 }
 
 /** A person's bar: their own choice, else the household's. */
 export function barOf(doc: PersonDoc | undefined, rooms: string[], house?: HouseDoc): string[] {
-	const bar = safeBar(doc?.bar, rooms);
-	return bar.length > 0 ? bar : houseBar(house, rooms);
+	const bar = safeBar(doc?.bar, rooms, [...ids(house), ...ids(doc)]);
+	return bar.length > 0 ? bar : houseBar(house, rooms, ids(doc));
 }
 
 // ---- confirmation (D2) ----
@@ -279,8 +384,26 @@ export const PALETTES = [
 	{ id: 'plum', name: 'Plum', swatch: '#7a3b74' }
 ] as const;
 
-/** The theme a person sees: their own, else the house's, else Amber. */
-export function paletteOf(doc?: PersonDoc, house?: HouseDoc): string {
+// ---- looks (12, 13 §3) ----
+
+/** Every look a person may choose: built in, the house's, their own. */
+export const looksOf = (doc?: PersonDoc, house?: HouseDoc): Look[] =>
+	allLooks(house?.looks, doc?.looks);
+
+/** The look a person sees: their own, else the house's, else Classic (L1, L3). */
+export function lookOf(doc?: PersonDoc, house?: HouseDoc, all = looksOf(doc, house)): Look {
+	const has = (id?: string) => id !== undefined && all.some((l) => l.id === id);
+	return findLook(all, has(doc?.look) ? doc?.look : has(house?.look) ? house?.look : 'classic');
+}
+
+/** The theme a person sees: their own, else the house's, else their look's, else Amber (13 §3.1). */
+export function paletteOf(doc?: PersonDoc, house?: HouseDoc, l?: Look): string {
 	const known = (p?: string) => PALETTES.some((x) => x.id === p);
-	return known(doc?.palette) ? doc!.palette! : known(house?.palette) ? house!.palette! : 'amber';
+	return known(doc?.palette)
+		? doc!.palette!
+		: known(house?.palette)
+			? house!.palette!
+			: known(l?.theme)
+				? l!.theme!
+				: 'amber';
 }

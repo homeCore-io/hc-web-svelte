@@ -6,6 +6,7 @@
  */
 import { cap, words } from './card.js';
 import type { CoreDevice } from './devices.js';
+import { readingText } from './units.js';
 
 /** How many settings an entry shows, and takes from the device, to begin with. */
 export const FIRST = 3;
@@ -90,10 +91,18 @@ export function describeState(state: Record<string, unknown>, settings: Setting[
 		.filter((s) => s.attr !== 'on' && state[s.attr] !== undefined)
 		.map((s) =>
 			s.kind === 'range'
-				? `${String(state[s.attr])}${s.unit ? ` ${s.unit}` : ''}`
+				? valueText(s, state[s.attr])
 				: (s.options?.find((o) => o.value === state[s.attr])?.label ?? String(state[s.attr]))
 		);
 	return [state.on === true ? 'on' : '', ...parts].filter(Boolean).join(' · ') || 'as set';
+}
+
+/** A range setting's value in the person's units: "21 °C" set, "69.8 °F" shown. */
+export function valueText(s: Setting, v: unknown): string {
+	if (typeof v !== 'number') return String(v);
+	const text = readingText(v, s.unit);
+	// A percentage reads "30 %" here, as it always has.
+	return s.unit === '%' ? text.replace(/%$/, ' %') : text;
 }
 
 /** Whether two scenes' states differ. */

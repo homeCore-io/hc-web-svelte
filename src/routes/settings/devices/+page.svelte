@@ -4,6 +4,7 @@
 	once: move them to a room, or delete them. Each opens its own page.
 -->
 <script lang="ts">
+	import { fullDateOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { onReturn } from '#lib/refresh.js';
 	import { live } from '#lib/live.svelte.js';
@@ -68,6 +69,16 @@
 		removed_at: string;
 	}
 	let removed = $state<Removed[] | null>(null);
+	// Deleted devices follow the search too (#81).
+	const shownRemoved = $derived(
+		(removed ?? []).filter((r) =>
+			query.trim()
+				? `${r.name} ${pluginLabel(r.plugin_id)} ${r.device_id}`
+						.toLowerCase()
+						.includes(query.trim().toLowerCase())
+				: true
+		)
+	);
 	const loadRemoved = async () => {
 		const res = await fetch('/api/v1/devices/removed').catch(() => null);
 		removed = res?.ok ? ((await res.json()) as Removed[]) : null;
@@ -145,7 +156,7 @@
 				...(fromPlugins.length > 0
 					? [
 							removed !== null
-								? 'A plugin that still reports one doesn’t bring it back: it’s listed under Removed, to bring back.'
+								? 'A plugin that still reports one doesn’t bring it back: it’s listed under Deleted, to bring back.'
 								: 'A plugin that still reports one brings it back as new on its next report — remove it in the plugin (or its hub) first.'
 						]
 					: []),
@@ -194,31 +205,38 @@
 					>
 				{/each}
 			</div>
-			{#if wide.current}
-				<label class="plugin"
-					>Plugin
-					<select value={plugin} onchange={(e) => set('plugin', e.currentTarget.value)}>
-						<option value="">Any</option>
-						{#each byPlugin as p (p.id)}<option value={p.id}>{p.label} · {p.count}</option>{/each}
-					</select>
-				</label>
-				{#if sceneCount > 0}
-					<label class="check"
-						><input
-							type="checkbox"
-							checked={scenes}
-							onchange={(e) => set('scenes', e.currentTarget.checked ? '1' : null)}
-						/>
-						Include {sceneCount} plugin scenes</label
-					>
-				{/if}
+			<!-- On a phone too: the chips scroll, the filters follow below them (#82). -->
+			<label class="plugin"
+				>Plugin
+				<select value={plugin} onchange={(e) => set('plugin', e.currentTarget.value)}>
+					<option value="">Any</option>
+					{#each byPlugin as p (p.id)}<option value={p.id}>{p.label} · {p.count}</option>{/each}
+				</select>
+			</label>
+			{#if sceneCount > 0}
+				<label class="check"
+					><input
+						type="checkbox"
+						checked={scenes}
+						onchange={(e) => set('scenes', e.currentTarget.checked ? '1' : null)}
+					/>
+					Include {sceneCount} plugin scenes</label
+				>
 			{/if}
 		</div>
 
 		{#if note}<p class="note" role="status">{note}</p>{/if}
 
-		{#if orphans && orphans.total_orphans > 0}
-			<section class="orphans" aria-label="Devices plugins no longer report">
+		{#if orphans && orphans.total_orphans > 0 && !query.trim()}
+			<!-- One line, opened to read (#80): it used to take a phone's first two screens. -->
+			<details class="orphans" aria-label="Devices plugins no longer report">
+				<summary
+					>{orphans.total_orphans === 1
+						? 'One device may be gone'
+						: `${orphans.total_orphans} devices may be gone`} — {orphans.plugins
+						.map((p) => `${pluginLabel(p.plugin_id)} ${p.suspects.length}`)
+						.join(', ')}</summary
+				>
 				{#each orphans.plugins as p (p.plugin_id)}
 					<div>
 						<strong
@@ -235,13 +253,24 @@
 						>
 					</div>
 				{/each}
-			</section>
+			</details>
 		{/if}
 
 		{#if !devices.loaded}
 			<p class="quiet">Loading devices…</p>
 		{:else if shown.length === 0}
-			<p class="quiet">No device matches.</p>
+			<p class="quiet empty">
+				No device matches{query.trim() ? ` “${query.trim()}”` : ' this filter'}.
+				<button
+					type="button"
+					class="clear"
+					onclick={() => {
+						query = '';
+						set('q', null);
+						set('show', null);
+					}}>Show them all</button
+				>
+			</p>
 		{:else if wide.current}
 			<div class="table" role="table" aria-label="Devices">
 				<div class="row head" role="row">
@@ -298,29 +327,28 @@
 				{/each}
 			</ul>
 		{/if}
-		<p class="quiet">
-			{shown.length} of {tally.all} shown{scenes || sceneCount === 0
-				? ''
-				: `, not counting ${sceneCount} plugin scenes`}.
-		</p>
+		{#if shown.length > 0}
+			<p class="quiet">
+				{shown.length} of {tally.all} shown{scenes || sceneCount === 0
+					? ''
+					: `, not counting ${sceneCount} plugin scenes`}.
+			</p>
+		{/if}
 
-		{#if removed?.length}
-			<section class="removed" aria-label="Removed devices">
-				<h2>Removed</h2>
+		{#if shownRemoved.length}
+			<section class="removed" aria-label="Deleted devices">
+				<h2>Deleted</h2>
 				<p class="quiet">
 					Their plugins still report them, but they’re kept out. Bring one back and it returns the
 					next time its plugin reports it, with its history.
 				</p>
 				<ul>
-					{#each removed as r (r.device_id)}
+					{#each shownRemoved as r (r.device_id)}
 						<li>
 							<span class="text">
 								<span class="name">{r.name}</span>
 								<span class="sub"
-									>{pluginLabel(r.plugin_id)} · removed {new Date(r.removed_at).toLocaleDateString(
-										undefined,
-										{ day: 'numeric', month: 'short', year: 'numeric' }
-									)}</span
+									>{pluginLabel(r.plugin_id)} · removed {fullDateOf(r.removed_at)}</span
 								>
 							</span>
 							<button type="button" class="back" onclick={() => bringBack(r)}>Bring back</button>
@@ -397,6 +425,17 @@
 		flex-wrap: wrap;
 		gap: 6px;
 	}
+	@media (max-width: 599px) {
+		.chips {
+			flex-wrap: nowrap;
+			overflow-x: auto;
+			width: 100%;
+			scrollbar-width: none;
+		}
+		.chips button {
+			flex: none;
+		}
+	}
 	.chips button {
 		height: 34px;
 		padding: 0 12px;
@@ -415,7 +454,7 @@
 	}
 	.n {
 		opacity: 0.7;
-		font-family: var(--font-num);
+		font-variant-numeric: tabular-nums;
 	}
 	.plugin,
 	.check {
@@ -438,6 +477,27 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-2);
+		padding: var(--space-2) var(--space-3);
+		border-radius: var(--radius);
+		background: var(--lit-bg);
+		color: var(--lit-ink);
+		border: 1px solid var(--lit-card-line);
+	}
+	.orphans summary {
+		cursor: pointer;
+		font-weight: 600;
+	}
+	.orphans[open] summary {
+		margin-bottom: var(--space-2);
+	}
+	.empty .clear {
+		margin-left: 6px;
+		padding: 0;
+		border: none;
+		background: none;
+		color: var(--accent);
+		font: inherit;
+		font-weight: 600;
 	}
 	.orphans div {
 		display: flex;

@@ -7,7 +7,7 @@
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import type { CardView } from '#lib/card.js';
 	import { allOffTargets, roomSummary } from '#lib/summary.js';
-	import { commands } from '#lib/commands.svelte.js';
+	import { allOff } from '#lib/allOff.js';
 	import type { CoreDevice } from '#lib/devices.js';
 	import Icon from './Icon.svelte';
 	import RoomIcon from './RoomIcon.svelte';
@@ -31,17 +31,7 @@
 	const targets = $derived(allOffTargets(cards));
 	const alert = $derived(cards.some((c) => c.alarm === 'wet'));
 
-	function allOff() {
-		for (const c of targets) {
-			const d = devices.find((x) => x.device_id === c.id);
-			if (d === undefined || c.control === null) continue;
-			if (c.control.kind === 'switch')
-				void commands.set(c.id, c.kind, { [c.control.attr]: false }, d.attributes);
-			else if (d.schema?.attributes.on?.writable)
-				void commands.set(c.id, c.kind, { on: false }, d.attributes);
-			else if (d.schema?.actions?.some((a) => a.id === 'pause')) void commands.act(c.id, 'pause');
-		}
-	}
+	const off = () => allOff(targets, devices);
 </script>
 
 <div class="room" class:alert>
@@ -54,7 +44,7 @@
 		<span class="summary">{summary}</span>
 	</span>
 	{#if targets.length > 0}
-		<button class="off" onclick={allOff}>All off</button>
+		<button class="off" onclick={off}>All off</button>
 	{/if}
 	<ChevronRight size={18} aria-hidden="true" class="chev" />
 </div>

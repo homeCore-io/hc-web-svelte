@@ -6,11 +6,13 @@
  * - In Edit: the household's changes with this session's edits, and none of
  *   the person's — the page as everyone will see it.
  */
-import { layered, type Change } from './layers.js';
+import { added, layered, type Change } from './layers.js';
 import { household } from './household.svelte.js';
 import { personal } from './personal.svelte.js';
 import { customise } from './customise.svelte.js';
 import { editing } from './edit.svelte.js';
+import { look } from './look.svelte.js';
+import { homeChanges } from './looks/home.js';
 
 export type Mode = 'edit' | 'customise' | null;
 
@@ -20,9 +22,29 @@ export const view = {
 	},
 
 	changes(page: string): Change[] {
-		return editing.on(page)
-			? editing.changes(page)
-			: layered(household.changes(page), personal.changes(page));
+		// Home starts as the look groups it (13 §8.3); arranging goes on from there.
+		const base = page === 'home' ? homeChanges(look.def.grouping.home) : [];
+		return [
+			...base,
+			...(editing.on(page)
+				? editing.changes(page)
+				: layered(household.changes(page), personal.changes(page)))
+		];
+	},
+
+	/**
+	 * What was added to the page and is still on it: the household's, then the
+	 * person's own — each list read on its own, so taking one's own card off
+	 * never takes the household's away (G18). In Edit, the household's alone.
+	 */
+	added(page: string): string[] {
+		if (editing.on(page)) return added(editing.changes(page));
+		return [...new Set([...added(household.changes(page)), ...added(personal.changes(page))])];
+	},
+
+	/** Whether this screen's layer added it, so may take it off (G18). */
+	addedHere(page: string, ref: string): boolean {
+		return added(editing.on(page) ? editing.changes(page) : personal.changes(page)).includes(ref);
 	},
 
 	change(page: string, change: Change): void {

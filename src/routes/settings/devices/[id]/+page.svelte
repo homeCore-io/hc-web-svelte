@@ -220,7 +220,7 @@
 				...(fromPlugin
 					? [
 							core.since('0.1.82')
-								? `If ${pluginLabel(device.plugin_id)} still reports it, it stays out — Devices lists it under Removed, to bring back.`
+								? `If ${pluginLabel(device.plugin_id)} still reports it, it stays out — Devices lists it under Deleted, to bring back.`
 								: `If ${pluginLabel(device.plugin_id)} still reports it, it comes back as a new device on the next report — remove it there first.`
 						]
 					: [])
@@ -412,7 +412,10 @@
 									<pre>{r.detail}</pre>
 								</details>
 							{:else}
-								<span class="v">{r.value}</span>
+								<span class="v"
+									>{#if r.swatch}<span class="swatch" style:background={r.swatch}
+										></span>{/if}{r.value}</span
+								>
 							{/if}
 						</li>
 					{/each}
@@ -509,11 +512,11 @@
 			</section>
 
 			<section>
-				<h2>Remove</h2>
+				<h2>Delete</h2>
 				<p class="quiet">
 					Delete it from homeCore.
 					{#if fromPlugin && core.since('0.1.82')}If {pluginLabel(device.plugin_id)} still reports it,
-						it stays out: Devices lists it under Removed, to bring back.{:else if fromPlugin}If {pluginLabel(
+						it stays out: Devices lists it under Deleted, to bring back.{:else if fromPlugin}If {pluginLabel(
 							device.plugin_id
 						)} still reports it, it comes back on the next report — remove it there first.{/if}
 				</p>
@@ -706,6 +709,15 @@
 		min-width: 0;
 		overflow-wrap: anywhere;
 	}
+	.swatch {
+		display: inline-block;
+		width: 14px;
+		height: 14px;
+		margin-right: 8px;
+		border-radius: 4px;
+		vertical-align: -2px;
+		box-shadow: inset 0 0 0 1px var(--line);
+	}
 	.readings summary {
 		cursor: pointer;
 	}
@@ -725,6 +737,7 @@
 	.readings code {
 		color: var(--ink-muted);
 		font-size: 11px;
+		font-weight: 400;
 		overflow-wrap: anywhere;
 	}
 	.uses li {

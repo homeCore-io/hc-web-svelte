@@ -13,6 +13,7 @@ import type { RequestHandler } from './$types';
 import { json } from '#lib/server/http.js';
 import { whoIs } from '#lib/server/identity.js';
 import { docs, incoming } from '#lib/server/docs.js';
+import { CODE_SCOPE, addsCode } from '#lib/server/lookCode.js';
 
 const KIND = 'house';
 const ID = 'household';
@@ -38,6 +39,13 @@ export const PUT: RequestHandler = async (event) => {
 
 	const body = await incoming(event.request);
 	if (!body.ok) return json({ error: body.error }, body.status, who.setCookies);
+	// Code in a look runs for everyone who sees it (13 §6.4).
+	if (!who.person.scopes.includes(CODE_SCOPE) && addsCode(await docs().read(KIND, ID), body.doc))
+		return json(
+			{ error: 'Only someone who may install plugins can add code to a look.' },
+			403,
+			who.setCookies
+		);
 
 	const written = await docs().write(
 		KIND,

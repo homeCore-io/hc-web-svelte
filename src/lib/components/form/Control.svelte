@@ -8,7 +8,10 @@
 	import X from '@lucide/svelte/icons/x';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Toggle from '../Toggle.svelte';
+	import Icon, { type Name } from '../Icon.svelte';
 	import Self from './Control.svelte';
+	import SensorField from './SensorField.svelte';
+	import OrderList from './OrderList.svelte';
 	import {
 		MAP_NAME,
 		entry,
@@ -184,6 +187,49 @@
 
 {#if field.kind === 'toggle'}
 	<Toggle on={!!(value ?? field.default)} {label} {disabled} onchange={(on) => onchange(on)} />
+{:else if field.kind === 'sensor'}
+	<SensorField {field} {value} {label} {onchange} />
+{:else if field.kind === 'list' && field.render === 'order'}
+	<OrderList {field} {value} {label} {onchange} />
+{:else if field.kind === 'enum' && field.render === 'choices'}
+	<!-- This app's own: a list of choices, each with its second line (a reading now). -->
+	<div class="choices" role="radiogroup" aria-label={label}>
+		{#each field.options ?? [] as o (String(o.value))}
+			{@const on = same(value ?? field.default, o.value)}
+			<button
+				type="button"
+				role="radio"
+				aria-checked={on}
+				{disabled}
+				onclick={() => onchange(o.value)}
+			>
+				<span class="dot" aria-hidden="true"></span>
+				<span class="what">{o.label}</span>
+				{#if o.sub}<span class="sub">{o.sub}</span>{/if}
+			</button>
+		{/each}
+	</div>
+{:else if field.kind === 'enum' && field.render === 'icons'}
+	<!-- This app's own: a choice of the app's symbols and plugins', each drawn
+	     (G25, 13 §12). A value that isn't a symbol ("auto") is a word. -->
+	<div class="icons" role="radiogroup" aria-label={label}>
+		{#each field.options ?? [] as o (String(o.value))}
+			<button
+				type="button"
+				role="radio"
+				class:word={o.value === 'auto'}
+				aria-checked={same(value ?? field.default, o.value)}
+				aria-label={o.label}
+				title={o.label}
+				{disabled}
+				onclick={() => onchange(o.value)}
+				>{#if o.value === 'auto'}{o.label}{:else}<Icon
+						name={o.value as Name}
+						size={18}
+					/>{/if}</button
+			>
+		{/each}
+	</div>
 {:else if field.kind === 'enum' && (field.render === 'segmented' || field.render === 'pills' || field.render === 'radio')}
 	<div class="segmented" role="radiogroup" aria-label={label}>
 		{#each field.options ?? [] as o (String(o.value))}
@@ -423,6 +469,17 @@
 			>
 		{/if}
 	</div>
+{:else if field.kind === 'text' && field.render === 'multiline'}
+	<!-- This app's own (G-c): a note's words, over several lines. -->
+	<textarea
+		{id}
+		class="multiline"
+		class:invalid
+		{disabled}
+		{placeholder}
+		rows="4"
+		value={text}
+		oninput={(e) => typed(e.currentTarget.value)}></textarea>
 {:else}
 	<div class="typed">
 		<input
@@ -453,6 +510,21 @@
 {/if}
 
 <style>
+	.multiline {
+		width: 100%;
+		box-sizing: border-box;
+		min-height: 96px;
+		padding: 10px 12px;
+		border: 1px solid var(--line);
+		border-radius: 10px;
+		background: var(--surface);
+		color: var(--ink);
+		font: inherit;
+		resize: vertical;
+	}
+	.multiline.invalid {
+		border-color: var(--alert);
+	}
 	.map {
 		display: flex;
 		flex-direction: column;
@@ -541,6 +613,82 @@
 	}
 	.small:disabled {
 		opacity: 0.5;
+	}
+	.choices {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		width: 100%;
+	}
+	.choices button {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		min-height: 44px;
+		padding: 6px 12px;
+		border: 1px solid transparent;
+		border-radius: 12px;
+		background: transparent;
+		color: var(--ink);
+		font: inherit;
+		text-align: left;
+	}
+	.choices button[aria-checked='true'] {
+		border-color: var(--accent);
+		background: var(--surface);
+	}
+	.choices .dot {
+		flex: none;
+		width: 16px;
+		height: 16px;
+		box-sizing: border-box;
+		border-radius: 50%;
+		border: 2px solid var(--line);
+		background: var(--surface);
+	}
+	.choices button[aria-checked='true'] .dot {
+		border: 5px solid var(--accent);
+	}
+	.choices .what {
+		flex: 1;
+		min-width: 0;
+		font-size: 14px;
+		font-weight: 600;
+	}
+	.choices .sub {
+		flex: none;
+		max-width: 50%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-family: var(--font-num);
+		font-size: 13px;
+		color: var(--ink-muted);
+	}
+	.icons {
+		width: 100%;
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+		gap: 6px;
+	}
+	.icons button {
+		height: 44px;
+		border: 1px solid var(--card-line);
+		border-radius: 12px;
+		background: var(--surface);
+		color: var(--ink);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font: inherit;
+		font-size: 13px;
+		font-weight: 600;
+	}
+	.icons button.word {
+		grid-column: span 2;
+	}
+	.icons button[aria-checked='true'] {
+		border: 2px solid var(--accent);
 	}
 	.segmented {
 		display: inline-flex;

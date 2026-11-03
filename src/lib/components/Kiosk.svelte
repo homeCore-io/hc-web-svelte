@@ -13,12 +13,14 @@
 	import Bell from '@lucide/svelte/icons/bell';
 	import { allowedOn, nextTab, reloadDue, tabsFor, type DisplayDoc } from '#lib/display.js';
 	import { rooms } from '#lib/rooms.svelte.js';
+	import { household } from '#lib/household.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
 	import { alerts } from '#lib/alerts.svelte.js';
 	import { theme } from '#lib/theme.svelte.js';
 	import { live } from '#lib/live.svelte.js';
 	import DetailsHost from './DetailsHost.svelte';
 	import PinPad from './PinPad.svelte';
+	import { look } from '#lib/look.svelte.js';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -37,13 +39,25 @@
 		return () => clearInterval(t);
 	});
 
-	const tabs = $derived(tabsFor(doc, rooms.list));
+	// Its own look, if the admin chose one (13 §10); else the house's.
+	$effect(() => {
+		look.display = doc?.look;
+		return () => (look.display = undefined);
+	});
+
+	const tabs = $derived(tabsFor(doc, rooms.list, household.doc.built ?? []));
 	const pathname = $derived(page.url.pathname);
 
-	// Only its own pages: anywhere else goes to its first.
+	// Only its own pages: anywhere else goes to its first. Opened at the
+	// app's front door (set up, reloaded there), it rests on its first too.
+	let rested = false;
 	$effect(() => {
-		if (doc === undefined || rooms.list.length === 0) return;
-		if (!allowedOn(tabs, pathname)) void goto(tabs[0]!.href, { replace: true });
+		// The house's pages are named in its document: wait for it too (G31).
+		if (doc === undefined || rooms.list.length === 0 || !household.loaded) return;
+		const arriving = !rested && pathname === '/';
+		rested = true;
+		if (!allowedOn(tabs, pathname) || (arriving && tabs[0]!.href !== '/'))
+			void goto(tabs[0]!.href, { replace: true });
 	});
 
 	// ---- swipe between pages ----
@@ -103,6 +117,30 @@
 	const time = $derived(now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
 
 	let unlocking = $state(false);
+
+	// ---- at rest (13 §7): where the look has a rest view, a while untouched settles into it ----
+	const rest = $derived(look.def.frame.rest);
+	let touched = Date.now();
+	let resting = $state(false);
+	$effect(() => {
+		if (!rest.on) return;
+		const after = rest.after * 1000;
+		const seen = () => (touched = Date.now());
+		const t = setInterval(() => {
+			if (!resting && !unlocking && Date.now() - touched >= after) resting = true;
+		}, 5_000);
+		window.addEventListener('pointerdown', seen, true);
+		window.addEventListener('keydown', seen, true);
+		return () => {
+			clearInterval(t);
+			window.removeEventListener('pointerdown', seen, true);
+			window.removeEventListener('keydown', seen, true);
+		};
+	});
+	const wake = () => {
+		touched = Date.now();
+		resting = false;
+	};
 </script>
 
 {#if gone}
@@ -139,6 +177,21 @@
 		<DetailsHost />
 	</div>
 	{#if unlocking}<PinPad close={() => (unlocking = false)} />{/if}
+	{#if resting && rest.on}
+		{#snippet lit()}
+			{#await import('#lib/lit/LitRest.svelte') then { default: LitRest }}
+				<LitRest {now} {wake} />
+			{/await}
+		{/snippet}
+		{#if rest.piece}
+			<!-- A plugin's rest view (13 §12.2), else Lit's. -->
+			{#await import('./looks/PluginRest.svelte') then { default: PluginRest }}
+				<PluginRest id={rest.piece} {wake} fallback={lit} />
+			{/await}
+		{:else}
+			{@render lit()}
+		{/if}
+	{/if}
 {/if}
 
 <style>

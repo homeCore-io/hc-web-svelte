@@ -6,8 +6,10 @@
 	editor's (A3).
 -->
 <script lang="ts">
+	import { timeOf } from '#lib/when.js';
 	import { alertKinds } from '#lib/alertKinds.svelte.js';
 	import { onMount } from 'svelte';
+	import { alertRules } from '#lib/admin.js';
 	import { core } from '#lib/core.svelte.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -129,8 +131,11 @@
 	});
 
 	const rule = $derived(all?.find((r) => r.id === id));
+	// Alert rules by name, so a trigger on one reads as “Freezer warming up”.
+	let alertRuleNames = $state<{ id: string; name: string }[]>([]);
+	onMount(() => void alertRules().then((r) => (alertRuleNames = r ?? [])));
 	const house = $derived(
-		houseOf(devices.byId, scenes.list, all ?? [], alertKinds.list, describeStep)
+		houseOf(devices.byId, scenes.list, all ?? [], alertKinds.list, describeStep, alertRuleNames)
 	);
 	$effect(() => alertKinds.ensure());
 	const row = $derived(rule ? rowsOf([rule], house, {}, byMode)[0] : undefined);
@@ -273,7 +278,7 @@
 			day: 'numeric',
 			month: 'short'
 		});
-		return `at ${t?.slice(0, 5)} on ${day}`;
+		return `at ${t ? timeOf(new Date(local)) : ''} on ${day}`;
 	}
 	function chooseTime(on: boolean) {
 		atTime = on;
@@ -322,8 +327,7 @@
 
 	// ---- runs, folded open one at a time ----
 	let open = $state<string | null>(null);
-	const time = (iso: string) =>
-		new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+	const time = (iso: string) => timeOf(iso);
 
 	// ---- as text ----
 	let text = $state<string | null>(null);
@@ -429,7 +433,7 @@
 						>Delete…</button
 					>{/if}
 			</div>
-			<p class="sentence"><Words {words} /></p>
+			<!-- The When / Do below says it, with its structure; the list keeps the sentence (#54). -->
 
 			{#if note}<p class="note" role="status">{note}</p>{/if}
 			{#if madeBy}

@@ -1,3 +1,4 @@
+import { hhmmOf } from './when.js';
 import { describe, expect, it } from 'vitest';
 import {
 	alertsAfter,
@@ -103,10 +104,11 @@ describe('writing a time rule', () => {
 	});
 
 	it('says what a rule means', () => {
+		// In the person's own clock (lib/when.ts), not as kept ("22:00").
 		expect(describeRule({ after: '22:00', until: '06:00', for_minutes: 10 }, 'Open')).toBe(
-			'Open between 22:00 and 06:00 for 10 min'
+			`Open between ${hhmmOf('22:00')} and ${hhmmOf('06:00')} for 10 min`
 		);
-		expect(describeRule({ after: '22:00' }, 'Open')).toBe('Open after 22:00');
+		expect(describeRule({ after: '22:00' }, 'Open')).toBe(`Open after ${hhmmOf('22:00')}`);
 		expect(describeRule({ for_minutes: 30 }, 'Unlocked')).toBe('Unlocked for 30 min');
 	});
 });
@@ -160,7 +162,7 @@ describe('levels, ignores and acknowledgements (0.1.81)', () => {
 	it('a reading is watched going over or under a line', () => {
 		const c = levelChoices(freezer);
 		expect(c.map((x) => x.label)).toEqual(['Temperature above', 'Temperature below']);
-		expect(levelLabel(c[0]!, -10)).toBe('Temperature above -10 °C');
+		expect(levelLabel(c[0]!, -10)).toBe('Temperature above -10°C');
 		expect(sameState(c[0]!, { attribute: 'temperature', value: -5, op: 'above' })).toBe(true);
 		expect(sameState(c[0]!, c[1]!)).toBe(false);
 		expect(devicesFor([freezer], { attribute: 'temperature', value: 0, op: 'below' })).toHaveLength(

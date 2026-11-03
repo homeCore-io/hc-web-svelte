@@ -92,8 +92,15 @@ export const SETTINGS: SettingsItem[] = [
 		slug: 'plugins',
 		label: 'Plugins',
 		group: 'system',
-		words: 'plugins integrations hue lutron sonos yolink zwave restart install registry',
+		words: 'plugins integrations hue lutron sonos yolink zwave restart install registry catalog',
 		detail: 'What connects homeCore to devices'
+	},
+	{
+		slug: 'extensions',
+		label: 'Extensions',
+		group: 'system',
+		words: 'extensions ui drawings rive animated catalog store install upload',
+		detail: 'Drawings and cards the looks can choose'
 	},
 	{
 		slug: 'people',
@@ -175,6 +182,7 @@ const NEEDS: Record<string, string> = {
 	// Looking, for those whose role reads them (observer, operators, editors).
 	audit: 'audit:read',
 	plugins: 'plugins:read',
+	extensions: 'plugins:read',
 	// The calendars rules check; backups stay admins'.
 	data: 'automations:write'
 };
@@ -206,9 +214,14 @@ export function found(text: string, query: string): boolean {
 export const matches = (item: SettingsItem, query: string, status = '') =>
 	found(`${item.label} ${item.words} ${status}`, query);
 
-/** "75 days ago", "today", from an ISO time. */
+/** "75 days ago", "today", from an ISO time — by calendar day where the
+ *  person is, so last night at 23:00 is "yesterday" at 08:00. */
 export function daysAgo(iso: string, now = Date.now()): string {
-	const days = Math.floor((now - Date.parse(iso)) / 86_400_000);
+	const day = (t: number) => {
+		const d = new Date(t);
+		return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86_400_000;
+	};
+	const days = day(now) - day(Date.parse(iso));
 	return days <= 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`;
 }
 

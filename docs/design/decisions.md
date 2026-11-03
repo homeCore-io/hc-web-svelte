@@ -126,6 +126,7 @@ UI round rather than block on it.
 ## D9 — Look and extensibility (2026-10-15)
 
 **D9a — Design tokens, with per-user choice.**
+
 - One built-in design system with a small set of card forms.
 - Themes are sets of design tokens — colour, type, radius, density — and
   never CSS that reaches into a component's internals.
@@ -133,6 +134,7 @@ UI round rather than block on it.
   choose another theme; a display (D7) has its own.
 
 **D9b — Third-party cards: later, as code components.**
+
 - Not in round one.
 - Later, third parties ship their own card forms as code through a stable,
   versioned interface (Home Assistant's custom-card model).
@@ -154,6 +156,7 @@ and so the contract has to be designed to contain them.
 ## D10 — The house model for round one (2026-10-15)
 
 **Rooms — stable id and typed name in core; icon and order in the UI.**
+
 - homeCore keeps a room's **name as typed** ("TV Room", "Kid's Room"), still
   deriving the slug rules use, and gives rooms an **id that survives a
   rename**. Today the server stores only the slug and derives the id from it
@@ -390,6 +393,7 @@ household.
 
 **homeCore keeps** facts about the house and identity — small, structured,
 the same for every client, working with no UI open:
+
 - rooms: stable id and the name as typed (D10);
 - display and PIN **credentials** (D7, N9) — identities only;
 - alert rules and their evaluation (M6);
@@ -403,6 +407,7 @@ third-party card code (D9b). Its formats change with the UI without touching
 homeCore.
 
 **Consequences:**
+
 - **Sign-in stays homeCore's.** The UI server accepts a homeCore session and
   asks homeCore who it is and what it may do.
 - **The UI server announces its own changes** to open screens; device and
@@ -538,7 +543,7 @@ the admin console; room and device permissions.
   **B (Night panel)** the dark theme. C (Bright tiles) is not taken forward.
 - Everything but colour is shared: **Figtree** for all text, **IBM Plex Mono**
   for numbers and readings; 14px card corners; one spacing scale.
-- Amber means *on*; red/coral means *needs attention*; nothing else is
+- Amber means _on_; red/coral means _needs attention_; nothing else is
   coloured. Token values are in `06-visual-design.md` §1.
 
 **Why:** a night mode is needed, and A and B already share the warm amber
@@ -565,10 +570,12 @@ the admin console; room and device permissions.
 ## V5 — The performance budget (2026-10-15)
 
 On a mid-range phone and a base iPad, on the home network:
+
 - cold load to a usable home ≤ 1.5 s; reload with the app cached ≤ 0.5 s;
 - tap to visible response ≤ 100 ms;
 - a device change on screen ≤ 250 ms after homeCore announces it;
-- JavaScript for the home ≤ 150 KB compressed;
+- JavaScript for the home ≤ 200 KB compressed (150 KB until the user raised it,
+  2026-11-02, with whatever can load later loading later);
 - ≤ 1,500 elements on this house's home (184 devices);
 - smooth 60 fps scrolling.
 
@@ -970,3 +977,257 @@ All nine taken as recommended (2026-10-16).
 Also from 09: **[core]** a step aimed at a device homeCore doesn't know is
 reported as such, stale references cover every action target, and rule
 changes are announced (`rule_changed`, `rule_removed`).
+
+## G1 — One page document and one renderer for every page (2026-10-31)
+
+- Home, room pages and (later) hand-built pages are the same document —
+  sections of cards — drawn by one renderer. Generated pages are computed
+  into it; layers apply to the document (11 §2.1).
+
+**Why:** customising features otherwise get written once per page type.
+
+## G2 — Card kinds are registered, their settings are form-engine descriptors (2026-10-31)
+
+- Each kind: forms, an options descriptor, defaults, a component, whether
+  Add offers it. No hand-written settings sheets; plugin cards are one kind.
+
+## G3 — Styles are section layouts plus a shell setting (2026-10-31)
+
+- Room field, room tiles, rooms in the sidebar = the Rooms section's layout
+  (`field`, `tiles`, hidden) and whether the sidebar lists rooms. Any section
+  may use any layout that suits it.
+
+## G4 — Settings resolve card → person's kind default → household's kind default → built-in (2026-10-31)
+
+- Room box settings (big number, sensor sources, details, All off) are
+  display settings in the UI server, as decided the same day.
+
+## G5 — The change list is extended, not replaced (2026-10-31)
+
+- `move`/`add` gain `into` (and `before`), `config` covers any card and
+  sections, sections are refs (`section:<id>`), a `section` change makes an
+  own section. Docs move to version 2, migrated on read.
+
+## G6 — Alerts first, always (2026-10-31)
+
+- The alerts section can't be hidden or moved down; a room box always shows
+  an open door, leak, smoke or offline device whatever its details say.
+
+## G7 — Pinned becomes an ordinary section once Add can place cards anywhere (2026-10-31)
+
+## G8 — One section order for all styles (2026-10-31)
+
+- Switching style changes layouts only. Per-style arrangements may come
+  later as stored presets.
+
+## G9 — Milestones G-a to G-e in order, each mocked up and agreed first (2026-10-31)
+
+## G10 — G-a ships with only section move, hide and rename as new UI (2026-10-31)
+
+**Why:** G-a replaces how every page is drawn; with little new UI, any
+regression shows plainly against today's Home.
+
+## G11 — Home is generated as today; the new styles are chosen (2026-10-31)
+
+- The big numbers' section is generated hidden, and the Rooms section keeps
+  its list, until someone picks a style — the household in Edit, or a person
+  in Customise. Nobody's Home changes on upgrade.
+
+## G12 — "Rooms in the sidebar" hides Home's rooms only where the sidebar shows them (2026-10-31)
+
+- 1100 px and wider with the sidebar open. Phones and folded sidebars keep
+  the rooms on Home.
+
+## G13 — Kind settings resolve per setting, each layer holding only what it set (2026-10-31)
+
+- A person's card setting, the household's card setting, the person's
+  every-room setting, the household's, built-in — first set wins, setting by
+  setting. A sheet saves only what differs from what would apply anyway.
+  Plugin cards' `config` is unchanged (their element reports it whole).
+
+## G14 — Tiles keep the section's order (2026-10-31)
+
+- Per G8; "busiest first" would move boxes about as lights change.
+
+## G15 — Edit's session covers kind defaults and the shell setting (2026-10-31)
+
+- Undo, Cancel and Done apply to them as to page changes.
+
+## G16 — Adding into a section is a move, read first (2026-10-31)
+
+- An `add` with `into`/`before` places the card as a `move` would, ahead of
+  the layer's other changes. Without `into`, Pinned (Home) or "Also here"
+  (a room), as before — stored pins don't move.
+
+## G17 — Own sections are changes; Customise makes them too (2026-10-31)
+
+- `{ op: 'section', ref: 'section:own-<n>', title, layout }`, taken away by
+  `remove`. The household's in Edit, a person's in Customise (user,
+  2026-10-31). Placed, renamed, hidden and laid out like any section.
+
+## G18 — Take off only what this layer added (2026-10-31)
+
+- Edit removes the household's added cards and sections; Customise a
+  person's own. Anything else is hidden instead.
+
+## G19 — Each section offers the layouts that suit its cards (2026-10-31)
+
+- Grid, row, list for cards; field and tiles only for rooms.
+
+## G20 — Add goes into sections made of chosen things (2026-10-31)
+
+- Own sections, Pinned, Scenes & modes, a room's sections. Not the alerts,
+  chips, big numbers, Favourites (starred) or Rooms (generated).
+
+## G21 — The weather card reads a device; a forecast is that device's `forecast` (2026-10-31)
+
+- Current readings from a chosen weather device (the house's station by
+  default). A forecast shows when the device publishes `forecast`: a list
+  of `{ time, high?, low?, condition?, precipitation_probability? }` in °C.
+  The coming Open-Meteo plugin fills it; the app needs no change.
+
+## G22 — A card moves into another section with "Move to" (2026-10-31)
+
+- While arranging (Customise for oneself, Edit for everyone), any card in a
+  section that takes cards can be moved into another one that does: a
+  `move … into` at its end (user, 2026-10-31). Rooms' boxes, Favourites and
+  the house's own pieces stay where they are. A move into a section that's
+  gone is skipped: the card stays where it was before.
+
+## G23 — A device card's settings, per card and per device type (2026-10-31)
+
+- Main reading, further readings, Large's sliders and readings, when it
+  last changed, tapping, a symbol, and its size — in one sheet drawn by the
+  form engine. Kept as `config` on the device's ref; "every <type> card" as
+  `defaults['device:<type>']`. A setting chooses among what the card already
+  found: never a control the device doesn't declare.
+
+## G24 — Tapping a card: its page, or the whole card switches it (2026-10-31)
+
+- Built in: the control acts, the rest of the card opens its page (D2, D3).
+  Chosen per card or type: the whole card switches, locks or plays it — then
+  a small arrow and the long-press menu's "Open details" open its page
+  (user, 2026-10-31). Cards with no control always open their page.
+
+## G25 — A card can have its own symbol (2026-10-31)
+
+- On that card only (a switch that runs a fan); the device's own symbol is
+  unchanged everywhere else (user, 2026-10-31).
+
+## G26 — A device its plugin draws: size only (2026-10-31)
+
+- Its plugin's card is drawn as the plugin made it; the sheet offers its
+  size and says so.
+
+## G27: A hand-built page is a page with nothing generated (2026-11-01)
+
+- What it holds is its layer's own changes: sections of its own (`section`)
+  and things added into them (`add … into`), drawn by the same renderer as
+  Home. Its name and symbol are listed in the owner's document (`built`),
+  and its changes are kept under `pages['page:<id>']` beside Home's and the
+  rooms'. Nothing new to migrate; the shape is still 2.
+
+## G28: The house's pages and a person's own (2026-11-01)
+
+- People who may edit the house's pages (`content:write`) make the house's
+  pages and change them in Edit. Each person can still hide, move and size
+  things on them for themselves, as on Home. Anyone can make pages that are
+  just theirs and change them in Customise; nobody else sees those pages
+  (user, 2026-11-01).
+
+## G29: A copy of Home or a room is a snapshot (2026-11-01)
+
+- A copy starts as the page looked when it was copied, with its sections
+  and cards and their names, sizes and settings. It doesn't follow the
+  original afterwards, so a new device doesn't appear in it by itself (user,
+  2026-11-01).
+
+## G30: Pages in the phone bar (2026-11-01)
+
+- Pages is a place in the bar again. It joins the default bar once the
+  house or the person has a page. A person can put a page in their own bar
+  in place of Pages, and Pages is then in More.
+
+## G31: Displays show the house's pages, never a person's (2026-11-01)
+
+- A display isn't a person (D7), so it shows the house's pages only. A page
+  that's gone is skipped, as a room that's gone is. A display opened at the
+  app's front door rests on its first page.
+
+## G32: Sections beside the rooms in the room field (2026-11-01)
+
+- In the room field style Home is drawn as mockup A: the big numbers
+  across the top, the rooms' field, and a column beside it (user,
+  2026-11-01). Needs attention is that column's first section and can't be
+  moved or hidden (G6). After it, by default: Pinned, Worth knowing,
+  Playing, Scenes & modes. Favourites start under the rooms (user,
+  2026-11-01), as do sections a person or the household makes. Every
+  section but the alerts, the big numbers and the rooms can go in either
+  column.
+- In Customise and Edit the side sections move up and down and hide like
+  any section, and each one's tools choose "Beside the rooms" or "Under the
+  rooms". The choice is a section `config` change, `{ column: 'side' |
+'main' }`, in the layer being changed, so a person's choice wins over the
+  household's. Only the room field reads it.
+- The rooms lead the main column, and the band stays on top. Cards beside
+  the rooms are as wide as the column and never Large. Scenes and modes
+  there are chips.
+- On a phone the column follows the field in the same order, and the
+  alerts are one line after the big numbers.
+
+# From 13: the interface as a whole, and looks anyone can make
+
+The design is 13-ui-and-looks.md. These are its decisions (the user,
+2026-11-02); the reasons and the details are there.
+
+## U1: A look is five layers, chosen as a whole (S1)
+
+- Theme, feel, drawings, frame and grouping. Classic and Lit are two looks
+  written that way. Mixing is done by making a look.
+
+## U2: Grouping makes the page document, so arranging works in every look
+
+- A look's grouping rules make the sections a generated page starts with.
+  Customise and Edit, Add, Move to and card settings work the same in every
+  look. No per-room looks (S2).
+
+## U3: Each look keeps its own arrangements (S3)
+
+- A new look starts with a copy of its source's. Today's arrangements become
+  Classic's. Favorites, the phone bar and pages people made are shared.
+
+## U4: Drag and drop, and resizing by dragging (S12)
+
+- Cards and sections drag, things drag in from Add, sizes snap from a corner
+  handle. Buttons and the keyboard do the same, so dragging is never the only
+  way.
+
+## U5: Home keeps its sections; a look arranges them (S6)
+
+- Home's sections can still be added, removed and deleted. What 11 called
+  styles are now Home layouts.
+
+## U6: Things show their own color; motion is welcome (S7, S8)
+
+- A light shows its color, a scene its colors, amber means on for anything
+  else, red needs someone. Motion levels still, gentle, lively; Classic is
+  still, Lit lively; reduced motion wins.
+
+## U7: Where looks reach (S9)
+
+- The built-in looks stop at household pages and displays. A look someone
+  makes may reach every screen, settings included.
+
+## U8: Looks are made in homeCore or in code, and shared as bundles (S4, S5)
+
+- The look editor in Settings › Look, or a bundle written offline from a
+  template. Export and import. Drawings in code are installed by an admin, as
+  plugins are; a bundle of choices alone can be imported by anyone.
+
+## U9: The device sheet's top follows the look (S11)
+
+## U10: The Home Assistant ideas come in §13.1's order (S10)
+
+## U11: American spelling
+
+- color, favorite, customize, in the app and its documents.

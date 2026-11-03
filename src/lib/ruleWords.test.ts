@@ -1,7 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import { DEVICES, RULES } from './fixtures/rules.js';
+import { newCheck, newWhen } from './ruleEdit.js';
 import { houseOf } from './ruleList.js';
+import { followUnits } from './units.js';
 import {
+	type House,
 	checkPhrase,
 	duration,
 	moreOf,
@@ -184,6 +187,17 @@ test('scripts it can’t read stay as written', () => {
 	);
 });
 
+test('a threshold kept in °C reads in the person’s units', () => {
+	followUnits(() => ({ temperature: 'F', measures: 'us' }));
+	try {
+		expect(plain(readScript(h, 'device_state("zz_air")["temperature"] > 21.111')!)).toBe(
+			'Den Air is above 70 °F'
+		);
+	} finally {
+		followUnits(() => ({ temperature: 'C', measures: 'metric' }));
+	}
+});
+
 test('durations', () => {
 	expect([30, 90, 300, 3600, 5400, 172800].map(duration)).toEqual([
 		'30 s',
@@ -279,4 +293,52 @@ test('a timer is given more time', () => {
 	expect(plain(setPhrase(h, ['timer_den_fan'], { command: 'extend', duration_secs: 600 }))).toBe(
 		'add 10 min to Den Fan Timer'
 	);
+});
+
+describe('alert triggers', () => {
+	test('homeCore’s own kind on one plugin’s devices says which plugin', () => {
+		const w = (filter: object) => plain(whenPhrase(h, { AlertRaised: { filter } }));
+		expect(w({ kind: 'offline', plugin_id: 'plugin.yolink' })).toBe(
+			'an offline alert from YoLink is raised'
+		);
+		expect(w({ kind: 'wet' })).toBe('a water alert is raised');
+		expect(w({ plugin_id: 'plugin.wled' })).toBe('a WLED alert is raised');
+	});
+});
+
+describe('alert triggers by name', () => {
+	const named: House = {
+		...h,
+		plugin: (id) => (id === 'plugin.yolink' ? 'YoLink' : undefined),
+		alertRule: (id) => (id === 'r1' ? 'Freezer warming up' : undefined)
+	};
+	const w = (filter: object) => plain(whenPhrase(named, { AlertRaised: { filter } }));
+	test('a plugin by its own spelling', () => {
+		expect(w({ kind: 'offline', plugin_id: 'plugin.yolink' })).toBe(
+			'an offline alert from YoLink is raised'
+		);
+	});
+	test('one alert rule by its name', () => {
+		expect(w({ kind: 'rule', rule_id: 'r1' })).toBe('the alert “Freezer warming up” is raised');
+		expect(w({ rule_id: 'r1' })).toBe('the alert “Freezer warming up” is raised');
+	});
+	test('a rule the house no longer has falls back to its kind', () => {
+		expect(w({ kind: 'rule', rule_id: 'gone' })).toBe('a time-rule alert is raised');
+	});
+});
+
+describe('a rule still being made', () => {
+	test('says what is still to choose, never "When changes"', () => {
+		const r = {
+			id: 'new',
+			name: '',
+			enabled: true,
+			trigger: newWhen('device'),
+			conditions: [newCheck('device')]
+		} as Rule;
+		const said = say2(r);
+		expect(said).toMatch(/^When \(choose a device\) /);
+		expect(said).toContain('only if (choose a device)');
+		expect(sentence(h, r).some((b) => b.todo)).toBe(true);
+	});
 });

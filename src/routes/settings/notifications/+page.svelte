@@ -4,6 +4,7 @@
 	a test send and the automations that use each.
 -->
 <script lang="ts">
+	import { timeOf } from '#lib/when.js';
 	import { onMount, untrack } from 'svelte';
 	import { liveRules } from '#lib/rules.svelte.js';
 	import { page } from '$app/state';
@@ -178,10 +179,10 @@
 			...alsoUsing.map((w) => w.lost)
 		];
 		const yes = await ask({
-			title: `Remove ${current.name}?`,
+			title: `Delete ${current.name}?`,
 			body: 'It is taken out of homecore.toml. homeCore stops using it when it next restarts.',
 			lost,
-			go: 'Remove',
+			go: 'Delete',
 			danger: true
 		});
 		if (!yes) return;
@@ -197,7 +198,7 @@
 		testing = true;
 		const err = await sendTest(current.name, testText);
 		testing = false;
-		const at = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		const at = timeOf(Date.now());
 		tested = err
 			? { ok: false, text: err }
 			: { ok: true, text: `A test went to ${current.name} at ${at} — check that it arrived.` };
@@ -209,7 +210,7 @@
 		testing = true;
 		const err = await sendTest('all');
 		testing = false;
-		const at = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		const at = timeOf(Date.now());
 		testedAll = err
 			? { ok: false, text: err }
 			: { ok: true, text: `A test went to every channel at ${at} — check that each arrived.` };
@@ -360,7 +361,7 @@
 							{/if}
 						</div>
 						<div class="foot">
-							<button type="button" class="danger" onclick={remove}>Remove this channel…</button>
+							<button type="button" class="danger" onclick={remove}>Delete this channel…</button>
 							<span class="quiet"
 								>Saved to the <code>[[notify.channels]]</code> list in homecore.toml.</span
 							>

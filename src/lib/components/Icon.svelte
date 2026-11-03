@@ -1,6 +1,8 @@
 <!--
 	The app's icons by meaning, not by Lucide name, so the card model never
-	names a drawing. Each is imported on its own, so only these ship.
+	names a drawing. Each is imported on its own, so only these ship. A
+	plugin's symbol (`plugin:…#name`, 13 §12) is drawn by its element,
+	loaded only when one is shown.
 -->
 <script lang="ts" module>
 	import Lightbulb from '@lucide/svelte/icons/lightbulb';
@@ -13,12 +15,21 @@
 	import Timer from '@lucide/svelte/icons/timer';
 	import DoorClosed from '@lucide/svelte/icons/door-closed';
 	import DoorOpen from '@lucide/svelte/icons/door-open';
+	import Warehouse from '@lucide/svelte/icons/warehouse';
 	import Droplets from '@lucide/svelte/icons/droplets';
 	import PersonStanding from '@lucide/svelte/icons/person-standing';
 	import Thermometer from '@lucide/svelte/icons/thermometer';
 	import CloudSun from '@lucide/svelte/icons/cloud-sun';
 	import CloudRain from '@lucide/svelte/icons/cloud-rain';
 	import CloudLightning from '@lucide/svelte/icons/cloud-lightning';
+	import Sun from '@lucide/svelte/icons/sun';
+	import Moon from '@lucide/svelte/icons/moon';
+	import Cloud from '@lucide/svelte/icons/cloud';
+	import CloudFog from '@lucide/svelte/icons/cloud-fog';
+	import CloudDrizzle from '@lucide/svelte/icons/cloud-drizzle';
+	import CloudHail from '@lucide/svelte/icons/cloud-hail';
+	import CloudSnow from '@lucide/svelte/icons/cloud-snow';
+	import CloudRainWind from '@lucide/svelte/icons/cloud-rain-wind';
 	import Vibrate from '@lucide/svelte/icons/vibrate';
 	import Grid from '@lucide/svelte/icons/grid-3x3';
 	import CircleDot from '@lucide/svelte/icons/circle-dot';
@@ -43,12 +54,22 @@
 		timer: Timer,
 		door: DoorClosed,
 		'door-open': DoorOpen,
+		garage: Warehouse,
+		'garage-open': Warehouse,
 		water: Droplets,
 		motion: PersonStanding,
 		thermometer: Thermometer,
 		weather: CloudSun,
 		rain: CloudRain,
 		lightning: CloudLightning,
+		sun: Sun,
+		moon: Moon,
+		cloud: Cloud,
+		fog: CloudFog,
+		drizzle: CloudDrizzle,
+		hail: CloudHail,
+		snow: CloudSnow,
+		showers: CloudRainWind,
 		vibration: Vibrate,
 		keypad: Grid,
 		remote: CircleDot,
@@ -66,8 +87,18 @@
 </script>
 
 <script lang="ts">
-	let { name, size = 20 }: { name: Name; size?: number } = $props();
-	const Drawn = $derived(ICONS[name]);
+	import { isPluginSymbol, type PluginSymbol } from '#lib/card.js';
+
+	let { name, size = 20 }: { name: Name | PluginSymbol; size?: number } = $props();
+	const Drawn = $derived(isPluginSymbol(name) ? ICONS.device : ICONS[name]);
 </script>
 
-<Drawn {size} strokeWidth={1.8} aria-hidden="true" />
+{#if isPluginSymbol(name)}
+	{#await import('./PluginSymbol.svelte') then { default: PluginSymbol }}
+		<PluginSymbol id={name} {size}
+			><Drawn {size} strokeWidth={1.8} aria-hidden="true" /></PluginSymbol
+		>
+	{/await}
+{:else}
+	<Drawn {size} strokeWidth={1.8} aria-hidden="true" />
+{/if}

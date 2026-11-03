@@ -6,6 +6,12 @@
 -->
 <script lang="ts">
 	import { alertKinds } from '#lib/alertKinds.svelte.js';
+	import Bell from '@lucide/svelte/icons/bell';
+	import { alertLinks } from '#lib/alertLinks.svelte.js';
+	import { houseNames } from '#lib/alertNames.svelte.js';
+	import { cardLine } from '#lib/alertStarts.js';
+	import { alertRules } from '#lib/admin.js';
+	import type { AlertRule } from '#lib/alerts.js';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -121,8 +127,11 @@
 	// Combining needs several moments per rule and checks in if/otherwise (E2, E3).
 	let canCombine = $state(false);
 
+	let rulesOfAlerts = $state<AlertRule[]>([]);
 	onMount(() => {
 		void load();
+		void alertLinks.load();
+		void alertRules().then((r) => (rulesOfAlerts = r ?? []));
 		void loadVocabulary().then((v) => {
 			const f = featuresOf(v);
 			canCombine = f.triggers && f.ifChecks;
@@ -160,10 +169,12 @@
 	});
 
 	const house = $derived(
-		houseOf(devices.byId, scenes.list, rules ?? [], alertKinds.list, describeStep)
+		houseOf(devices.byId, scenes.list, rules ?? [], alertKinds.list, describeStep, rulesOfAlerts)
 	);
 	$effect(() => alertKinds.ensure());
-	const rows = $derived(rules ? rowsOf(rules, house, runs, byMode) : []);
+	const linksById = $derived(Object.fromEntries(alertLinks.list.map((x) => [x.id, x])));
+	const alertNames = $derived(houseNames(rulesOfAlerts));
+	const rows = $derived(rules ? rowsOf(rules, house, runs, byMode, linksById) : []);
 	// A set chosen to look at narrows the list to its rules.
 	const setId = $derived(page.url.searchParams.get('set'));
 	const lookingAt = $derived(groups.find((g) => g.id === setId));
@@ -185,7 +196,8 @@
 		{ id: 'all', label: 'All' },
 		{ id: 'attention', label: 'Needs attention' },
 		{ id: 'off', label: 'Off' },
-		{ id: 'families', label: 'Families' }
+		{ id: 'families', label: 'Families' },
+		{ id: 'alerts', label: 'Started by alerts' }
 	];
 
 	// Families start folded, unless searching found something in one.
@@ -464,6 +476,7 @@
 			<span class="meta">
 				<span class="name">{r.name}</span>
 				{#if !wide.current && !r.enabled}<span>· off</span>{/if}
+				{#if row.byAlert?.waiting}<span class="waitingby">· waiting</span>{/if}
 				{#if row.byMode}<span>· made by {row.byMode}</span>{/if}
 				{#if paused.has(r.id)}<span class="pausedby">· paused by a rule</span>{/if}
 			</span>
@@ -476,9 +489,18 @@
 		>
 		{#if !wide.current}<ChevronRight size={18} aria-hidden="true" />{/if}
 	</div>
-	{#if row.trouble.length > 0}
-		<a class="trouble bad" {href}>{row.trouble.join(' · ')}</a>
-	{:else if row.alertish && r.enabled !== false && show !== 'off'}
+	{@const trouble = row.byAlert?.alert_deleted
+		? row.trouble.filter((t) => !t.startsWith('Its alert was deleted'))
+		: row.trouble}
+	{#if row.byAlert}
+		{@const said = cardLine(row.byAlert, alertNames)}
+		<a class="trouble by {said.tone}" {href}
+			><Bell size={14} aria-hidden="true" /><span>{said.text}</span></a
+		>
+	{/if}
+	{#if trouble.length > 0}
+		<a class="trouble bad" {href}>{trouble.join(' · ')}</a>
+	{:else if row.alertish && !row.byAlert && r.enabled !== false && show !== 'off'}
 		<p class="trouble lit">
 			It only sends a message. If it’s about something staying open or on, an
 			<a href="/settings/alerts">alert</a> does that without a rule.
@@ -585,7 +607,7 @@
 				/>
 			</label>
 			<div class="chips" role="group" aria-label="Show">
-				{#each CHIPS as c (c.id)}
+				{#each CHIPS.filter((c) => c.id !== 'alerts' || alertLinks.known) as c (c.id)}
 					<button
 						type="button"
 						aria-pressed={show === c.id}
@@ -705,7 +727,20 @@
 		{:else if rules === null}
 			<p class="quiet">Loading rules…</p>
 		{:else if shown.length === 0}
-			<p class="quiet">{rows.length === 0 ? 'The house has no rules yet.' : 'No rule matches.'}</p>
+			<p class="quiet">
+				{#if rows.length === 0}The house has no rules yet.{:else}No rule matches{query.trim()
+						? ` “${query.trim()}”`
+						: ' this filter'}.
+					<button
+						type="button"
+						class="link"
+						onclick={() => {
+							query = '';
+							set('q', null);
+							set('show', null);
+						}}>Show them all</button
+					>{/if}
+			</p>
 		{:else}
 			{#each grouped as g (g.tag)}
 				<section class="group">
@@ -728,7 +763,7 @@
 				</section>
 			{/each}
 		{/if}
-		{#if rules}
+		{#if rules && shown.length > 0}
 			<p class="quiet">
 				{rows.length === 1 ? 'One rule' : `${rows.length} rules`}, {onCount} on. A rule with two tags
 				is under both.
@@ -812,6 +847,22 @@
 	.spacer {
 		flex: 1;
 	}
+	/* On a phone the buttons start the line under the filters, not off to one side (#59),
+	   and the filters scroll in one row, as on Devices. */
+	@media (max-width: 699px) {
+		.spacer {
+			display: none;
+		}
+		.tools .chips {
+			flex-wrap: nowrap;
+			overflow-x: auto;
+			width: 100%;
+			scrollbar-width: none;
+		}
+		.tools .chips button {
+			flex: none;
+		}
+	}
 	.search {
 		display: flex;
 		align-items: center;
@@ -861,7 +912,7 @@
 	}
 	.n {
 		opacity: 0.7;
-		font-family: var(--font-num);
+		font-variant-numeric: tabular-nums;
 		font-weight: 500;
 	}
 	.plain {
@@ -887,10 +938,12 @@
 		font-size: 13px;
 		text-decoration: none;
 	}
+	/* One link style for the list's small actions — Combine… was underlined (#56). */
 	.link {
 		border: none;
 		background: none;
 		padding: 0 4px;
+		text-decoration: none;
 		color: var(--accent);
 		font: inherit;
 		font-size: 12px;
@@ -998,6 +1051,27 @@
 	}
 	.trouble.bad {
 		color: var(--alert);
+	}
+	.trouble.by {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		font-weight: 500;
+		color: var(--lit-ink);
+	}
+	.trouble.by :global(svg) {
+		flex: none;
+	}
+	.trouble.by.wait {
+		font-weight: 600;
+	}
+	.trouble.by.bad {
+		color: var(--alert);
+		font-weight: 600;
+	}
+	.waitingby {
+		color: var(--lit-ink);
+		font-weight: 600;
 	}
 	.trouble.lit {
 		color: var(--lit-ink);

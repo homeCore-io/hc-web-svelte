@@ -8,6 +8,7 @@
  * being on, whoever turned it on (B6).
  */
 import type { CardView } from './card.js';
+import { toShown } from './units.js';
 
 export interface Pending {
 	/** Attribute values asked for. */
@@ -49,7 +50,7 @@ export function withPending(
 	}
 	const extras = card.extras.map((e) =>
 		e.kind === 'slider' && typeof w[e.attr] === 'number'
-			? { ...e, value: w[e.attr] as number }
+			? { ...e, value: e.from ? toShown(w[e.attr] as number, e.from) : (w[e.attr] as number) }
 			: e.kind === 'steps' && typeof w[e.attr] === 'string'
 				? { ...e, value: w[e.attr] as string }
 				: e

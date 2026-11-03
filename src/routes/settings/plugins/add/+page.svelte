@@ -1,4 +1,7 @@
 <!--
+	The Catalog (13 U9): a tab per kind. Plugins, grouped by their registry
+	category; UI extensions are CatalogExtensions.
+
 	Adding a plugin (A4): from homeCore's signed registry — what each is, its
 	versions; installing downloads it, checks its signature and starts it.
 	It does nothing until it has its settings, so its settings come next.
@@ -13,6 +16,7 @@
 	import { core } from '#lib/core.svelte.js';
 	import {
 		compareVersions,
+		named,
 		needsCore,
 		sizeOf,
 		versionOf,
@@ -30,17 +34,35 @@
 		type Runtime
 	} from '#lib/pluginAdmin.js';
 
-	$effect(() => heading.show('Add a plugin', { href: '/settings/plugins', label: 'Plugins' }));
+	$effect(() => heading.show('Catalog', { href: '/settings/plugins', label: 'Plugins' }));
+
+	const KINDS = [
+		['plugins', 'Plugins'],
+		['extensions', 'UI extensions']
+	] as const;
+	const kind = $derived(
+		page.url.searchParams.get('kind') === 'extensions' ? 'extensions' : 'plugins'
+	);
 
 	let registry = $state<RegistryPlugin[] | null>(null);
 	let runtimes = $state<Runtime[]>([]);
 	let have = $state<PluginRecord[]>([]);
 	let failed = $state<string | null>(null);
+
+	// Categories, from the registry; a plugin without one is Other.
+	const catOf = (p: RegistryPlugin) => p.category?.trim() || 'Other';
+	let cat = $state('All');
+	const cats = $derived(
+		registry?.some((p) => p.category?.trim())
+			? ['All', ...[...new Set(registry.map(catOf))].sort((a, b) => a.localeCompare(b))]
+			: []
+	);
+	const shown = $derived(registry?.filter((p) => cat === 'All' || catOf(p) === cat) ?? []);
 	onMount(async () => {
 		const [r, s, rt] = await Promise.all([loadRegistry(), loadStatus(), loadRuntimes()]);
 		if (rt.ok) runtimes = rt.data.runtimes;
 		if (!r.ok) return void (failed = r.error);
-		registry = [...r.data.plugins].sort((a, b) => a.name.localeCompare(b.name));
+		registry = named(r.data.plugins).sort((a, b) => a.name.localeCompare(b.name));
 		if (s.ok) have = s.data;
 	});
 
@@ -113,11 +135,27 @@
 			note = null;
 			return;
 		}
-		void goto(`/settings/plugins/${encodeURIComponent(r.data.installed)}?tab=settings`);
+		// Its own page, if it has one (a sign-in, say), else its settings: the page decides.
+		void goto(`/settings/plugins/${encodeURIComponent(r.data.installed)}?new`);
 	}
 </script>
 
-{#if !session.isAdmin}
+<div class="kinds" role="tablist" aria-label="Kinds">
+	{#each KINDS as [id, name] (id)}
+		<a
+			role="tab"
+			aria-selected={kind === id}
+			href={id === 'plugins' ? '?' : '?kind=extensions'}
+			data-sveltekit-replacestate>{name}</a
+		>
+	{/each}
+</div>
+
+{#if kind === 'extensions'}
+	{#await import('#lib/components/CatalogExtensions.svelte') then { default: CatalogExtensions }}
+		<CatalogExtensions />
+	{/await}
+{:else if !session.isAdmin}
 	<p class="quiet">Plugins are for the house’s admins.</p>
 {:else if failed}
 	<p class="quiet">The registry: {failed}</p>
@@ -125,10 +163,17 @@
 	<p class="quiet">Reading the registry…</p>
 {:else}
 	<p class="quiet top">From the homeCore registry · signed releases</p>
+	{#if cats.length}
+		<div class="cats">
+			{#each cats as c (c)}
+				<button type="button" aria-pressed={cat === c} onclick={() => (cat = c)}>{c}</button>
+			{/each}
+		</div>
+	{/if}
 	<div class="split" class:one={!wide.current}>
 		{#if wide.current || !chosen}
 			<ul class="list">
-				{#each registry as p (p.id)}
+				{#each shown as p (p.id)}
 					{@const mine = have.find((h) => h.plugin_id === p.id)}
 					<li>
 						<button
@@ -209,7 +254,9 @@
 									runOn
 								)}`
 							: installed
-								? `Install ${version}`
+								? compareVersions(version, versionOf(installed) ?? '0') > 0
+									? `Update to ${version}`
+									: `Install ${version}`
 								: `Install ${chosen.name}`}
 				</button>
 				{#if placed}
@@ -226,6 +273,45 @@
 {/if}
 
 <style>
+	.kinds {
+		display: flex;
+		gap: var(--space-1);
+		margin-bottom: var(--space-3);
+		border-bottom: 1px solid var(--line);
+	}
+	.kinds a {
+		padding: 10px 14px;
+		border-bottom: 2px solid transparent;
+		color: var(--ink-muted);
+		font-weight: 600;
+		text-decoration: none;
+	}
+	.kinds a[aria-selected='true'] {
+		border-bottom-color: var(--accent);
+		color: var(--ink);
+	}
+	.cats {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		margin-bottom: var(--space-3);
+	}
+	.cats button {
+		height: 30px;
+		padding: 0 12px;
+		border-radius: 15px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--ink);
+		font: inherit;
+		font-size: 13px;
+		font-weight: 600;
+		cursor: pointer;
+	}
+	.cats button[aria-pressed='true'] {
+		border-color: var(--accent);
+		background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+	}
 	.top {
 		margin-bottom: var(--space-3);
 	}

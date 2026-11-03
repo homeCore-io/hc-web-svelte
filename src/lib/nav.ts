@@ -1,7 +1,7 @@
 /**
  * Where the app can go (02 — N2, N3).
  *
- * The phone bar's default is Home · Pages · Scenes · More, and each person
+ * The phone bar's default is Home · Scenes · Alerts · More, and each person
  * may choose their own (N2, `barFor`). The desktop sidebar has room for
  * Alerts and the rooms themselves.
  */
@@ -20,6 +20,8 @@ export interface Destination {
 	label: string;
 	href: string;
 	icon: Component;
+	/** A page's own symbol (`ROOM_ICONS`), drawn instead of `icon`. */
+	symbol?: string;
 }
 
 export const HOME: Destination = { id: 'home', label: 'Home', href: '/', icon: House };
@@ -44,22 +46,36 @@ const BY_ID: Record<string, Destination> = {
 };
 
 /**
- * A person's phone bar (N2) from their choices — destinations by id, or
- * `room:{id}` for a room — with More always last.
+ * A person's phone bar (N2) from their choices — destinations by id,
+ * `room:{id}` for a room, `page:{id}` for a page (G30) — with More always last.
  */
-export function barFor(choices: string[], rooms: { id: string; name: string }[]): Destination[] {
+export function barFor(
+	choices: string[],
+	rooms: { id: string; name: string }[],
+	pages: { id: string; name: string; icon?: string }[] = []
+): Destination[] {
 	const out: Destination[] = [];
 	for (const c of choices) {
 		if (c.startsWith('room:')) {
 			const room = rooms.find((r) => r.id === c.slice(5));
 			if (room) out.push({ id: c, label: room.name, href: `/rooms/${room.id}`, icon: DoorOpen });
+		} else if (c.startsWith('page:')) {
+			const p = pages.find((x) => x.id === c.slice(5));
+			if (p)
+				out.push({
+					id: c,
+					label: p.name,
+					href: `/pages/${p.id}`,
+					icon: LayoutGrid,
+					symbol: p.icon
+				});
 		} else if (BY_ID[c]) out.push(BY_ID[c]);
 	}
 	return [...out, MORE];
 }
 
 /** The phone bar, by default (N2). */
-export const PHONE_BAR = [HOME, PAGES, SCENES, MORE];
+export const PHONE_BAR = [HOME, SCENES, ALERTS, MORE];
 /** The sidebar's destinations, above the rooms (N3). */
 export const SIDEBAR = [HOME, PAGES, SCENES, ALERTS];
 
@@ -90,13 +106,14 @@ export function backFor(pathname: string): { href: string; label: string } | nul
 }
 
 /**
- * The layered page at `pathname` — `home`, `room:{id}` — or null where
- * there is nothing to arrange.
+ * The layered page at `pathname` — `home`, `room:{id}`, `page:{id}` — or
+ * null where there is nothing to arrange.
  */
 export function pageKey(pathname: string): string | null {
 	if (pathname === '/') return 'home';
-	const room = /^\/rooms\/([^/]+)$/.exec(pathname);
-	return room ? `room:${decodeURIComponent(room[1]!)}` : null;
+	const at = /^\/(rooms|pages)\/([^/]+)$/.exec(pathname);
+	if (!at) return null;
+	return `${at[1] === 'rooms' ? 'room' : 'page'}:${decodeURIComponent(at[2]!)}`;
 }
 
 /** The same address with Edit mode on or off (N5). */

@@ -21,7 +21,7 @@
 	import { byRoom } from '#lib/summary.js';
 	import { kindLabel } from '#lib/inventory.js';
 	import { kindOf } from '#lib/card.js';
-	import { addChange, apply, nudge, ref } from '#lib/layers.js';
+	import { addChange, homeRoomOrder, nudge, ref } from '#lib/layers.js';
 	import { createRoom, deleteRoom, mergeRoom, renameRoom } from '#lib/admin.js';
 	import ListDetail from '#lib/components/admin/ListDetail.svelte';
 	import RoomIcon, { ROOM_ICONS, type RoomIconName } from '#lib/components/RoomIcon.svelte';
@@ -56,7 +56,7 @@
 
 	// ---- Home's order (only rooms with something in them are on Home) ----
 	const onHome = $derived(
-		apply(
+		homeRoomOrder(
 			rooms.list.filter((r) => countOf(r.id) > 0),
 			(r) => ref.room(r.id),
 			household.changes('home')

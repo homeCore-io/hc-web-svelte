@@ -22,7 +22,9 @@
 	import { theme } from '#lib/theme.svelte.js';
 	import { household } from '#lib/household.svelte.js';
 	import { alerts } from '#lib/alerts.svelte.js';
-	import { paletteOf } from '#lib/layers.js';
+	import { lookOf, looksOf, paletteOf } from '#lib/layers.js';
+	import { findLook, reachesHere } from '#lib/looks/model.js';
+	import { look } from '#lib/look.svelte.js';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -53,9 +55,27 @@
 			live.stop();
 		};
 	});
-	// The theme: the person's own, else the house's (D9a).
+	// The look (13 §3.1): a display's own, else the person's, else the house's, else Classic.
+	const shown = $derived.by(() => {
+		const all = looksOf(personal.doc, household.doc);
+		const own = look.display;
+		return {
+			all,
+			look:
+				own && all.some((l) => l.id === own)
+					? findLook(all, own)
+					: lookOf(personal.doc, household.doc, all)
+		};
+	});
+	// Settings and the admin screens keep Classic's feel, unless the look reaches them (S9).
+	const reaches = $derived(reachesHere(shown.look, page.url.pathname));
 	$effect(() => {
-		if (personal.loaded && household.loaded) theme.paint(paletteOf(personal.doc, household.doc));
+		if (personal.loaded && household.loaded) look.show(shown.look, shown.all, reaches);
+	});
+	// The theme: the person's own, else the house's, else the look's where it reaches (D9a).
+	$effect(() => {
+		if (personal.loaded && household.loaded)
+			theme.paint(paletteOf(personal.doc, household.doc, reaches ? shown.look : undefined));
 	});
 </script>
 

@@ -28,7 +28,9 @@ export function groupRoom(
 	id: string,
 	h: RoomInput,
 	given: readonly Rule[],
-	frame?: Pick<Frame, 'needs' | 'more'>
+	frame?: Pick<Frame, 'needs' | 'more'>,
+	/** Lights that share a name drawn as one card, as Lit draws them; else each its own. */
+	lampGroups = true
 ): Page {
 	// The frame can leave out what needs someone, and unfold what's rarely used (13 §7).
 	const rules = given
@@ -60,15 +62,19 @@ export function groupRoom(
 		header: [{ ref: `piece:roomhead/${id}`, kind: 'roomhead', id, name, devices: inRoom }],
 		needs: [{ ref: `piece:needs/${id}`, kind: 'needs', id, devices: inRoom }],
 		doors: sorted.doors,
-		lights: sorted.lights.map((l) =>
-			isGroup(l)
-				? {
-						ref: `group:${l.name}`,
-						kind: 'lampgroup' as const,
-						name: l.name,
-						devices: l.members.map((m) => m.card.device)
-					}
-				: l.card
+		lights: sorted.lights.flatMap((l): Card[] =>
+			isGroup(l) && !lampGroups
+				? l.members.map((m) => m.card)
+				: isGroup(l)
+					? [
+							{
+								ref: `group:${l.name}`,
+								kind: 'lampgroup' as const,
+								name: l.name,
+								devices: l.members.map((m) => m.card.device)
+							}
+						]
+					: [l.card]
 		),
 		'switches.lights': sorted.switches.lights.map((l) => l.card),
 		'switches.power': sorted.switches.power.map((l) => l.card),

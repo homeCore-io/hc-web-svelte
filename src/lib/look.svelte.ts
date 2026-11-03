@@ -83,6 +83,8 @@ export const look = new LookNow();
 export interface LookHere {
 	readonly def: Look;
 	draws(f: Family): string;
+	/** Drawn in a preview: shows, but doesn't act or take the page's title. */
+	readonly preview?: boolean;
 }
 
 const HERE = Symbol('look here');
@@ -99,7 +101,8 @@ export function previewIn(get: () => Look): void {
 		get def() {
 			return get();
 		},
-		draws: (f) => drawingOf(get(), f)
+		draws: (f) => drawingOf(get(), f),
+		preview: true
 	});
 }
 

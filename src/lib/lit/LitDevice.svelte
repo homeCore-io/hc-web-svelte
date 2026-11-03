@@ -21,6 +21,10 @@
 	import LitSwitch from './LitSwitch.svelte';
 	import LitWatch from './LitWatch.svelte';
 	import { lookHere } from '#lib/look.svelte.js';
+	import { rooms } from '#lib/rooms.svelte.js';
+	import { roomOf } from '#lib/summary.js';
+	import { thingOf } from '#lib/looks/thing.js';
+	import MadeDrawing from '#lib/components/looks/MadeDrawing.svelte';
 	import { deviceScene, isDoorKind, isWatchKind, lampOf, readingOf } from './room.js';
 
 	const look = lookHere();
@@ -46,30 +50,57 @@
 	const name = $derived(label ?? view.name);
 	const lamp = $derived(card.scene ? null : lampOf(card, view, name));
 	const reading = $derived(card.scene ? null : readingOf(card, view, name));
-	/** Whether the look draws this family the Lit way (13 §6); else today's card. */
-	const own = (f: Family) => look.draws(f) === 'lit';
+	// Which family it is, and how the look draws that family (13 §6): Lit's
+	// way, a drawing made in the editor (§6.4), or today's card.
+	const family = $derived<Family | null>(
+		card.scene
+			? 'scenes'
+			: lamp
+				? lamp.level !== null
+					? 'lights'
+					: 'switches'
+				: isDoorKind(view.kind)
+					? 'doors'
+					: reading
+						? 'readings'
+						: layout === 'lines'
+							? 'watching'
+							: null
+	);
+	const drawing = $derived(family ? look.draws(family) : 'classic');
+	const made = $derived(look.def.made.find((m) => m.id === drawing && m.family === family));
+	const thing = $derived(made ? thingOf(d, view, name, roomOf(d, rooms.list)?.name ?? '') : null);
 	const power = $derived(
 		view.kind === 'outlet' || /\b(heat|heater|plug|valve|pump|charger|fan|ac)\b/i.test(name)
 	);
 </script>
 
-{#if card.scene && own('scenes')}
+{#if made && thing}
+	<MadeDrawing
+		{made}
+		device={d}
+		{view}
+		{thing}
+		ownColors={look.def.ownColors}
+		preview={look.preview}>{@render children()}</MadeDrawing
+	>
+{:else if drawing !== 'lit'}
+	{@render children()}
+{:else if card.scene}
 	<LitScene
 		s={deviceScene(card, name)}
 		form={layout === 'swatches' ? 'disc' : 'chip'}
 		run={() => commands.act(d.device_id, 'activate')}
 	/>
-{:else if card.scene}
-	{@render children()}
-{:else if lamp && lamp.level !== null && own('lights')}
+{:else if family === 'lights' && lamp}
 	<LitLamp {lamp} />
-{:else if lamp && lamp.level === null && own('switches')}
+{:else if family === 'switches' && lamp}
 	<LitSwitch l={lamp} {power} />
-{:else if isDoorKind(view.kind) && own('doors')}
+{:else if family === 'doors'}
 	<LitDoor device={d} {view} {name} {options} />
-{:else if reading && own('readings')}
+{:else if family === 'readings' && reading}
 	<LitReading r={reading} />
-{:else if layout === 'lines' && own('watching')}
+{:else if family === 'watching'}
 	<LitWatch id={d.device_id} {view} {name} />
 {:else}
 	{@render children()}

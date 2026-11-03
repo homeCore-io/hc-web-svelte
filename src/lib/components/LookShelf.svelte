@@ -14,7 +14,8 @@
 		all,
 		chosen,
 		save,
-		pick
+		pick,
+		editHref
 	}: {
 		label: string;
 		/** The looks kept here (the house's, or the person's own). */
@@ -27,6 +28,8 @@
 		save: (looks: Look[]) => void;
 		/** Choose a look just made or added. */
 		pick: (id: string) => void;
+		/** Where a look kept here is changed (the look editor). */
+		editHref: (id: string) => string;
 	} = $props();
 
 	let name = $state('');
@@ -38,7 +41,7 @@
 		const l = copyOf(from, name.trim() || `${from.name} copy`, all);
 		save([...own, l]);
 		pick(l.id);
-		said = `${l.name} made from ${from.name}, and chosen.`;
+		said = `${l.name} made from ${from.name}, and chosen. Change it to make it your own.`;
 		name = '';
 	}
 
@@ -92,6 +95,7 @@
 								from {all.find((x) => x.id === l.from)?.name ?? l.from}</small
 							>{/if}</span
 					>
+					<a class="change" href={editHref(l.id)}>Change</a>
 					<button class="plain" onclick={() => download(l)}>Save to a file</button>
 					<button class="plain" onclick={() => remove(l)}>Remove</button>
 				</li>
@@ -150,6 +154,15 @@
 		font: inherit;
 		font-size: 14px;
 		cursor: pointer;
+	}
+	.change {
+		padding: 9px 14px;
+		border-radius: 10px;
+		background: var(--accent);
+		color: var(--accent-ink);
+		font-size: 14px;
+		font-weight: 700;
+		text-decoration: none;
 	}
 	ul {
 		list-style: none;

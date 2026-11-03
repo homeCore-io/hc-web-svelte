@@ -359,6 +359,20 @@ function readMade(raw: unknown): MadeDrawing | null {
 	};
 }
 
+/** A new made drawing's id from its name, unlike the look's others. */
+export function madeId(name: string, made: readonly MadeDrawing[]): string {
+	const stem =
+		name
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-+|-+$/g, '')
+			.slice(0, 40) || 'drawing';
+	let id = stem;
+	for (let n = 2; made.some((m) => m.id === id) || id === 'classic' || id === 'lit'; n++)
+		id = `${stem}-${n}`;
+	return id;
+}
+
 /** Whether a look has a made drawing with code: only an admin may save or import one (§6.4, S4). */
 export const hasCode = (l: Pick<Look, 'made'>): boolean => l.made.some((d) => !!d.code);
 

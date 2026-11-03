@@ -46,6 +46,7 @@
 				{chosen}
 				save={(next) => household.change((d) => ({ ...d, looks: next }))}
 				pick={pickLook}
+				editHref={(id) => `/settings/look/${id}`}
 			/>
 		</section>
 

@@ -267,6 +267,29 @@ them, with the line for code.
 `{ id, name, draws, from, parts, expressions, code? }`. A look file carries
 them; an exported look with code says so before it's saved.
 
+**As built in step 4:**
+
+- "Admin" for code is homeCore's `plugins:write` scope, the one for
+  installing plugins. The UI server checks it: a document that adds or
+  changes code is refused for anyone else, who may still keep an admin's
+  code unchanged, or remove it.
+- Code is the body of `draw(thing)` and returns HTML. It runs in a web
+  worker and is stopped after 300 ms, so code that loops or throws can't
+  stall a screen; that card is drawn as Classic draws it. A tap does what the
+  drawing's parts say (switch, open, nothing), so code never sends commands
+  itself.
+- Drawings can be made for lights, switches, doors and locks, readings and
+  Watching. Scenes have their two built-in drawings only, for now.
+- The expression language is `looks/expr.ts`: the thing's values (name, on,
+  level, color, room, state, temperature, humidity, available, alarm, kind),
+  arithmetic, comparisons, `? :`, and round, floor, ceil, abs, min, max,
+  upper, lower, fixed.
+- When a look doesn't draw lights the Lit way, lights that share a name
+  ("Holiday Lights 1" to "4") are separate cards, as Classic has them.
+- The editor's preview shows a page as the look starts it, before anyone
+  arranges it. A room's sections and Home's are reordered with arrows;
+  dragging them in the editor is still to come.
+
 ## 7. Frame
 
 The frame is the set of **pieces** around a page's cards. Each piece is a

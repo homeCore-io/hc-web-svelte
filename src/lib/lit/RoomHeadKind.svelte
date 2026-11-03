@@ -24,7 +24,9 @@
 	const here = lookHere();
 
 	let { card, label }: KindProps<'roomhead'> = $props();
-	$effect(() => heading.ownTitle());
+	$effect(() => {
+		if (!here.preview) heading.ownTitle();
+	});
 
 	const live = $derived(card.devices.map((d) => devices.byId[d.device_id] ?? d));
 	const cards = $derived(

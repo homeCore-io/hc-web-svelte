@@ -206,6 +206,7 @@
 			chosen={myLook ? findLook(looks, myLook) : houseLook}
 			save={(next) => void personal.change((d) => ({ ...d, looks: next }))}
 			pick={setLook}
+			editHref={(id) => `/me/looks/${id}`}
 		/>
 	</section>
 

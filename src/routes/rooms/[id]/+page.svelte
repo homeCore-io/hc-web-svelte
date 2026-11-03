@@ -49,7 +49,9 @@
 		now: clock.now
 	});
 	const doc = $derived(
-		rules && grouping ? grouping.groupRoom(id, input, rules, look.def.frame) : roomPage(id, input)
+		rules && grouping
+			? grouping.groupRoom(id, input, rules, look.def.frame, look.draws('lights') === 'lit')
+			: roomPage(id, input)
 	);
 	// Such a look draws the room's name in its header; until its grouping has loaded, nothing yet.
 	const waiting = $derived(!!rules && !grouping);

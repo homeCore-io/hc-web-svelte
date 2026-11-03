@@ -54,14 +54,19 @@ class LookNow {
 		return drawingOf(this.def, f);
 	}
 
-	/** Show a look: mark the page with its feel, and remember it here. */
-	show(l: Look, all?: readonly Look[]): void {
+	/**
+	 * Show a look: mark the page with its feel, and remember it here. Where it
+	 * doesn't reach (settings, for a look of the household's pages, S9), the
+	 * screen keeps Classic's feel.
+	 */
+	show(l: Look, all?: readonly Look[], reaches = true): void {
 		this.def = l;
 		if (all) this.all = all;
 		const root = document.documentElement;
+		const feel = reaches ? l.feel : CLASSIC.feel;
+		for (const [k, v] of Object.entries(feelVars(feel))) root.style.setProperty(k, v);
+		root.dataset.motion = feel.motion;
 		const vars = feelVars(l.feel);
-		for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
-		root.dataset.motion = l.feel.motion;
 		if (l.id === 'classic') delete root.dataset.look;
 		else root.dataset.look = l.id;
 		try {

@@ -1018,4 +1018,21 @@
 	.small {
 		font-size: 12px;
 	}
+
+	/* On a phone, the preview is above, and the choices scroll under it (13 §11). */
+	@media (max-width: 899px) {
+		.preview-side {
+			order: -1;
+			position: sticky;
+			top: var(--header-h, 64px);
+			z-index: 2;
+			max-height: 42dvh;
+			overflow: auto;
+			padding-bottom: 6px;
+			background: var(--bg);
+		}
+		.choices {
+			max-width: none;
+		}
+	}
 </style>

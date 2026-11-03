@@ -6,7 +6,7 @@
 	(step 4); until then a copy draws as the look it was made from.
 -->
 <script lang="ts">
-	import { copyOf, fromFile, lookFile, newLookId, type Look } from '#lib/looks/model.js';
+	import { copyOf, fromFile, hasCode, lookFile, newLookId, type Look } from '#lib/looks/model.js';
 
 	let {
 		label,
@@ -15,7 +15,8 @@
 		chosen,
 		save,
 		pick,
-		editHref
+		editHref,
+		admin
 	}: {
 		label: string;
 		/** The looks kept here (the house's, or the person's own). */
@@ -30,6 +31,8 @@
 		pick: (id: string) => void;
 		/** Where a look kept here is changed (the look editor). */
 		editHref: (id: string) => string;
+		/** Whether this person may add code (13 §6.4): someone who may install plugins. */
+		admin: boolean;
 	} = $props();
 
 	let name = $state('');
@@ -63,6 +66,10 @@
 		const got = fromFile(await file.text(), all);
 		if (typeof got === 'string') {
 			trouble = got;
+			return;
+		}
+		if (hasCode(got) && !admin) {
+			trouble = `${got.name} has drawings with code, so only someone who may install plugins can add it.`;
 			return;
 		}
 		// Another of the same id here already: kept beside it under a new one.

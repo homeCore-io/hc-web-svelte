@@ -9,6 +9,7 @@ import {
 	feelVars,
 	fromFile,
 	lookFile,
+	reachesHere,
 	readLook,
 	type Look
 } from './model.js';
@@ -99,5 +100,15 @@ describe('sharing a look (13 §12.3)', () => {
 	it('refuses a file that isn’t a look', () => {
 		expect(fromFile('{', BUILT_IN)).toBe('This file isn’t a look.');
 		expect(fromFile('{"look":{}}', BUILT_IN)).toBe('This file isn’t a look.');
+	});
+});
+
+describe('where a look reaches (S9)', () => {
+	it('reaches the household’s pages always, and settings only when it says everywhere', () => {
+		for (const p of ['/', '/rooms/abc', '/pages/x', '/scenes', '/alerts'])
+			expect(reachesHere(LIT, p), p).toBe(true);
+		for (const p of ['/settings/look', '/me', '/rules', '/roomsx'])
+			expect(reachesHere(LIT, p), p).toBe(false);
+		expect(reachesHere({ ...LIT, reaches: 'everywhere' }, '/settings')).toBe(true);
 	});
 });

@@ -46,6 +46,7 @@
 				{chosen}
 				save={(next) => household.change((d) => ({ ...d, looks: next }))}
 				pick={pickLook}
+				admin={session.isAdmin || session.can('plugins:write')}
 				editHref={(id) => `/settings/look/${id}`}
 			/>
 		</section>

@@ -39,6 +39,7 @@
 	} from '#lib/looks/model.js';
 	import { changesFrom } from '#lib/looks/diff.js';
 	import { litRoom } from '#lib/lit/room.js';
+	import { moved, reorder } from '#lib/reorder.js';
 	import LookPreview from './LookPreview.svelte';
 	import DrawingSample from './DrawingSample.svelte';
 	import DrawingEditor from './DrawingEditor.svelte';
@@ -514,85 +515,90 @@
 								none takes goes to "Also here". This is every room; arranging one room stays with
 								that room.
 							</p>
-							{#each rules as r, i (r.id)}
-								<div class="rule">
-									<div class="rule-top">
-										<input
-											aria-label="Section name"
-											value={r.title}
-											oninput={(e) => editRule(i, { title: e.currentTarget.value })}
-										/>
-										<button
-											class="icon"
-											aria-label="Earlier"
-											disabled={i === 0}
-											onclick={() => moveRule(i, -1)}>↑</button
-										>
-										<button
-											class="icon"
-											aria-label="Later"
-											disabled={i === rules.length - 1}
-											onclick={() => moveRule(i, 1)}>↓</button
-										>
-										<button
-											class="icon"
-											aria-label={`Remove ${r.title}`}
-											onclick={() => setRules(rules.filter((_, k) => k !== i))}>✕</button
-										>
-									</div>
-									<div class="takes">
-										<span class="quiet">Takes</span>
-										{#each r.takes as t (t)}
-											<span class="take"
-												>{TAKES[t]}<button
-													aria-label={`Stop taking ${TAKES[t]}`}
-													onclick={() => editRule(i, { takes: r.takes.filter((x) => x !== t) })}
-													>×</button
-												></span
+							<div class="list" use:reorder={{ move: (a, b) => setRules(moved(rules, a, b)) }}>
+								{#each rules as r, i (r.id)}
+									<div class="rule" data-item>
+										<div class="rule-top">
+											<span class="grip" data-grip aria-hidden="true" title="Drag to reorder"
+												>⋮⋮</span
 											>
-										{/each}
-										{#if untaken.length}
+											<input
+												aria-label="Section name"
+												value={r.title}
+												oninput={(e) => editRule(i, { title: e.currentTarget.value })}
+											/>
+											<button
+												class="icon"
+												aria-label="Earlier"
+												disabled={i === 0}
+												onclick={() => moveRule(i, -1)}>↑</button
+											>
+											<button
+												class="icon"
+												aria-label="Later"
+												disabled={i === rules.length - 1}
+												onclick={() => moveRule(i, 1)}>↓</button
+											>
+											<button
+												class="icon"
+												aria-label={`Remove ${r.title}`}
+												onclick={() => setRules(rules.filter((_, k) => k !== i))}>✕</button
+											>
+										</div>
+										<div class="takes">
+											<span class="quiet">Takes</span>
+											{#each r.takes as t (t)}
+												<span class="take"
+													>{TAKES[t]}<button
+														aria-label={`Stop taking ${TAKES[t]}`}
+														onclick={() => editRule(i, { takes: r.takes.filter((x) => x !== t) })}
+														>×</button
+													></span
+												>
+											{/each}
+											{#if untaken.length}
+												<select
+													aria-label="Also takes"
+													value=""
+													onchange={(e) => {
+														const t = e.currentTarget.value as Take;
+														if (t) editRule(i, { takes: [...r.takes, t] });
+														e.currentTarget.value = '';
+													}}
+												>
+													<option value="">+ also…</option>
+													{#each untaken as t (t)}<option value={t}>{TAKES[t]}</option>{/each}
+												</select>
+											{/if}
+										</div>
+										<div class="takes">
 											<select
-												aria-label="Also takes"
-												value=""
-												onchange={(e) => {
-													const t = e.currentTarget.value as Take;
-													if (t) editRule(i, { takes: [...r.takes, t] });
-													e.currentTarget.value = '';
-												}}
+												aria-label="Layout"
+												value={r.layout}
+												onchange={(e) => editRule(i, { layout: e.currentTarget.value as Layout })}
 											>
-												<option value="">+ also…</option>
-												{#each untaken as t (t)}<option value={t}>{TAKES[t]}</option>{/each}
+												{#each Object.entries(LAYOUT_NAMES) as [id, name] (id)}<option value={id}
+														>{name}</option
+													>{/each}
 											</select>
-										{/if}
+											<select
+												aria-label="Where"
+												value={r.place}
+												onchange={(e) => editRule(i, { place: e.currentTarget.value as Place })}
+											>
+												{#each PLACES as [id, name] (id)}<option value={id}>{name}</option>{/each}
+											</select>
+											<label class="check small"
+												><input
+													type="checkbox"
+													checked={!r.headless}
+													onchange={(e) => editRule(i, { headless: !e.currentTarget.checked })}
+												/> Heading</label
+											>
+										</div>
 									</div>
-									<div class="takes">
-										<select
-											aria-label="Layout"
-											value={r.layout}
-											onchange={(e) => editRule(i, { layout: e.currentTarget.value as Layout })}
-										>
-											{#each Object.entries(LAYOUT_NAMES) as [id, name] (id)}<option value={id}
-													>{name}</option
-												>{/each}
-										</select>
-										<select
-											aria-label="Where"
-											value={r.place}
-											onchange={(e) => editRule(i, { place: e.currentTarget.value as Place })}
-										>
-											{#each PLACES as [id, name] (id)}<option value={id}>{name}</option>{/each}
-										</select>
-										<label class="check small"
-											><input
-												type="checkbox"
-												checked={!r.headless}
-												onchange={(e) => editRule(i, { headless: !e.currentTarget.checked })}
-											/> Heading</label
-										>
-									</div>
-								</div>
-							{/each}
+								{/each}
+							</div>
 							<div class="row">
 								{#if untaken.length}
 									<select
@@ -620,32 +626,47 @@
 							The order Home's sections start in, and its layout. Anyone can still arrange their own
 							Home.
 						</p>
-						{#each homeRows as s, i (s.id)}
-							<div class="home-row" class:off={home.hidden.includes(s.id)}>
-								<span class="grow">{s.title}</span>
-								<button
-									class="plain small"
-									onclick={() =>
-										setHome({
-											hidden: home.hidden.includes(s.id)
-												? home.hidden.filter((x) => x !== s.id)
-												: [...home.hidden, s.id]
-										})}>{home.hidden.includes(s.id) ? 'Starts hidden' : 'Shown'}</button
-								>
-								<button
-									class="icon"
-									aria-label="Earlier"
-									disabled={i === 0}
-									onclick={() => moveHome(i, -1)}>↑</button
-								>
-								<button
-									class="icon"
-									aria-label="Later"
-									disabled={i === homeRows.length - 1}
-									onclick={() => moveHome(i, 1)}>↓</button
-								>
-							</div>
-						{/each}
+						<div
+							class="list"
+							use:reorder={{
+								move: (a, b) =>
+									setHome({
+										order: moved(
+											homeRows.map((x) => x.id),
+											a,
+											b
+										)
+									})
+							}}
+						>
+							{#each homeRows as s, i (s.id)}
+								<div class="home-row" data-item class:off={home.hidden.includes(s.id)}>
+									<span class="grip" data-grip aria-hidden="true" title="Drag to reorder">⋮⋮</span>
+									<span class="grow">{s.title}</span>
+									<button
+										class="plain small"
+										onclick={() =>
+											setHome({
+												hidden: home.hidden.includes(s.id)
+													? home.hidden.filter((x) => x !== s.id)
+													: [...home.hidden, s.id]
+											})}>{home.hidden.includes(s.id) ? 'Starts hidden' : 'Shown'}</button
+									>
+									<button
+										class="icon"
+										aria-label="Earlier"
+										disabled={i === 0}
+										onclick={() => moveHome(i, -1)}>↑</button
+									>
+									<button
+										class="icon"
+										aria-label="Later"
+										disabled={i === homeRows.length - 1}
+										onclick={() => moveHome(i, 1)}>↓</button
+									>
+								</div>
+							{/each}
+						</div>
 						<fieldset>
 							<legend>Home layout</legend>
 							<div class="seg wrap">
@@ -998,6 +1019,25 @@
 		border: 1px solid var(--line);
 		background: var(--surface);
 		color: var(--ink-muted);
+	}
+	.list {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+	.grip {
+		align-self: center;
+		padding: 4px 2px;
+		color: var(--ink-muted);
+		letter-spacing: -2px;
+		font-weight: 700;
+		cursor: grab;
+		touch-action: none;
+		user-select: none;
+	}
+	:global(.lifted) {
+		box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+		outline: 1px solid var(--accent);
 	}
 	.home-row {
 		display: flex;

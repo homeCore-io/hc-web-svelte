@@ -138,6 +138,17 @@
 	// Drawn as an overhead door: its kind, the Garage door symbol, or a name that says so.
 	const OVERHEAD = /^(garage|garage_door)$/;
 	const OVERHEAD_NAME = /\b(garage door|overhead|oh ?\d+)\b/i;
+	/**
+	 * Whether a door is drawn as an overhead one. A symbol chosen for it wins:
+	 * Door is a door however it's named ("Garage door" for the door into the
+	 * garage); only left on Automatic does its kind, then its name, decide.
+	 */
+	function overheadDoor(c: Card, v: CardView): boolean {
+		if (c.kind !== 'device') return false;
+		const chosen = kindOptions.of(key, deviceKind(c.device), c.ref, DEVICE_BUILT_IN).symbol;
+		if (typeof chosen === 'string' && chosen !== 'auto') return chosen === 'garage';
+		return OVERHEAD.test(v.kind) || OVERHEAD_NAME.test(names[c.ref] ?? v.name);
+	}
 	const details = (c: Card) => c.kind === 'device' && openDevice(c.device.device_id, here.url);
 </script>
 
@@ -185,10 +196,7 @@
 				{@const v = views[c.ref]}
 				{#if v}
 					{@const open = isOpen(v)}
-					{@const overhead =
-						OVERHEAD.test(v.kind) ||
-						v.icon.startsWith('garage') ||
-						OVERHEAD_NAME.test(names[c.ref] ?? v.name)}
+					{@const overhead = overheadDoor(c, v)}
 					{@const isLock = v.control?.kind === 'lock'}
 					{@const locked = v.control?.kind === 'lock' && v.control.locked}
 					<div class="door" class:bad={open || (isLock && !locked)}>

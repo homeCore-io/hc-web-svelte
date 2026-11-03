@@ -6,7 +6,7 @@
  * called); Lit only decides where each kind of thing goes on the page.
  */
 import type { CoreDevice } from '../devices.js';
-import { INFRASTRUCTURE, type CardView } from '../card.js';
+import { INFRASTRUCTURE, isOpen, type CardView } from '../card.js';
 import type { Card } from '../page.js';
 
 /** A light or a switch, as Lit draws it. */
@@ -204,7 +204,7 @@ export function litRoom(
 					detail: view.stateLine,
 					fix: { label: 'Lock', device: d.device_id, want: { locked: true } }
 				});
-			else if (view.icon === 'door-open' && view.available)
+			else if (isOpen(view) && view.available)
 				problems.push({
 					key: `${card.ref}/open`,
 					title: `${name} is open`,

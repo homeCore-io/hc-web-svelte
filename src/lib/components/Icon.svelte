@@ -13,6 +13,7 @@
 	import Timer from '@lucide/svelte/icons/timer';
 	import DoorClosed from '@lucide/svelte/icons/door-closed';
 	import DoorOpen from '@lucide/svelte/icons/door-open';
+	import Warehouse from '@lucide/svelte/icons/warehouse';
 	import Droplets from '@lucide/svelte/icons/droplets';
 	import PersonStanding from '@lucide/svelte/icons/person-standing';
 	import Thermometer from '@lucide/svelte/icons/thermometer';
@@ -51,6 +52,8 @@
 		timer: Timer,
 		door: DoorClosed,
 		'door-open': DoorOpen,
+		garage: Warehouse,
+		'garage-open': Warehouse,
 		water: Droplets,
 		motion: PersonStanding,
 		thermometer: Thermometer,

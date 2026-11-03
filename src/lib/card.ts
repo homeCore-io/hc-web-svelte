@@ -26,6 +26,8 @@ export type IconName =
 	| 'timer'
 	| 'door'
 	| 'door-open'
+	| 'garage'
+	| 'garage-open'
 	| 'water'
 	| 'motion'
 	| 'thermometer'
@@ -59,6 +61,7 @@ export const SYMBOLS: { icon: IconName; label: string }[] = [
 	{ icon: 'fan', label: 'Fan' },
 	{ icon: 'lock', label: 'Lock' },
 	{ icon: 'door', label: 'Door' },
+	{ icon: 'garage', label: 'Garage door' },
 	{ icon: 'tv', label: 'TV' },
 	{ icon: 'speaker', label: 'Speaker' },
 	{ icon: 'timer', label: 'Timer' },
@@ -76,11 +79,16 @@ export const SYMBOLS: { icon: IconName; label: string }[] = [
 	{ icon: 'scene', label: 'Scene' },
 	{ icon: 'device', label: 'Box' }
 ];
+/** Whether a card shows something open: a door, or a garage door (its own symbol). */
+export const isOpen = (c: { icon: IconName }): boolean =>
+	c.icon === 'door-open' || c.icon === 'garage-open';
+
 /** A chosen symbol, kept in step with the state it shows: open, unlocked. */
 function symbolFor(chosen: string | undefined, drawn: IconName): IconName | undefined {
 	if (!chosen || !SYMBOLS.some((s) => s.icon === chosen)) return undefined;
 	if (chosen === 'lock' && drawn === 'unlock') return 'unlock';
 	if (chosen === 'door' && drawn === 'door-open') return 'door-open';
+	if (chosen === 'garage' && drawn === 'door-open') return 'garage-open';
 	return chosen as IconName;
 }
 

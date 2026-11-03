@@ -6,7 +6,7 @@
  * Built from the card descriptions, so a summary never disagrees with the
  * cards it summarises.
  */
-import { cardFor, INFRASTRUCTURE, SENSORS, type CardView } from './card.js';
+import { cardFor, INFRASTRUCTURE, isOpen, SENSORS, type CardView } from './card.js';
 import { roomSlug, type CoreDevice, type Devices } from './devices.js';
 import type { Room } from './house.js';
 
@@ -28,7 +28,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 /** The chips at the top of Home, in a fixed order; only those with something to say. */
 export function houseChips(cards: CardView[]): Chip[] {
 	const lights = cards.filter((c) => c.available && LIGHTS.has(c.kind) && c.tone === 'on');
-	const open = cards.filter((c) => c.available && c.icon === 'door-open');
+	const open = cards.filter((c) => c.available && isOpen(c));
 	const unlocked = cards.filter((c) => c.available && c.icon === 'unlock');
 	const playing = cards.filter((c) => c.available && c.stateLine.startsWith('Playing'));
 	const wet = cards.filter((c) => c.alarm === 'wet');
@@ -106,7 +106,7 @@ export function roomSummary(cards: CardView[]): string {
 		const reading = temp.stateLine.split(' · ')[0];
 		if (reading && /\d/.test(reading)) parts.push(reading);
 	}
-	const open = cards.filter((c) => c.available && c.icon === 'door-open');
+	const open = cards.filter((c) => c.available && isOpen(c));
 	if (open.length === 1) parts.push(`${open[0]!.name} open`);
 	else if (open.length > 1) parts.push(`${open.length} open`);
 	const playing = cards.filter((c) => c.available && c.stateLine.startsWith('Playing'));

@@ -8,7 +8,7 @@
 -->
 <script lang="ts">
 	import { applyPage, withOwn, type Card, type Page } from '#lib/page.js';
-	import { cardFor, type CardView } from '#lib/card.js';
+	import { cardFor, isOpen, type CardView } from '#lib/card.js';
 	import { withPending } from '#lib/pending.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
@@ -22,7 +22,7 @@
 	import { page as here } from '$app/state';
 	import { roomBox } from '#lib/roomBox.js';
 	import { kindOptions } from '#lib/kindOptions.svelte.js';
-	import { ROOM_BUILT_IN } from '#lib/options.js';
+	import { DEVICE_BUILT_IN, ROOM_BUILT_IN, deviceKind } from '#lib/options.js';
 	import { ref } from '#lib/layers.js';
 	import KindView from '#lib/components/KindView.svelte';
 	import { kindOf } from '#lib/kinds.js';
@@ -58,7 +58,15 @@
 					? [
 							[
 								c.ref,
-								withPending(cardFor(c.device, clock.now), commands.pending[c.device.device_id])
+								withPending(
+									// With its settings here, so a symbol chosen for it (a garage door) counts.
+									cardFor(
+										c.device,
+										clock.now,
+										kindOptions.of(key, deviceKind(c.device), c.ref, DEVICE_BUILT_IN)
+									),
+									commands.pending[c.device.device_id]
+								)
 							]
 						]
 					: []
@@ -140,6 +148,9 @@
 		s.shape === 'light'
 			? `conic-gradient(from 210deg, ${[...s.colours, s.colours[0]].join(', ')})`
 			: undefined;
+	// Drawn as an overhead door: its kind, the Garage door symbol, or a name that says so.
+	const OVERHEAD = /^(garage|garage_door)$/;
+	const OVERHEAD_NAME = /\b(garage door|overhead|oh ?\d+)\b/i;
 	const details = (c: Card) => c.kind === 'device' && openDevice(c.device.device_id, here.url);
 </script>
 
@@ -186,7 +197,11 @@
 			{#each lit.doors as c (c.ref)}
 				{@const v = views[c.ref]}
 				{#if v}
-					{@const open = v.icon === 'door-open'}
+					{@const open = isOpen(v)}
+					{@const overhead =
+						OVERHEAD.test(v.kind) ||
+						v.icon.startsWith('garage') ||
+						OVERHEAD_NAME.test(names[c.ref] ?? v.name)}
 					{@const isLock = v.control?.kind === 'lock'}
 					{@const locked = v.control?.kind === 'lock' && v.control.locked}
 					<div class="door" class:bad={open || (isLock && !locked)}>
@@ -208,6 +223,13 @@
 									><rect x="4" y="12" width="16" height="13" rx="3"></rect><path
 										d={locked ? 'M8 12V8a4 4 0 0 1 8 0v4' : 'M8 12V8a4 4 0 0 1 7.5-2'}
 									></path></svg
+								>
+							{:else if overhead}
+								<!-- An overhead door: its panels, rolled up when it's open. -->
+								<span class="garage" aria-hidden="true"
+									><span class="panels" class:open
+										><span></span><span></span><span></span><span></span></span
+									></span
 								>
 							{:else}
 								<span class="frame" aria-hidden="true"><span class="leaf" class:open></span></span>
@@ -517,6 +539,34 @@
 		background: var(--accent);
 		transform: perspective(200px) rotateY(-60deg);
 	}
+	.garage {
+		position: relative;
+		width: 70%;
+		height: 72px;
+		border: 2px solid var(--line);
+		border-bottom: none;
+		border-radius: 6px 6px 0 0;
+	}
+	.panels {
+		position: absolute;
+		inset: 4px 4px auto;
+		height: calc(100% - 4px);
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+		transition: height 0.6s;
+	}
+	.panels.open {
+		height: 14px;
+	}
+	.panels span {
+		flex: 1;
+		border-radius: 3px;
+		background: var(--line);
+	}
+	.panels.open span {
+		background: var(--accent);
+	}
 	.row {
 		display: flex;
 		align-items: center;
@@ -561,7 +611,7 @@
 	}
 	.lamps {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
 		gap: 10px;
 	}
 	.panel {

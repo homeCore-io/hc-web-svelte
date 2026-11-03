@@ -3,7 +3,7 @@
  * playing, a weather device's readings and forecast. Plain data from the
  * house's devices, so each can be tested without drawing anything.
  */
-import { reading, skyIcon, type CardView, type IconName } from './card.js';
+import { isOpen, reading, skyIcon, type CardView, type IconName } from './card.js';
 import { displayName, type AttributeSchema, type CoreDevice, type Devices } from './devices.js';
 import type { Room } from './house.js';
 import { kindOf } from './card.js';
@@ -81,7 +81,7 @@ export function worthKnowing(
 		),
 		...pick(
 			o.open,
-			(c) => c.available && c.icon === 'door-open',
+			(c) => c.available && isOpen(c),
 			(c) => openFor(all[c.id], now)
 		),
 		...pick(

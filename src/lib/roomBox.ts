@@ -7,7 +7,7 @@
  * Whatever is switched off, a box always shows what's wrong in the room — a
  * leak, smoke, an open door, something offline (G6).
  */
-import { kindOf, type CardView, type IconName } from './card.js';
+import { isOpen, kindOf, type CardView, type IconName } from './card.js';
 import { displayName, unitOf, type CoreDevice, type Devices } from './devices.js';
 import { numbersOf, sourceOf, type NumberId, type Options, type Source } from './options.js';
 import { allOffTargets } from './summary.js';
@@ -126,7 +126,7 @@ function wrong(cards: CardView[]): { lines: Line[]; alarm: boolean } {
 	if (smoke.length > 0) lines.push({ text: 'Smoke', alert: true, what: 'smoke' });
 	const jammed = cards.filter((c) => c.alarm === 'jammed');
 	for (const c of jammed) lines.push({ text: `${c.name} jammed`, alert: true, what: 'jammed' });
-	const open = cards.filter((c) => c.available && c.icon === 'door-open');
+	const open = cards.filter((c) => c.available && isOpen(c));
 	if (open.length === 1) lines.push({ text: `${open[0]!.name} open`, alert: true, what: 'open' });
 	else if (open.length > 1) lines.push({ text: `${open.length} open`, alert: true, what: 'open' });
 	const off = cards.filter((c) => c.alarm === 'offline');
@@ -215,7 +215,7 @@ export function roomBox(devices: CoreDevice[], cards: CardView[], all: Devices, 
 	const mark = (n: number, icon: Mark['icon'], label: string, tone: Mark['tone']) =>
 		n > 0 && marks.push({ icon, label, tone });
 	mark(cards.filter((c) => c.alarm === 'wet').length, 'water', 'Leak', 'alert');
-	const open = some((c) => c.icon === 'door-open');
+	const open = some((c) => isOpen(c));
 	mark(open.length, 'door-open', open.length === 1 ? `${open[0]!.name} open` : 'Open', 'alert');
 	if (o.battery)
 		mark(cards.filter((c) => c.alarm === 'low battery').length, 'alert', 'Battery low', 'alert');
@@ -454,7 +454,7 @@ export function bigNumbers(h: HouseIn, o: Options): BigNumber[] {
 			};
 		},
 		open: () => {
-			const p = (c: CardView) => c.available && c.icon === 'door-open';
+			const p = (c: CardView) => c.available && isOpen(c);
 			const where = roomsWith((r) => r.cards.some(p));
 			return {
 				value: String(h.cards.filter(p).length),

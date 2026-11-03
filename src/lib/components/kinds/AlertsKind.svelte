@@ -7,7 +7,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { alerts } from '#lib/alerts.svelte.js';
-	import { cardFor } from '#lib/card.js';
+	import { cardFor, isOpen } from '#lib/card.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { displayName } from '#lib/devices.js';
 	import { devices } from '#lib/devices.svelte.js';
@@ -32,7 +32,7 @@
 		place === 'brief'
 			? Object.values(devices.byId)
 					.map((d) => cardFor(d, clock.now))
-					.filter((c) => c.available && c.icon === 'door-open').length
+					.filter((c) => c.available && isOpen(c)).length
 			: 0
 	);
 	// The full list (its seen and ignore tools come with it) is fetched as this

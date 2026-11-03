@@ -124,7 +124,7 @@
 	.lamp {
 		position: relative;
 		overflow: hidden;
-		min-height: 112px;
+		min-height: 84px;
 		border-radius: 18px;
 		background: var(--surface);
 		border: 1px solid var(--line);
@@ -148,9 +148,9 @@
 		flex-direction: column;
 		gap: 2px;
 		height: 100%;
-		min-height: 112px;
+		min-height: 84px;
 		box-sizing: border-box;
-		padding: 14px 16px;
+		padding: 10px 14px;
 		pointer-events: none;
 	}
 	.group .words {
@@ -166,7 +166,7 @@
 	.pct {
 		margin-left: auto;
 		font-family: var(--font-num);
-		font-size: 22px;
+		font-size: 17px;
 		color: var(--ink-muted);
 	}
 	.on .pct {
@@ -198,8 +198,8 @@
 		gap: 6px;
 	}
 	.dot {
-		width: 26px;
-		height: 26px;
+		width: 20px;
+		height: 20px;
 		padding: 0;
 		border-radius: 999px;
 		border: 2px solid var(--ink-muted);

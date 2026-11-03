@@ -627,8 +627,8 @@ this order, and why:
 | ----- | ----------------------------------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | 1     | **Compact chip drawings** for lights, switches and sensors  | Mushroom                                                            | the biggest calm for busy rooms, and needs nothing new from homeCore |
 | 2     | **Row drawings and a list layout**: a line with its control | Multiple Entity Row, slider-entity-row                              | the same aim as 1, for long lists (the garage's switches)            |
-| 3     | **Batteries**: a grouping rule and a list                   | Battery State Card                                                  | homeCore already judges batteries; this only gathers them            |
-| 4     | **Reading band**: a day's low and high behind the value     | mini-graph-card                                                     | builds on the reading drawing with its day                           |
+| 3     | **Batteries**: a grouping rule and a list (F2)              | Battery State Card                                                  | homeCore already judges batteries; this only gathers them            |
+| 4     | **Reading band**: the week's usual range, today's high and low (F1) | mini-graph-card                                                     | builds on the reading drawing with its day                           |
 | 5     | **Artwork media**: what's playing, its picture as the card  | mini-media-player                                                   | players already send their artwork                                   |
 | 6     | **Room sheet**: a room opened over Home, not as a page      | Bubble's pop-ups                                                    | changes how people move around, so after the drawings settle         |
 | 7     | **Joined sections**: several cards drawn as one             | vertical-stack-in-card                                              | generalizes the light group card                                     |
@@ -812,3 +812,14 @@ before the next step.
   anyone who may make a look (§6.4).
 - **D2. Code can be added in the editor,** as button-card allows: HTML, CSS
   and JavaScript in a drawing's Code tab, by admins only (§6.4, S4).
+
+### Decided on the step 6a mockup (the user, 2026-11-02)
+
+- **F1. The reading band** shades the reading's usual range over the past
+  week behind today's line, with today's high and low marked on it and
+  written under it ("Today 40° to 46° · usual 39° to 45°").
+- **F2. Batteries are not a Home section:** low ones already reach Home as
+  alerts. The list is a room section (a grouping rule) and "All batteries"
+  off the Alerts page, for seeing every level before one is low.
+- **F3. Chips are a drawing for readings too** ("Freezer 6.3°"), as for
+  lights and switches.

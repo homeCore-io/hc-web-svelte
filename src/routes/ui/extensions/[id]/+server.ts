@@ -5,7 +5,7 @@
 import type { RequestHandler } from './$types';
 import { json } from '#lib/server/http.js';
 import { admin } from '#lib/server/extensionAdmin.js';
-import { remove } from '#lib/server/extensionStore.js';
+import { remove } from '#lib/server/extensionCatalog.js';
 
 export const DELETE: RequestHandler = async (event) => {
 	const a = await admin(event);

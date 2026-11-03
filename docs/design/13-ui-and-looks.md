@@ -849,22 +849,23 @@ before the next step.
 - **U3. Core passes a plugin's UI slot fields through** without knowing
   them, so the app decides what they mean and UI work stays out of core.
   Plugins keep the `look.*` slots (§12.2) and can also offer extensions.
-- **U4. Extensions are installed from the plugin store and by upload.** The
-  store gets categories (plugins, extensions, and room for more).
+- **U4. Extensions are installed from the catalog and by upload.** The
+  catalog gets categories (plugins, extensions, and room for more).
 - **U5. A look whose extension is gone draws as Classic does,** and an
   extension says which version of the values it expects, so an older app
   skips it.
 - **U6. The extensions we make live in one repo,** `hc-extensions`, one
   directory each.
 
-### Decided on the store mockup (the user, 2026-11-03)
+### Decided on the catalog mockup (the user, 2026-11-03)
 
 - **U7. Extensions have their own signed index** in the registry, beside the
   plugins', so homeCore never reads it.
 - **U8. The app installs extensions itself:** it downloads one, checks the
   index's signature and the file's checksum, and unpacks it into its data
   directory. homeCore never sees them.
-- **U9. "Add a plugin" becomes the Store,** with a tab per kind (Plugins, UI
+- **U9. "Add a plugin" becomes the Catalog** (not "Store", which implies
+  buying), with a tab per kind (Plugins, UI
   extensions) and categories in each; installed extensions are managed in
   Settings › Extensions.
 - **U10. An extension's file** may be either format; the app takes

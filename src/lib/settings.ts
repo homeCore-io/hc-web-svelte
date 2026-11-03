@@ -92,14 +92,14 @@ export const SETTINGS: SettingsItem[] = [
 		slug: 'plugins',
 		label: 'Plugins',
 		group: 'system',
-		words: 'plugins integrations hue lutron sonos yolink zwave restart install registry',
+		words: 'plugins integrations hue lutron sonos yolink zwave restart install registry catalog',
 		detail: 'What connects homeCore to devices'
 	},
 	{
 		slug: 'extensions',
 		label: 'Extensions',
 		group: 'system',
-		words: 'extensions ui drawings rive animated store install upload',
+		words: 'extensions ui drawings rive animated catalog store install upload',
 		detail: 'Drawings and cards the looks can choose'
 	},
 	{

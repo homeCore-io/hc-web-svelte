@@ -1,6 +1,6 @@
 <!--
-	The Store (13 U9): a tab per kind. Plugins, grouped by their registry
-	category; UI extensions are StoreExtensions.
+	The Catalog (13 U9): a tab per kind. Plugins, grouped by their registry
+	category; UI extensions are CatalogExtensions.
 
 	Adding a plugin (A4): from homeCore's signed registry — what each is, its
 	versions; installing downloads it, checks its signature and starts it.
@@ -34,7 +34,7 @@
 		type Runtime
 	} from '#lib/pluginAdmin.js';
 
-	$effect(() => heading.show('Store', { href: '/settings/plugins', label: 'Plugins' }));
+	$effect(() => heading.show('Catalog', { href: '/settings/plugins', label: 'Plugins' }));
 
 	const KINDS = [
 		['plugins', 'Plugins'],
@@ -152,8 +152,8 @@
 </div>
 
 {#if kind === 'extensions'}
-	{#await import('#lib/components/StoreExtensions.svelte') then { default: StoreExtensions }}
-		<StoreExtensions />
+	{#await import('#lib/components/CatalogExtensions.svelte') then { default: CatalogExtensions }}
+		<CatalogExtensions />
 	{/await}
 {:else if !session.isAdmin}
 	<p class="quiet">Plugins are for the house’s admins.</p>

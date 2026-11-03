@@ -72,7 +72,7 @@
 				>
 			{/if}
 			{#if session.isAdmin || session.can('plugins:write')}
-				<a class="go" href="/settings/plugins/add">Store</a>
+				<a class="go" href="/settings/plugins/add">Catalog</a>
 			{/if}
 		</div>
 

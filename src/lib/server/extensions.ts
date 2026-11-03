@@ -27,8 +27,8 @@ export interface Extension {
 	name: string;
 	version: string;
 	elements: ExtensionElement[];
-	/** Where it came from: the store or a file (`.installed.json`); copied in by hand, neither. */
-	installed?: { from: 'store' | 'file'; version: string; at: string };
+	/** Where it came from: the catalog or a file (`.installed.json`); copied in by hand, neither. */
+	installed?: { from: 'catalog' | 'file'; version: string; at: string };
 }
 
 const ID = /^[a-z0-9][a-z0-9._-]{0,63}$/;

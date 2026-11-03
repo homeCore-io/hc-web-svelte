@@ -1,5 +1,5 @@
 <!--
-	The Store's UI extensions tab (13 U7 to U9): what the registry's signed
+	The Catalog's UI extensions tab (13 U7 to U9): what the registry's signed
 	index offers, by category, each with its versions; installing one checks
 	its signature and checksum (the app's server does that). An admin can also
 	add one from a file: it's read first, so the page can say what it holds and
@@ -17,7 +17,7 @@
 		values: number;
 		size?: number;
 	}
-	interface StoreExtension {
+	interface CatalogExtension {
 		id: string;
 		name: string;
 		description: string;
@@ -26,20 +26,20 @@
 	}
 
 	const may = $derived(session.isAdmin || session.can('plugins:write'));
-	let list = $state<StoreExtension[] | null>(null);
+	let list = $state<CatalogExtension[] | null>(null);
 	let failed = $state<string | null>(null);
 	onMount(async () => {
 		void extensions.load();
-		const r = await fetch('/ui/extensions/store').catch(() => null);
+		const r = await fetch('/ui/extensions/catalog').catch(() => null);
 		const body = (await r?.json().catch(() => null)) as {
-			extensions?: StoreExtension[];
+			extensions?: CatalogExtension[];
 			error?: string;
 		} | null;
-		if (!r?.ok || !body?.extensions) failed = body?.error ?? 'The store couldn’t be reached.';
+		if (!r?.ok || !body?.extensions) failed = body?.error ?? 'The catalog couldn’t be reached.';
 		else list = body.extensions.sort((a, b) => a.name.localeCompare(b.name));
 	});
 
-	const catOf = (x: StoreExtension) => x.category?.trim() || 'Other';
+	const catOf = (x: CatalogExtension) => x.category?.trim() || 'Other';
 	let cat = $state('All');
 	const cats = $derived(
 		list?.length ? ['All', ...[...new Set(list.map(catOf))].sort((a, b) => a.localeCompare(b))] : []
@@ -89,7 +89,7 @@
 	async function install() {
 		if (!chosen) return;
 		note = `Downloading ${chosen.name} and checking its signature…`;
-		const x = await send('/ui/extensions/store', {
+		const x = await send('/ui/extensions/catalog', {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ id: chosen.id, version })
@@ -134,11 +134,11 @@
 	{#if note}<p class="note" role="status">{note}</p>{/if}
 
 	{#if failed}
-		<p class="quiet">The store: {failed}</p>
+		<p class="quiet">The catalog: {failed}</p>
 	{:else if list === null}
-		<p class="quiet">Reading the store…</p>
+		<p class="quiet">Reading the catalog…</p>
 	{:else if list.length === 0}
-		<p class="quiet">The store has no extensions yet.</p>
+		<p class="quiet">The catalog has no extensions yet.</p>
 	{:else}
 		{#if cats.length > 2}
 			<div class="cats">
@@ -223,7 +223,7 @@
 	<section class="card file" aria-label="Add from a file">
 		<h2>Add from a file</h2>
 		<p class="quiet">
-			For one you made yourself, or one not in the store: a <code>.tar.zst</code>,
+			For one you made yourself, or one not in the catalog: a <code>.tar.zst</code>,
 			<code>.tar.gz</code> or <code>.zip</code> with its <code>extension.json</code>.
 		</p>
 		<input
@@ -242,7 +242,7 @@
 				{/each}
 			</ul>
 			<p class="warn">
-				It isn’t from the homeCore store, so nothing vouches for it. Its drawings are shown to
+				It isn’t from the homeCore catalog, so nothing vouches for it. Its drawings are shown to
 				everyone who sees a look that uses them.
 			</p>
 			<button type="button" class="go" disabled={busy} onclick={installFile}

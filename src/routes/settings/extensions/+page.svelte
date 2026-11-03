@@ -1,8 +1,8 @@
 <!--
 	Settings › Extensions (13 U9): the UI extensions installed, where each came
-	from (the Store, a file, or by hand), and the drawings plugins bring, which
+	from (the Catalog, a file, or by hand), and the drawings plugins bring, which
 	come and go with their plugin. Removing one draws what used its drawings
-	as Classic does (U5). New ones come from the Store.
+	as Classic does (U5). New ones come from the Catalog.
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
@@ -28,7 +28,7 @@
 		media: 'Players'
 	};
 	const draws = (fams: string[]) => [...new Set(fams.map((f) => FAMILY[f] ?? f))].join(', ');
-	const FROM = { store: 'From the Store', file: 'From a file' } as const;
+	const FROM = { catalog: 'From the Catalog', file: 'From a file' } as const;
 
 	const fromPlugins = $derived(
 		pluginUis
@@ -66,7 +66,7 @@
 			Drawings and cards the looks can choose. They never command anything; a look picks them in its
 			Drawings.
 		</span>
-		{#if mayChange}<a class="go" href="/settings/plugins/add?kind=extensions">Store</a>{/if}
+		{#if mayChange}<a class="go" href="/settings/plugins/add?kind=extensions">Catalog</a>{/if}
 	</div>
 
 	{#if note}<p class="note" role="status">{note}</p>{/if}
@@ -77,7 +77,7 @@
 			<p class="quiet">Loading…</p>
 		{:else if extensions.list.length === 0}
 			<p class="quiet">
-				None yet. The Store has some; an admin can also add one from a file there.
+				None yet. The Catalog has some; an admin can also add one from a file there.
 			</p>
 		{:else}
 			<ul class="list">

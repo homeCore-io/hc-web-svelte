@@ -6,11 +6,11 @@ import { deflateRawSync, gzipSync, zstdCompressSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import {
 	installFromFile,
-	installFromStore,
+	installFromCatalog,
 	remove,
 	signedBy,
-	storeIndex
-} from './extensionStore.js';
+	catalogIndex
+} from './extensionCatalog.js';
 import { listExtensions } from './extensions.js';
 import { safePath, unpack } from './unpack.js';
 
@@ -115,7 +115,7 @@ describe('unpacking an extension', () => {
 	});
 });
 
-describe('the store', () => {
+describe('the catalog', () => {
 	const keys = generateKeyPairSync('ed25519');
 	const pub = keys.publicKey
 		.export({ format: 'der', type: 'spki' })
@@ -157,25 +157,28 @@ describe('the store', () => {
 		const idx = indexOf();
 		expect(signedBy(idx, signed(idx), pub)).toBe(true);
 		expect(signedBy(enc('changed'), signed(idx), pub)).toBe(false);
-		await expect(storeIndex(serve(idx, signed(enc('other'))), at)).rejects.toThrow(/signed/);
+		await expect(catalogIndex(serve(idx, signed(enc('other'))), at)).rejects.toThrow(/signed/);
 		// Versions expecting newer values than this app gives are left out.
-		expect((await storeIndex(serve(idx), at))[0]!.versions.map((v) => v.version)).toEqual([
+		expect((await catalogIndex(serve(idx), at))[0]!.versions.map((v) => v.version)).toEqual([
 			'0.1.0'
 		]);
 		const none: typeof fetch = async () => new Response('', { status: 404 });
-		expect(await storeIndex(none, at)).toEqual([]);
+		expect(await catalogIndex(none, at)).toEqual([]);
 	});
 
 	it('installs a version whose file matches its checksum, and removes it', async () => {
 		const dir = await mkdtemp(path.join(tmpdir(), 'hc-ext-'));
 		await expect(
-			installFromStore('hc-thermostat', '0.1.0', serve(indexOf('0'.repeat(64))), { index: at, dir })
+			installFromCatalog('hc-thermostat', '0.1.0', serve(indexOf('0'.repeat(64))), {
+				index: at,
+				dir
+			})
 		).rejects.toThrow(/checksum/);
 		expect(await readdir(dir)).toEqual([]);
 
-		await installFromStore('hc-thermostat', '0.1.0', serve(indexOf()), { index: at, dir });
+		await installFromCatalog('hc-thermostat', '0.1.0', serve(indexOf()), { index: at, dir });
 		const [x] = await listExtensions(dir);
-		expect(x?.installed?.from).toBe('store');
+		expect(x?.installed?.from).toBe('catalog');
 		expect(await readFile(path.join(dir, 'hc-thermostat', 'thermostat.riv'), 'utf8')).toBe('RIVE');
 
 		expect(await remove('hc-thermostat', dir)).toBe(true);
@@ -193,6 +196,6 @@ describe('the store', () => {
 		await expect(
 			installFromFile(zip([{ path: 'extension.json', data: manifest() }]), dir)
 		).rejects.toThrow(/isn’t in it/);
-		await expect(installFromFile(zip(thermostat('store')), dir)).rejects.toThrow(/can’t be/);
+		await expect(installFromFile(zip(thermostat('catalog')), dir)).rejects.toThrow(/can’t be/);
 	});
 });

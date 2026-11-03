@@ -217,6 +217,56 @@ drawing.
 | Room (on Home)                           | box, tile, field ✓                                | the same, glowing ✓                                                   |                                                             |
 | Remote, keypad, hub                      | card ✓                                            | folded under More ✓                                                   |                                                             |
 
+### 6.4 Drawings made in homeCore (D1, D2)
+
+Besides choosing a drawing, a person can make one in the look editor
+("Make a drawing…" on the Drawings tab). It is the idea of Home Assistant's
+Mushroom template cards and button-card, built in. There are three levels,
+and a drawing can use any mix of them:
+
+1. **Parts**, for anyone. A drawing is put together from parts:
+   - **shape:** card, tile, disc, line, or a panel tile;
+   - **fill:** none, the thing's level (as Lit's lights), its own color, or a
+     picture (a door, a symbol);
+   - **shows:** name, state, a reading, an icon, a range bar, a day graph;
+   - **tap:** switch it, open it, run it, or nothing;
+   - **colors** for on, off, and needs someone.
+
+   It starts from an existing drawing ("Start from Lit's rocker"), so there
+   is no blank one.
+2. **Expressions**, for anyone. Any part can be set by an expression instead
+   of a fixed choice: a label that reads `level > 50 ? "Bright" : "Dim"`, a
+   color that follows the temperature, an icon that changes with a door. The
+   language is small and safe, made for this, and is not JavaScript: it
+   reads the thing (its state, readings, name, room, how long ago it
+   changed), compares, does arithmetic, picks between values and formats
+   them. It cannot reach anything else, and an expression that fails shows
+   the part's plain value.
+3. **Code**, for admins. The drawing's Code tab takes HTML and CSS with holes
+   for the thing's values, and JavaScript that receives the thing and the
+   host (to send commands) and returns what to draw, as button-card's
+   templates and custom fields do. It runs as a custom element in its own
+   shadow root, the same contract as a plugin's drawing (§12.1), so it is
+   contained the same way (§12.5).
+
+**Who.** Parts and expressions are data, so anyone who may make a look may
+make them, and they travel in look files that anyone may import. Code runs
+in the browser of everyone who sees the look, signed in as them, so only an
+admin may write it, save it or import a look that has it (S4); the look
+editor marks such a drawing "Has code" and shows who last changed it.
+CSS on its own is allowed for anyone with `url()` and `@import` removed, so
+it can't call out of the house.
+
+**Editing.** The drawing editor is a split view like the look editor: its
+parts, expressions and code on one side; on the other, the drawing on three
+of the house's own devices of that kind, at each size, and in its offline,
+pending and needs-someone states. Errors show under the field that caused
+them, with the line for code.
+
+**Stored** in the look, under `drawings` (§15), as
+`{ id, name, draws, from, parts, expressions, code? }`. A look file carries
+them; an exported look with code says so before it's saved.
+
 ## 7. Frame
 
 The frame is the set of **pieces** around a page's cards. Each piece is a
@@ -713,3 +763,7 @@ before the next step.
   room's page (§8.4).
 - **E3. The tabs, in order:** Drawings, Feel, Colors, Frame, Rooms, Home,
   Displays, Reaches.
+- **D1. Drawings can be made in the editor** from parts and expressions, by
+  anyone who may make a look (§6.4).
+- **D2. Code can be added in the editor,** as button-card allows: HTML, CSS
+  and JavaScript in a drawing's Code tab, by admins only (§6.4, S4).

@@ -20,6 +20,7 @@ export interface Extension {
 	name: string;
 	version: string;
 	elements: ExtensionElement[];
+	installed?: { from: 'store' | 'file'; version: string; at: string };
 }
 
 /** One element, with its id in a look and where its file is. */

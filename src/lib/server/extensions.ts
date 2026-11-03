@@ -27,6 +27,8 @@ export interface Extension {
 	name: string;
 	version: string;
 	elements: ExtensionElement[];
+	/** Where it came from: the store or a file (`.installed.json`); copied in by hand, neither. */
+	installed?: { from: 'store' | 'file'; version: string; at: string };
 }
 
 const ID = /^[a-z0-9][a-z0-9._-]{0,63}$/;
@@ -83,7 +85,11 @@ export async function listExtensions(dir = extensionsDir()): Promise<Extension[]
 		try {
 			const raw = JSON.parse(await readFile(path.join(dir, id, 'extension.json'), 'utf8'));
 			const ext = readManifest(id, raw);
-			if (typeof ext !== 'string') out.push(ext);
+			if (typeof ext === 'string') continue;
+			const installed = await readFile(path.join(dir, id, '.installed.json'), 'utf8')
+				.then((t) => JSON.parse(t) as Extension['installed'])
+				.catch(() => undefined);
+			out.push(installed ? { ...ext, installed } : ext);
 		} catch {
 			// Not an extension, or not one yet.
 		}

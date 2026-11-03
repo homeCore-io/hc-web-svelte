@@ -1,0 +1,26 @@
+/**
+ * An extension from a file an admin chose: the body is the file (`.tar.zst`,
+ * `.tar.gz` or `.zip`). Nothing vouches for it; the Store page says so first.
+ */
+import type { RequestHandler } from './$types';
+import { json } from '#lib/server/http.js';
+import { admin } from '#lib/server/extensionAdmin.js';
+import { installFromFile, StoreError } from '#lib/server/extensionStore.js';
+
+const MAX_BYTES = 16 * 1024 * 1024;
+
+export const POST: RequestHandler = async (event) => {
+	const a = await admin(event);
+	if ('fail' in a) return a.fail!;
+	const length = Number(event.request.headers.get('content-length') ?? 0);
+	if (length > MAX_BYTES) return json({ error: 'It’s larger than 16 MB.' }, 413, a.who.setCookies);
+	const bytes = new Uint8Array(await event.request.arrayBuffer());
+	if (bytes.length > MAX_BYTES)
+		return json({ error: 'It’s larger than 16 MB.' }, 413, a.who.setCookies);
+	try {
+		return json({ extension: await installFromFile(bytes) }, 200, a.who.setCookies);
+	} catch (e) {
+		const error = e instanceof StoreError ? e.message : 'It couldn’t be installed.';
+		return json({ error }, 422, a.who.setCookies);
+	}
+};

@@ -42,7 +42,7 @@
 	import { litRoom } from '#lib/lit/room.js';
 	import { moved, reorder } from '#lib/reorder.js';
 	import { pluginUis, type LookSlot } from '#lib/pluginUi/uis.svelte.js';
-	import { extensions } from '#lib/extensions.svelte.js';
+	import { riveDrawings } from '#lib/rive/source.js';
 	import LookPreview from './LookPreview.svelte';
 	import DrawingSample from './DrawingSample.svelte';
 	import DrawingEditor from './DrawingEditor.svelte';
@@ -153,16 +153,17 @@
 		f === 'watching' ? 'lines' : f === 'scenes' ? 'swatches' : undefined;
 	// Plugins' drawings and pieces (13 §12), labelled with their plugin.
 	pluginUis.ensure();
-	extensions.ensure();
 	const fromPlugin = (s: LookSlot) =>
 		`${s.slot.label ?? s.slot.element} · ${s.pluginId.replace(/^plugin\./, '')}`;
 	const optionsFor = (f: Family): { id: string; name: string; made?: MadeDrawing }[] => [
 		...DRAWINGS[f],
 		...draft.made.filter((m) => m.family === f).map((m) => ({ id: m.id, name: m.name, made: m })),
-		...pluginUis.looks('look.drawing', f).map((s) => ({ id: s.id, name: fromPlugin(s) })),
-		...extensions
-			.drawing(f)
-			.map((e) => ({ id: e.id, name: `${e.element.label} · ${e.extension.name}` }))
+		...pluginUis
+			.looks('look.drawing', f)
+			.filter((s) => !s.slot.rive)
+			.map((s) => ({ id: s.id, name: fromPlugin(s) })),
+		// Drawings made in Rive, from UI extensions and plugins alike.
+		...riveDrawings(f).map((d) => ({ id: d.id, name: d.name }))
 	];
 	const headers = $derived(pluginUis.looks('look.piece', 'header'));
 	const rests = $derived(pluginUis.looks('look.piece', 'rest'));

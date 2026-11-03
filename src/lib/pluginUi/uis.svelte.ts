@@ -23,6 +23,12 @@ export interface UiSlot {
 	draws?: string[];
 	/** A look's symbols: their names. */
 	symbols?: string[];
+	/** A look's drawing made in Rive: its file in the UI's folder (rive/source.ts). */
+	rive?: string;
+	/** The version of the values a Rive drawing expects. */
+	values?: number;
+	artboard?: string;
+	stateMachine?: string;
 }
 
 /** One of a plugin's slots for the looks (13 §12), with its id in a look: `plugin:{plugin}/{element}`. */
@@ -110,7 +116,13 @@ class PluginUis {
 	looks(slot: 'look.drawing' | 'look.piece' | 'look.symbol', draws?: string): LookSlot[] {
 		return Object.entries(this.byPlugin).flatMap(([pluginId, ui]) =>
 			ui.slots
-				.filter((s) => s.slot === slot && (draws === undefined || s.draws?.includes(draws)))
+				// homeCore passes slots on as written, so the app checks what it needs: a name.
+				.filter(
+					(s) =>
+						s.slot === slot &&
+						!!s.label?.trim() &&
+						(draws === undefined || s.draws?.includes(draws))
+				)
 				.map((s) => ({ id: lookSlotId(pluginId, s.element), pluginId, ui, slot: s }))
 		);
 	}

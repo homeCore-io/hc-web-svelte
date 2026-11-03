@@ -25,6 +25,8 @@ describe('UI extensions', () => {
 	it('refuses a manifest for another folder, or with nothing to use', () => {
 		expect(readManifest('a', { id: 'b', elements: [dial] })).toMatch(/folder is a/);
 		expect(readManifest('a', { id: 'a', elements: [] })).toMatch(/no elements/);
+		expect(readManifest('a', { id: 'a', values: 2, elements: [dial] })).toMatch(/newer app/);
+		expect(typeof readManifest('a', { id: 'a', values: 1, elements: [dial] })).toBe('object');
 	});
 
 	it('lists the folder and serves only the files a manifest names', async () => {

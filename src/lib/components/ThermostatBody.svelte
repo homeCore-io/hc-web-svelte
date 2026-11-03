@@ -33,7 +33,7 @@
 	} from '#lib/thermostat.js';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import { lookHere } from '#lib/look.svelte.js';
-	import { extensions } from '#lib/extensions.svelte.js';
+	import { riveFor } from '#lib/rive/source.js';
 	import { climateValues } from '#lib/rive/values.js';
 	import Icon from './Icon.svelte';
 
@@ -58,15 +58,10 @@
 
 	const t = $derived(thermostatOf(device));
 
-	// A look that draws thermostats with an extension's Rive drawing (13 §6):
-	// the dial is that drawing, while the extension offers it; else today's.
+	// A look that draws thermostats with a Rive drawing (13 §12.4), an extension's
+	// or a plugin's: the dial is that drawing while it's offered; else today's.
 	const look = lookHere();
-	extensions.ensure();
-	const rive = $derived.by(() => {
-		const d = look.draws('climate');
-		const e = d.startsWith('ext:') ? extensions.find(d) : undefined;
-		return e?.element.kind === 'rive' && e.element.draws === 'climate' ? e : undefined;
-	});
+	const rive = $derived(riveFor(look.draws('climate'), 'climate'));
 	const RiveDrawing = $derived(rive ? import('#lib/rive/RiveDrawing.svelte') : undefined);
 
 	// ---- − and + ----
@@ -205,8 +200,8 @@
 			{#await RiveDrawing then { default: Drawing }}
 				<Drawing
 					src={rive.src}
-					artboard={rive.element.artboard}
-					stateMachine={rive.element.stateMachine}
+					artboard={rive.artboard}
+					stateMachine={rive.stateMachine}
 					values={climateValues(t, target, look.def.feel.motion === 'lively')}
 					motion={look.def.feel.motion}
 					label={`${name}: ${now}${t.unit} now, ${aim}`}

@@ -84,7 +84,10 @@
 	const plugin = $derived.by(() => {
 		if (!drawing.startsWith('plugin:')) return undefined;
 		const found = pluginUis.look(drawing);
-		return found?.slot.slot === 'look.drawing' && family && found.slot.draws?.includes(family)
+		return found?.slot.slot === 'look.drawing' &&
+			!found.slot.rive &&
+			family &&
+			found.slot.draws?.includes(family)
 			? found
 			: undefined;
 	});

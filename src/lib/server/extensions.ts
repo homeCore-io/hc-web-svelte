@@ -9,6 +9,7 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { dataDir } from '#server/config.js';
+import { RIVE_VALUES } from '#lib/rive/values.js';
 
 export interface ExtensionElement {
 	id: string;
@@ -42,6 +43,8 @@ export function readManifest(id: string, raw: unknown): Extension | string {
 	if (!raw || typeof raw !== 'object') return 'extension.json is not an object.';
 	const o = raw as Record<string, unknown>;
 	if (o.id !== id) return `extension.json says it is ${String(o.id)}, but its folder is ${id}.`;
+	const values = typeof o.values === 'number' ? o.values : 1;
+	if (values > RIVE_VALUES) return `${id} needs a newer app (values ${values}).`;
 	const elements: ExtensionElement[] = [];
 	for (const e of Array.isArray(o.elements) ? o.elements : []) {
 		const x = (e ?? {}) as Record<string, unknown>;

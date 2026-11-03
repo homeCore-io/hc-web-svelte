@@ -7,6 +7,12 @@ import type { Thermostat } from '../thermostat.js';
 
 export type RiveValues = Record<string, number | boolean | string>;
 
+/** The version of these names. A drawing that expects a newer one is left out. */
+export const RIVE_VALUES = 1;
+
+/** The families a Rive drawing can draw so far. */
+export const RIVE_FAMILIES: readonly string[] = ['climate'];
+
 /**
  * A thermostat's: whether it heats, cools or is on, the reading and the
  * target in the person's units, the ends of its scale, and whether its loops

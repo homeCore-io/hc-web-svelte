@@ -57,7 +57,7 @@
 		{/if}
 		{#if look.lit && view.mode(key) === null}
 			{#await import('#lib/lit/LitRoom.svelte') then { default: LitRoom }}
-				<LitRoom {doc} room={id} />
+				<LitRoom {doc} room={id} name={name ?? ''} />
 			{/await}
 		{:else}
 			<PageView page={doc} />

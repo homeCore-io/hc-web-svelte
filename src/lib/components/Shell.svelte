@@ -227,7 +227,7 @@
 							>{heading.kicker.short}</span
 						></span
 					>{/if}
-				<h1>{title}</h1>
+				{#if !heading.owned}<h1>{title}</h1>{/if}
 			</div>
 			<span
 				class="live"

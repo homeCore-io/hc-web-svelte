@@ -8,7 +8,16 @@
 	import { session } from '#lib/me.svelte.js';
 	import type { SceneDisc } from './room.js';
 
-	let { s, run }: { s: SceneDisc; run: () => void } = $props();
+	let {
+		s,
+		run,
+		form = 'disc'
+	}: {
+		s: SceneDisc;
+		run: () => void;
+		/** A round swatch over its name (a room's row), or a pill in a page's grid (Home). */
+		form?: 'disc' | 'chip';
+	} = $props();
 
 	const disc = $derived(
 		s.colours.length > 0
@@ -22,7 +31,9 @@
 
 <button
 	class="scene"
-	class:wide={house}
+	class:chip={form === 'chip'}
+	class:on={s.active}
+	class:wide={house && form === 'disc'}
 	disabled={!session.mayRunScenes && !session.mayUse}
 	title={s.does}
 	aria-label={house ? `Run ${s.name}: ${s.does}` : `Run ${s.name}`}
@@ -66,8 +77,10 @@
 			{#each s.badges as b (b)}<span class="badge {b}"></span>{/each}
 		</span>
 	{/if}
-	<span class="name">{s.name}</span>
-	{#if house}<span class="does">{s.does}</span>{/if}
+	<span class="words">
+		<span class="name">{s.name}</span>
+		{#if house}<span class="does">{s.does}</span>{/if}
+	</span>
 </button>
 
 <style>
@@ -86,7 +99,16 @@
 	.scene.wide {
 		width: 108px;
 	}
+	.words {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 2px;
+		min-width: 0;
+	}
 	.disc {
+		position: relative;
+		flex: none;
 		display: grid;
 		place-items: center;
 		width: 52px;
@@ -95,6 +117,69 @@
 		box-shadow: 0 0 0 1px var(--line);
 		color: #e9edf5;
 		background: radial-gradient(circle at 35% 30%, #4a5566, #1f252e 70%);
+	}
+	/* A sheen and a shadow, so a swatch reads as round, not as a flat blob. */
+	.disc::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		background: radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.42), transparent 44%);
+		box-shadow: inset 0 -6px 12px rgba(0, 0, 0, 0.28);
+		pointer-events: none;
+	}
+	.disc :global(svg) {
+		position: relative;
+		z-index: 1;
+	}
+	/* The scene that's on now. */
+	.on .disc {
+		box-shadow:
+			0 0 0 3px var(--bg),
+			0 0 0 5px var(--accent);
+	}
+	/* In a page's grid: a pill, its disc small beside its name. */
+	.chip {
+		width: 100%;
+		min-height: 56px;
+		flex-direction: row;
+		gap: 12px;
+		padding: 8px 14px 8px 8px;
+		box-sizing: border-box;
+		border-radius: 999px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		text-align: left;
+	}
+	.chip.on {
+		border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+	}
+	.chip .disc {
+		width: 38px;
+		height: 38px;
+	}
+	.chip.on .disc {
+		box-shadow: 0 0 0 1px var(--line);
+	}
+	.chip .words {
+		align-items: flex-start;
+	}
+	.chip .name,
+	.chip .does {
+		text-align: left;
+	}
+	.chip .name {
+		font-size: 14px;
+	}
+	.chip .badges {
+		top: 30px;
+		left: 34px;
+		margin-left: 0;
+	}
+	.chip .badge {
+		width: 16px;
+		height: 16px;
+		background-size: 10px;
 	}
 	.scene:hover .disc,
 	.scene:focus-visible .disc {

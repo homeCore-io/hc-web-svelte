@@ -22,6 +22,14 @@ class Heading {
 	back = $state.raw<Back | null>(null);
 	/** A small line above the title: Home's day and mode, in the room field; shorter on a phone. */
 	kicker = $state<Kicker | null>(null);
+	/** The page draws its own title (a Lit room's header): the shell's header shows none. */
+	owned = $state(false);
+
+	/** Use inside `$effect`: the page draws its title itself while it is shown. */
+	ownTitle(): () => void {
+		this.owned = true;
+		return () => (this.owned = false);
+	}
 
 	/** Use inside `$effect`: sets the heading, and clears it when the page goes. */
 	show(text: string | null, back: Back | null = null): () => void {

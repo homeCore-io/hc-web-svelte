@@ -53,6 +53,8 @@ export interface SceneDisc {
 	badges: SceneBadge[];
 	/** For a house scene that turns every light it sets off: the room goes dark. */
 	dark: boolean;
+	/** Its lighting system says it is the scene on now. */
+	active?: boolean;
 }
 
 /** A reading worth a line of its last day: temperature or humidity. */
@@ -373,7 +375,9 @@ export function deviceScene(card: Card & { kind: 'device' }, name: string): Scen
 		colours: palette.length > 0 ? palette : lights ? ['#ffd29a', '#ffb45a'] : [],
 		does: lights ? 'Sets the lights' : 'A keypad scene',
 		badges: [],
-		dark: false
+		dark: false,
+		// Hue says "static" or "dynamic_palette" for the one that's on; others may say active.
+		active: a.active === true || a.status === 'static' || a.status === 'dynamic_palette'
 	};
 }
 

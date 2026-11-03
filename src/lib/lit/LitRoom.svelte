@@ -26,6 +26,7 @@
 	import { DEVICE_BUILT_IN, ROOM_BUILT_IN, deviceKind } from '#lib/options.js';
 	import { ref } from '#lib/layers.js';
 	import KindView from '#lib/components/KindView.svelte';
+	import { heading } from '#lib/heading.svelte.js';
 	import { kindOf } from '#lib/kinds.js';
 	import LitLamp from './LitLamp.svelte';
 	import LitReading from './LitReading.svelte';
@@ -33,7 +34,9 @@
 	import LitSwitch from './LitSwitch.svelte';
 	import { litRoom, type Lamp, type SceneDisc } from './room.js';
 
-	let { doc, room }: { doc: Page; room: string } = $props();
+	let { doc, room, name }: { doc: Page; room: string; name: string } = $props();
+	// The room's name is in its header here, not the shell's (12).
+	$effect(() => heading.ownTitle());
 
 	const key = $derived(doc.id);
 	const mine = $derived(personal.changes(key));
@@ -179,9 +182,12 @@
 
 <div class="lit">
 	<header class="hero" style:background={glow}>
-		<div class="numbers">
-			{#if box.temperature}<span class="big">{box.temperature}</span>{/if}
-			{#if box.humidity}<span class="small">{box.humidity} humidity</span>{/if}
+		<div class="top-line">
+			<h1>{name}</h1>
+			<div class="numbers">
+				{#if box.temperature}<span class="big">{box.temperature}</span>{/if}
+				{#if box.humidity}<span class="small">{box.humidity} humidity</span>{/if}
+			</div>
 		</div>
 		<div class="chips">
 			<span class="chip"
@@ -389,7 +395,22 @@
 		border: 1px solid var(--line);
 		transition: background 0.8s;
 	}
+	.top-line {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		gap: 16px;
+		flex-wrap: wrap;
+	}
+	h1 {
+		margin: 0;
+		font-size: 34px;
+		font-weight: 700;
+		letter-spacing: -0.01em;
+		line-height: 1.1;
+	}
 	.numbers {
+		flex-direction: row-reverse;
 		display: flex;
 		align-items: baseline;
 		gap: 14px;
@@ -723,6 +744,9 @@
 		}
 		.big {
 			font-size: 46px;
+		}
+		h1 {
+			font-size: 26px;
 		}
 		.doors {
 			grid-template-columns: repeat(2, minmax(0, 1fr));

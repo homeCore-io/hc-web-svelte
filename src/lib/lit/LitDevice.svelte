@@ -38,7 +38,11 @@
 </script>
 
 {#if card.scene}
-	<LitScene s={deviceScene(card, name)} run={() => commands.act(d.device_id, 'activate')} />
+	<LitScene
+		s={deviceScene(card, name)}
+		form="chip"
+		run={() => commands.act(d.device_id, 'activate')}
+	/>
 {:else if lamp && lamp.level !== null}
 	<LitLamp {lamp} />
 {:else if lamp}

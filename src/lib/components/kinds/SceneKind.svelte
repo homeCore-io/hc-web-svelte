@@ -21,6 +21,7 @@
 						devices.byId
 					)
 				}}
+				form="chip"
 				run={() => scenes.run(card.id)}
 			/>
 		{/await}

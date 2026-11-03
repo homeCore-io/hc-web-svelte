@@ -563,10 +563,10 @@
 	.panel {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-		gap: 8px;
+		gap: var(--feel-gap);
 		padding: 12px;
 		border: 1px solid var(--line);
-		border-radius: 20px;
+		border-radius: var(--feel-box-radius);
 		background: color-mix(in srgb, var(--bg) 60%, var(--surface));
 	}
 	/* A look's layouts (13 §8): scenes as a row of swatches; one box of short
@@ -581,7 +581,7 @@
 		display: flex;
 		flex-direction: column;
 		border: 1px solid var(--line);
-		border-radius: 18px;
+		border-radius: var(--feel-card-radius);
 		background: var(--surface);
 		overflow: hidden;
 	}

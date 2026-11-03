@@ -110,7 +110,7 @@
 		border-radius: 24px;
 		border: 1px solid var(--line);
 		color: var(--ink);
-		transition: background 0.8s;
+		transition: background var(--feel-slow);
 	}
 	.top-line {
 		display: flex;
@@ -179,7 +179,7 @@
 			min-height: 120px;
 			padding: 16px 16px 14px;
 			gap: 12px;
-			border-radius: 20px;
+			border-radius: var(--feel-box-radius);
 		}
 		h1 {
 			font-size: 26px;

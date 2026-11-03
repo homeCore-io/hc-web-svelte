@@ -204,7 +204,7 @@
 		flex-direction: column;
 		justify-content: space-between;
 		padding: 14px 16px;
-		border-radius: 18px;
+		border-radius: var(--feel-card-radius);
 		border: 1px solid rgba(255, 180, 90, calc(0.08 + var(--g) * 0.4));
 		background: rgba(255, 255, 255, 0.03);
 	}

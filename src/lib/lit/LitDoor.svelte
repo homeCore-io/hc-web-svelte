@@ -114,7 +114,7 @@
 		flex-direction: column;
 		gap: 10px;
 		padding: 12px;
-		border-radius: 18px;
+		border-radius: var(--feel-card-radius);
 		background: var(--surface);
 		border: 1px solid var(--line);
 		color: var(--ink);
@@ -156,7 +156,7 @@
 		border-radius: 3px;
 		background: var(--line);
 		transform-origin: left;
-		transition: transform 0.6s;
+		transition: transform var(--feel-slow);
 	}
 	.leaf.open {
 		background: var(--accent);
@@ -177,7 +177,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 3px;
-		transition: height 0.6s;
+		transition: height var(--feel-slow);
 	}
 	.panels.open {
 		height: 14px;

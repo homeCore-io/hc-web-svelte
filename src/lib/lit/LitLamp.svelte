@@ -125,7 +125,7 @@
 		position: relative;
 		overflow: hidden;
 		min-height: 72px;
-		border-radius: 18px;
+		border-radius: var(--feel-card-radius);
 		background: var(--surface);
 		border: 1px solid var(--line);
 	}

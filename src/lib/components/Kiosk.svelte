@@ -178,9 +178,19 @@
 	</div>
 	{#if unlocking}<PinPad close={() => (unlocking = false)} />{/if}
 	{#if resting && rest.on}
-		{#await import('#lib/lit/LitRest.svelte') then { default: LitRest }}
-			<LitRest {now} {wake} />
-		{/await}
+		{#snippet lit()}
+			{#await import('#lib/lit/LitRest.svelte') then { default: LitRest }}
+				<LitRest {now} {wake} />
+			{/await}
+		{/snippet}
+		{#if rest.piece}
+			<!-- A plugin's rest view (13 §12.2), else Lit's. -->
+			{#await import('./looks/PluginRest.svelte') then { default: PluginRest }}
+				<PluginRest id={rest.piece} {wake} fallback={lit} />
+			{/await}
+		{:else}
+			{@render lit()}
+		{/if}
 	{/if}
 {/if}
 

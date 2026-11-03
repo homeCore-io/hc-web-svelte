@@ -19,7 +19,22 @@ export interface UiSlot {
 	forms?: ('compact' | 'standard' | 'large')[];
 	/** A dashboard card's settings element. */
 	settings?: string;
+	/** A look's drawing: the families it draws; a look's piece: the pieces it is. */
+	draws?: string[];
+	/** A look's symbols: their names. */
+	symbols?: string[];
 }
+
+/** One of a plugin's slots for the looks (13 §12), with its id in a look: `plugin:{plugin}/{element}`. */
+export interface LookSlot {
+	id: string;
+	pluginId: string;
+	ui: PluginUi;
+	slot: UiSlot;
+}
+
+/** A look's id for a plugin's drawing or piece. */
+export const lookSlotId = (pluginId: string, element: string) => `plugin:${pluginId}/${element}`;
 export interface PluginUi {
 	host_api: number;
 	version: string;
@@ -89,6 +104,27 @@ class PluginUis {
 		return Object.entries(this.byPlugin).flatMap(([pluginId, ui]) =>
 			ui.slots.filter((s) => s.slot === 'dashboard.card').map((slot) => ({ pluginId, ui, slot }))
 		);
+	}
+
+	/** The plugins' slots of one of the looks' kinds, `look.drawing` for lights, say. */
+	looks(slot: 'look.drawing' | 'look.piece' | 'look.symbol', draws?: string): LookSlot[] {
+		return Object.entries(this.byPlugin).flatMap(([pluginId, ui]) =>
+			ui.slots
+				.filter((s) => s.slot === slot && (draws === undefined || s.draws?.includes(draws)))
+				.map((s) => ({ id: lookSlotId(pluginId, s.element), pluginId, ui, slot: s }))
+		);
+	}
+
+	/** A plugin's drawing, piece or symbol set by its id in a look, if the plugin still offers it. */
+	look(id: string): LookSlot | undefined {
+		const m = /^plugin:([^/]+)\/([^#]+)/.exec(id);
+		if (!m) return undefined;
+		const [, pluginId, element] = m;
+		const ui = this.byPlugin[pluginId!];
+		const slot = ui?.slots.find((s) => s.slot.startsWith('look.') && s.element === element);
+		return ui && slot
+			? { id: lookSlotId(pluginId!, element!), pluginId: pluginId!, ui, slot }
+			: undefined;
 	}
 
 	/** A dashboard card by its plugin and element. */

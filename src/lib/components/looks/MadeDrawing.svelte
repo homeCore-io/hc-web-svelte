@@ -6,7 +6,7 @@
 -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import type { IconName } from '#lib/card.js';
+	import type { CardSymbol } from '#lib/card.js';
 	import { evaluate } from '#lib/looks/expr.js';
 	import { drawWithCode, safeCss } from '#lib/looks/codeRunner.js';
 	import type { MadeDrawing } from '#lib/looks/model.js';
@@ -31,7 +31,7 @@
 		/** Its state in words, when no expression says otherwise. */
 		words: string;
 		/** Its kind's icon, when no expression says otherwise. */
-		icon: IconName;
+		icon: CardSymbol;
 		available?: boolean;
 		/** A tap that switches it, or runs it. */
 		act: () => void;

@@ -53,18 +53,26 @@ export const DRAWINGS: Record<Family, readonly { id: string; name: string }[]> =
 	]
 };
 
+/** A plugin's drawing or piece, by its id in a look (§12): `plugin:{plugin}/{element}`. */
+export type PluginRef = `plugin:${string}/${string}`;
+export const isPluginRef = (v: unknown): v is PluginRef =>
+	typeof v === 'string' && /^plugin:[a-z0-9._-]{1,64}\/[a-z][a-z0-9._-]*-[a-z0-9._-]*$/.test(v);
+
 /** The pieces around a page's cards (§7). */
 export interface Frame {
-	/** A grouped room's header: glowing with its name, or a plain title. */
-	header: 'glow' | 'plain';
+	/** A grouped room's header: glowing with its name, a plain title, or a plugin's. */
+	header: 'glow' | 'plain' | PluginRef;
 	/** Status chips in the header ("5 lights on"). */
 	chips: boolean;
 	/** What needs someone, first in a room. */
 	needs: boolean;
 	/** What's rarely used folded under "More". */
 	more: boolean;
-	/** A display settles into its rest view after this many seconds untouched (§10). */
-	rest: { on: boolean; after: number };
+	/**
+	 * A display settles into its rest view after this many seconds untouched
+	 * (§10): Lit's, or a plugin's `piece`.
+	 */
+	rest: { on: boolean; after: number; piece?: PluginRef };
 }
 
 /** Home's grouping (§8.3): the order its sections start in, which start hidden, its layout. */
@@ -185,7 +193,11 @@ export interface Look {
 	/** Lights in their own colors; off, everything that's on is the theme's color (§4). */
 	ownColors: boolean;
 	feel: Feel;
-	/** How each family is drawn: `classic`, `lit` or a made drawing's id; left out, Classic's. */
+	/**
+	 * How each family is drawn: `classic`, `lit`, a made drawing's id or a
+	 * plugin's (`plugin:…`); left out, Classic's. A plugin's that's gone draws
+	 * as Classic does (principle 6).
+	 */
 	drawings: Partial<Record<Family, string>>;
 	/** Drawings made in the editor (§6.4). */
 	made: MadeDrawing[];
@@ -403,17 +415,20 @@ export function readLook(raw: unknown, known: readonly Look[] = BUILT_IN): Look 
 				.flatMap((m) => readMade(m) ?? [])
 				.filter((m, i, all) => all.findIndex((x) => x.id === m.id) === i)
 		: base.made;
+	// A drawing it can use: built in, made in this look, or a plugin's.
+	const usable = (fam: Family, d: unknown) =>
+		DRAWINGS[fam].some((x) => x.id === d) ||
+		made.some((m) => m.id === d && m.family === fam) ||
+		isPluginRef(d);
 	const drawings: Partial<Record<Family, string>> = { ...base.drawings };
-	for (const fam of FAMILIES)
-		if (!DRAWINGS[fam].some((x) => x.id === drawings[fam])) delete drawings[fam];
+	for (const fam of FAMILIES) if (!usable(fam, drawings[fam])) delete drawings[fam];
 	if (o.drawings && typeof o.drawings === 'object')
 		for (const fam of FAMILIES) {
 			const d = (o.drawings as Record<string, unknown>)[fam];
-			if (DRAWINGS[fam].some((x) => x.id === d) || made.some((m) => m.id === d && m.family === fam))
-				drawings[fam] = d as string;
+			if (usable(fam, d)) drawings[fam] = d as string;
 		}
 	const fr = (o.frame ?? {}) as Record<string, unknown> & {
-		rest?: { on?: unknown; after?: unknown };
+		rest?: { on?: unknown; after?: unknown; piece?: unknown };
 	};
 	const rest = {
 		on: typeof fr.rest?.on === 'boolean' ? fr.rest.on : base.frame.rest.on,
@@ -422,6 +437,9 @@ export function readLook(raw: unknown, known: readonly Look[] = BUILT_IN): Look 
 				? Math.round(fr.rest.after)
 				: base.frame.rest.after
 	};
+	// A plugin's rest view, its own or the one it was made from's; null takes it off.
+	const piece = fr.rest?.piece === undefined ? base.frame.rest.piece : fr.rest.piece;
+	const restWith = isPluginRef(piece) ? { ...rest, piece } : rest;
 	const g = (o.grouping ?? {}) as { room?: unknown; home?: unknown };
 	let home = base.grouping.home;
 	if (g.home === null) home = undefined;
@@ -474,11 +492,13 @@ export function readLook(raw: unknown, known: readonly Look[] = BUILT_IN): Look 
 		drawings,
 		made,
 		frame: {
-			header: oneOf(fr.header, ['glow', 'plain'], base.frame.header),
+			header: isPluginRef(fr.header)
+				? fr.header
+				: oneOf(fr.header, ['glow', 'plain'], base.frame.header),
 			chips: bool(fr.chips, base.frame.chips),
 			needs: bool(fr.needs, base.frame.needs),
 			more: bool(fr.more, base.frame.more),
-			rest
+			rest: restWith
 		},
 		grouping: { ...(room ? { room } : {}), ...(home ? { home } : {}) },
 		reaches: o.reaches === 'everywhere' ? 'everywhere' : 'household',

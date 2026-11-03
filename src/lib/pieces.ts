@@ -3,7 +3,7 @@
  * playing, a weather device's readings and forecast. Plain data from the
  * house's devices, so each can be tested without drawing anything.
  */
-import { isOpen, reading, skyIcon, type CardView, type IconName } from './card.js';
+import { isOpen, reading, skyIcon, type CardView, type CardSymbol, type IconName } from './card.js';
 import { displayName, type AttributeSchema, type CoreDevice, type Devices } from './devices.js';
 import type { Room } from './house.js';
 import { kindOf } from './card.js';
@@ -100,7 +100,7 @@ export interface Playing {
 	where: string;
 	/** Pause, where the player has a play control. */
 	pause?: string;
-	icon: IconName;
+	icon: CardSymbol;
 	art?: string;
 	artLogo?: boolean;
 }

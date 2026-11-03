@@ -36,7 +36,7 @@ export function changesFrom(l: Look, base: Look): string[] {
 		if (d === drawingOf(base, f)) continue;
 		const made = l.made.find((m) => m.id === d);
 		out.push(
-			`${FAMILY_WORDS[f]} drawn ${made ? `as “${made.name}”` : d === 'lit' ? 'the Lit way' : 'the Classic way'}`
+			`${FAMILY_WORDS[f]} drawn ${made ? `as “${made.name}”` : d === 'lit' ? 'the Lit way' : d.startsWith('plugin:') ? 'by a plugin' : 'the Classic way'}`
 		);
 	}
 	for (const m of l.made) {
@@ -45,7 +45,12 @@ export function changesFrom(l: Look, base: Look): string[] {
 	}
 	const fr = l.frame;
 	const bf = base.frame;
-	if (fr.header !== bf.header) out.push(`Header: ${fr.header === 'glow' ? 'glowing' : 'plain'}`);
+	if (fr.header !== bf.header)
+		out.push(
+			`Header: ${fr.header === 'glow' ? 'glowing' : fr.header === 'plain' ? 'plain' : 'a plugin’s'}`
+		);
+	if (fr.rest.piece !== bf.rest.piece)
+		out.push(fr.rest.piece ? 'Rest view: a plugin’s' : 'Rest view: Lit’s');
 	if (fr.chips !== bf.chips) out.push(`Status chips: ${on(fr.chips)}`);
 	if (fr.needs !== bf.needs) out.push(`Needs you first: ${on(fr.needs)}`);
 	if (fr.more !== bf.more) out.push(`More folded: ${on(fr.more)}`);

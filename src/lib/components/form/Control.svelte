@@ -210,8 +210,8 @@
 		{/each}
 	</div>
 {:else if field.kind === 'enum' && field.render === 'icons'}
-	<!-- This app's own: a choice of the app's symbols, each drawn (G25). A value
-	     that isn't a symbol ("auto") is a word. -->
+	<!-- This app's own: a choice of the app's symbols and plugins', each drawn
+	     (G25, 13 §12). A value that isn't a symbol ("auto") is a word. -->
 	<div class="icons" role="radiogroup" aria-label={label}>
 		{#each field.options ?? [] as o (String(o.value))}
 			<button

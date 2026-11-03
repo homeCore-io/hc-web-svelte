@@ -34,12 +34,14 @@
 		type Look,
 		type MadeDrawing,
 		type Place,
+		type PluginRef,
 		type Rule,
 		type Take
 	} from '#lib/looks/model.js';
 	import { changesFrom } from '#lib/looks/diff.js';
 	import { litRoom } from '#lib/lit/room.js';
 	import { moved, reorder } from '#lib/reorder.js';
+	import { pluginUis, type LookSlot } from '#lib/pluginUi/uis.svelte.js';
 	import LookPreview from './LookPreview.svelte';
 	import DrawingSample from './DrawingSample.svelte';
 	import DrawingEditor from './DrawingEditor.svelte';
@@ -139,10 +141,17 @@
 	};
 	const layoutFor = (f: Family): Layout | undefined =>
 		f === 'watching' ? 'lines' : f === 'scenes' ? 'swatches' : undefined;
+	// Plugins' drawings and pieces (13 §12), labelled with their plugin.
+	pluginUis.ensure();
+	const fromPlugin = (s: LookSlot) =>
+		`${s.slot.label ?? s.slot.element} · ${s.pluginId.replace(/^plugin\./, '')}`;
 	const optionsFor = (f: Family): { id: string; name: string; made?: MadeDrawing }[] => [
 		...DRAWINGS[f],
-		...draft.made.filter((m) => m.family === f).map((m) => ({ id: m.id, name: m.name, made: m }))
+		...draft.made.filter((m) => m.family === f).map((m) => ({ id: m.id, name: m.name, made: m })),
+		...pluginUis.looks('look.drawing', f).map((s) => ({ id: s.id, name: fromPlugin(s) }))
 	];
+	const headers = $derived(pluginUis.looks('look.piece', 'header'));
+	const rests = $derived(pluginUis.looks('look.piece', 'rest'));
 	const withDrawing = (f: Family, id: string): Look => ({
 		...draft,
 		drawings: { ...draft.drawings, [f]: id }
@@ -481,6 +490,12 @@
 									aria-pressed={draft.frame.header === 'plain'}
 									onclick={() => (draft.frame.header = 'plain')}>Plain title</button
 								>
+								{#each headers as h (h.id)}
+									<button
+										aria-pressed={draft.frame.header === h.id}
+										onclick={() => (draft.frame.header = h.id as PluginRef)}>{fromPlugin(h)}</button
+									>
+								{/each}
 							</div>
 						</fieldset>
 						<label class="check"
@@ -701,6 +716,23 @@
 								<option value={600}>10 minutes</option>
 							</select>
 						</label>
+						{#if rests.length}
+							<label class="pick" class:off={!draft.frame.rest.on}
+								>Rest view
+								<select
+									value={draft.frame.rest.piece ?? ''}
+									disabled={!draft.frame.rest.on}
+									onchange={(e) => {
+										const v = e.currentTarget.value;
+										const { piece: _drop, ...rest } = draft.frame.rest;
+										draft.frame.rest = v ? { ...rest, piece: v as PluginRef } : rest;
+									}}
+								>
+									<option value="">Lit's: the time, the weather, what's on</option>
+									{#each rests as r (r.id)}<option value={r.id}>{fromPlugin(r)}</option>{/each}
+								</select>
+							</label>
+						{/if}
 						<p class="quiet">
 							A display's own night and awake settings stay on Settings › Displays.
 						</p>

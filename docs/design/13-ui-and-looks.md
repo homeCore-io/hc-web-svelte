@@ -536,6 +536,23 @@ drawing.
 
 The same with `look.piece`: a header, a rest view, a status strip.
 
+**As built in step 5:** three slots, in `hc-types` and `sdk/ui`, each with a
+`label`:
+
+- `look.drawing` with `draws`, the families (not kinds or traits, to match
+  the look editor). It is given `thing`, the values a made drawing reads
+  (§6.4), and asks for a tap with an `act` event; the app does it. It never
+  commands a device, since it draws any device in the house and `host` is
+  scoped to the plugin's own. A drawing's own settings (`settings`) wait.
+- `look.piece` with `draws`: `header` (given `room`) or `rest` (given
+  `things`). A status strip waits.
+- `look.symbol` with `symbols`, offered in every card's Symbol choice; the
+  element draws the one named by `name`.
+
+A look names them `plugin:{plugin}/{element}` (a symbol adds `#{name}`).
+If the plugin stops offering one, or it doesn't load, the thing is drawn as
+Classic draws it. `hc-plugin-template` carries one of each as the example.
+
 ### 12.3 A look as a bundle, made in homeCore or offline in code
 
 A look is data (§15), so it travels as a **look bundle**: one file holding

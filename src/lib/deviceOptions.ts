@@ -132,6 +132,8 @@ export interface DeviceSheet {
 	everyCard?: boolean;
 	/** What could open this door (a hub's button, a relay), for its Opener. */
 	openers?: { value: string; label: string }[];
+	/** Plugins' symbols (13 §12, `look.symbol`), offered beside the app's. */
+	symbols?: { value: string; label: string }[];
 }
 
 /** A door, a garage door, a gate: what a sensor's Opener is offered for. */
@@ -321,7 +323,8 @@ export function deviceDescriptor(d: CoreDevice, o: DeviceSheet = {}): Descriptor
 					render: 'icons',
 					options: [
 						{ value: 'auto', label: 'Its own' },
-						...SYMBOLS.map((s) => ({ value: s.icon, label: s.label }))
+						...SYMBOLS.map((s) => ({ value: s.icon, label: s.label })),
+						...(o.symbols ?? [])
 					],
 					default: 'auto'
 				}

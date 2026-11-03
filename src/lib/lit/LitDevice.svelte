@@ -29,6 +29,8 @@
 	import { openDevice } from '#lib/popup.js';
 	import { page as here } from '$app/state';
 	import MadeDrawing from '#lib/components/looks/MadeDrawing.svelte';
+	import PluginSlot from '#lib/pluginUi/PluginSlot.svelte';
+	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
 	import { deviceScene, isDoorKind, isWatchKind, lampOf, readingOf } from './room.js';
 
 	const look = lookHere();
@@ -73,9 +75,18 @@
 	);
 	const drawing = $derived(family ? look.draws(family) : 'classic');
 	const made = $derived(look.def.made.find((m) => m.id === drawing && m.family === family));
+	// A plugin's drawing (13 §12.1), while its plugin offers it for this family.
+	const plugin = $derived.by(() => {
+		if (!drawing.startsWith('plugin:')) return undefined;
+		const found = pluginUis.look(drawing);
+		return found?.slot.slot === 'look.drawing' && family && found.slot.draws?.includes(family)
+			? found
+			: undefined;
+	});
+	let pluginFailed = $state(false);
 	const room = $derived(roomOf(d, rooms.list)?.name ?? '');
 	const thing = $derived(
-		!made
+		!made && !plugin
 			? null
 			: card.scene
 				? sceneThing(name, deviceScene(card, name).colours, !!deviceScene(card, name).active, room)
@@ -105,6 +116,23 @@
 		open={() => openDevice(d.device_id, here.url)}
 		preview={look.preview}>{@render children()}</MadeDrawing
 	>
+{:else if plugin && thing && !pluginFailed}
+	<PluginSlot
+		pluginId={plugin.pluginId}
+		ui={plugin.ui}
+		slot={plugin.slot}
+		deviceId={d.device_id}
+		props={{ thing }}
+		on={{
+			act: (x) => {
+				if (look.preview) return;
+				if (x.do === 'open') openDevice(d.device_id, here.url);
+				else if (card.scene) commands.act(d.device_id, 'activate');
+				else void flip();
+			}
+		}}
+		onfail={() => (pluginFailed = true)}
+	/>
 {:else if drawing !== 'lit'}
 	{@render children()}
 {:else if card.scene}

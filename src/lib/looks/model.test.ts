@@ -112,3 +112,39 @@ describe('where a look reaches (S9)', () => {
 		expect(reachesHere({ ...LIT, reaches: 'everywhere' }, '/settings')).toBe(true);
 	});
 });
+
+describe('a plugin’s drawings and pieces in a look (13 §12)', () => {
+	it('keeps a plugin’s drawing, header and rest view by id, and drops what isn’t one', () => {
+		const l = readLook({
+			id: 'p',
+			name: 'P',
+			from: 'lit',
+			version: 1,
+			drawings: { lights: 'plugin:plugin.acme/acme-orb', doors: 'plugin:../../etc' },
+			frame: {
+				header: 'plugin:plugin.acme/acme-banner',
+				rest: { piece: 'plugin:plugin.acme/acme-rest' }
+			}
+		}) as Look;
+		expect(drawingOf(l, 'lights')).toBe('plugin:plugin.acme/acme-orb');
+		expect(drawingOf(l, 'doors')).toBe('lit');
+		expect(l.frame.header).toBe('plugin:plugin.acme/acme-banner');
+		expect(l.frame.rest.piece).toBe('plugin:plugin.acme/acme-rest');
+	});
+
+	it('keeps the drawings of the look it was made from, made ones included', () => {
+		const base = readLook({
+			id: 'base',
+			name: 'Base',
+			version: 1,
+			made: [{ id: 'orb', name: 'Orb', family: 'lights', from: 'lit' }],
+			drawings: { lights: 'orb', switches: 'plugin:plugin.acme/acme-rocker' }
+		}) as Look;
+		const child = readLook({ id: 'child', name: 'Child', from: 'base', version: 1 }, [
+			...BUILT_IN,
+			base
+		]) as Look;
+		expect(drawingOf(child, 'lights')).toBe('orb');
+		expect(drawingOf(child, 'switches')).toBe('plugin:plugin.acme/acme-rocker');
+	});
+});

@@ -79,12 +79,22 @@ export const SYMBOLS: { icon: IconName; label: string }[] = [
 	{ icon: 'scene', label: 'Scene' },
 	{ icon: 'device', label: 'Box' }
 ];
+/** A plugin's symbol (13 §12, `look.symbol`): `plugin:{plugin}/{element}#{name}`. */
+export type PluginSymbol = `plugin:${string}#${string}`;
+export const isPluginSymbol = (v: unknown): v is PluginSymbol =>
+	typeof v === 'string' &&
+	/^plugin:[a-z0-9._-]{1,64}\/[a-z][a-z0-9._-]*-[a-z0-9._-]*#[a-z0-9-]{1,40}$/.test(v);
+
+/** What a card draws as its symbol: one of the app's, or a plugin's. */
+export type CardSymbol = IconName | PluginSymbol;
+
 /** Whether a card shows something open: a door, or a garage door (its own symbol). */
-export const isOpen = (c: { icon: IconName }): boolean =>
+export const isOpen = (c: { icon: CardSymbol }): boolean =>
 	c.icon === 'door-open' || c.icon === 'garage-open';
 
 /** A chosen symbol, kept in step with the state it shows: open, unlocked. */
-function symbolFor(chosen: string | undefined, drawn: IconName): IconName | undefined {
+function symbolFor(chosen: string | undefined, drawn: CardSymbol): CardSymbol | undefined {
+	if (isPluginSymbol(chosen)) return chosen;
 	if (!chosen || !SYMBOLS.some((s) => s.icon === chosen)) return undefined;
 	if (chosen === 'lock' && drawn === 'unlock') return 'unlock';
 	if (chosen === 'door' && drawn === 'door-open') return 'door-open';
@@ -131,7 +141,7 @@ export interface CardView {
 	id: string;
 	kind: string;
 	name: string;
-	icon: IconName;
+	icon: CardSymbol;
 	stateLine: string;
 	tone: Tone;
 	control: Control | null;

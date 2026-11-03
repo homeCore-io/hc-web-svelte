@@ -20,6 +20,9 @@
 	import type { Card } from '#lib/page.js';
 	import { litRoom } from './room.js';
 	import { lookHere } from '#lib/look.svelte.js';
+	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
+	import PluginSlot from '#lib/pluginUi/PluginSlot.svelte';
+	import { thingOf } from '#lib/looks/thing.js';
 
 	const here = lookHere();
 
@@ -62,6 +65,27 @@
 	);
 	// Glowing, or plain where the look says so (13 §7).
 	const plain = $derived(here.def.frame.header === 'plain');
+	// A plugin's header (13 §12.2), while its plugin offers one; else the glowing one.
+	const plugin = $derived.by(() => {
+		const h = here.def.frame.header;
+		if (!h.startsWith('plugin:')) return undefined;
+		const found = pluginUis.look(h);
+		return found?.slot.slot === 'look.piece' && found.slot.draws?.includes('header')
+			? found
+			: undefined;
+	});
+	let pluginFailed = $state(false);
+	const roomGiven = $derived(
+		plugin
+			? {
+					id: card.id,
+					name: label ?? card.name,
+					things: cards.map((c) =>
+						thingOf(c.device, views[c.ref]!, views[c.ref]!.name, label ?? card.name)
+					)
+				}
+			: undefined
+	);
 	const glow = $derived(
 		plain || lit.glow.length === 0
 			? 'var(--surface)'
@@ -79,31 +103,43 @@
 	}
 </script>
 
-<header class="hero span-all" class:plain style:background={glow}>
-	<div class="top-line">
-		<h1>{label ?? card.name}</h1>
-		<div class="numbers">
-			{#if box.temperature}<span class="big">{box.temperature}</span>{/if}
-			{#if box.humidity}<span class="small">{box.humidity} humidity</span>{/if}
-		</div>
+{#if plugin && roomGiven && !pluginFailed}
+	<div class="span-all">
+		<PluginSlot
+			pluginId={plugin.pluginId}
+			ui={plugin.ui}
+			slot={plugin.slot}
+			props={{ room: roomGiven }}
+			onfail={() => (pluginFailed = true)}
+		/>
 	</div>
-	{#if here.def.frame.chips}<div class="chips">
-			<span class="chip"
-				><span class="dot" class:warm={lightsOn > 0}></span>{lightsOn === 0
-					? 'Lights off'
-					: `${lightsOn} light${lightsOn === 1 ? '' : 's'} on`}</span
-			>
-			{#each lit.problems as p (p.key)}
-				{#if p.fix && session.mayUse}
-					<button class="chip bad" onclick={() => fix(p.fix!)}
-						><span class="dot bad"></span>{p.title} · {p.fix.label}</button
-					>
-				{:else}
-					<span class="chip bad"><span class="dot bad"></span>{p.title}</span>
-				{/if}
-			{/each}
-		</div>{/if}
-</header>
+{:else}
+	<header class="hero span-all" class:plain style:background={glow}>
+		<div class="top-line">
+			<h1>{label ?? card.name}</h1>
+			<div class="numbers">
+				{#if box.temperature}<span class="big">{box.temperature}</span>{/if}
+				{#if box.humidity}<span class="small">{box.humidity} humidity</span>{/if}
+			</div>
+		</div>
+		{#if here.def.frame.chips}<div class="chips">
+				<span class="chip"
+					><span class="dot" class:warm={lightsOn > 0}></span>{lightsOn === 0
+						? 'Lights off'
+						: `${lightsOn} light${lightsOn === 1 ? '' : 's'} on`}</span
+				>
+				{#each lit.problems as p (p.key)}
+					{#if p.fix && session.mayUse}
+						<button class="chip bad" onclick={() => fix(p.fix!)}
+							><span class="dot bad"></span>{p.title} · {p.fix.label}</button
+						>
+					{:else}
+						<span class="chip bad"><span class="dot bad"></span>{p.title}</span>
+					{/if}
+				{/each}
+			</div>{/if}
+	</header>
+{/if}
 
 <style>
 	.hero {

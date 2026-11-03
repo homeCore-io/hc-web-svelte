@@ -1,6 +1,8 @@
 <!--
 	The app's icons by meaning, not by Lucide name, so the card model never
-	names a drawing. Each is imported on its own, so only these ship.
+	names a drawing. Each is imported on its own, so only these ship. A
+	plugin's symbol (`plugin:…#name`, 13 §12) is drawn by its element,
+	loaded only when one is shown.
 -->
 <script lang="ts" module>
 	import Lightbulb from '@lucide/svelte/icons/lightbulb';
@@ -85,8 +87,18 @@
 </script>
 
 <script lang="ts">
-	let { name, size = 20 }: { name: Name; size?: number } = $props();
-	const Drawn = $derived(ICONS[name]);
+	import { isPluginSymbol, type PluginSymbol } from '#lib/card.js';
+
+	let { name, size = 20 }: { name: Name | PluginSymbol; size?: number } = $props();
+	const Drawn = $derived(isPluginSymbol(name) ? ICONS.device : ICONS[name]);
 </script>
 
-<Drawn {size} strokeWidth={1.8} aria-hidden="true" />
+{#if isPluginSymbol(name)}
+	{#await import('./PluginSymbol.svelte') then { default: PluginSymbol }}
+		<PluginSymbol id={name} {size}
+			><Drawn {size} strokeWidth={1.8} aria-hidden="true" /></PluginSymbol
+		>
+	{/await}
+{:else}
+	<Drawn {size} strokeWidth={1.8} aria-hidden="true" />
+{/if}

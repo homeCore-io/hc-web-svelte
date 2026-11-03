@@ -4,14 +4,14 @@
 -->
 <script lang="ts">
 	import Icon from './Icon.svelte';
-	import type { IconName } from '#lib/card.js';
+	import type { CardSymbol } from '#lib/card.js';
 
 	let {
 		src,
 		icon,
 		size,
 		logo = false
-	}: { src?: string; icon: IconName; size: number; logo?: boolean } = $props();
+	}: { src?: string; icon: CardSymbol; size: number; logo?: boolean } = $props();
 	let failed = $state<string | null>(null);
 </script>
 

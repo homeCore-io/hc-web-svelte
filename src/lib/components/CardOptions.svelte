@@ -58,13 +58,22 @@
 			.map((x) => ({ value: x.device_id, label: displayName(x) }))
 			.sort((a, b) => a.label.localeCompare(b.label))
 	);
+	// Plugins' symbols (13 §12), each by its name and its plugin.
+	const symbols = $derived(
+		pluginUis.looks('look.symbol').flatMap((s) =>
+			(s.slot.symbols ?? []).map((n) => ({
+				value: `${s.id}#${n}`,
+				label: `${n} · ${s.slot.label ?? s.pluginId}`
+			}))
+		)
+	);
 	const descriptor = $derived(
 		device
 			? deviceDescriptor(
 					device,
 					every
 						? { everyCard: true }
-						: { forms: { all: forms, now: form ?? 'standard' }, pluginDrawn, openers }
+						: { forms: { all: forms, now: form ?? 'standard' }, pluginDrawn, openers, symbols }
 				)
 			: kind.options?.(card)
 	);

@@ -76,9 +76,18 @@
 		<PageView page={homeDoc} {base} />
 	{:else if draft.frame.rest.on}
 		<div class="rest">
-			{#await import('#lib/lit/LitRest.svelte') then { default: LitRest }}
-				<LitRest now={new Date(clock.now)} wake={() => {}} />
-			{/await}
+			{#snippet lit()}
+				{#await import('#lib/lit/LitRest.svelte') then { default: LitRest }}
+					<LitRest now={new Date(clock.now)} wake={() => {}} />
+				{/await}
+			{/snippet}
+			{#if draft.frame.rest.piece}
+				{#await import('./PluginRest.svelte') then { default: PluginRest }}
+					<PluginRest id={draft.frame.rest.piece} wake={() => {}} fallback={lit} />
+				{/await}
+			{:else}
+				{@render lit()}
+			{/if}
 		</div>
 		<p class="note">After {draft.frame.rest.after} seconds untouched. A touch wakes it.</p>
 	{:else}

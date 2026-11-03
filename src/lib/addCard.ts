@@ -4,7 +4,7 @@
  */
 import type { CoreDevice } from './devices.js';
 import { displayName } from './devices.js';
-import { cardFor, INFRASTRUCTURE, kindOf, SENSORS, type IconName } from './card.js';
+import { cardFor, INFRASTRUCTURE, kindOf, SENSORS, type CardSymbol } from './card.js';
 import { kindLabel, pluginLabel } from './inventory.js';
 import type { Room } from './house.js';
 import { roomOf } from './summary.js';
@@ -45,7 +45,7 @@ export interface Offer {
 	ref: string;
 	name: string;
 	shelf: Shelf;
-	icon: IconName;
+	icon: CardSymbol;
 	/** What it is, in a word or two: "Light", "Scene · Hue". */
 	what: string;
 	/** Its room's id, or `''` for none. */

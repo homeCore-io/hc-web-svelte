@@ -7,7 +7,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { session } from '#lib/me.svelte.js';
-	import { extensions } from '#lib/extensions.svelte.js';
+	import { extensions, fileUrl } from '#lib/extensions.svelte.js';
+	import ExtensionPreview from '#lib/components/ExtensionPreview.svelte';
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
 	import { isRiveSlot } from '#lib/rive/source.js';
 
@@ -83,6 +84,9 @@
 			<ul class="list">
 				{#each extensions.list as x (x.id)}
 					<li>
+						{#if x.preview}
+							<ExtensionPreview src={fileUrl(x, x.preview)} name={x.preview} label={x.name} small />
+						{/if}
 						<span class="text">
 							<strong>{x.name}</strong>
 							<span class="sub"

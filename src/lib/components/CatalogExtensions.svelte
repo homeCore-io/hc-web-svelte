@@ -11,11 +11,13 @@
 	import { wide } from '#lib/wide.svelte.js';
 	import { compareVersions } from '#lib/plugins.js';
 	import { extensions, type Extension } from '#lib/extensions.svelte.js';
+	import ExtensionPreview from './ExtensionPreview.svelte';
 
 	interface Release {
 		version: string;
 		values: number;
 		size?: number;
+		preview?: { url: string; sha256: string };
 	}
 	interface CatalogExtension {
 		id: string;
@@ -181,6 +183,15 @@
 				{@const rel = chosen.versions.find((v) => v.version === version)}
 				<section class="card">
 					<h2>{chosen.name}</h2>
+					{#if rel?.preview}
+						{#key `${chosen.id}/${rel.version}`}
+							<ExtensionPreview
+								src={`/ui/extensions/catalog/preview/${encodeURIComponent(chosen.id)}/${encodeURIComponent(rel.version)}`}
+								name={new URL(rel.preview.url).pathname}
+								label={chosen.name}
+							/>
+						{/key}
+					{/if}
 					{#if chosen.description}<p>{chosen.description}</p>{/if}
 					<dl>
 						<dt>Id</dt>

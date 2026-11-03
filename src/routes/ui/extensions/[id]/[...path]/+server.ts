@@ -4,7 +4,7 @@
  * its name, never sniffed.
  */
 import type { RequestHandler } from './$types';
-import { json } from '#lib/server/http.js';
+import { bytesResponse, json } from '#lib/server/http.js';
 import { whoIs } from '#lib/server/identity.js';
 import { extensionFile } from '#lib/server/extensions.js';
 
@@ -19,5 +19,5 @@ export const GET: RequestHandler = async (event) => {
 		'cache-control': 'private, no-cache'
 	});
 	for (const c of who.setCookies) headers.append('set-cookie', c);
-	return new Response(file.bytes, { status: 200, headers });
+	return bytesResponse(event.request, file.bytes, headers);
 };

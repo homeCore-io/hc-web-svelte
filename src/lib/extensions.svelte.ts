@@ -28,6 +28,8 @@ export interface Extension {
 	name: string;
 	version: string;
 	elements: ExtensionElement[];
+	/** A picture or short silent video of how it looks, in its folder. */
+	preview?: string;
 	installed?: { from: 'catalog' | 'file'; version: string; at: string };
 }
 

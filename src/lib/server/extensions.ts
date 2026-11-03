@@ -39,6 +39,8 @@ export interface Extension {
 	name: string;
 	version: string;
 	elements: ExtensionElement[];
+	/** A picture or short silent video of how it looks, in its folder. */
+	preview?: string;
 	/** Where it came from: the catalog or a file (`.installed.json`); copied in by hand, neither. */
 	installed?: { from: 'catalog' | 'file'; version: string; at: string };
 }
@@ -60,6 +62,9 @@ export const TYPES: Record<string, string> = {
 	'.jpeg': 'image/jpeg',
 	'.webp': 'image/webp',
 	'.svg': 'image/svg+xml',
+	'.gif': 'image/gif',
+	'.mp4': 'video/mp4',
+	'.webm': 'video/webm',
 	'.woff2': 'font/woff2',
 	'.txt': 'text/plain; charset=utf-8',
 	'.md': 'text/plain; charset=utf-8'
@@ -74,6 +79,9 @@ export const filePath = (p: string): boolean =>
 
 const typed = (p: string, ...ext: string[]) =>
 	filePath(p) && ext.includes(path.extname(p).toLowerCase());
+
+/** What a preview may be: a picture, or a short silent video. */
+export const PREVIEWS = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.webm'];
 
 export const extensionsDir = () => path.join(dataDir(), 'extensions');
 
@@ -138,7 +146,14 @@ export function readManifest(id: string, raw: unknown): Extension | string {
 		if (x && !elements.some((y) => y.id === x.id)) elements.push(x);
 	}
 	if (!elements.length) return 'extension.json has no elements the app can use.';
-	return { id, name: str(o.name) ?? id, version: str(o.version) ?? '0', elements };
+	const preview = str(o.preview);
+	return {
+		id,
+		name: str(o.name) ?? id,
+		version: str(o.version) ?? '0',
+		elements,
+		...(preview && typed(preview, ...PREVIEWS) ? { preview } : {})
+	};
 }
 
 /** The file each element needs, so an install can check they're all there. */

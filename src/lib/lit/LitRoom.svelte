@@ -589,6 +589,18 @@
 		flex-direction: column;
 		gap: 10px;
 	}
+	/* The panel's rockers, as many to a row as fit. */
+	.rockers {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+		gap: 10px;
+	}
+	/* Scenes in rows, not a column. */
+	.scenes {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 16px 12px;
+	}
 	.bank-title {
 		font-size: 12px;
 		font-weight: 700;

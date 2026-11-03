@@ -33,6 +33,8 @@
 	import { page as here } from '$app/state';
 	import MadeDrawing from '#lib/components/looks/MadeDrawing.svelte';
 	import PluginSlot from '#lib/pluginUi/PluginSlot.svelte';
+	import ExtensionSlot from '#lib/components/ExtensionSlot.svelte';
+	import { extensions } from '#lib/extensions.svelte.js';
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
 	import { deviceScene, isDoorKind, isWatchKind, lampOf, readingOf } from './room.js';
 
@@ -92,9 +94,13 @@
 			: undefined;
 	});
 	let pluginFailed = $state(false);
+	// A UI extension's code drawing (13 §12.6), while its extension offers it for this family.
+	extensions.ensure();
+	const code = $derived(family ? extensions.code(drawing, family) : undefined);
+	let codeFailed = $state(false);
 	const room = $derived(roomOf(d, rooms.list)?.name ?? '');
 	const thing = $derived(
-		!made && !plugin
+		!made && !plugin && !code
 			? null
 			: card.scene
 				? sceneThing(name, deviceScene(card, name).colours, !!deviceScene(card, name).active, room)
@@ -173,6 +179,20 @@
 			}
 		}}
 		onfail={() => (pluginFailed = true)}
+	/>
+{:else if code && thing && !codeFailed}
+	<ExtensionSlot
+		ext={code}
+		props={{ thing }}
+		on={{
+			act: (x) => {
+				if (look.preview) return;
+				if (x.do === 'open') openDevice(d.device_id, here.url);
+				else if (card.scene) commands.act(d.device_id, 'activate');
+				else void flip();
+			}
+		}}
+		onfail={() => (codeFailed = true)}
 	/>
 {:else if drawing === 'art' && family === 'media'}
 	<LitArt device={d} {view} {name} {room} {open}>{@render children()}</LitArt>

@@ -15,7 +15,7 @@ import { createHash, createPublicKey, verify } from 'node:crypto';
 import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { RIVE_VALUES } from '#lib/rive/values.js';
-import { extensionsDir, readManifest, type Extension } from './extensions.js';
+import { extensionsDir, neededFiles, readManifest, type Extension } from './extensions.js';
 import { unpack, UnpackError } from './unpack.js';
 
 /** Where the index is, and the key that signs it; homeCore's registry by default. */
@@ -112,9 +112,9 @@ export function readPackage(bytes: Uint8Array, expect?: { id: string }) {
 	if (typeof ext === 'string') throw new CatalogError(ext);
 	if (['catalog', 'upload'].includes(id))
 		throw new CatalogError(`${id} can’t be an extension’s id.`);
-	for (const e of ext.elements)
-		if (!files.some((f) => f.path === e.file))
-			throw new CatalogError(`Its ${e.label} names ${e.file}, which isn’t in it.`);
+	for (const [i, need] of neededFiles(ext).entries())
+		if (!files.some((f) => f.path === need))
+			throw new CatalogError(`Its ${ext.elements[i]!.label} names ${need}, which isn’t in it.`);
 	return { ext, files };
 }
 

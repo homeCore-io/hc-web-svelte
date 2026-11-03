@@ -297,7 +297,7 @@ export function homePage(h: HomeInput): Page {
 			},
 			{
 				id: 'favourites',
-				title: 'Favourites',
+				title: 'Favorites',
 				layout: 'grid',
 				layouts: CARD_LAYOUTS,
 				favourites: true,
@@ -306,8 +306,8 @@ export function homePage(h: HomeInput): Page {
 				// Favourites are each person's own; the shared page has none.
 				cards: edit ? [] : h.favourites.flatMap((r) => cardOf(r, h) ?? []),
 				hint: edit
-					? 'Each person’s favourites show here.'
-					: 'Star anything — here or in a room — and it appears in Favourites at the top of Home.'
+					? 'Each person’s favorites show here.'
+					: 'Star anything — here or in a room — and it appears in Favorites at the top of Home.'
 			},
 			// Beside the rooms in the room field (mockup A); not drawn in other styles.
 			{

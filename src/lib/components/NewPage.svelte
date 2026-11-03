@@ -148,7 +148,7 @@
 		<p class="who">
 			{whose === 'house'
 				? 'Changed in Edit, by people who edit the house’s pages.'
-				: 'Only you see it; you change it in Customise.'}
+				: 'Only you see it; you change it with Edit › Just for me.'}
 			{from === 'blank'
 				? ''
 				: 'A copy is yours to change: it doesn’t follow the original afterwards, so a new device won’t appear in it by itself.'}

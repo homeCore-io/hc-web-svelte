@@ -43,6 +43,7 @@
 	import { moved, reorder } from '#lib/reorder.js';
 	import { pluginUis, type LookSlot } from '#lib/pluginUi/uis.svelte.js';
 	import { riveDrawings } from '#lib/rive/source.js';
+	import { extensions } from '#lib/extensions.svelte.js';
 	import LookPreview from './LookPreview.svelte';
 	import DrawingSample from './DrawingSample.svelte';
 	import DrawingEditor from './DrawingEditor.svelte';
@@ -163,7 +164,12 @@
 			.filter((s) => !s.slot.rive)
 			.map((s) => ({ id: s.id, name: fromPlugin(s) })),
 		// Drawings made in Rive, from UI extensions and plugins alike.
-		...riveDrawings(f).map((d) => ({ id: d.id, name: d.name }))
+		...riveDrawings(f).map((d) => ({ id: d.id, name: d.name })),
+		// And extensions' code drawings, for any family.
+		...extensions
+			.drawing(f)
+			.filter((e) => e.element.kind === 'code')
+			.map((e) => ({ id: e.id, name: `${e.element.label} · ${e.extension.name}` }))
 	];
 	const headers = $derived(pluginUis.looks('look.piece', 'header'));
 	const rests = $derived(pluginUis.looks('look.piece', 'rest'));

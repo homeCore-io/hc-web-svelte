@@ -4,16 +4,15 @@
  * while the app is open.
  */
 
-export interface ExtensionElement {
+interface Element {
 	id: string;
-	kind: 'rive';
 	label: string;
 	/** The look family it draws. */
 	draws: string;
-	file: string;
-	artboard?: string;
-	stateMachine?: string;
 }
+export type ExtensionElement =
+	| (Element & { kind: 'rive'; file: string; artboard?: string; stateMachine?: string })
+	| (Element & { kind: 'code'; module: string; element: string });
 
 export interface Extension {
 	id: string;
@@ -28,17 +27,21 @@ export interface ExtElement {
 	id: string;
 	extension: Extension;
 	element: ExtensionElement;
+	/** Its `.riv` file, or its code's module. */
 	src: string;
 }
 
 export const extId = (ext: string, element: string) => `ext:${ext}/${element}`;
 
+/** One of an extension's files; the version, so a new one isn't read from the cache. */
+export const fileUrl = (x: Pick<Extension, 'id' | 'version'>, file: string) =>
+	`/ui/extensions/${encodeURIComponent(x.id)}/${file.split('/').map(encodeURIComponent).join('/')}?v=${encodeURIComponent(x.version)}`;
+
 const withSrc = (extension: Extension, element: ExtensionElement): ExtElement => ({
 	id: extId(extension.id, element.id),
 	extension,
 	element,
-	// The version, so a new one isn't read from the cache.
-	src: `/ui/extensions/${encodeURIComponent(extension.id)}/${encodeURIComponent(element.file)}?v=${encodeURIComponent(extension.version)}`
+	src: fileUrl(extension, element.kind === 'rive' ? element.file : element.module)
 });
 
 class Extensions {
@@ -67,6 +70,14 @@ class Extensions {
 		return this.list.flatMap((x) =>
 			x.elements.filter((e) => e.draws === family).map((e) => withSrc(x, e))
 		);
+	}
+
+	/** A code element for a family by its id in a look, while its extension offers it. */
+	code(id: string, family: string): (ExtElement & { element: { kind: 'code' } }) | undefined {
+		const x = id.startsWith('ext:') ? this.find(id) : undefined;
+		return x?.element.kind === 'code' && x.element.draws === family
+			? (x as ExtElement & { element: { kind: 'code' } })
+			: undefined;
 	}
 
 	/** An element by its id in a look, if its extension is still there. */

@@ -1,10 +1,18 @@
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { extensionFile, listExtensions, readManifest } from './extensions.js';
+import { extensionFile, filePath, listExtensions, readManifest } from './extensions.js';
 
 const dial = { id: 'dial', kind: 'rive', label: 'Animated', draws: 'climate', file: 't.riv' };
+const gauge = {
+	id: 'gauge',
+	kind: 'code',
+	label: 'Gauge',
+	draws: 'readings',
+	module: 'gauge.js',
+	element: 'hc-x-gauge'
+};
 
 describe('UI extensions', () => {
 	it('keeps the elements it can use', () => {
@@ -16,10 +24,18 @@ describe('UI extensions', () => {
 				{ ...dial }, // the same id again
 				{ ...dial, id: 'b', kind: 'lottie' },
 				{ ...dial, id: 'c', file: '../x.riv' },
-				{ ...dial, id: 'd', label: ' ' }
+				{ ...dial, id: 'd', label: ' ' },
+				gauge,
+				{ ...gauge, id: 'e', module: 'gauge.css' },
+				{ ...gauge, id: 'f', element: 'NoHyphen' },
+				{ ...dial, id: 'g', file: 'art/dial.riv' }
 			]
 		});
-		expect(typeof ext === 'string' ? ext : ext.elements.map((e) => e.id)).toEqual(['dial']);
+		expect(typeof ext === 'string' ? ext : ext.elements.map((e) => e.id)).toEqual([
+			'dial',
+			'gauge',
+			'g'
+		]);
 	});
 
 	it('refuses a manifest for another folder, or with nothing to use', () => {
@@ -29,24 +45,33 @@ describe('UI extensions', () => {
 		expect(typeof readManifest('a', { id: 'a', values: 1, elements: [dial] })).toBe('object');
 	});
 
-	it('lists the folder and serves only the files a manifest names', async () => {
+	it('serves files of known types from inside its folder, never hidden ones or through links', async () => {
 		const dir = await mkdtemp(path.join(tmpdir(), 'hc-ext-'));
-		await mkdir(path.join(dir, 'hc-thermostat'));
+		const x = path.join(dir, 'hc-gauges');
+		await mkdir(path.join(x, 'art'), { recursive: true });
 		await writeFile(
-			path.join(dir, 'hc-thermostat', 'extension.json'),
-			JSON.stringify({ id: 'hc-thermostat', elements: [dial] })
+			path.join(x, 'extension.json'),
+			JSON.stringify({ id: 'hc-gauges', elements: [gauge] })
 		);
-		await writeFile(path.join(dir, 'hc-thermostat', 't.riv'), 'RIVE');
-		await writeFile(path.join(dir, 'hc-thermostat', 'other.riv'), 'RIVE');
+		await writeFile(path.join(x, 'gauge.js'), 'export {}');
+		await writeFile(path.join(x, 'art', 'face.svg'), '<svg/>');
+		await writeFile(path.join(x, '.installed.json'), '{}');
+		await writeFile(path.join(x, 'notes.exe'), 'MZ');
+		await writeFile(path.join(dir, 'secret.txt'), 'outside');
+		await symlink(path.join(dir, 'secret.txt'), path.join(x, 'link.txt'));
 		await mkdir(path.join(dir, 'broken'));
 		await writeFile(path.join(dir, 'broken', 'extension.json'), '{');
 
-		expect((await listExtensions(dir)).map((x) => x.id)).toEqual(['hc-thermostat']);
-		expect(await extensionFile('hc-thermostat', 't.riv', dir)).toEqual(
-			new TextEncoder().encode('RIVE')
-		);
-		expect(await extensionFile('hc-thermostat', 'other.riv', dir)).toBeUndefined();
-		expect(await extensionFile('..', 't.riv', dir)).toBeUndefined();
+		expect((await listExtensions(dir)).map((e) => e.id)).toEqual(['hc-gauges']);
+		expect((await extensionFile('hc-gauges', 'gauge.js', dir))?.type).toBe('text/javascript');
+		expect((await extensionFile('hc-gauges', 'art/face.svg', dir))?.type).toBe('image/svg+xml');
+		expect(await extensionFile('hc-gauges', '.installed.json', dir)).toBeUndefined();
+		expect(await extensionFile('hc-gauges', 'notes.exe', dir)).toBeUndefined();
+		expect(await extensionFile('hc-gauges', 'link.txt', dir)).toBeUndefined();
+		expect(await extensionFile('hc-gauges', '../secret.txt', dir)).toBeUndefined();
+		expect(await extensionFile('..', 'secret.txt', dir)).toBeUndefined();
 		expect(await listExtensions(path.join(dir, 'none'))).toEqual([]);
+		expect(filePath('art/a.riv')).toBe(true);
+		expect(filePath('a/../b.riv')).toBe(false);
 	});
 });

@@ -314,7 +314,7 @@
 				}}
 			>
 				<Star size={16} fill={fav ? 'currentColor' : 'none'} />
-				{fav ? 'Remove from favourites' : 'Add to favourites'}
+				{fav ? 'Remove from favorites' : 'Add to favorites'}
 			</button>
 			{#if layerPage}
 				<button

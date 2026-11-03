@@ -5,6 +5,7 @@
  * `data-look`, and this browser keeps a copy so the first paint is drawn in
  * it before anything has loaded (`app.html`).
  */
+import { getContext, setContext } from 'svelte';
 import type { Change } from './layers.js';
 import {
 	BUILT_IN,
@@ -77,6 +78,30 @@ class LookNow {
 }
 
 export const look = new LookNow();
+
+/** What a drawing asks of the look it's drawn in. */
+export interface LookHere {
+	readonly def: Look;
+	draws(f: Family): string;
+}
+
+const HERE = Symbol('look here');
+
+/**
+ * The look to draw in here: a preview's draft (the look editor's, 13 §11),
+ * else the one on screen. Called while a component starts.
+ */
+export const lookHere = (): LookHere => getContext<LookHere | undefined>(HERE) ?? look;
+
+/** Draw what's inside in this look instead of the one on screen (the editor's preview). */
+export function previewIn(get: () => Look): void {
+	setContext<LookHere>(HERE, {
+		get def() {
+			return get();
+		},
+		draws: (f) => drawingOf(get(), f)
+	});
+}
 
 // ---- each look's own arrangements (13 §8.4, U3) ----
 

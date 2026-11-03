@@ -49,9 +49,12 @@
 
 	let {
 		page,
+		base = [],
 		making = $bindable(false)
 	}: {
 		page: Page;
+		/** Changes it starts from, before anyone's: a look editor's preview of Home (13 §11). */
+		base?: Change[];
 		/** New section is open — also from outside, as an empty page offers it. */
 		making?: boolean;
 	} = $props();
@@ -64,14 +67,15 @@
 	const mine = $derived(mode === 'edit' ? [] : personal.changes(key));
 	// The page with the sections people made (G17) — the household's, and in
 	// Customise or normally the person's own too.
-	const full = $derived(withOwn(page, view.changes(key), mine));
+	const changes = $derived(base.length ? [...base, ...view.changes(key)] : view.changes(key));
+	const full = $derived(withOwn(page, changes, mine));
 	// Home in the room field style (G32), or a page that asks for them (a Lit
 	// room, 13 §8.2): drawn in columns.
 	const field = $derived(
 		!!page.columns ||
-			(page.id === 'home' && homeStyle(view.changes(key), kindOptions.shellRooms(key)) === 'field')
+			(page.id.endsWith('home') && homeStyle(changes, kindOptions.shellRooms(key)) === 'field')
 	);
-	const shown = $derived(applyPage(full, view.changes(key), mine, { arranging, field }));
+	const shown = $derived(applyPage(full, changes, mine, { arranging, field }));
 
 	$effect(() => {
 		if (editing.on(key)) editing.present = presentRefs(full);

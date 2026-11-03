@@ -15,7 +15,7 @@ import { roomPage, type RoomInput } from '../page.js';
 import { byRoom } from '../summary.js';
 import { ref } from '../layers.js';
 import { isGroup, litRoom } from '../lit/room.js';
-import type { Place, Rule, Take } from './model.js';
+import type { Frame, Place, Rule, Take } from './model.js';
 
 const FIELD: Record<Place, Section['field']> = {
 	band: { column: 'band' },
@@ -24,7 +24,20 @@ const FIELD: Record<Place, Section['field']> = {
 };
 
 /** A room as a look's rules group it. */
-export function groupRoom(id: string, h: RoomInput, rules: readonly Rule[]): Page {
+export function groupRoom(
+	id: string,
+	h: RoomInput,
+	given: readonly Rule[],
+	frame?: Pick<Frame, 'needs' | 'more'>
+): Page {
+	// The frame can leave out what needs someone, and unfold what's rarely used (13 §7).
+	const rules = given
+		.filter((r) => frame?.needs !== false || !r.takes.includes('needs'))
+		.map((r) =>
+			frame?.more === false && r.layout === 'fold'
+				? { ...r, layout: 'grid' as const, headless: false }
+				: r
+		);
 	const classic = roomPage(id, h);
 	const inRoom = byRoom(h.devices, h.rooms).get(id === 'none' ? '' : id) ?? [];
 	const name = id === 'none' ? 'Not in a room' : (h.rooms.find((r) => r.id === id)?.name ?? '');

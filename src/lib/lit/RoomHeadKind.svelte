@@ -19,6 +19,9 @@
 	import { heading } from '#lib/heading.svelte.js';
 	import type { Card } from '#lib/page.js';
 	import { litRoom } from './room.js';
+	import { lookHere } from '#lib/look.svelte.js';
+
+	const here = lookHere();
 
 	let { card, label }: KindProps<'roomhead'> = $props();
 	$effect(() => heading.ownTitle());
@@ -55,13 +58,15 @@
 			...lit.switches.lights
 		].filter((l) => l.on).length
 	);
+	// Glowing, or plain where the look says so (13 §7).
+	const plain = $derived(here.def.frame.header === 'plain');
 	const glow = $derived(
-		lit.glow.length === 0
+		plain || lit.glow.length === 0
 			? 'var(--surface)'
 			: lit.glow
 					.map(
 						(g) =>
-							`radial-gradient(ellipse 38% 95% at ${g.at.toFixed(0)}% 112%, rgba(${g.rgb}, ${(0.5 * g.level) / 100}), transparent 70%)`
+							`radial-gradient(ellipse 38% 95% at ${g.at.toFixed(0)}% 112%, color-mix(in srgb, ${here.def.ownColors ? `rgb(${g.rgb})` : 'var(--accent)'} ${(50 * g.level) / 100}%, transparent), transparent 70%)`
 					)
 					.join(', ') + ', var(--surface)'
 	);
@@ -72,7 +77,7 @@
 	}
 </script>
 
-<header class="hero span-all" style:background={glow}>
+<header class="hero span-all" class:plain style:background={glow}>
 	<div class="top-line">
 		<h1>{label ?? card.name}</h1>
 		<div class="numbers">
@@ -80,22 +85,22 @@
 			{#if box.humidity}<span class="small">{box.humidity} humidity</span>{/if}
 		</div>
 	</div>
-	<div class="chips">
-		<span class="chip"
-			><span class="dot" class:warm={lightsOn > 0}></span>{lightsOn === 0
-				? 'Lights off'
-				: `${lightsOn} light${lightsOn === 1 ? '' : 's'} on`}</span
-		>
-		{#each lit.problems as p (p.key)}
-			{#if p.fix && session.mayUse}
-				<button class="chip bad" onclick={() => fix(p.fix!)}
-					><span class="dot bad"></span>{p.title} · {p.fix.label}</button
-				>
-			{:else}
-				<span class="chip bad"><span class="dot bad"></span>{p.title}</span>
-			{/if}
-		{/each}
-	</div>
+	{#if here.def.frame.chips}<div class="chips">
+			<span class="chip"
+				><span class="dot" class:warm={lightsOn > 0}></span>{lightsOn === 0
+					? 'Lights off'
+					: `${lightsOn} light${lightsOn === 1 ? '' : 's'} on`}</span
+			>
+			{#each lit.problems as p (p.key)}
+				{#if p.fix && session.mayUse}
+					<button class="chip bad" onclick={() => fix(p.fix!)}
+						><span class="dot bad"></span>{p.title} · {p.fix.label}</button
+					>
+				{:else}
+					<span class="chip bad"><span class="dot bad"></span>{p.title}</span>
+				{/if}
+			{/each}
+		</div>{/if}
 </header>
 
 <style>
@@ -111,6 +116,13 @@
 		border: 1px solid var(--line);
 		color: var(--ink);
 		transition: background var(--feel-slow);
+	}
+	/* A plain title (13 §7): the room's name and numbers, without the box and glow. */
+	.hero.plain {
+		min-height: 0;
+		padding: 4px 2px 0;
+		border-color: transparent;
+		background: transparent !important;
 	}
 	.top-line {
 		display: flex;

@@ -11,6 +11,8 @@ import { household } from './household.svelte.js';
 import { personal } from './personal.svelte.js';
 import { customise } from './customise.svelte.js';
 import { editing } from './edit.svelte.js';
+import { look } from './look.svelte.js';
+import { homeChanges } from './looks/home.js';
 
 export type Mode = 'edit' | 'customise' | null;
 
@@ -20,9 +22,14 @@ export const view = {
 	},
 
 	changes(page: string): Change[] {
-		return editing.on(page)
-			? editing.changes(page)
-			: layered(household.changes(page), personal.changes(page));
+		// Home starts as the look groups it (13 §8.3); arranging goes on from there.
+		const base = page === 'home' ? homeChanges(look.def.grouping.home) : [];
+		return [
+			...base,
+			...(editing.on(page)
+				? editing.changes(page)
+				: layered(household.changes(page), personal.changes(page)))
+		];
 	},
 
 	/**

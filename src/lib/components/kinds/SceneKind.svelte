@@ -3,7 +3,9 @@
 	import { scenes } from '#lib/scenes.svelte.js';
 	import type { KindProps } from '#lib/kinds.js';
 	import SceneCard from '../SceneCard.svelte';
-	import { look } from '#lib/look.svelte.js';
+	import { lookHere } from '#lib/look.svelte.js';
+
+	const look = lookHere();
 	import { devices } from '#lib/devices.svelte.js';
 
 	let { card, label }: KindProps<'scene'> = $props();

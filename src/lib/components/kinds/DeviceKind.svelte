@@ -15,7 +15,9 @@
 	import { DEVICE_BUILT_IN, deviceKind } from '#lib/options.js';
 	import DeviceCard from '../DeviceCard.svelte';
 	import SceneCard from '../SceneCard.svelte';
-	import { look } from '#lib/look.svelte.js';
+	import { lookHere } from '#lib/look.svelte.js';
+
+	const look = lookHere();
 	import { drawsOwn } from '#lib/looks/model.js';
 	import { kindOf } from '#lib/card.js';
 

@@ -8,6 +8,9 @@
 	import { goAhead } from '#lib/ask.js';
 	import { session } from '#lib/me.svelte.js';
 	import { isGroup, type Lamp, type LampGroup } from './room.js';
+	import { lookHere } from '#lib/look.svelte.js';
+
+	const here = lookHere();
 
 	let { lamp }: { lamp: Lamp | LampGroup } = $props();
 
@@ -66,7 +69,12 @@
 </script>
 
 {#if one}
-	<div class="lamp" class:on={level > 0} style:--c={rgb} style:--fill={`${level}%`}>
+	<div
+		class="lamp"
+		class:on={level > 0}
+		style:--lamp={here.def.ownColors ? `rgb(${rgb})` : 'var(--accent)'}
+		style:--fill={`${level}%`}
+	>
 		<div class="fill" aria-hidden="true"></div>
 		<div class="words">
 			<span class="top"><span class="pct">{level > 0 ? `${level}%` : 'Off'}</span></span>
@@ -85,7 +93,11 @@
 		/>
 	</div>
 {:else if group}
-	<div class="lamp group" class:on={onCount > 0} style:--c={rgb}>
+	<div
+		class="lamp group"
+		class:on={onCount > 0}
+		style:--lamp={here.def.ownColors ? `rgb(${rgb})` : 'var(--accent)'}
+	>
 		<div class="words">
 			<span class="top">
 				<span class="dots">
@@ -130,17 +142,25 @@
 		border: 1px solid var(--line);
 	}
 	.lamp.on {
-		border-color: rgba(var(--c), 0.55);
+		border-color: color-mix(in srgb, var(--lamp) 55%, transparent);
 	}
 	.fill {
 		position: absolute;
 		inset: 0 auto 0 0;
 		width: var(--fill);
-		background: linear-gradient(90deg, rgba(var(--c), 0.16), rgba(var(--c), 0.45));
+		background: linear-gradient(
+			90deg,
+			color-mix(in srgb, var(--lamp) 16%, transparent),
+			color-mix(in srgb, var(--lamp) 45%, transparent)
+		);
 		transition: width 0.15s;
 	}
 	.group.on {
-		background: linear-gradient(135deg, rgba(var(--c), 0.32), rgba(var(--c), 0.1));
+		background: linear-gradient(
+			135deg,
+			color-mix(in srgb, var(--lamp) 32%, transparent),
+			color-mix(in srgb, var(--lamp) 10%, transparent)
+		);
 	}
 	.words {
 		position: relative;
@@ -206,9 +226,9 @@
 		background: transparent;
 	}
 	.dot.on {
-		border-color: rgb(var(--c));
-		background: rgb(var(--c));
-		box-shadow: 0 0 10px rgba(var(--c), 0.9);
+		border-color: var(--lamp);
+		background: var(--lamp);
+		box-shadow: 0 0 10px color-mix(in srgb, var(--lamp) 90%, transparent);
 	}
 	.all {
 		width: 48px;

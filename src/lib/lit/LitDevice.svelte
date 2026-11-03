@@ -20,8 +20,10 @@
 	import LitScene from './LitScene.svelte';
 	import LitSwitch from './LitSwitch.svelte';
 	import LitWatch from './LitWatch.svelte';
-	import { look } from '#lib/look.svelte.js';
+	import { lookHere } from '#lib/look.svelte.js';
 	import { deviceScene, isDoorKind, isWatchKind, lampOf, readingOf } from './room.js';
+
+	const look = lookHere();
 
 	let {
 		card,

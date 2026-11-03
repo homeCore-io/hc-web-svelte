@@ -75,3 +75,13 @@ describe('a look’s own rules (13 §8.1)', () => {
 		expect(p.sections.at(-1)?.title).toBe('Also here');
 	});
 });
+
+describe('a look’s frame in a room (13 §7)', () => {
+	it('leaves out what needs someone, and unfolds More, when the frame says so', () => {
+		const p = groupRoom('r-hall', input, LIT.grouping.room!, { needs: false, more: false });
+		expect(p.sections.some((s) => s.id === 'needs')).toBe(false);
+		const more = p.sections.find((s) => s.id === 'more')!;
+		expect(more.layout).toBe('grid');
+		expect(more.headless).toBeFalsy();
+	});
+});

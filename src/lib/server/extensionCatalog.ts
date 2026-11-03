@@ -15,7 +15,14 @@ import { createHash, createPublicKey, verify } from 'node:crypto';
 import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { RIVE_VALUES } from '#lib/rive/values.js';
-import { extensionsDir, neededFiles, readManifest, type Extension } from './extensions.js';
+import {
+	extensionsDir,
+	neededFiles,
+	PREVIEWS,
+	readManifest,
+	TYPES,
+	type Extension
+} from './extensions.js';
 import { unpack, UnpackError } from './unpack.js';
 
 /** Where the index is, and the key that signs it; homeCore's registry by default. */
@@ -31,6 +38,8 @@ export interface CatalogRelease {
 	sha256: string;
 	size?: number;
 	min_app?: string;
+	/** A picture or short video of how it looks, checked like the file itself. */
+	preview?: { url: string; sha256: string };
 }
 
 export interface CatalogExtension {
@@ -185,4 +194,39 @@ export async function remove(id: string, dir = extensionsDir()): Promise<boolean
 	}
 	await rm(gone, { recursive: true, force: true });
 	return true;
+}
+
+const MAX_PREVIEW = 8 * 1024 * 1024;
+/** Previews already fetched and checked, by checksum; the newest few. */
+const previews = new Map<string, { bytes: Uint8Array<ArrayBuffer>; type: string }>();
+
+/**
+ * A Catalog release's preview, for the page to show before installing: fetched
+ * by this server, and served only if it matches the signed index's checksum,
+ * so the browser never fetches it from elsewhere.
+ */
+export async function catalogPreview(
+	id: string,
+	version: string,
+	get: typeof fetch = fetch,
+	index = registry()
+): Promise<{ bytes: Uint8Array<ArrayBuffer>; type: string } | undefined> {
+	const rel = (await catalogIndex(get, index))
+		.find((x) => x.id === id)
+		?.versions.find((v) => v.version === version);
+	const p = rel?.preview;
+	if (!p?.url || !/^[0-9a-f]{64}$/i.test(p.sha256 ?? '')) return undefined;
+	const ext = path.extname(new URL(p.url).pathname).toLowerCase();
+	if (!PREVIEWS.includes(ext)) return undefined;
+	const want = p.sha256.toLowerCase();
+	const kept = previews.get(want);
+	if (kept) return kept;
+	const r = await get(p.url);
+	if (!r.ok) return undefined;
+	const bytes = new Uint8Array(await r.arrayBuffer());
+	if (bytes.length > MAX_PREVIEW || sha256(bytes) !== want) return undefined;
+	const got = { bytes, type: TYPES[ext]! };
+	previews.set(want, got);
+	if (previews.size > 12) previews.delete(previews.keys().next().value!);
+	return got;
 }

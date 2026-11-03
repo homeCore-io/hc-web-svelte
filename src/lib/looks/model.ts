@@ -227,6 +227,12 @@ export interface Look {
 	 * One that's gone draws as Classic does (principle 6).
 	 */
 	drawings: Partial<Record<Family, string>>;
+	/**
+	 * The options chosen for drawings that offer some (a plugin's or an
+	 * extension's), by the drawing's id: `{ "ext:hc-thermostat/dial": { pulse: false } }`.
+	 * An option not set here is the drawing's own default.
+	 */
+	options?: Record<string, Record<string, boolean>>;
 	/** Drawings made in the editor (§6.4). */
 	made: MadeDrawing[];
 	frame: Frame;
@@ -476,6 +482,19 @@ export function readLook(raw: unknown, known: readonly Look[] = BUILT_IN): Look 
 			const d = (o.drawings as Record<string, unknown>)[fam];
 			if (usable(fam, d)) drawings[fam] = d as string;
 		}
+	// Options for plugins' and extensions' drawings: on or off, by name.
+	let options: Look['options'];
+	if (o.options && typeof o.options === 'object')
+		for (const [d, v] of Object.entries(o.options as Record<string, unknown>)) {
+			if (!(isExtRef(d) || isPluginRef(d)) || !v || typeof v !== 'object') continue;
+			const kept = Object.fromEntries(
+				Object.entries(v as Record<string, unknown>).filter(
+					(e): e is [string, boolean] =>
+						/^[a-z][a-zA-Z0-9_]{0,31}$/.test(e[0]) && typeof e[1] === 'boolean'
+				)
+			);
+			if (Object.keys(kept).length) (options ??= {})[d] = kept;
+		}
 	const fr = (o.frame ?? {}) as Record<string, unknown> & {
 		rest?: { on?: unknown; after?: unknown; piece?: unknown };
 	};
@@ -539,6 +558,7 @@ export function readLook(raw: unknown, known: readonly Look[] = BUILT_IN): Look 
 			motion: oneOf(f.motion, ['still', 'gentle', 'lively'], base.feel.motion)
 		},
 		drawings,
+		...(options ? { options } : {}),
 		made,
 		frame: {
 			header: isPluginRef(fr.header)

@@ -35,6 +35,7 @@
 	import PluginSlot from '#lib/pluginUi/PluginSlot.svelte';
 	import ExtensionSlot from '#lib/components/ExtensionSlot.svelte';
 	import { extensions } from '#lib/extensions.svelte.js';
+	import { optionValues } from '#lib/drawingOptions.js';
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
 	import { deviceScene, isDoorKind, isWatchKind, lampOf, readingOf } from './room.js';
 
@@ -169,7 +170,7 @@
 		ui={plugin.ui}
 		slot={plugin.slot}
 		deviceId={d.device_id}
-		props={{ thing }}
+		props={{ thing, options: optionValues(look.def, drawing) }}
 		on={{
 			act: (x) => {
 				if (look.preview) return;
@@ -183,7 +184,7 @@
 {:else if code && thing && !codeFailed}
 	<ExtensionSlot
 		ext={code}
-		props={{ thing }}
+		props={{ thing, options: optionValues(look.def, drawing) }}
 		on={{
 			act: (x) => {
 				if (look.preview) return;

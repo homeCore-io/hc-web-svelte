@@ -15,11 +15,20 @@ import path from 'node:path';
 import { dataDir } from '#server/config.js';
 import { RIVE_VALUES } from '#lib/rive/values.js';
 
+/** A choice a drawing offers, shown under it in the look editor: on or off. */
+export interface DrawingOption {
+	id: string;
+	label: string;
+	type: 'boolean';
+	default: boolean;
+}
+
 interface Element {
 	id: string;
 	label: string;
 	/** The look family it draws (13 §6). */
 	draws: string;
+	options?: DrawingOption[];
 }
 export type ExtensionElement =
 	| (Element & { kind: 'rive'; file: string; artboard?: string; stateMachine?: string })
@@ -30,6 +39,8 @@ export interface Extension {
 	name: string;
 	version: string;
 	elements: ExtensionElement[];
+	/** A picture or short silent video of how it looks, in its folder. */
+	preview?: string;
 	/** Where it came from: the catalog or a file (`.installed.json`); copied in by hand, neither. */
 	installed?: { from: 'catalog' | 'file'; version: string; at: string };
 }
@@ -51,6 +62,9 @@ export const TYPES: Record<string, string> = {
 	'.jpeg': 'image/jpeg',
 	'.webp': 'image/webp',
 	'.svg': 'image/svg+xml',
+	'.gif': 'image/gif',
+	'.mp4': 'video/mp4',
+	'.webm': 'video/webm',
 	'.woff2': 'font/woff2',
 	'.txt': 'text/plain; charset=utf-8',
 	'.md': 'text/plain; charset=utf-8'
@@ -66,15 +80,35 @@ export const filePath = (p: string): boolean =>
 const typed = (p: string, ...ext: string[]) =>
 	filePath(p) && ext.includes(path.extname(p).toLowerCase());
 
+/** What a preview may be: a picture, or a short silent video. */
+export const PREVIEWS = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.webm'];
+
 export const extensionsDir = () => path.join(dataDir(), 'extensions');
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+
+/** An element's options, those that are well formed; none is fine. */
+export function readOptions(raw: unknown): DrawingOption[] | undefined {
+	if (!Array.isArray(raw)) return undefined;
+	const out: DrawingOption[] = [];
+	for (const o of raw.slice(0, 8)) {
+		const x = (o ?? {}) as Record<string, unknown>;
+		const id = str(x.id);
+		const label = str(x.label);
+		if (!id || !/^[a-z][a-zA-Z0-9_]{0,31}$/.test(id) || !label || x.type !== 'boolean') continue;
+		if (out.some((y) => y.id === id)) continue;
+		out.push({ id, label: label.slice(0, 60), type: 'boolean', default: x.default !== false });
+	}
+	return out.length ? out : undefined;
+}
 
 function readElement(x: Record<string, unknown>): ExtensionElement | undefined {
 	const id = str(x.id);
 	const label = str(x.label);
 	const draws = str(x.draws);
 	if (!id || !ID.test(id) || !label || !draws) return undefined;
+	const options = readOptions(x.options);
+	const opts = options ? { options } : {};
 	if (x.kind === 'rive') {
 		const file = str(x.file);
 		if (!file || !typed(file, '.riv')) return undefined;
@@ -85,7 +119,8 @@ function readElement(x: Record<string, unknown>): ExtensionElement | undefined {
 			draws,
 			file,
 			artboard: str(x.artboard),
-			stateMachine: str(x.stateMachine)
+			stateMachine: str(x.stateMachine),
+			...opts
 		};
 	}
 	if (x.kind === 'code') {
@@ -93,7 +128,7 @@ function readElement(x: Record<string, unknown>): ExtensionElement | undefined {
 		const element = str(x.element);
 		if (!module || !typed(module, '.js', '.mjs') || !element || !TAG.test(element))
 			return undefined;
-		return { id, kind: 'code', label, draws, module, element };
+		return { id, kind: 'code', label, draws, module, element, ...opts };
 	}
 	return undefined;
 }
@@ -111,7 +146,14 @@ export function readManifest(id: string, raw: unknown): Extension | string {
 		if (x && !elements.some((y) => y.id === x.id)) elements.push(x);
 	}
 	if (!elements.length) return 'extension.json has no elements the app can use.';
-	return { id, name: str(o.name) ?? id, version: str(o.version) ?? '0', elements };
+	const preview = str(o.preview);
+	return {
+		id,
+		name: str(o.name) ?? id,
+		version: str(o.version) ?? '0',
+		elements,
+		...(preview && typed(preview, ...PREVIEWS) ? { preview } : {})
+	};
 }
 
 /** The file each element needs, so an install can check they're all there. */

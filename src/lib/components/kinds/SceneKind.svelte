@@ -10,6 +10,7 @@
 	import { devices } from '#lib/devices.svelte.js';
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
 	import { extensions } from '#lib/extensions.svelte.js';
+	import { optionValues } from '#lib/drawingOptions.js';
 
 	const look = lookHere();
 
@@ -75,7 +76,8 @@
 							houseScene(states, devices.byId).colours,
 							false,
 							''
-						)
+						),
+						options: optionValues(look.def, drawing)
 					}}
 					on={{ act: () => !look.preview && run() }}
 					onfail={() => (pluginFailed = true)}
@@ -95,7 +97,8 @@
 							houseScene(states, devices.byId).colours,
 							false,
 							''
-						)
+						),
+						options: optionValues(look.def, drawing)
 					}}
 					on={{ act: () => !look.preview && run() }}
 					onfail={() => (codeFailed = true)}

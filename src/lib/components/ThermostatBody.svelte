@@ -10,6 +10,11 @@
 	set to (until the schedule changes unless chosen otherwise); without one
 	they set it.
 -->
+<script lang="ts" module>
+	let loading: Promise<typeof import('#lib/rive/RiveDrawing.svelte')> | undefined;
+	const riveModule = () => (loading ??= import('#lib/rive/RiveDrawing.svelte'));
+</script>
+
 <script lang="ts">
 	import { page } from '$app/state';
 	import type { CardView } from '#lib/card.js';
@@ -35,6 +40,7 @@
 	import { lookHere } from '#lib/look.svelte.js';
 	import { riveFor } from '#lib/rive/source.js';
 	import { extensions } from '#lib/extensions.svelte.js';
+	import { optionValues } from '#lib/drawingOptions.js';
 	import { thingOf } from '#lib/looks/thing.js';
 	import { climateValues } from '#lib/rive/values.js';
 	import Icon from './Icon.svelte';
@@ -64,11 +70,14 @@
 	// or a plugin's: the dial is that drawing while it's offered; else today's.
 	const look = lookHere();
 	const rive = $derived(riveFor(look.draws('climate'), 'climate'));
-	const RiveDrawing = $derived(rive ? import('#lib/rive/RiveDrawing.svelte') : undefined);
+	// One promise for the module, so a card that recomputes keeps its drawing.
+	const RiveDrawing = $derived(rive ? riveModule() : undefined);
 	// Or an extension's code drawing (13 §12.6), given the same values and the thing.
 	extensions.ensure();
 	const code = $derived(extensions.code(look.draws('climate'), 'climate'));
 	let codeFailed = $state(false);
+	// The options the look chose for its drawing (the thermostat's pulse, say).
+	const drawn = $derived(optionValues(look.def, look.draws('climate')));
 
 	// ---- − and + ----
 	let pending = $state<number | undefined>();
@@ -208,7 +217,8 @@
 					ext={code}
 					props={{
 						thing: thingOf(device, card, name, ''),
-						values: climateValues(t, target, look.def.feel.motion === 'lively')
+						values: climateValues(t, target, look.def.feel.motion === 'lively'),
+						options: drawn
 					}}
 					on={{
 						act: (x) => !look.preview && x.do === 'open' && openDevice(device.device_id, page.url)
@@ -222,7 +232,10 @@
 					src={rive.src}
 					artboard={rive.artboard}
 					stateMachine={rive.stateMachine}
-					values={climateValues(t, target, look.def.feel.motion === 'lively')}
+					values={{
+						...climateValues(t, target, look.def.feel.motion === 'lively'),
+						...drawn
+					}}
 					motion={look.def.feel.motion}
 					label={`${name}: ${now}${t.unit} now, ${aim}`}
 					width={236}

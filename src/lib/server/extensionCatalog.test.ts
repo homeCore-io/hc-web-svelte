@@ -5,6 +5,7 @@ import path from 'node:path';
 import { deflateRawSync, gzipSync, zstdCompressSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import {
+	catalogPreview,
 	installFromFile,
 	installFromCatalog,
 	remove,
@@ -197,5 +198,48 @@ describe('the catalog', () => {
 			installFromFile(zip([{ path: 'extension.json', data: manifest() }]), dir)
 		).rejects.toThrow(/isn’t in it/);
 		await expect(installFromFile(zip(thermostat('catalog')), dir)).rejects.toThrow(/can’t be/);
+	});
+
+	it('serves a release’s preview only when it matches the signed checksum', async () => {
+		const movie = enc('a short film');
+		const sum = createHash('sha256').update(movie).digest('hex');
+		const index = (sha256: string) =>
+			enc(
+				JSON.stringify({
+					extensions: [
+						{
+							id: 'hc-thermostat',
+							name: 'T',
+							description: '',
+							category: '',
+							versions: [
+								{
+									version: '0.1.0',
+									values: 1,
+									url: 'https://x/t.tar.zst',
+									sha256: sha,
+									preview: { url: 'https://x/t-preview.mp4', sha256 }
+								}
+							]
+						}
+					]
+				})
+			);
+		const site =
+			(idx: Uint8Array): typeof fetch =>
+			async (u) => {
+				const url = String(u);
+				if (url.endsWith('.json')) return new Response(Buffer.from(idx));
+				if (url.endsWith('.json.sig')) return new Response(signed(idx));
+				if (url.endsWith('preview.mp4')) return new Response(Buffer.from(movie));
+				return new Response('', { status: 404 });
+			};
+		const got = await catalogPreview('hc-thermostat', '0.1.0', site(index(sum)), at);
+		expect(got?.type).toBe('video/mp4');
+		expect(new TextDecoder().decode(got?.bytes)).toBe('a short film');
+		expect(
+			await catalogPreview('hc-thermostat', '0.1.0', site(index('f'.repeat(64))), at)
+		).toBeUndefined();
+		expect(await catalogPreview('hc-thermostat', '9.9.9', site(index(sum)), at)).toBeUndefined();
 	});
 });

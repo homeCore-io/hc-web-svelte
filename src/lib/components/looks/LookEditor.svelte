@@ -43,6 +43,7 @@
 	import { moved, reorder } from '#lib/reorder.js';
 	import { pluginUis, type LookSlot } from '#lib/pluginUi/uis.svelte.js';
 	import { riveDrawings } from '#lib/rive/source.js';
+	import { offeredOptions, optionValues, withOption } from '#lib/drawingOptions.js';
 	import { extensions } from '#lib/extensions.svelte.js';
 	import LookPreview from './LookPreview.svelte';
 	import DrawingSample from './DrawingSample.svelte';
@@ -429,6 +430,28 @@
 											</div>
 										{/each}
 									</div>
+									{@const offered = offeredOptions(drawingOf(draft, f))}
+									{#if offered.length}
+										<div class="drawing-options">
+											{#each offered as o (o.id)}
+												<label
+													><input
+														type="checkbox"
+														id={`opt-${f}-${o.id}`}
+														checked={optionValues(draft, drawingOf(draft, f))[o.id]}
+														onchange={(e) =>
+															(draft = withOption(
+																draft,
+																drawingOf(draft, f),
+																o.id,
+																e.currentTarget.checked
+															))}
+													/>
+													{o.label}</label
+												>
+											{/each}
+										</div>
+									{/if}
 									{#if MAKEABLE.includes(f)}
 										<button class="make" onclick={() => makeFor(f)}>Make a drawing…</button>
 									{/if}
@@ -924,6 +947,17 @@
 		margin: 0;
 		font-size: 13px;
 		color: var(--ink-muted);
+	}
+	.drawing-options {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2) var(--space-4);
+		font-size: 13px;
+	}
+	.drawing-options label {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
 	}
 	.family {
 		display: flex;

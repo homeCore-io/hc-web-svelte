@@ -4,6 +4,8 @@
  * way back.
  */
 import { DRAWINGS, drawingOf, FAMILIES, type Look } from './model.js';
+import { offeredOptions } from '../drawingOptions.js';
+import { extensions } from '../extensions.svelte.js';
 
 const FEEL_WORDS = {
 	density: { roomy: 'roomy', standard: 'standard', compact: 'compact' },
@@ -46,6 +48,17 @@ export function changesFrom(l: Look, base: Look): string[] {
 		const made = l.made.find((m) => m.id === d);
 		out.push(
 			`${FAMILY_WORDS[f]} drawn ${made ? `as “${made.name}”` : d === 'lit' ? 'the Lit way' : d === 'classic' ? 'the Classic way' : d.startsWith('plugin:') ? 'by a plugin' : d.startsWith('ext:') ? 'by an extension' : (PHRASES[d] ?? `as “${DRAWINGS[f].find((x) => x.id === d)?.name ?? d}”`)}`
+		);
+	}
+	// Options chosen for plugins' and extensions' drawings, by the names they offer.
+	for (const [d, v] of Object.entries(l.options ?? {})) {
+		if (same(v, base.options?.[d])) continue;
+		const offered = offeredOptions(d);
+		const name = extensions.find(d)?.element.label ?? d.replace(/^(ext|plugin):/, '');
+		out.push(
+			`${name}: ${Object.entries(v)
+				.map(([k, on]) => `${offered.find((o) => o.id === k)?.label ?? k} ${on ? 'on' : 'off'}`)
+				.join(', ')}`
 		);
 	}
 	for (const m of l.made) {

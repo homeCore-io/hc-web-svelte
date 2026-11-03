@@ -14,8 +14,14 @@ import type { Room } from './house.js';
 import { apply, cardRef, kindRef, ref, type Change, type Form, type Layered } from './layers.js';
 import { byRoom, roomSections, type Chip } from './summary.js';
 
-/** How a section lays its cards out (G3). */
-export type Layout = 'grid' | 'row' | 'list' | 'field' | 'tiles';
+/**
+ * How a section lays its cards out (G3). A look's grouping (13 §8) adds three:
+ * `swatches` (scenes in a row of swatches), `lines` (one box of short lines:
+ * Watching), `fold` (folded away until opened: More) and `panel` (switches,
+ * packed into a panel).
+ */
+export type Layout =
+	'grid' | 'row' | 'list' | 'field' | 'tiles' | 'swatches' | 'lines' | 'fold' | 'panel';
 
 interface Base {
 	/** What the layers call it: `device:…`, `scene:…`, `room:…`, `card:…`, `piece:…`. */
@@ -44,6 +50,12 @@ export type Card = Base &
 		| { kind: 'playing' }
 		| { kind: 'weather' }
 		| { kind: 'chart' }
+		/** A room's header in a look that has one (13 §7): its name, readings, glow. */
+		| { kind: 'roomhead'; id: string; name: string; devices: CoreDevice[] }
+		/** What in a room needs someone, each with its fix (13 §7). */
+		| { kind: 'needs'; id: string; devices: CoreDevice[] }
+		/** Lights that belong together, one card ("Holiday Lights 1" to "4"). */
+		| { kind: 'lampgroup'; name: string; devices: CoreDevice[] }
 	);
 
 /** The app's own cards Add offers (G21), in the order offered. */
@@ -97,6 +109,11 @@ export interface Page {
 	/** `home`, `room:<id>`, `page:<id>` — the key the layers are kept under. */
 	id: string;
 	sections: Section[];
+	/**
+	 * Drawn in columns, as Home's room field is (G32): the band across the top,
+	 * then a main column and one beside it, each section where its `field` says.
+	 */
+	columns?: boolean;
 	/** Device cards carry their own Hide (room pages). */
 	cardTools: boolean;
 }

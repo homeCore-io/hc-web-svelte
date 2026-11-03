@@ -224,6 +224,28 @@ export const kinds: { [K in Card['kind']]: Kind<K> } = {
 		offer: { name: 'Chart', sub: 'A temperature or humidity over time' },
 		setFirst: true,
 		load: lazy(() => import('./components/kinds/ChartKind.svelte'))
+	},
+	// A look's frame pieces and groups (13 §6, §7): drawn only by a look that has
+	// them, so they load only then.
+	roomhead: {
+		...one,
+		...fixed,
+		name: () => 'Room header',
+		wide: true,
+		load: lazy(() => import('./lit/RoomHeadKind.svelte'))
+	},
+	needs: {
+		...one,
+		...fixed,
+		name: () => 'Needs you',
+		wide: true,
+		load: lazy(() => import('./lit/NeedsKind.svelte'))
+	},
+	lampgroup: {
+		...one,
+		...fixed,
+		name: (c) => c.name,
+		load: lazy(() => import('./lit/LampGroupKind.svelte'))
 	}
 };
 

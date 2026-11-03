@@ -63,9 +63,11 @@
 	// The page with the sections people made (G17) — the household's, and in
 	// Customise or normally the person's own too.
 	const full = $derived(withOwn(page, view.changes(key), mine));
-	// Home in the room field style (G32): drawn in its columns.
+	// Home in the room field style (G32), or a page that asks for them (a Lit
+	// room, 13 §8.2): drawn in columns.
 	const field = $derived(
-		page.id === 'home' && homeStyle(view.changes(key), kindOptions.shellRooms(key)) === 'field'
+		!!page.columns ||
+			(page.id === 'home' && homeStyle(view.changes(key), kindOptions.shellRooms(key)) === 'field')
 	);
 	const shown = $derived(applyPage(full, view.changes(key), mine, { arranging, field }));
 
@@ -377,24 +379,41 @@
 								</p>
 							{/if}
 						{:else}
-							<div class={run.layout}>
-								{#each run.cards as card (card.ref)}
-									{#if g}
-										{#if ghostIn(sec.id) && adding.before === card.ref}{@render ghost()}{/if}
-										{@render piece(
-											card,
-											g,
-											sec.favourites,
-											s.layout,
-											sec.accepts ? sec.id : undefined,
-											place
-										)}
+							{#if run.layout === 'fold' && !arranging}
+								<!-- Folded away until opened (13 §7, More): a line each when it is. -->
+								<details class="fold">
+									<summary
+										>{s.title}<small>
+											· {run.cards.length}
+											{run.cards.length === 1 ? 'thing' : 'things'}</small
+										></summary
+									>
+									<div class="lines">
+										{#each run.cards as card (card.ref)}
+											{#if g}{@render piece(card, g, false, 'lines', undefined, place)}{/if}
+										{/each}
+									</div>
+								</details>
+							{:else}
+								<div class={run.layout}>
+									{#each run.cards as card (card.ref)}
+										{#if g}
+											{#if ghostIn(sec.id) && adding.before === card.ref}{@render ghost()}{/if}
+											{@render piece(
+												card,
+												g,
+												sec.favourites,
+												s.layout,
+												sec.accepts ? sec.id : undefined,
+												place
+											)}
+										{/if}
+									{/each}
+									{#if ghostIn(sec.id) && adding.before === null && lastGroup && j === runs.length - 1}
+										{@render ghost()}
 									{/if}
-								{/each}
-								{#if ghostIn(sec.id) && adding.before === null && lastGroup && j === runs.length - 1}
-									{@render ghost()}
-								{/if}
-							</div>
+								</div>
+							{/if}
 						{/if}
 					{/each}
 				{/each}
@@ -539,6 +558,60 @@
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
+	}
+	/* Switches packed into a panel, as many to a row as fit (13 §8). */
+	.panel {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+		gap: 8px;
+		padding: 12px;
+		border: 1px solid var(--line);
+		border-radius: 20px;
+		background: color-mix(in srgb, var(--bg) 60%, var(--surface));
+	}
+	/* A look's layouts (13 §8): scenes as a row of swatches; one box of short
+	   lines (Watching); folded away (More), a box of lines once opened. */
+	.swatches {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 16px 12px;
+	}
+	.lines,
+	.fold {
+		display: flex;
+		flex-direction: column;
+		border: 1px solid var(--line);
+		border-radius: 18px;
+		background: var(--surface);
+		overflow: hidden;
+	}
+	.lines > :global(* + *) {
+		border-top: 1px solid var(--line);
+	}
+	details.fold summary {
+		padding: 12px 16px;
+		cursor: pointer;
+		font-size: 14px;
+		font-weight: 600;
+	}
+	details.fold summary small {
+		color: var(--ink-muted);
+		font-weight: 500;
+	}
+	details.fold .lines {
+		border: none;
+		border-top: 1px solid var(--line);
+		border-radius: 0;
+	}
+	@media (max-width: 599px) {
+		.swatches {
+			flex-wrap: nowrap;
+			overflow-x: auto;
+			scrollbar-width: none;
+		}
+		.swatches > :global(*) {
+			flex: none;
+		}
 	}
 	/* Where Add will put what's picked next (G-f). */
 	.ghost {

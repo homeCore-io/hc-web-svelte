@@ -18,10 +18,41 @@
 	import { look } from '#lib/look.svelte.js';
 	import { kindOf } from '#lib/card.js';
 
-	// What Lit draws itself (lit/room.ts LAMPS), without loading Lit to ask.
-	const LIT = new Set(['light', 'dimmer', 'group', 'switch', 'outlet']);
+	// What Lit may draw itself (lit/room.ts), without loading Lit to ask: lights
+	// and switches, doors and locks, readings, sensors for a Watching box.
+	const LIT = new Set([
+		'light',
+		'dimmer',
+		'group',
+		'switch',
+		'outlet',
+		'lock',
+		'contact_sensor',
+		'door',
+		'garage',
+		'gate',
+		'garage_door',
+		'cover',
+		'temperature_sensor',
+		'humidity_sensor',
+		'sensor',
+		'water_sensor',
+		'motion_sensor',
+		'occupancy_sensor',
+		'vibration_sensor',
+		'smoke_sensor',
+		'binary_sensor',
+		'rain_sensor',
+		'lightning_sensor',
+		// Folded under More as a line each.
+		'gateway',
+		'bridge',
+		'pico_remote',
+		'keypad',
+		'vcrx'
+	]);
 
-	let { card, form, label, page, cardTools, options }: KindProps<'device'> = $props();
+	let { card, form, label, page, cardTools, options, layout }: KindProps<'device'> = $props();
 	const d = $derived(card.device);
 	const o = $derived(options ?? kindOptions.of(page, deviceKind(d), card.ref, DEVICE_BUILT_IN));
 </script>
@@ -47,7 +78,7 @@
 
 {#if look.lit && (card.scene || LIT.has(kindOf(d)))}
 	{#await import('#lib/lit/LitDevice.svelte') then { default: LitDevice }}
-		<LitDevice {card} {label} options={o}>{@render today()}</LitDevice>
+		<LitDevice {card} {label} options={o} {layout}>{@render today()}</LitDevice>
 	{/await}
 {:else}
 	{@render today()}

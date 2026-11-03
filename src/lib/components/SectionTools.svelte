@@ -70,7 +70,11 @@
 		row: 'Row',
 		list: 'List',
 		field: 'Room field',
-		tiles: 'Tiles'
+		tiles: 'Tiles',
+		swatches: 'Swatches',
+		lines: 'Lines',
+		fold: 'Folded',
+		panel: 'Panel'
 	};
 	async function removeIt() {
 		const yes = await ask({
@@ -171,8 +175,9 @@
 							config: { ...config, column: e.currentTarget.value }
 						})}
 				>
-					<option value="side">Beside the rooms</option>
-					<option value="main">Under the rooms</option>
+					<!-- Home's columns are the rooms and what's beside them; elsewhere, two columns. -->
+					<option value="side">{page === 'home' ? 'Beside the rooms' : 'Side column'}</option>
+					<option value="main">{page === 'home' ? 'Under the rooms' : 'Main column'}</option>
 				</select>
 			{/if}
 			{#if mine && remove}

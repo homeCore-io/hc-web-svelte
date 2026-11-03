@@ -3,8 +3,8 @@
 	its scenes, its readings, then infrastructure (C6) — and what the household
 	added from elsewhere. `/rooms/none` holds the devices that are in no room.
 
-	In the Lit look (12) the room is drawn by LitRoom, loaded only then; while
-	the page is being arranged it is drawn as it is today, with its tools.
+	In the Lit look its grouping makes the page (13 §8.2), loaded only then;
+	either way the one renderer draws it, so it is arranged in place.
 -->
 <script lang="ts">
 	import { page } from '$app/state';
@@ -13,7 +13,7 @@
 	import { clock } from '#lib/clock.svelte.js';
 	import { heading } from '#lib/heading.svelte.js';
 	import { cardRef } from '#lib/layers.js';
-	import { roomPage } from '#lib/page.js';
+	import { roomPage, type RoomInput } from '#lib/page.js';
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
 	import { view } from '#lib/view.svelte.js';
 	import CustomiseBar from '#lib/components/CustomiseBar.svelte';
@@ -27,22 +27,31 @@
 	$effect(() => heading.show(name ?? null));
 
 	const key = $derived(`room:${id}`);
+	// Lit groups a room its own way (13 §8.2); its grouping loads only in Lit.
+	let litGrouping = $state<typeof import('#lib/lit/grouping.js') | null>(null);
+	$effect(() => {
+		if (look.lit && !litGrouping)
+			void import('#lib/lit/grouping.js').then((m) => (litGrouping = m));
+	});
+	const input = $derived<RoomInput>({
+		devices: devices.byId,
+		rooms: rooms.list,
+		// Cards the household added from elsewhere in the house (M2 `add`).
+		added: view.added(key),
+		pluginCard: (r) => {
+			const c = cardRef(r);
+			const found = c ? pluginUis.card(c.pluginId, c.element) : undefined;
+			return found
+				? { label: found.slot.label ?? 'A plugin’s card', forms: found.slot.forms }
+				: undefined;
+		},
+		now: clock.now
+	});
 	const doc = $derived(
-		roomPage(id, {
-			devices: devices.byId,
-			rooms: rooms.list,
-			// Cards the household added from elsewhere in the house (M2 `add`).
-			added: view.added(key),
-			pluginCard: (r) => {
-				const c = cardRef(r);
-				const found = c ? pluginUis.card(c.pluginId, c.element) : undefined;
-				return found
-					? { label: found.slot.label ?? 'A plugin’s card', forms: found.slot.forms }
-					: undefined;
-			},
-			now: clock.now
-		})
+		look.lit && litGrouping ? litGrouping.litRoomPage(id, input) : roomPage(id, input)
 	);
+	// Lit draws the room's name in its header; until its grouping has loaded, nothing yet.
+	const waiting = $derived(look.lit && !litGrouping);
 </script>
 
 {#if !devices.loaded}
@@ -55,13 +64,7 @@
 		{#if doc.sections.length === 0}
 			<p class="quiet">Nothing in {name} yet.</p>
 		{/if}
-		{#if look.lit && view.mode(key) === null}
-			{#await import('#lib/lit/LitRoom.svelte') then { default: LitRoom }}
-				<LitRoom {doc} room={id} name={name ?? ''} />
-			{/await}
-		{:else}
-			<PageView page={doc} />
-		{/if}
+		{#if !waiting}<PageView page={doc} />{/if}
 	</div>
 {/if}
 

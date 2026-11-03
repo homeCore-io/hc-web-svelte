@@ -234,7 +234,7 @@ export function litRoom(
 			more.push(card);
 			continue;
 		}
-		if (DOORS.has(view.kind) || view.kind === 'contact_sensor') {
+		if (isDoorKind(view.kind)) {
 			doors.push(card);
 			if (view.control?.kind === 'lock' && !view.control.locked && view.available)
 				problems.push({
@@ -256,23 +256,9 @@ export function litRoom(
 			lamps.push(lamp);
 			continue;
 		}
-		const a = d.attributes ?? {};
-		if (
-			READING_KINDS.has(view.kind) &&
-			(typeof a.temperature === 'number' || typeof a.humidity === 'number')
-		) {
-			const low = a.temp_limit_low;
-			const high = a.temp_limit_high;
-			readings.push({
-				card,
-				view,
-				name,
-				attr: typeof a.temperature === 'number' ? 'temperature' : 'humidity',
-				range:
-					typeof low === 'number' && typeof high === 'number' && low < high
-						? { low, high }
-						: undefined
-			});
+		const reading = readingOf(card, view, name);
+		if (reading) {
+			readings.push(reading);
 			continue;
 		}
 		if (WATCH_KINDS.has(view.kind)) {
@@ -340,6 +326,32 @@ export function litRoom(
 		glow
 	};
 }
+
+/** A temperature or humidity sensor, with its day (and its own safe range); null for anything else. */
+export function readingOf(
+	card: Card & { kind: 'device' },
+	view: CardView,
+	name: string
+): Reading | null {
+	const a = card.device.attributes ?? {};
+	if (!READING_KINDS.has(view.kind)) return null;
+	if (typeof a.temperature !== 'number' && typeof a.humidity !== 'number') return null;
+	const low = a.temp_limit_low;
+	const high = a.temp_limit_high;
+	return {
+		card,
+		view,
+		name,
+		attr: typeof a.temperature === 'number' ? 'temperature' : 'humidity',
+		range:
+			typeof low === 'number' && typeof high === 'number' && low < high ? { low, high } : undefined
+	};
+}
+
+/** A door, a lock, a gate, or the sensor on one: drawn as what it is. */
+export const isDoorKind = (kind: string): boolean => DOORS.has(kind) || kind === 'contact_sensor';
+/** A sensor that needs only a glance: a line under Watching. */
+export const isWatchKind = (kind: string): boolean => WATCH_KINDS.has(kind);
 
 /** A light or a switch as Lit draws it; null for anything else. */
 export function lampOf(card: Card & { kind: 'device' }, view: CardView, name: string): Lamp | null {

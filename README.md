@@ -60,7 +60,7 @@ npm run typecheck     # types (svelte-check)
 npm run lint          # svelte-check, failing on warnings
 npm run format:check  # prettier
 npm test              # unit tests — never send commands to a real house
-npm run build && npm run budget   # the home's JavaScript must stay ≤ 150 KB compressed
+npm run build && npm run budget   # the home's JavaScript must stay ≤ 200 KB compressed
 ```
 
 ## Security notes

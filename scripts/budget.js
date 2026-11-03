@@ -1,6 +1,7 @@
 /**
  * The performance budget's build-time half (06 — V5): the JavaScript the home
- * page needs, compressed, must stay at or under 150 KB.
+ * page needs, compressed, must stay at or under 200 KB (raised from 150 KB by the
+ * user, 2026-11-02; V5).
  *
  * Measured from the build: the client entry and every chunk it imports,
  * statically, from the Vite manifest — what a browser has to download before
@@ -12,7 +13,7 @@ import { gzipSync } from 'node:zlib';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-const LIMIT_KB = 150;
+const LIMIT_KB = 200;
 const client = '.svelte-kit/output/client';
 const manifestPath = path.join(client, '.vite/manifest.json');
 

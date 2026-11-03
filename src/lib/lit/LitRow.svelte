@@ -14,6 +14,7 @@
 		on,
 		ink,
 		level = null,
+		bare = false,
 		flip,
 		setLevel,
 		open
@@ -25,6 +26,8 @@
 		ink: string;
 		/** How bright, 0 to 100, for a light that dims. */
 		level?: number | null;
+		/** A line of a joined card: no card of its own around it. */
+		bare?: boolean;
 		flip: () => void;
 		/** Sent once, when the slider is let go. */
 		setLevel?: (v: number) => void;
@@ -36,7 +39,7 @@
 	const shown = $derived(held ?? (on ? (level ?? 0) : 0));
 </script>
 
-<div class="row" class:on style:--tint={ink}>
+<div class="row" class:on class:bare style:--tint={ink}>
 	<span class="symbol"><Icon name={icon} size={16} /></span>
 	<button class="words" onclick={open}><b>{name}</b><small>{words}</small></button>
 	{#if level !== null && setLevel}
@@ -76,6 +79,11 @@
 		border: 1px solid var(--card-line);
 		background: var(--surface);
 		color: var(--ink);
+	}
+	.row.bare {
+		border: none;
+		border-radius: 0;
+		background: transparent;
 	}
 	.symbol {
 		display: grid;

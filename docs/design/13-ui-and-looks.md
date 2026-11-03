@@ -813,6 +813,23 @@ before the next step.
 - **D2. Code can be added in the editor,** as button-card allows: HTML, CSS
   and JavaScript in a drawing's Code tab, by admins only (§6.4, S4).
 
+### Decided on the step 6b mockup (the user, 2026-11-02)
+
+- **G1. The room sheet is a Frame choice** ("Open a room over Home"), on in
+  Lit and off in Classic; with it off, a room opens as its page.
+- **G2. Back closes the room sheet**, as it would leave a page.
+- **G3. The artwork drawing is for a player that's playing;** one that isn't
+  is drawn as its plain card.
+
+**As built in step 6b:** the room sheet is `frame.sheet`; Home opens a room
+link in it with SvelteKit's shallow routing (`pushState`), so Back, Escape, ✕
+and a tap outside close it, and it never opens while Home is being arranged or
+for a new-tab click. It draws the room as its page does (`RoomView`), without
+arranging. Players are a family of their own, `media`, drawn `classic` or
+`art` (Lit's). `joined` is a section layout: each thing a line in one card
+(a light or switch as a row, anything else as a line), whatever the look
+draws it as elsewhere.
+
 ### Decided on the step 6a mockup (the user, 2026-11-02)
 
 - **F1. The reading band** shades the reading's usual range over the past

@@ -16,7 +16,7 @@
 	import { kindOptions } from '#lib/kindOptions.svelte.js';
 	import { ROOM_BUILT_IN } from '#lib/options.js';
 	import { ref } from '#lib/layers.js';
-	import { heading } from '#lib/heading.svelte.js';
+	import { heading, inSheet } from '#lib/heading.svelte.js';
 	import type { Card } from '#lib/page.js';
 	import { litRoom } from './room.js';
 	import { lookHere } from '#lib/look.svelte.js';
@@ -27,8 +27,10 @@
 	const here = lookHere();
 
 	let { card, label }: KindProps<'roomhead'> = $props();
+	// In a preview or a sheet over Home, the page under it keeps its title.
+	const sheet = inSheet();
 	$effect(() => {
-		if (!here.preview) heading.ownTitle();
+		if (!here.preview && !sheet) heading.ownTitle();
 	});
 
 	const live = $derived(card.devices.map((d) => devices.byId[d.device_id] ?? d));

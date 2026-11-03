@@ -696,7 +696,9 @@
 		flex-wrap: wrap;
 		gap: 8px;
 	}
+	/* A joined section (13 §13.1, vertical-stack-in-card): its things as one card, a line each. */
 	.lines,
+	.joined,
 	.fold {
 		display: flex;
 		flex-direction: column;
@@ -705,7 +707,8 @@
 		background: var(--surface);
 		overflow: hidden;
 	}
-	.lines > :global(* + *) {
+	.lines > :global(* + *),
+	.joined > :global(* + *) {
 		border-top: 1px solid var(--line);
 	}
 	details.fold summary {

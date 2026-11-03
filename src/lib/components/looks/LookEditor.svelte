@@ -128,7 +128,13 @@
 			scenes: three(lit.scenes.map((s) => s.card)),
 			doors: three(lit.doors),
 			readings: three(lit.readings.map((r) => r.card)),
-			watching: three(lit.watch.map((w) => w.card))
+			watching: three(lit.watch.map((w) => w.card)),
+			// Players, playing ones first: the artwork drawing shows only while playing (G3).
+			media: three(
+				cards
+					.filter((c) => ['media_player', 'tv'].includes(views[c.ref]!.kind))
+					.sort((a, b) => Number(!!views[b.ref]!.nowPlaying) - Number(!!views[a.ref]!.nowPlaying))
+			)
 		} satisfies Record<Family, Card[]>;
 	});
 	const FAMILY_NAMES: Record<Family, string> = {
@@ -137,7 +143,8 @@
 		scenes: 'Scenes',
 		doors: 'Doors and locks',
 		readings: 'Readings',
-		watching: 'Watching'
+		watching: 'Watching',
+		media: 'Players'
 	};
 	const layoutFor = (f: Family): Layout | undefined =>
 		f === 'watching' ? 'lines' : f === 'scenes' ? 'swatches' : undefined;
@@ -216,7 +223,8 @@
 		swatches: 'Swatches',
 		lines: 'Lines',
 		fold: 'Folded',
-		chips: 'Chips'
+		chips: 'Chips',
+		joined: 'Joined into one card'
 	};
 	const PLACES: [Place, string][] = [
 		['band', 'Across the top'],
@@ -508,6 +516,10 @@
 						<label class="check"
 							><input type="checkbox" bind:checked={draft.frame.more} /> Fold what's rarely used under
 							"More"</label
+						>
+						<label class="check"
+							><input type="checkbox" bind:checked={draft.frame.sheet} /> Open a room over Home, rather
+							than as its page</label
 						>
 						{#if !draft.grouping.room}
 							<p class="quiet">

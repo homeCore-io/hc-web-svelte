@@ -24,6 +24,8 @@
 	// What Lit may draw itself (lit/room.ts), without loading Lit to ask: lights
 	// and switches, doors and locks, readings, sensors for a Watching box.
 	const LIT = new Set([
+		'media_player',
+		'tv',
 		'light',
 		'dimmer',
 		'group',
@@ -79,7 +81,7 @@
 	{/if}
 {/snippet}
 
-{#if drawsOwn(look.def) && (card.scene || LIT.has(kindOf(d)))}
+{#if (drawsOwn(look.def) || layout === 'joined') && (card.scene || LIT.has(kindOf(d)))}
 	{#await import('#lib/lit/LitDevice.svelte') then { default: LitDevice }}
 		<LitDevice {card} {label} options={o} {layout}>{@render today()}</LitDevice>
 	{/await}

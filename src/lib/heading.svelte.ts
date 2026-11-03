@@ -3,6 +3,7 @@
  * the address alone doesn't say it. A page sets it while it is shown, and
  * may say where "back" goes when that isn't the address's parent.
  */
+import { getContext, setContext } from 'svelte';
 export interface Back {
 	href: string;
 	label: string;
@@ -51,3 +52,13 @@ class Heading {
 }
 
 export const heading = new Heading();
+
+// ---- a room over Home (13 §7, G1) ----
+
+const SHEET = Symbol('in a sheet');
+
+/** Mark what's inside as drawn in a sheet over a page: it leaves that page's title alone. */
+export const markSheet = (): void => void setContext(SHEET, true);
+
+/** Whether this is drawn in a sheet over a page. Called while a component starts. */
+export const inSheet = (): boolean => getContext<boolean | undefined>(SHEET) ?? false;

@@ -75,7 +75,8 @@
 		lines: 'Lines',
 		fold: 'Folded',
 		panel: 'Panel',
-		chips: 'Chips'
+		chips: 'Chips',
+		joined: 'Joined'
 	};
 	async function removeIt() {
 		const yes = await ask({

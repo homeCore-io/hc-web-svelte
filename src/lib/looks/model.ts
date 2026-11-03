@@ -22,7 +22,15 @@ export interface Feel {
 }
 
 /** The families of things a look draws its own way (§6). */
-export const FAMILIES = ['lights', 'switches', 'scenes', 'doors', 'readings', 'watching'] as const;
+export const FAMILIES = [
+	'lights',
+	'switches',
+	'scenes',
+	'doors',
+	'readings',
+	'watching',
+	'media'
+] as const;
 export type Family = (typeof FAMILIES)[number];
 
 /** The drawings there are for each family; the first is Classic's. */
@@ -56,6 +64,10 @@ export const DRAWINGS: Record<Family, readonly { id: string; name: string }[]> =
 	watching: [
 		{ id: 'classic', name: 'Card' },
 		{ id: 'lit', name: 'One line' }
+	],
+	media: [
+		{ id: 'classic', name: 'Card with its controls' },
+		{ id: 'art', name: 'Its artwork, while playing' }
 	]
 };
 
@@ -74,6 +86,8 @@ export interface Frame {
 	needs: boolean;
 	/** What's rarely used folded under "More". */
 	more: boolean;
+	/** A room opened over Home as a sheet, rather than as its page (G1). */
+	sheet: boolean;
 	/**
 	 * A display settles into its rest view after this many seconds untouched
 	 * (§10): Lit's, or a plugin's `piece`.
@@ -228,6 +242,7 @@ export const CLASSIC: Look = {
 		chips: true,
 		needs: false,
 		more: false,
+		sheet: false,
 		rest: { on: false, after: 60 }
 	},
 	grouping: {},
@@ -247,10 +262,18 @@ export const LIT: Look = {
 		scenes: 'lit',
 		doors: 'lit',
 		readings: 'lit',
-		watching: 'lit'
+		watching: 'lit',
+		media: 'art'
 	},
 	made: [],
-	frame: { header: 'glow', chips: true, needs: true, more: true, rest: { on: true, after: 60 } },
+	frame: {
+		header: 'glow',
+		chips: true,
+		needs: true,
+		more: true,
+		sheet: true,
+		rest: { on: true, after: 60 }
+	},
 	grouping: {
 		room: [
 			{
@@ -334,7 +357,17 @@ export function feelVars(f: Feel): Record<string, string> {
 const oneOf = <T extends string>(v: unknown, all: readonly T[], or: T): T =>
 	all.includes(v as T) ? (v as T) : or;
 const PLACES = ['band', 'main', 'side'] as const;
-const LAYOUTS = ['grid', 'row', 'list', 'panel', 'swatches', 'lines', 'fold', 'chips'] as const;
+const LAYOUTS = [
+	'grid',
+	'row',
+	'list',
+	'panel',
+	'swatches',
+	'lines',
+	'fold',
+	'chips',
+	'joined'
+] as const;
 const ID = /^[a-z0-9][a-z0-9-]{0,47}$/;
 const bool = (v: unknown, or: boolean): boolean => (typeof v === 'boolean' ? v : or);
 const text = (v: unknown, max: number): string | undefined =>
@@ -506,6 +539,7 @@ export function readLook(raw: unknown, known: readonly Look[] = BUILT_IN): Look 
 			chips: bool(fr.chips, base.frame.chips),
 			needs: bool(fr.needs, base.frame.needs),
 			more: bool(fr.more, base.frame.more),
+			sheet: bool(fr.sheet, base.frame.sheet),
 			rest: restWith
 		},
 		grouping: { ...(room ? { room } : {}), ...(home ? { home } : {}) },

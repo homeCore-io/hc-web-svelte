@@ -22,6 +22,7 @@
 	import LitWatch from './LitWatch.svelte';
 	import LitChip from './LitChip.svelte';
 	import LitRow from './LitRow.svelte';
+	import LitArt from './LitArt.svelte';
 	import { lookHere } from '#lib/look.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { roomOf } from '#lib/summary.js';
@@ -73,7 +74,9 @@
 						? 'readings'
 						: layout === 'lines'
 							? 'watching'
-							: null
+							: ['media_player', 'tv'].includes(view.kind)
+								? 'media'
+								: null
 	);
 	const drawing = $derived(family ? look.draws(family) : 'classic');
 	const made = $derived(look.def.made.find((m) => m.id === drawing && m.family === family));
@@ -123,7 +126,23 @@
 	);
 </script>
 
-{#if made && thing}
+{#if layout === 'joined' && lamp}
+	<!-- A line of a joined card (13 §13.1): a row, whatever the look draws it as elsewhere. -->
+	<LitRow
+		{name}
+		words={view.stateLine}
+		icon={view.icon}
+		on={lamp.on}
+		{ink}
+		level={family === 'lights' ? lamp.level : null}
+		bare
+		{flip}
+		{setLevel}
+		{open}
+	/>
+{:else if layout === 'joined' && !card.scene}
+	<LitWatch id={d.device_id} {view} {name} />
+{:else if made && thing}
 	<MadeDrawing
 		{made}
 		{thing}
@@ -152,6 +171,8 @@
 		}}
 		onfail={() => (pluginFailed = true)}
 	/>
+{:else if drawing === 'art' && family === 'media'}
+	<LitArt device={d} {view} {name} {room} {open}>{@render children()}</LitArt>
 {:else if drawing === 'chip' && (lamp || reading)}
 	<LitChip
 		{name}

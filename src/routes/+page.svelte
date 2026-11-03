@@ -21,6 +21,23 @@
 	import { clock } from '#lib/clock.svelte.js';
 	import CustomiseBar from '#lib/components/CustomiseBar.svelte';
 	import PageView from '#lib/components/PageView.svelte';
+	import { page } from '$app/state';
+	import { pushState } from '$app/navigation';
+	import { look } from '#lib/look.svelte.js';
+
+	// A room opened over Home where the look says so (13 §7, G1), as a step in
+	// the history, so Back closes it (G2). Not while Home is being arranged,
+	// and not when someone asks for a new tab.
+	function openOver(e: MouseEvent) {
+		if (!look.def.frame.sheet || view.mode(HOME) !== null) return;
+		if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
+			return;
+		const a = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[href^="/rooms/"]');
+		const id = a?.getAttribute('href')?.slice('/rooms/'.length);
+		if (!id || id.includes('/')) return;
+		e.preventDefault();
+		pushState('', { sheet: decodeURIComponent(id) });
+	}
 
 	const HOME = 'home';
 	const doc = $derived(homeDocument());
@@ -46,10 +63,16 @@
 {#if !devices.loaded}
 	<p class="quiet">Loading the house…</p>
 {:else}
-	<div class="home" class:field>
+	<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+	<div class="home" class:field onclickcapture={openOver}>
 		<CustomiseBar page={HOME} home />
 		<PageView page={doc} />
 	</div>
+	{#if page.state.sheet}
+		{#await import('#lib/components/rooms/RoomSheet.svelte') then { default: RoomSheet }}
+			<RoomSheet id={page.state.sheet} close={() => history.back()} />
+		{/await}
+	{/if}
 {/if}
 
 <style>

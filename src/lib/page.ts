@@ -21,7 +21,17 @@ import { byRoom, roomSections, type Chip } from './summary.js';
  * packed into a panel).
  */
 export type Layout =
-	'grid' | 'row' | 'list' | 'field' | 'tiles' | 'swatches' | 'lines' | 'fold' | 'panel' | 'chips';
+	| 'grid'
+	| 'row'
+	| 'list'
+	| 'field'
+	| 'tiles'
+	| 'swatches'
+	| 'lines'
+	| 'fold'
+	| 'panel'
+	| 'chips'
+	| 'joined';
 
 interface Base {
 	/** What the layers call it: `device:…`, `scene:…`, `room:…`, `card:…`, `piece:…`. */

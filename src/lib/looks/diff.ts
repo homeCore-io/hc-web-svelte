@@ -16,13 +16,15 @@ const FAMILY_WORDS = {
 	scenes: 'Scenes',
 	doors: 'Doors and locks',
 	readings: 'Readings',
-	watching: 'Watching'
+	watching: 'Watching',
+	media: 'Players'
 } as const;
 /** How the built-in drawings beyond Classic's and Lit's read in a sentence. */
 const PHRASES: Record<string, string> = {
 	chip: 'as chips',
 	row: 'as rows',
-	band: 'with their usual range'
+	band: 'with their usual range',
+	art: 'with their artwork'
 };
 const on = (b: boolean) => (b ? 'on' : 'off');
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
@@ -60,6 +62,7 @@ export function changesFrom(l: Look, base: Look): string[] {
 	if (fr.chips !== bf.chips) out.push(`Status chips: ${on(fr.chips)}`);
 	if (fr.needs !== bf.needs) out.push(`Needs you first: ${on(fr.needs)}`);
 	if (fr.more !== bf.more) out.push(`More folded: ${on(fr.more)}`);
+	if (fr.sheet !== bf.sheet) out.push(`A room opened over Home: ${on(fr.sheet)}`);
 	if (fr.rest.on !== bf.rest.on) out.push(`Rest view on displays: ${on(fr.rest.on)}`);
 	else if (fr.rest.on && fr.rest.after !== bf.rest.after)
 		out.push(`Rest view after ${fr.rest.after} seconds`);

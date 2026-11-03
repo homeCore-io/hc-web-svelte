@@ -18,6 +18,7 @@
 	import MessageCircleQuestion from '@lucide/svelte/icons/message-circle-question';
 	import Palette from '@lucide/svelte/icons/palette';
 	import Plug from '@lucide/svelte/icons/plug';
+	import Puzzle from '@lucide/svelte/icons/puzzle';
 	import Users from '@lucide/svelte/icons/users';
 	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 	import Send from '@lucide/svelte/icons/send';
@@ -58,6 +59,7 @@
 		asking: MessageCircleQuestion,
 		look: Palette,
 		plugins: Plug,
+		extensions: Puzzle,
 		people: Users,
 		configuration: SlidersHorizontal,
 		notifications: Send,

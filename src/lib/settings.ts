@@ -96,6 +96,13 @@ export const SETTINGS: SettingsItem[] = [
 		detail: 'What connects homeCore to devices'
 	},
 	{
+		slug: 'extensions',
+		label: 'Extensions',
+		group: 'system',
+		words: 'extensions ui drawings rive animated store install upload',
+		detail: 'Drawings and cards the looks can choose'
+	},
+	{
 		slug: 'people',
 		label: 'People & access',
 		group: 'system',
@@ -175,6 +182,7 @@ const NEEDS: Record<string, string> = {
 	// Looking, for those whose role reads them (observer, operators, editors).
 	audit: 'audit:read',
 	plugins: 'plugins:read',
+	extensions: 'plugins:read',
 	// The calendars rules check; backups stay admins'.
 	data: 'automations:write'
 };

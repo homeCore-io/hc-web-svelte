@@ -278,8 +278,9 @@ them; an exported look with code says so before it's saved.
   stall a screen; that card is drawn as Classic draws it. A tap does what the
   drawing's parts say (switch, open, nothing), so code never sends commands
   itself.
-- Drawings can be made for lights, switches, doors and locks, readings and
-  Watching. Scenes have their two built-in drawings only, for now.
+- Drawings can be made for every family: lights, switches, scenes, doors and
+  locks, readings and Watching. For a scene, a tap runs it, `on` is whether
+  it's the one on now, and `colors` lists the colors it sets.
 - The expression language is `looks/expr.ts`: the thing's values (name, on,
   level, color, room, state, temperature, humidity, available, alarm, kind),
   arithmetic, comparisons, `? :`, and round, floor, ceil, abs, min, max,
@@ -287,8 +288,12 @@ them; an exported look with code says so before it's saved.
 - When a look doesn't draw lights the Lit way, lights that share a name
   ("Holiday Lights 1" to "4") are separate cards, as Classic has them.
 - The editor's preview shows a page as the look starts it, before anyone
-  arranges it. A room's sections and Home's are reordered with arrows;
-  dragging them in the editor is still to come.
+  arranges it. A room's sections and Home's reorder by dragging their grips,
+  or with the arrows.
+- On a phone the preview is above, held under the header while the choices
+  scroll beneath it.
+- A look that reaches "household pages" leaves Settings, Me and the admin
+  screens with Classic's feel and the house's theme.
 
 ## 7. Frame
 

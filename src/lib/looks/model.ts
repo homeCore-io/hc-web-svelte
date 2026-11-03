@@ -109,7 +109,14 @@ export interface MadeDrawing {
 }
 
 /** The families a drawing can be made for: things with a state to show. */
-export const MAKEABLE: readonly Family[] = ['lights', 'switches', 'doors', 'readings', 'watching'];
+export const MAKEABLE: readonly Family[] = [
+	'lights',
+	'switches',
+	'scenes',
+	'doors',
+	'readings',
+	'watching'
+];
 
 export const PARTS_OF: Record<string, Parts> = {
 	classic: {

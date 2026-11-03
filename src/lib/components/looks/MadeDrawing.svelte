@@ -1,17 +1,12 @@
 <!--
-	A drawing made in the look editor (13 §6.4), drawing one thing: from its
-	parts, with any expressions, or from an admin's code run in a worker. If
-	the code fails, the card is drawn as Classic draws it (`children`).
+	A drawing made in the look editor (13 §6.4), drawing one thing (a device,
+	or a scene): from its parts, with any expressions, or from an admin's code
+	run in a worker. If the code fails, the card is drawn as Classic draws it
+	(`children`). What a tap does comes from whoever draws it.
 -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import type { CardView } from '#lib/card.js';
-	import type { CoreDevice } from '#lib/devices.js';
-	import { commands } from '#lib/commands.svelte.js';
-	import { goAhead } from '#lib/ask.js';
-	import { session } from '#lib/me.svelte.js';
-	import { openDevice } from '#lib/popup.js';
-	import { page as here } from '$app/state';
+	import type { IconName } from '#lib/card.js';
 	import { evaluate } from '#lib/looks/expr.js';
 	import { drawWithCode, safeCss } from '#lib/looks/codeRunner.js';
 	import type { MadeDrawing } from '#lib/looks/model.js';
@@ -20,18 +15,28 @@
 
 	let {
 		made,
-		device,
-		view,
 		thing,
 		ownColors,
+		words,
+		icon,
+		available = true,
+		act,
+		open,
 		preview = false,
 		children
 	}: {
 		made: MadeDrawing;
-		device: CoreDevice;
-		view: CardView;
 		thing: Vars;
 		ownColors: boolean;
+		/** Its state in words, when no expression says otherwise. */
+		words: string;
+		/** Its kind's icon, when no expression says otherwise. */
+		icon: IconName;
+		available?: boolean;
+		/** A tap that switches it, or runs it. */
+		act: () => void;
+		/** A tap that opens it. */
+		open: () => void;
 		/** In the editor's preview: shows, never acts. */
 		preview?: boolean;
 		children: Snippet;
@@ -45,16 +50,23 @@
 	};
 	const on = $derived(thing.on === true);
 	const level = $derived(typeof thing.level === 'number' ? thing.level : on ? 100 : 0);
-	const label = $derived(String(by(made.expr.label) ?? view.stateLine));
+	const label = $derived(String(by(made.expr.label) ?? words));
 	const own = $derived(
 		typeof thing.color === 'string' && ownColors && p.onInk === 'own' ? thing.color : null
 	);
 	const ink = $derived(String(by(made.expr.color) ?? own ?? 'var(--accent)'));
 	const iconName = $derived.by(() => {
 		const v = by(made.expr.icon);
-		return typeof v === 'string' && isIcon(v) ? v : view.icon;
+		return typeof v === 'string' && isIcon(v) ? v : icon;
 	});
-	const fill = $derived(!on ? 0 : p.fill === 'level' ? level : p.fill === 'color' ? 100 : 0);
+	// A scene shows its colors whether or not it's the one on now.
+	const fill = $derived(
+		p.fill === 'color' && (on || thing.kind === 'scene')
+			? 100
+			: on && p.fill === 'level'
+				? level
+				: 0
+	);
 
 	// ---- code ----
 	let html = $state<string | null>(null);
@@ -82,16 +94,10 @@
 		root.innerHTML = `<style>${safeCss(made.css ?? '')}</style>${html}`;
 	});
 
-	async function tap() {
+	function tap() {
 		if (preview || p.tap === 'none') return;
-		if (p.tap === 'open' || !session.mayUse) return openDevice(device.device_id, here.url);
-		const sw = view.control?.kind === 'switch' ? view.control : null;
-		if (!sw) return openDevice(device.device_id, here.url);
-		if (
-			!(await goAhead(device.device_id, view.kind, `Turn ${thing.name} ${sw.on ? 'off' : 'on'}?`))
-		)
-			return;
-		void commands.set(device.device_id, view.kind, { [sw.attr]: !sw.on }, device.attributes);
+		if (p.tap === 'open') open();
+		else act();
 	}
 </script>
 
@@ -105,7 +111,7 @@
 	<button
 		class="made {p.shape}"
 		class:on
-		class:gone={!view.available}
+		class:gone={!available}
 		style:--made={ink}
 		onclick={tap}
 		aria-label={`${thing.name}, ${label}`}

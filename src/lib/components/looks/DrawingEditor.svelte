@@ -34,7 +34,8 @@ small { color: var(--ink-muted); }`;
 	import type { Card } from '#lib/page.js';
 	import { evaluate } from '#lib/looks/expr.js';
 	import { drawWithCode } from '#lib/looks/codeRunner.js';
-	import { thingOf, THING_NAMES } from '#lib/looks/thing.js';
+	import { sceneThing, thingOf, THING_NAMES } from '#lib/looks/thing.js';
+	import { deviceScene } from '#lib/lit/room.js';
 	import type { Expressions, Look, MadeDrawing, Parts } from '#lib/looks/model.js';
 	import DrawingSample from './DrawingSample.svelte';
 
@@ -83,7 +84,10 @@ small { color: var(--ink-muted); }`;
 		const c = samples[0];
 		if (!c || c.kind !== 'device') return null;
 		const view = cardFor(c.device, clock.now);
-		return thingOf(c.device, view, view.name, roomOf(c.device, rooms.list)?.name ?? '');
+		const room = roomOf(c.device, rooms.list)?.name ?? '';
+		return c.scene
+			? sceneThing(view.name, deviceScene(c, view.name).colours, false, room)
+			: thingOf(c.device, view, view.name, room);
 	});
 
 	const SHAPES = [
@@ -104,11 +108,11 @@ small { color: var(--ink-muted); }`;
 		['level', 'Level'],
 		['bar', 'Level bar']
 	] as const;
-	const TAPS = [
-		['switch', 'Switch it'],
+	const TAPS = $derived([
+		['switch', m.family === 'scenes' ? 'Run it' : 'Switch it'],
 		['open', 'Open it'],
 		['none', 'Nothing']
-	] as const;
+	] as const);
 	const INKS = [
 		['own', 'Its own color'],
 		['theme', 'The theme’s']

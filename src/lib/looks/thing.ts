@@ -20,7 +20,8 @@ export const THING_NAMES: Record<string, string> = {
 	humidity: 'its humidity reading',
 	available: 'whether it’s responding',
 	alarm: 'what’s wrong, if anything',
-	kind: 'what kind of thing it is'
+	kind: 'what kind of thing it is',
+	colors: 'a scene’s colors, as #rrggbb with commas between'
 };
 
 const hex = (rgb: string) =>
@@ -29,6 +30,24 @@ const hex = (rgb: string) =>
 		.split(',')
 		.map((n) => Number(n).toString(16).padStart(2, '0'))
 		.join('');
+
+/** A scene as a made drawing reads it: on while it's the one on now. */
+export function sceneThing(name: string, colors: string[], active: boolean, room: string): Vars {
+	return {
+		name,
+		on: active,
+		level: null,
+		color: colors[0] ?? '#ffb45a',
+		colors: colors.join(','),
+		room,
+		state: active ? 'On now' : 'Ready',
+		temperature: null,
+		humidity: null,
+		available: true,
+		alarm: null,
+		kind: 'scene'
+	};
+}
 
 export function thingOf(d: CoreDevice, view: CardView, name: string, room: string): Vars {
 	const a = d.attributes ?? {};
@@ -46,6 +65,7 @@ export function thingOf(d: CoreDevice, view: CardView, name: string, room: strin
 		humidity: num(a.humidity),
 		available: view.available,
 		alarm: view.alarm ?? null,
-		kind: view.kind
+		kind: view.kind,
+		colors: ''
 	};
 }

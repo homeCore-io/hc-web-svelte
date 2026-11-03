@@ -23,7 +23,11 @@
 	import { lookHere } from '#lib/look.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { roomOf } from '#lib/summary.js';
-	import { thingOf } from '#lib/looks/thing.js';
+	import { sceneThing, thingOf } from '#lib/looks/thing.js';
+	import { goAhead } from '#lib/ask.js';
+	import { session } from '#lib/me.svelte.js';
+	import { openDevice } from '#lib/popup.js';
+	import { page as here } from '$app/state';
 	import MadeDrawing from '#lib/components/looks/MadeDrawing.svelte';
 	import { deviceScene, isDoorKind, isWatchKind, lampOf, readingOf } from './room.js';
 
@@ -69,7 +73,21 @@
 	);
 	const drawing = $derived(family ? look.draws(family) : 'classic');
 	const made = $derived(look.def.made.find((m) => m.id === drawing && m.family === family));
-	const thing = $derived(made ? thingOf(d, view, name, roomOf(d, rooms.list)?.name ?? '') : null);
+	const room = $derived(roomOf(d, rooms.list)?.name ?? '');
+	const thing = $derived(
+		!made
+			? null
+			: card.scene
+				? sceneThing(name, deviceScene(card, name).colours, !!deviceScene(card, name).active, room)
+				: thingOf(d, view, name, room)
+	);
+	// A made drawing's tap: switch it, asking first where the house says to; else open it.
+	async function flip() {
+		const sw = view.control?.kind === 'switch' ? view.control : null;
+		if (!sw || !session.mayUse) return openDevice(d.device_id, here.url);
+		if (!(await goAhead(d.device_id, view.kind, `Turn ${name} ${sw.on ? 'off' : 'on'}?`))) return;
+		void commands.set(d.device_id, view.kind, { [sw.attr]: !sw.on }, d.attributes);
+	}
 	const power = $derived(
 		view.kind === 'outlet' || /\b(heat|heater|plug|valve|pump|charger|fan|ac)\b/i.test(name)
 	);
@@ -78,10 +96,13 @@
 {#if made && thing}
 	<MadeDrawing
 		{made}
-		device={d}
-		{view}
 		{thing}
 		ownColors={look.def.ownColors}
+		words={view.stateLine}
+		icon={view.icon}
+		available={view.available}
+		act={card.scene ? () => commands.act(d.device_id, 'activate') : flip}
+		open={() => openDevice(d.device_id, here.url)}
 		preview={look.preview}>{@render children()}</MadeDrawing
 	>
 {:else if drawing !== 'lit'}

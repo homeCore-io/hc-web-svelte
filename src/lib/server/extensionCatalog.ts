@@ -20,7 +20,7 @@ import { unpack, UnpackError } from './unpack.js';
 
 /** Where the index is, and the key that signs it; homeCore's registry by default. */
 export const registry = () => ({
-	url: process.env.HC_EXTENSIONS_INDEX ?? 'https://homecore-io.github.io/registry/extensions.json',
+	url: process.env.HC_EXTENSIONS_INDEX ?? 'https://homecore.io/registry/extensions.json',
 	key: process.env.HC_REGISTRY_PUBLIC_KEY ?? 'd64zXOo99GE+uYAPbtbIwLUJHtBaACJB73cUppj93I8='
 });
 

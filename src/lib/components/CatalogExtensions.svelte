@@ -196,7 +196,7 @@
 						Downloads it from the hc-extensions releases, checks its signature and checksum, and
 						adds its drawings to every look’s choices.
 					</p>
-					{#if mine}<p class="quiet">
+					{#if mine && mine.version !== version}<p class="quiet">
 							<strong>Installed: {mine.version}.</strong> Installing {version} replaces it.
 						</p>{/if}
 					<button

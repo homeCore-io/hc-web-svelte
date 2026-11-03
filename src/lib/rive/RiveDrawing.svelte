@@ -48,22 +48,21 @@
 		let gone = false;
 		let made: RivePlayer | undefined;
 		const opts = { src, artboard, stateMachine, width, height };
-		void untrack(async () => {
+		// What it starts from, read now: after an await the component may be gone.
+		const first = untrack(() => ({ values: $state.snapshot(values) as RiveValues, motion }));
+		void (async () => {
 			try {
 				const { play } = await import('./player.js');
-				made = await play(el, {
-					...opts,
-					values: $state.snapshot(values) as RiveValues,
-					motion
-				});
+				if (gone) return;
+				made = await play(el, { ...opts, ...first });
 				if (gone) return made.destroy();
 				player = made;
 				drawn = true;
 			} catch (e) {
 				console.warn('[rive]', src, e);
-				failed = true;
+				if (!gone) failed = true;
 			}
-		});
+		})();
 		return () => {
 			gone = true;
 			made?.destroy();

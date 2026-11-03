@@ -10,6 +10,11 @@
 	set to (until the schedule changes unless chosen otherwise); without one
 	they set it.
 -->
+<script lang="ts" module>
+	let loading: Promise<typeof import('#lib/rive/RiveDrawing.svelte')> | undefined;
+	const riveModule = () => (loading ??= import('#lib/rive/RiveDrawing.svelte'));
+</script>
+
 <script lang="ts">
 	import { page } from '$app/state';
 	import type { CardView } from '#lib/card.js';
@@ -65,7 +70,8 @@
 	// or a plugin's: the dial is that drawing while it's offered; else today's.
 	const look = lookHere();
 	const rive = $derived(riveFor(look.draws('climate'), 'climate'));
-	const RiveDrawing = $derived(rive ? import('#lib/rive/RiveDrawing.svelte') : undefined);
+	// One promise for the module, so a card that recomputes keeps its drawing.
+	const RiveDrawing = $derived(rive ? riveModule() : undefined);
 	// Or an extension's code drawing (13 §12.6), given the same values and the thing.
 	extensions.ensure();
 	const code = $derived(extensions.code(look.draws('climate'), 'climate'));

@@ -242,4 +242,29 @@ describe('the catalog', () => {
 		).toBeUndefined();
 		expect(await catalogPreview('hc-thermostat', '9.9.9', site(index(sum)), at)).toBeUndefined();
 	});
+
+	it('leaves out versions that need a newer app, and says which', async () => {
+		const idx = enc(
+			JSON.stringify({
+				extensions: [
+					{
+						id: 'hc-gauge',
+						name: 'G',
+						description: '',
+						category: '',
+						versions: [
+							{ version: '0.1.0', values: 1, url: 'u', sha256: sha, min_app: '0.1.47' },
+							{ version: '0.2.0', values: 1, url: 'u', sha256: sha, min_app: '0.1.60' }
+						]
+					}
+				]
+			})
+		);
+		const [old] = await catalogIndex(serve(idx), at, '0.1.46');
+		expect(old!.versions).toEqual([]);
+		expect(old!.needs).toBe('0.1.47');
+		const [mid] = await catalogIndex(serve(idx), at, '0.1.48');
+		expect(mid!.versions.map((v) => v.version)).toEqual(['0.1.0']);
+		expect(mid!.needs).toBeUndefined();
+	});
 });

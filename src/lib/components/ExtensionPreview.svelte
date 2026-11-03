@@ -24,10 +24,13 @@
 			(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches)
 	);
 	let failed = $state(false);
+	// The first time, the server fetches and checks it before it arrives.
+	let ready = $state(false);
 </script>
 
 {#if !failed}
-	<figure class="preview" class:small>
+	<figure class="preview" class:small class:ready>
+		{#if !ready && !small}<span class="wait" aria-hidden="true">Loading…</span>{/if}
 		{#if video}
 			<video
 				{src}
@@ -39,9 +42,17 @@
 				controls={still && !small}
 				aria-label={`How ${label} looks`}
 				onerror={() => (failed = true)}
+				onloadedmetadata={() => (ready = true)}
+				onloadeddata={() => (ready = true)}
 			></video>
 		{:else}
-			<img {src} alt={`How ${label} looks`} loading="lazy" onerror={() => (failed = true)} />
+			<img
+				{src}
+				alt={`How ${label} looks`}
+				loading="lazy"
+				onerror={() => (failed = true)}
+				onload={() => (ready = true)}
+			/>
 		{/if}
 	</figure>
 {/if}
@@ -64,9 +75,37 @@
 		flex: none;
 		border-radius: 10px;
 	}
+	.preview {
+		position: relative;
+	}
+	.wait {
+		position: absolute;
+		inset: 0;
+		display: grid;
+		place-items: center;
+		font-size: 13px;
+		color: var(--ink-muted);
+	}
 	video,
 	img {
 		display: block;
+		opacity: 0;
+		transition: opacity 0.3s;
+	}
+	.ready video,
+	.ready img,
+	.small video,
+	.small img {
+		opacity: 1;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		video,
+		img {
+			transition: none;
+		}
+	}
+	video,
+	img {
 		width: 100%;
 		height: 100%;
 		object-fit: cover;

@@ -49,6 +49,12 @@ describe('UI extensions', () => {
 		expect(readManifest('a', { id: 'a', elements: [] })).toMatch(/no elements/);
 		expect(readManifest('a', { id: 'a', values: 2, elements: [dial] })).toMatch(/newer app/);
 		expect(typeof readManifest('a', { id: 'a', values: 1, elements: [dial] })).toBe('object');
+		expect(readManifest('a', { id: 'a', min_app: '0.1.50', elements: [dial] }, '0.1.49')).toMatch(
+			/needs app v0.1.50 or later; this is v0.1.49/
+		);
+		expect(
+			typeof readManifest('a', { id: 'a', min_app: '0.1.47', elements: [dial] }, '0.1.49')
+		).toBe('object');
 	});
 
 	it('serves files of known types from inside its folder, never hidden ones or through links', async () => {

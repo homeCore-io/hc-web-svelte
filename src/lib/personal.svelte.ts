@@ -4,6 +4,7 @@
  * sees them. Saving and keeping in step are `Synced`'s.
  */
 import { addChange, migrate, type Change, type PersonDoc } from './layers.js';
+import { lookKey, pageChanges, withoutChanges } from './look.svelte.js';
 import { Synced } from './synced.svelte.js';
 import { followUnits, unitsOf, type UnitsChoice } from './units.js';
 
@@ -13,23 +14,19 @@ class Personal extends Synced<PersonDoc> {
 	}
 
 	changes(page: string): Change[] {
-		return this.doc.pages?.[page] ?? [];
+		return pageChanges(this.doc.pages, page);
 	}
 
 	changePage(page: string, change: Change): Promise<void> {
 		return this.change((d) => ({
 			...d,
-			pages: { ...d.pages, [page]: addChange(d.pages?.[page], change) }
+			pages: { ...d.pages, [lookKey(page)]: addChange(pageChanges(d.pages, page), change) }
 		}));
 	}
 
 	/** "Reset to shared": this page back to how everyone else sees it. */
 	resetPage(page: string): Promise<void> {
-		return this.change((d) => {
-			const pages = { ...d.pages };
-			delete pages[page];
-			return { ...d, pages };
-		});
+		return this.change((d) => ({ ...d, pages: withoutChanges(d.pages, page) }));
 	}
 
 	/** °F or °C, or US measures or metric; `undefined` back to the browser's. */

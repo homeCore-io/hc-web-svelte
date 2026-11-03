@@ -5,6 +5,7 @@
  * may author the house's content (`content:write`) change it.
  */
 import { migrate, type Change, type HouseDoc } from './layers.js';
+import { pageChanges } from './look.svelte.js';
 import { Synced } from './synced.svelte.js';
 
 class Household extends Synced<HouseDoc> {
@@ -13,7 +14,7 @@ class Household extends Synced<HouseDoc> {
 	}
 
 	changes(page: string): Change[] {
-		return this.doc.pages?.[page] ?? [];
+		return pageChanges(this.doc.pages, page);
 	}
 
 	iconOf(room: string): string | undefined {

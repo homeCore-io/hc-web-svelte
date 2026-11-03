@@ -8,6 +8,7 @@
  * meanwhile (`Synced`). The mode is in the address (`?edit`, N5).
  */
 import { addChange, type Change, type HouseDoc } from './layers.js';
+import { lookKey, pageChanges, withoutChanges } from './look.svelte.js';
 import { household } from './household.svelte.js';
 import type { Edit } from './synced.svelte.js';
 
@@ -35,13 +36,16 @@ class Editing {
 	}
 
 	changes(page: string): Change[] {
-		return this.draft.pages?.[page] ?? [];
+		return pageChanges(this.draft.pages, page);
 	}
 
 	changePage(page: string, change: Change): void {
 		this.#edits = [
 			...this.#edits,
-			(d) => ({ ...d, pages: { ...d.pages, [page]: addChange(d.pages?.[page], change) } })
+			(d) => ({
+				...d,
+				pages: { ...d.pages, [lookKey(page)]: addChange(pageChanges(d.pages, page), change) }
+			})
 		];
 	}
 
@@ -56,21 +60,17 @@ class Editing {
 			...this.#edits,
 			(d) => ({
 				...d,
-				pages: { ...d.pages, [page]: (d.pages?.[page] ?? []).filter((c) => !stale.includes(c)) }
+				pages: {
+					...d.pages,
+					[lookKey(page)]: pageChanges(d.pages, page).filter((c) => !stale.includes(c))
+				}
 			})
 		];
 	}
 
 	/** Every household change to this page, gone — back to the generated page. */
 	reset(page: string): void {
-		this.#edits = [
-			...this.#edits,
-			(d) => {
-				const pages = { ...d.pages };
-				delete pages[page];
-				return { ...d, pages };
-			}
-		];
+		this.#edits = [...this.#edits, (d) => ({ ...d, pages: withoutChanges(d.pages, page) })];
 	}
 
 	undo(): void {

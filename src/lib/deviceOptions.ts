@@ -130,7 +130,12 @@ export interface DeviceSheet {
 	pluginDrawn?: boolean;
 	/** Every card of the type, rather than this one: no symbol or size. */
 	everyCard?: boolean;
+	/** What could open this door (a hub's button, a relay), for its Opener. */
+	openers?: { value: string; label: string }[];
 }
+
+/** A door, a garage door, a gate: what a sensor's Opener is offered for. */
+const OPENABLE = new Set(['contact_sensor', 'door', 'garage', 'gate']);
 
 const HOLD_WORDS: Record<HoldLength, string> = {
 	next: 'Until the schedule changes',
@@ -281,6 +286,25 @@ export function deviceDescriptor(d: CoreDevice, o: DeviceSheet = {}): Descriptor
 					render: 'segmented',
 					options: lengths.map((l) => ({ value: l, label: HOLD_WORDS[l] })),
 					default: 'next'
+				}
+			]
+		});
+
+	// A door's sensor and what opens it (12): a garage door read by one device
+	// and moved by another, a hub's button, say. Lit offers Open and Close.
+	if (!o.everyCard && o.openers && o.openers.length > 0 && OPENABLE.has(plain.kind))
+		sections.push({
+			id: 'opener',
+			title: 'Opened by',
+			fields: [
+				{
+					kind: 'enum',
+					key: 'opener',
+					label: 'Opened by',
+					render: 'dropdown',
+					help: "For a door this sensor reads and something else moves: a garage door's button, say. Opening or closing it from here always asks first.",
+					options: [{ value: 'none', label: 'Nothing here' }, ...o.openers],
+					default: 'none'
 				}
 			]
 		});

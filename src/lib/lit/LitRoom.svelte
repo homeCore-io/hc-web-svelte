@@ -18,6 +18,7 @@
 	import { personal } from '#lib/personal.svelte.js';
 	import { session } from '#lib/me.svelte.js';
 	import { goAhead } from '#lib/ask.js';
+	import { ask } from '#lib/confirm.svelte.js';
 	import { openDevice } from '#lib/popup.js';
 	import { page as here } from '$app/state';
 	import { roomBox } from '#lib/roomBox.js';
@@ -131,6 +132,30 @@
 		if (locked && !(await goAhead(c.device.device_id, v.kind, `Unlock ${v.name}?`))) return;
 		void commands.set(c.device.device_id, v.kind, { locked: !locked }, c.device.attributes);
 	}
+	// A door read by its sensor and moved by something else (its card's Opener):
+	// a hub's button that runs, or a relay that switches.
+	function openerOf(c: Card) {
+		if (c.kind !== 'device') return undefined;
+		const id = kindOptions.of(key, deviceKind(c.device), c.ref, DEVICE_BUILT_IN).opener;
+		return typeof id === 'string' && id !== 'none' ? devices.byId[id] : undefined;
+	}
+	async function move(c: Card, v: CardView, open: boolean) {
+		const by = openerOf(c);
+		if (!by) return;
+		// The door, not its sensor: "Garage OH1 Door Sensor" asks about "Garage OH1 Door".
+		const name = (names[c.ref] ?? v.name).replace(/\s+sensor$/i, '');
+		// It moves where nobody may be looking: always asked, whatever the house's settings.
+		const yes = await ask({
+			title: `${open ? 'Close' : 'Open'} ${name}?`,
+			body: 'Make sure nothing is in its way.',
+			go: open ? 'Close it' : 'Open it',
+			stay: 'Not now'
+		});
+		if (!yes) return;
+		if (cardFor(by).kind === 'switch')
+			void commands.set(by.device_id, 'switch', { on: by.attributes?.on !== true }, by.attributes);
+		else void commands.act(by.device_id, 'activate');
+	}
 	function run(s: SceneDisc) {
 		if (s.card.kind === 'scene') void homeScenes.run(s.card.id);
 		else if (s.card.kind === 'device') void commands.act(s.card.device.device_id, 'activate');
@@ -235,6 +260,10 @@
 							{#if isLock && may}
 								<button class="pill" class:go={!locked} onclick={() => lock(c, v)}
 									>{locked ? 'Unlock' : 'Lock'}</button
+								>
+							{:else if openerOf(c) && may}
+								<button class="pill" class:go={open} onclick={() => move(c, v, open)}
+									>{open ? 'Close' : 'Open'}</button
 								>
 							{/if}
 						</div>
@@ -716,8 +745,11 @@
 		.garage {
 			height: 46px;
 		}
+		/* The name has the width; the button goes under it. */
 		.door .row {
-			flex-wrap: wrap;
+			flex-direction: column;
+			align-items: stretch;
+			gap: 8px;
 		}
 		.door b {
 			font-size: 13px;

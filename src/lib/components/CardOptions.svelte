@@ -8,9 +8,10 @@
 	sheet to the default for its type, and back.
 -->
 <script lang="ts">
-	import { cardFor } from '#lib/card.js';
+	import { cardFor, kindOf as typeOf } from '#lib/card.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
+	import { displayName } from '#lib/devices.js';
 	import { deviceDescriptor, typeWords } from '#lib/deviceOptions.js';
 	import { kindOf } from '#lib/kinds.js';
 	import { kindOptions } from '#lib/kindOptions.svelte.js';
@@ -50,13 +51,20 @@
 		const f = found?.slot.forms ?? [];
 		return !!found && (f.length === 0 || f.includes(form ?? 'standard'));
 	});
+	// What could open a door: a scene a hub's button runs, or a switch (a relay).
+	const openers = $derived(
+		Object.values(devices.byId)
+			.filter((x) => x.device_id !== device?.device_id && ['scene', 'switch'].includes(typeOf(x)))
+			.map((x) => ({ value: x.device_id, label: displayName(x) }))
+			.sort((a, b) => a.label.localeCompare(b.label))
+	);
 	const descriptor = $derived(
 		device
 			? deviceDescriptor(
 					device,
 					every
 						? { everyCard: true }
-						: { forms: { all: forms, now: form ?? 'standard' }, pluginDrawn }
+						: { forms: { all: forms, now: form ?? 'standard' }, pluginDrawn, openers }
 				)
 			: kind.options?.(card)
 	);

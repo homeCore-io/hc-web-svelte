@@ -225,20 +225,7 @@ export function litRoom(
 			});
 
 		if (card.scene) {
-			const palette = Array.isArray(d.attributes?.palette)
-				? (d.attributes.palette as unknown[]).filter((c): c is string => typeof c === 'string')
-				: [];
-			// A lighting system's scene sets lights even when it doesn't say its colours.
-			const lights = palette.length > 0 || LIGHT_SCENE.test(String(d.attributes?.kind ?? ''));
-			scenes.push({
-				card,
-				name,
-				shape: lights ? 'light' : 'keypad',
-				colours: palette.length > 0 ? palette : lights ? ['#ffd29a', '#ffb45a'] : [],
-				does: lights ? 'Sets the lights' : 'A keypad scene',
-				badges: [],
-				dark: false
-			});
+			scenes.push(deviceScene(card, name));
 			continue;
 		}
 		if (INFRASTRUCTURE.has(view.kind)) {
@@ -262,18 +249,9 @@ export function litRoom(
 				});
 			continue;
 		}
-		const sw = view.control?.kind === 'switch' ? view.control : null;
-		if (LAMPS.has(view.kind) && sw) {
-			const dim = view.extras.find((e) => e.kind === 'slider' && e.attr === 'brightness_pct');
-			lamps.push({
-				card,
-				view,
-				name,
-				on: sw.on,
-				level: dim && dim.kind === 'slider' ? Math.round(dim.value) : null,
-				rgb: view.kind === 'switch' || view.kind === 'outlet' ? WARM : colourOf(d),
-				attr: sw.attr
-			});
+		const lamp = lampOf(card, view, name);
+		if (lamp) {
+			lamps.push(lamp);
 			continue;
 		}
 		const a = d.attributes ?? {};
@@ -358,6 +336,44 @@ export function litRoom(
 		more,
 		problems,
 		glow
+	};
+}
+
+/** A light or a switch as Lit draws it; null for anything else. */
+export function lampOf(card: Card & { kind: 'device' }, view: CardView, name: string): Lamp | null {
+	const sw = view.control?.kind === 'switch' ? view.control : null;
+	if (!LAMPS.has(view.kind) || !sw) return null;
+	const dim = view.extras.find((e) => e.kind === 'slider' && e.attr === 'brightness_pct');
+	return {
+		card,
+		view,
+		name,
+		on: sw.on,
+		level: dim && dim.kind === 'slider' ? Math.round(dim.value) : null,
+		rgb: view.kind === 'switch' || view.kind === 'outlet' ? WARM : colourOf(card.device),
+		attr: sw.attr
+	};
+}
+
+/** Whether Lit draws this kind of device itself, on any page. */
+export const litDraws = (kind: string, scene: boolean): boolean => scene || LAMPS.has(kind);
+
+/** A plugin's scene: its colours, when its lighting system says them, else a keypad's. */
+export function deviceScene(card: Card & { kind: 'device' }, name: string): SceneDisc {
+	const a = card.device.attributes ?? {};
+	const palette = Array.isArray(a.palette)
+		? (a.palette as unknown[]).filter((c): c is string => typeof c === 'string')
+		: [];
+	// A lighting system's scene sets lights even when it doesn't say its colours.
+	const lights = palette.length > 0 || LIGHT_SCENE.test(String(a.kind ?? ''));
+	return {
+		card,
+		name,
+		shape: lights ? 'light' : 'keypad',
+		colours: palette.length > 0 ? palette : lights ? ['#ffd29a', '#ffb45a'] : [],
+		does: lights ? 'Sets the lights' : 'A keypad scene',
+		badges: [],
+		dark: false
 	};
 }
 

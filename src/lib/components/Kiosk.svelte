@@ -20,6 +20,7 @@
 	import { live } from '#lib/live.svelte.js';
 	import DetailsHost from './DetailsHost.svelte';
 	import PinPad from './PinPad.svelte';
+	import { look } from '#lib/look.svelte.js';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -110,6 +111,29 @@
 	const time = $derived(now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
 
 	let unlocking = $state(false);
+
+	// ---- at rest (12): in the Lit look, a minute untouched settles into LitRest ----
+	const REST_AFTER = 60_000;
+	let touched = Date.now();
+	let resting = $state(false);
+	$effect(() => {
+		if (!look.lit) return;
+		const seen = () => (touched = Date.now());
+		const t = setInterval(() => {
+			if (!resting && !unlocking && Date.now() - touched >= REST_AFTER) resting = true;
+		}, 5_000);
+		window.addEventListener('pointerdown', seen, true);
+		window.addEventListener('keydown', seen, true);
+		return () => {
+			clearInterval(t);
+			window.removeEventListener('pointerdown', seen, true);
+			window.removeEventListener('keydown', seen, true);
+		};
+	});
+	const wake = () => {
+		touched = Date.now();
+		resting = false;
+	};
 </script>
 
 {#if gone}
@@ -146,6 +170,11 @@
 		<DetailsHost />
 	</div>
 	{#if unlocking}<PinPad close={() => (unlocking = false)} />{/if}
+	{#if resting && look.lit}
+		{#await import('#lib/lit/LitRest.svelte') then { default: LitRest }}
+			<LitRest {now} {wake} />
+		{/await}
+	{/if}
 {/if}
 
 <style>

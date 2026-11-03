@@ -28,6 +28,8 @@
 	import { kindOf } from '#lib/kinds.js';
 	import LitLamp from './LitLamp.svelte';
 	import LitReading from './LitReading.svelte';
+	import LitScene from './LitScene.svelte';
+	import LitSwitch from './LitSwitch.svelte';
 	import { litRoom, type Lamp, type SceneDisc } from './room.js';
 
 	let { doc, room }: { doc: Page; room: string } = $props();
@@ -113,22 +115,6 @@
 		if (d)
 			void commands.set(f.device, views[`device:${f.device}`]?.kind ?? '', f.want, d.attributes);
 	}
-	async function flip(l: Lamp) {
-		if (
-			!(await goAhead(
-				l.card.device.device_id,
-				l.view.kind,
-				`Turn ${l.name} ${l.on ? 'off' : 'on'}?`
-			))
-		)
-			return;
-		void commands.set(
-			l.card.device.device_id,
-			l.view.kind,
-			{ [l.attr]: !l.on },
-			l.card.device.attributes
-		);
-	}
 	function lightsOff() {
 		for (const l of lit.switches.lights)
 			if (l.on)
@@ -149,13 +135,6 @@
 		if (s.card.kind === 'scene') void homeScenes.run(s.card.id);
 		else if (s.card.kind === 'device') void commands.act(s.card.device.device_id, 'activate');
 	}
-	// A scene's colours, round; a house scene that leaves the room dark is night blue.
-	const disc = (s: SceneDisc) =>
-		s.colours.length > 0
-			? `conic-gradient(from 210deg, ${[...s.colours, s.colours[0]].join(', ')})`
-			: s.dark
-				? 'radial-gradient(circle at 35% 30%, #34407a, #141a3a 70%)'
-				: undefined;
 	// Drawn as an overhead door: its kind, the Garage door symbol, or a name that says so.
 	const OVERHEAD = /^(garage|garage_door)$/;
 	const OVERHEAD_NAME = /\b(garage door|overhead|oh ?\d+)\b/i;
@@ -286,20 +265,7 @@
 									<span class="bank-title">{bank.title}</span>
 									<div class="rockers">
 										{#each bank.items as l (l.card.ref)}
-											<button
-												class="rocker"
-												class:on={l.on}
-												class:power={bank.power}
-												aria-pressed={l.on}
-												disabled={!may || !l.view.available}
-												onclick={() => flip(l)}
-											>
-												<span class="plate" aria-hidden="true"><span class="paddle"></span></span>
-												<span class="r-name">{l.name}</span>
-												<span class="r-sub"
-													>{l.view.available ? (l.on ? 'On' : 'Off') : 'Not answering'}</span
-												>
-											</button>
+											<LitSwitch {l} power={bank.power} />
 										{/each}
 									</div>
 								</div>
@@ -314,54 +280,7 @@
 					<h2 class="label">Scenes</h2>
 					<div class="scenes">
 						{#each lit.scenes as s (s.card.ref)}
-							<button
-								class="scene"
-								class:wide={s.shape === 'house'}
-								disabled={!may}
-								title={s.does}
-								aria-label={`Run ${s.name}`}
-								onclick={() => run(s)}
-							>
-								<span class="disc {s.shape}" style:background={disc(s)} aria-hidden="true">
-									{#if s.shape === 'house' && s.dark}
-										<svg
-											width="24"
-											height="24"
-											viewBox="0 0 24 24"
-											fill="none"
-											stroke="currentColor"
-											stroke-width="1.8"
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"></path></svg
-										>
-									{:else if s.shape === 'house' && s.colours.length === 0}
-										<svg
-											width="24"
-											height="24"
-											viewBox="0 0 24 24"
-											fill="none"
-											stroke="currentColor"
-											stroke-width="1.8"
-											stroke-linecap="round"
-											><path d="M3 21V9l9-6 9 6v12"></path><path d="M9 21v-6h6v6"></path></svg
-										>
-									{:else if s.shape === 'keypad'}
-										<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"
-											><circle cx="7" cy="7" r="2"></circle><circle cx="17" cy="7" r="2"
-											></circle><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"
-											></circle></svg
-										>
-									{/if}
-								</span>
-								{#if s.badges.length}
-									<span class="badges" aria-hidden="true">
-										{#each s.badges as b (b)}<span class="badge {b}"></span>{/each}
-									</span>
-								{/if}
-								<span class="s-name">{s.name}</span>
-								{#if s.shape === 'house'}<span class="s-does">{s.does}</span>{/if}
-							</button>
+							<LitScene {s} run={() => run(s)} />
 						{/each}
 					</div>
 				</section>
@@ -677,136 +596,6 @@
 		text-transform: uppercase;
 		color: var(--ink-muted);
 	}
-	.rockers {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
-		gap: 10px;
-	}
-	.rocker {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 8px;
-		padding: 12px 8px 10px;
-		border-radius: 14px;
-		border: 1px solid var(--line);
-		background: var(--surface);
-		color: var(--ink);
-	}
-	.rocker.on {
-		border-color: color-mix(in srgb, var(--accent) 45%, transparent);
-		background: color-mix(in srgb, var(--accent) 8%, var(--surface));
-	}
-	.plate {
-		display: flex;
-		flex-direction: column;
-		justify-content: flex-end;
-		width: 34px;
-		height: 54px;
-		padding: 3px;
-		box-sizing: border-box;
-		border-radius: 8px;
-		border: 1px solid var(--line);
-		background: var(--bg);
-	}
-	.on .plate {
-		justify-content: flex-start;
-	}
-	.paddle {
-		height: 26px;
-		border-radius: 5px;
-		background: var(--surface-2);
-	}
-	.on .paddle {
-		background: var(--accent);
-		box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 60%, transparent);
-	}
-	.on.power .paddle {
-		background: #ff9b5c;
-		box-shadow: 0 0 12px rgba(255, 155, 92, 0.7);
-	}
-	.r-name {
-		font-size: 13px;
-		font-weight: 600;
-		text-align: center;
-		line-height: 1.2;
-	}
-	.r-sub {
-		font-size: 11px;
-		color: var(--ink-muted);
-	}
-	.scenes {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 16px 12px;
-	}
-	.scene {
-		width: 76px;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 7px;
-		padding: 0;
-		border: none;
-		background: none;
-		color: var(--ink);
-	}
-	.disc {
-		display: grid;
-		place-items: center;
-		width: 60px;
-		height: 60px;
-		border-radius: 999px;
-		box-shadow: 0 0 0 1px var(--line);
-		color: #e9edf5;
-		background: radial-gradient(circle at 35% 30%, #4a5566, #1f252e 70%);
-	}
-	.scene:hover .disc,
-	.scene:focus-visible .disc {
-		box-shadow:
-			0 0 0 3px var(--bg),
-			0 0 0 5px var(--accent);
-	}
-	.scene {
-		position: relative;
-	}
-	.scene.wide {
-		width: 108px;
-	}
-	.badges {
-		position: absolute;
-		top: 40px;
-		left: 50%;
-		margin-left: 14px;
-		display: flex;
-		gap: 2px;
-	}
-	.badge {
-		width: 20px;
-		height: 20px;
-		border-radius: 999px;
-		border: 2px solid var(--bg);
-		background: var(--surface-2) center / 12px no-repeat;
-	}
-	/* Each kind of thing a house scene changes, as a small sign on its disc. */
-	.badge.lock {
-		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e9edf5' stroke-width='2.4' stroke-linecap='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E");
-	}
-	.badge.heat {
-		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e9edf5' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M10 13V5a2 2 0 0 1 4 0v8a4 4 0 1 1-4 0z'/%3E%3C/svg%3E");
-	}
-	.badge.media {
-		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e9edf5' stroke-width='2.4' stroke-linecap='round'%3E%3Crect x='3' y='5' width='18' height='12' rx='2'/%3E%3Cpath d='M8 21h8'/%3E%3C/svg%3E");
-	}
-	.badge.other {
-		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e9edf5'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E");
-	}
-	.s-does {
-		font-size: 11px;
-		color: var(--ink-muted);
-		text-align: center;
-		line-height: 1.3;
-	}
 	.watch {
 		display: flex;
 		flex-direction: column;
@@ -847,12 +636,6 @@
 	}
 	.wdot.quiet {
 		background: var(--line);
-	}
-	.s-name {
-		font-size: 12px;
-		font-weight: 600;
-		text-align: center;
-		line-height: 1.2;
 	}
 	.more {
 		padding: 12px 16px;

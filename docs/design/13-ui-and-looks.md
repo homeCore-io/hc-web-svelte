@@ -580,6 +580,32 @@ first frame; _gentle_ plays transitions; _lively_ plays loops. This is where
 the old widget plan's Rive section (widget_descriptor_protocol §10.3) lands,
 and it gets written into the plugin docs, which it isn't today.
 
+**As built in step 7:** the drawing fills the file's view model, not its
+state-machine inputs (Rive calls those deprecated), from names the app
+publishes per family (`rive/values.ts`). Thermostats are a family of their
+own, `climate`, drawn as the dial or by a Rive drawing, given `heating`,
+`cooling`, `on`, `temperature`, `target`, `low`, `high`, `moving` and
+`unit`. Still settles each state at once, gentle stops once settled, lively
+keeps the loops running, and nothing is drawn off screen. The runtime is
+`@rive-app/canvas-advanced`, and the app serves its WebAssembly itself. The
+file comes from a UI extension (§12.6) rather than a plugin's `ui/` folder.
+The proof thermostat was made with Rive's CLI, as markup, with no scripts,
+so it needs no signing.
+
+### 12.6 UI extensions
+
+A UI extension is a bundle of elements (drawings, cards, buttons and the
+like) with a manifest saying which family or slot each one fills. It has no
+device logic and never commands anything: a tap goes to the card holding it.
+It comes on its own (a pack that draws any thermostat) or with a plugin (a
+plugin's own drawing for its own devices, installed, updated and removed
+with it). Both show in the same rows of the look editor.
+
+**As built in step 7 (a stand-in until distribution is designed):** the app
+reads `extensions/{id}/extension.json` and its files from its data
+directory, lists them at `/ui/extensions`, and serves only the files a
+manifest names. A look names an element `ext:{extension}/{element}`.
+
 ### 12.5 Containment
 
 As D9b: a drawing that throws or stalls is replaced by Classic's for that
@@ -812,6 +838,24 @@ before the next step.
   anyone who may make a look (§6.4).
 - **D2. Code can be added in the editor,** as button-card allows: HTML, CSS
   and JavaScript in a drawing's Code tab, by admins only (§6.4, S4).
+
+### Decided on UI extensions (the user, 2026-11-03)
+
+- **U1. A UI extension is a bundle of elements** with a manifest, and no
+  device logic (§12.6). Code in one is installed by an admin, as code in a
+  look is (S4).
+- **U2. Extensions come on their own or with a plugin,** and both show in
+  the same rows of the look editor.
+- **U3. Core passes a plugin's UI slot fields through** without knowing
+  them, so the app decides what they mean and UI work stays out of core.
+  Plugins keep the `look.*` slots (§12.2) and can also offer extensions.
+- **U4. Extensions are installed from the plugin store and by upload.** The
+  store gets categories (plugins, extensions, and room for more).
+- **U5. A look whose extension is gone draws as Classic does,** and an
+  extension says which version of the values it expects, so an older app
+  skips it.
+- **U6. The extensions we make live in one repo,** one directory each
+  (still being discussed).
 
 ### Decided on the step 6c mockup (the user, 2026-11-02)
 

@@ -30,9 +30,9 @@
 </script>
 
 {#if customise.on(page)}
-	<div class="bar" class:sheet={adding.page === page} role="region" aria-label="Customising">
+	<div class="bar" class:sheet={adding.page === page} role="region" aria-label="Customizing">
 		<div class="text">
-			<strong>Customising</strong>
+			<strong>Customizing</strong>
 			<span>Only you see these changes.</span>
 		</div>
 		<div class="actions">

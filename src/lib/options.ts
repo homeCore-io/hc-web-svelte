@@ -287,7 +287,7 @@ export const worthDescriptor = (): Descriptor => ({
 	]
 });
 
-export const WEATHER_BUILT_IN: Options = { station: 'auto' };
+export const WEATHER_BUILT_IN: Options = { station: 'auto', clock: false };
 export const weatherDescriptor = (): Descriptor => ({
 	title: 'Weather',
 	sections: [
@@ -307,6 +307,12 @@ export const weatherDescriptor = (): Descriptor => ({
 				{
 					kind: 'note',
 					text: 'A forecast shows when the device has one — a weather plugin’s, say.'
+				},
+				{
+					kind: 'toggle',
+					key: 'clock',
+					label: 'The time above it, and each day’s low to high',
+					default: false
 				}
 			]
 		}
@@ -316,14 +322,19 @@ export const weatherDescriptor = (): Descriptor => ({
 export const SPANS = [
 	['6h', '6 hours', 6 * 3600_000],
 	['24h', 'A day', 24 * 3600_000],
-	['7d', 'A week', 7 * 24 * 3600_000]
+	['7d', 'A week', 7 * 24 * 3600_000],
+	['30d', 'A month', 30 * 24 * 3600_000]
 ] as const;
 export const spanOf = (v: unknown): number => (SPANS.find(([id]) => id === v) ?? SPANS[1])[2];
 
 export const CHART_BUILT_IN: Options = {
+	drawing: 'one',
 	reading: 'temperature',
 	temperature: 'none',
 	humidity: 'none',
+	compare_temperature: 'room',
+	compare_humidity: 'room',
+	style: 'lines',
 	span: '24h'
 };
 const chartSensor = (key: 'temperature' | 'humidity', label: string): Field => ({
@@ -334,7 +345,28 @@ const chartSensor = (key: 'temperature' | 'humidity', label: string): Field => (
 	source: { kind: 'core_resource', ref: 'devices', capability: key },
 	options: [],
 	default: 'none',
-	visible_when: { field: 'reading', eq: key }
+	visible_when: {
+		all: [
+			{ field: 'reading', eq: key },
+			{ field: 'drawing', eq: 'one' }
+		]
+	}
+});
+/** Several sensors to compare (13 §13.1, H1): this room's readings, or any chosen. */
+const compareSensors = (key: 'temperature' | 'humidity', label: string): Field => ({
+	kind: 'sensor',
+	key: `compare_${key}`,
+	label,
+	render: 'many',
+	source: { kind: 'core_resource', ref: 'devices', capability: key },
+	options: [{ value: 'room', label: 'This room’s readings (on a room’s page)' }],
+	default: 'room',
+	visible_when: {
+		all: [
+			{ field: 'reading', eq: key },
+			{ field: 'drawing', eq: 'compare' }
+		]
+	}
 });
 export const chartDescriptor = (): Descriptor => ({
 	title: 'Chart',
@@ -343,6 +375,17 @@ export const chartDescriptor = (): Descriptor => ({
 			id: 'what',
 			title: 'What it charts',
 			fields: [
+				{
+					kind: 'enum',
+					key: 'drawing',
+					label: 'Chart',
+					render: 'segmented',
+					options: [
+						{ value: 'one', label: 'One reading' },
+						{ value: 'compare', label: 'Several to compare' }
+					],
+					default: 'one'
+				},
 				{
 					kind: 'enum',
 					key: 'reading',
@@ -356,6 +399,20 @@ export const chartDescriptor = (): Descriptor => ({
 				},
 				chartSensor('temperature', 'Temperature from'),
 				chartSensor('humidity', 'Humidity from'),
+				compareSensors('temperature', 'Temperatures from'),
+				compareSensors('humidity', 'Humidity from'),
+				{
+					kind: 'enum',
+					key: 'style',
+					label: 'Drawn as',
+					render: 'segmented',
+					options: [
+						{ value: 'lines', label: 'Lines' },
+						{ value: 'range', label: 'Each day’s low to high' }
+					],
+					default: 'lines',
+					visible_when: { field: 'drawing', eq: 'compare' }
+				},
 				{
 					kind: 'enum',
 					key: 'span',
@@ -368,6 +425,16 @@ export const chartDescriptor = (): Descriptor => ({
 		}
 	]
 });
+
+/** What a chart compares (H1): its reading, and this room's sensors or the ones chosen. */
+export function compareSource(o: Options): {
+	attr: 'temperature' | 'humidity';
+	ids: string[] | 'room';
+} {
+	const attr = o.reading === 'humidity' ? 'humidity' : 'temperature';
+	const s = sourceOf(o[`compare_${attr}`]);
+	return { attr, ids: Array.isArray(s) ? s : 'room' };
+}
 
 /** The device a chart reads: the one chosen for its reading, if any. */
 export function chartSource(o: Options): { attr: 'temperature' | 'humidity'; id?: string } {

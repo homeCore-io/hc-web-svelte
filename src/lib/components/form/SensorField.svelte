@@ -22,6 +22,10 @@
 	const attr = $derived(field.source?.capability ?? 'temperature');
 	// `render: 'one'` (G-c): one device, no average — a chart, a weather card.
 	const one = $derived(field.render === 'one');
+	// `render: 'many'` (13 §13.1, H1): several, each its own (a chart to compare), never an average.
+	const many = $derived(field.render === 'many');
+	// A choice of the field's own (`room`, say), as it was given.
+	const given = $derived(value ?? field.default);
 	const source = $derived(sourceOf(value ?? field.default));
 	const ids = $derived(Array.isArray(source) ? source : []);
 	let picking = $state(false);
@@ -30,7 +34,11 @@
 	const nameOf = (all: Devices, id: string) =>
 		all[id] ? displayName(all[id]) : 'A sensor that’s gone';
 	const chosenName = $derived(
-		ids.length === 1 ? nameOf(devices.byId, ids[0]!) : `Average of ${ids.length} sensors`
+		ids.length === 1
+			? nameOf(devices.byId, ids[0]!)
+			: many
+				? `${ids.length} sensors`
+				: `Average of ${ids.length} sensors`
 	);
 	const chosenSub = $derived(ids.map((id) => nameOf(devices.byId, id)).join(', '));
 </script>
@@ -40,7 +48,7 @@
 		<button
 			type="button"
 			role="radio"
-			aria-checked={same(source, o.value)}
+			aria-checked={same(source, o.value) || (!Array.isArray(given) && same(given, o.value))}
 			onclick={() => onchange(o.value)}
 		>
 			<span class="dot" aria-hidden="true"></span>
@@ -54,7 +62,7 @@
 				<span class="name">{chosenName}</span>
 				{#if ids.length > 1}<span class="sub">{chosenSub}</span>{/if}
 			</span>
-			<span class="mono">{text(sourced(source, attr, devices.byId, []))}</span>
+			{#if !many}<span class="mono">{text(sourced(source, attr, devices.byId, []))}</span>{/if}
 		</button>
 	{/if}
 	<button type="button" class="choose" onclick={() => (picking = true)}>

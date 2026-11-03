@@ -813,6 +813,24 @@ before the next step.
 - **D2. Code can be added in the editor,** as button-card allows: HTML, CSS
   and JavaScript in a drawing's Code tab, by admins only (§6.4, S4).
 
+### Decided on the step 6c mockup (the user, 2026-11-02)
+
+- **H1. A chart to compare takes any sensors chosen,** and offers "this
+  room's readings" ready-made.
+- **H2. The remote pad is opened from the player's card.**
+- **H3. The weather's sky follows the look's motion:** moving where it's
+  gentle or lively, still where it's still, and always still for someone who
+  asked for less motion.
+
+**As built in step 6c:** the Chart card's settings choose "One reading" or
+"Several to compare" (up to six; lines or each day's low to high; a month
+added to its spans). The remote pad is built from what a player's plugin
+declares (`remote.ts`): named actions such as `volume_up`, or the options of
+a `key` action (a Roku's `Up`, `Select`); a player without the arrows and OK
+has none. It sits under the player's card in Lit's artwork drawing, playing
+or not. Clock and weather is the Weather card's setting "The time above it,
+and each day's low to high".
+
 ### Decided on the step 6b mockup (the user, 2026-11-02)
 
 - **G1. The room sheet is a Frame choice** ("Open a room over Home"), on in

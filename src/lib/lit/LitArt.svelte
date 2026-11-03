@@ -10,6 +10,7 @@
 	import type { CoreDevice } from '#lib/devices.js';
 	import { commands } from '#lib/commands.svelte.js';
 	import { session } from '#lib/me.svelte.js';
+	import LitRemote from './LitRemote.svelte';
 
 	let {
 		device,
@@ -45,6 +46,7 @@
 
 {#if !playing}
 	{@render children()}
+	<LitRemote {device} {name} />
 {:else}
 	<div class="art" class:logo={view.artLogo} class:none={!view.art}>
 		{#if view.art}<img src={view.art} alt="" />{/if}
@@ -99,6 +101,7 @@
 			</div>
 		</div>
 	</div>
+	<LitRemote {device} {name} />
 {/if}
 
 <style>

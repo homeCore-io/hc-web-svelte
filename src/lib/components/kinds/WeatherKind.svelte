@@ -11,6 +11,7 @@
 	import { WEATHER_BUILT_IN } from '#lib/options.js';
 	import { stationOf, weatherOf } from '#lib/pieces.js';
 	import Icon from '../Icon.svelte';
+	import WeatherClock from './WeatherClock.svelte';
 
 	let { card, page, label, options }: KindProps<'weather'> = $props();
 	const o = $derived(options ?? kindOptions.of(page, 'weather', card.ref, WEATHER_BUILT_IN));
@@ -19,43 +20,48 @@
 	const deg = (n: number | undefined) => (n === undefined ? '—' : `${Math.round(n)}°`);
 </script>
 
-<article class="piece" aria-label={label ?? 'Weather'}>
-	<div class="top">
-		<h3>{label ?? 'Outside'}</h3>
-		{#if w}<span class="from">{w.name}</span>{/if}
-	</div>
-	{#if !w}
-		<p class="quiet">No weather station. Choose a device in its settings.</p>
-	{:else}
-		<div class="now">
-			<span class="temp"
-				>{#if w.available && w.temperature !== undefined}{Math.round(w.temperature)}<span
-						class="unit">{w.temperatureUnit}</span
-					>{:else}—{/if}</span
-			>
-			<span class="readings">
-				{#each w.readings as r (r.label)}
-					<span><span class="label">{r.label}</span> {r.text}</span>
-				{/each}
-				{#if !w.available}<span class="alert">Not reporting</span>{/if}
-			</span>
+{#if o.clock === true && w}
+	<WeatherClock {w} label={label ?? 'Outside'} />
+{:else}
+	<article class="piece" aria-label={label ?? 'Weather'}>
+		<div class="top">
+			<h3>{label ?? 'Outside'}</h3>
+			{#if w}<span class="from">{w.name}</span>{/if}
 		</div>
-		{#if w.forecast.length > 0}
-			<ol class="forecast" aria-label="Forecast">
-				{#each w.forecast as d, i (i)}
-					<li>
-						<span class="day">{d.label}</span>
-						{#if d.icon}<span class="sky" title={d.condition}><Icon name={d.icon} size={18} /></span
-							>{/if}
-						<span class="hl">{deg(d.high)}<span class="low"> {deg(d.low)}</span></span>
-						{#if d.condition}<span class="cond">{d.condition}</span>{/if}
-						{#if d.rain !== undefined}<span class="rain">{Math.round(d.rain)}% rain</span>{/if}
-					</li>
-				{/each}
-			</ol>
+		{#if !w}
+			<p class="quiet">No weather station. Choose a device in its settings.</p>
+		{:else}
+			<div class="now">
+				<span class="temp"
+					>{#if w.available && w.temperature !== undefined}{Math.round(w.temperature)}<span
+							class="unit">{w.temperatureUnit}</span
+						>{:else}—{/if}</span
+				>
+				<span class="readings">
+					{#each w.readings as r (r.label)}
+						<span><span class="label">{r.label}</span> {r.text}</span>
+					{/each}
+					{#if !w.available}<span class="alert">Not reporting</span>{/if}
+				</span>
+			</div>
+			{#if w.forecast.length > 0}
+				<ol class="forecast" aria-label="Forecast">
+					{#each w.forecast as d, i (i)}
+						<li>
+							<span class="day">{d.label}</span>
+							{#if d.icon}<span class="sky" title={d.condition}
+									><Icon name={d.icon} size={18} /></span
+								>{/if}
+							<span class="hl">{deg(d.high)}<span class="low"> {deg(d.low)}</span></span>
+							{#if d.condition}<span class="cond">{d.condition}</span>{/if}
+							{#if d.rain !== undefined}<span class="rain">{Math.round(d.rain)}% rain</span>{/if}
+						</li>
+					{/each}
+				</ol>
+			{/if}
 		{/if}
-	{/if}
-</article>
+	</article>
+{/if}
 
 <style>
 	.piece {

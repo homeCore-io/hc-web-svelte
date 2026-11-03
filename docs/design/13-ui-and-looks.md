@@ -854,8 +854,21 @@ before the next step.
 - **U5. A look whose extension is gone draws as Classic does,** and an
   extension says which version of the values it expects, so an older app
   skips it.
-- **U6. The extensions we make live in one repo,** one directory each
-  (still being discussed).
+- **U6. The extensions we make live in one repo,** `hc-extensions`, one
+  directory each.
+
+### Decided on the store mockup (the user, 2026-11-03)
+
+- **U7. Extensions have their own signed index** in the registry, beside the
+  plugins', so homeCore never reads it.
+- **U8. The app installs extensions itself:** it downloads one, checks the
+  index's signature and the file's checksum, and unpacks it into its data
+  directory. homeCore never sees them.
+- **U9. "Add a plugin" becomes the Store,** with a tab per kind (Plugins, UI
+  extensions) and categories in each; installed extensions are managed in
+  Settings › Extensions.
+- **U10. An extension's file** may be either format; the app takes
+  `.tar.zst`, as plugins are, and `.zip`.
 
 ### Decided on the step 6c mockup (the user, 2026-11-02)
 

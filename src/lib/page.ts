@@ -552,7 +552,9 @@ export function applyPage(
 		cards: s.cards.filter((c) => {
 			const to = into.get(c.ref);
 			if (to === undefined || to === s.id || !ids.has(to) || s.fixed || s.favourites) return true;
-			moved.set(c.ref, c);
+			// Its run belonged to the section it left (Also here's devices and cards):
+			// in the new one it takes any place, not only after the cards there.
+			moved.set(c.ref, { ...c, group: undefined });
 			return false;
 		})
 	}));

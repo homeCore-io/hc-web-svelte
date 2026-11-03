@@ -207,7 +207,8 @@
 				</label>
 			</div>
 			<span class="where-note"
-				>Or tap another + on the page. Add several and each goes after the last.</span
+				>Or tap another + on the page, or drag a thing onto it. Add several and each goes after the
+				last.</span
 			>
 		</div>
 		<div class="tabs" role="tablist" aria-label="What to add">
@@ -255,7 +256,12 @@
 					<h3>Cards</h3>
 					<div class="cards">
 						{#each foundApp as c (c.kind)}
-							<button class="pcard" onclick={() => addApp(c.kind)}>
+							<button
+								class="pcard"
+								data-add="new:{c.kind}"
+								data-add-name={c.name}
+								onclick={() => addApp(c.kind)}
+							>
 								<span class="ico"><Plus size={18} aria-hidden="true" /></span>
 								<span class="words">
 									<b>{c.name}</b>
@@ -269,7 +275,12 @@
 					<h3>Cards from plugins</h3>
 					<div class="cards">
 						{#each foundPlugins as c (`${c.pluginId}/${c.element}`)}
-							<button class="pcard" onclick={() => addCard(c.pluginId, c.element)}>
+							<button
+								class="pcard"
+								data-add="new:{c.pluginId}"
+								data-add-name={c.name}
+								onclick={() => addCard(c.pluginId, c.element)}
+							>
 								<span class="ico plug"><Puzzle size={18} aria-hidden="true" /></span>
 								<span class="words">
 									<b>{c.name}</b>
@@ -293,6 +304,9 @@
 								<button
 									class="row"
 									disabled={done}
+									data-add={o.ref}
+									data-add-name={o.name}
+									data-add-kind={o.ref.startsWith('room:') ? 'room' : ''}
 									aria-label={done ? `${o.name}, added` : `Add ${o.name}`}
 									onclick={() => add(o.ref)}
 								>

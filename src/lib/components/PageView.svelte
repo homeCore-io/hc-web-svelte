@@ -45,6 +45,7 @@
 	import KindView from './KindView.svelte';
 	import { adding } from '#lib/adding.svelte.js';
 	import { drag } from '#lib/drag.svelte.js';
+	import { refusal } from '#lib/drag/rules.js';
 
 	let {
 		page,
@@ -203,18 +204,13 @@
 			return key;
 		},
 		/** Why a section won't take a card (13 §9.4); null when it will. */
-		refuses(section: string, ref: string, kind: string, from: string): string | null {
+		refuses(section: string, _ref: string, kind: string, from: string): string | null {
 			const s = shown.sections.find((x) => x.section.id === section);
-			if (!s) return 'Not here';
-			if (s.section.favourites) return 'Favorites holds only starred things';
-			if (s.section.fixed || s.section.bare) return `${s.title} keeps its own`;
-			if (kind === 'room' && section !== from) return 'A room stays among the rooms';
-			if (section === 'rooms' && kind !== 'room') return 'Rooms holds only rooms';
-			if (!s.section.accepts && section !== from) return `${s.title} takes only its own`;
-			return null;
+			return refusal(s && { ...s.section, title: s.title }, kind, from);
 		},
 		dropCard(ref: string, into: string, before: string | null) {
 			view.change(key, { op: 'move', ref, before, into });
+			adding.added = ref;
 			const title = shown.sections.find((x) => x.section.id === into)?.title ?? '';
 			drag.said = `${cardName(ref)} moved ${before ? 'before ' + cardName(before) : 'to the end'} in ${title}.`;
 		},
@@ -230,6 +226,12 @@
 			if (field && s && movable && (column === 'main' || column === 'side') && column !== s.column)
 				view.change(key, { op: 'config', ref: sectionRef(id), config: { ...s.config, column } });
 			drag.said = `${s?.title ?? 'The section'} moved.`;
+		},
+		dropAdd(row: HTMLElement, into: string, before: string | null) {
+			adding.spot(into, before);
+			row.click();
+			const title = shown.sections.find((x) => x.section.id === into)?.title ?? '';
+			drag.said = `${row.dataset.addName ?? 'It'} added to ${title}.`;
 		}
 	};
 	// What just happened shows for a moment, and is read out.

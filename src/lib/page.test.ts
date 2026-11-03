@@ -239,6 +239,21 @@ describe('the layers over a page (M2, G5)', () => {
 			['card:plugin.wled/wled-card/1']
 		]);
 	});
+
+	it('puts a thing added from elsewhere before a card in another section (G-f)', () => {
+		const p = roomPage('r-den', {
+			devices,
+			rooms,
+			added: ['device:caseta_porch'],
+			pluginCard: () => undefined
+		});
+		const lights = p.sections.find((s) => s.cards.some((c) => c.ref === 'device:hue_lamp'))!;
+		const first = lights.cards[0]!.ref;
+		const changes: Change[] = [
+			{ op: 'add', ref: 'device:caseta_porch', into: lights.id, before: first }
+		];
+		expect(shown(p, lights.id, changes).slice(0, 2)).toEqual(['device:caseta_porch', first]);
+	});
 });
 
 describe('what a page names, and draws', () => {

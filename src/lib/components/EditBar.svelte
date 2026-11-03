@@ -136,6 +136,11 @@
 	   While Add's sheet is open under the page, only the words: the sheet has
 	   its own Done, and the page needs the room. */
 	@media (max-width: 699px) {
+		/* Out of the way while a card is held (13 §9.2). */
+		:global(html[data-dragging]) .bar {
+			opacity: 0;
+			pointer-events: none;
+		}
 		.bar {
 			flex-wrap: nowrap;
 			gap: 8px;

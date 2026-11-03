@@ -8,8 +8,12 @@
  * A mouse picks up by pressing and moving; a touch by pressing and holding.
  * A floating copy follows the pointer; the page scrolls near the edges;
  * Escape, or letting go where nothing takes it, puts it back.
+ *
+ * On a wide screen a thing in the Add sheet (`data-add` on its row) can be
+ * dragged onto the page too, landing where it's let go.
  */
 import { drag } from '../drag.svelte.js';
+import { beforeAt } from './rules.js';
 
 export interface DragHost {
 	page: string;
@@ -17,6 +21,8 @@ export interface DragHost {
 	refuses(section: string, ref: string, kind: string, from: string): string | null;
 	dropCard(ref: string, into: string, before: string | null): void;
 	dropSection(id: string, before: string | null, column: string | undefined): void;
+	/** Add what an Add sheet row offers, at this spot. */
+	dropAdd(row: HTMLElement, into: string, before: string | null): void;
 }
 
 const HOLD_MS = 400;
@@ -33,10 +39,16 @@ export function start(root: HTMLElement, host: DragHost): () => void {
 		touch: boolean;
 		card?: HTMLElement;
 		handle?: HTMLElement;
+		add?: HTMLElement;
 		timer?: ReturnType<typeof setTimeout>;
 	} | null = null;
-	let active: { card?: HTMLElement; section?: HTMLElement; from: string; kind: string } | null =
-		null;
+	let active: {
+		card?: HTMLElement;
+		section?: HTMLElement;
+		add?: HTMLElement;
+		from: string;
+		kind: string;
+	} | null = null;
 	let ghost: HTMLElement | null = null;
 	let offset = { x: 0, y: 0 };
 	let last = { x: 0, y: 0 };
@@ -48,6 +60,15 @@ export function start(root: HTMLElement, host: DragHost): () => void {
 	function down(e: PointerEvent) {
 		if (e.button !== 0 || active) return;
 		const t = e.target as HTMLElement;
+		const add = t.closest('[data-add]') as HTMLElement | null;
+		if (add) {
+			// From the Add sheet: a mouse on a wide screen; a tap still adds.
+			if (e.pointerType === 'touch' || (add as HTMLButtonElement).disabled) return;
+			pending = { x: e.clientX, y: e.clientY, id: e.pointerId, touch: false, add };
+			listen();
+			return;
+		}
+		if (!root.contains(t)) return;
 		// Buttons, fields and links keep their own jobs (the tools, the + slots, the corner).
 		if (t.closest('button, a, input, select, textarea, label, [contenteditable]')) return;
 		const handle = t.closest('[data-sec-handle]') as HTMLElement | null;
@@ -64,6 +85,10 @@ export function start(root: HTMLElement, host: DragHost): () => void {
 			handle: handle ?? undefined
 		};
 		if (touch) pending.timer = setTimeout(() => pending && begin(pending.x, pending.y), HOLD_MS);
+		listen();
+	}
+
+	function listen() {
 		window.addEventListener('pointermove', move);
 		window.addEventListener('pointerup', up);
 		window.addEventListener('pointercancel', cancel);
@@ -74,20 +99,23 @@ export function start(root: HTMLElement, host: DragHost): () => void {
 		const p = pending;
 		pending = null;
 		clearTimeout(p.timer);
-		const from = p.handle ?? p.card!;
-		const sec = sectionOf(from);
-		if (!sec) return;
+		const sec = p.add ? null : sectionOf((p.handle ?? p.card)!);
+		if (!p.add && !sec) return;
 		drag.page = host.page;
-		if (p.card) {
+		if (p.add) {
+			active = { add: p.add, from: '', kind: p.add.dataset.addKind ?? '' };
+			drag.ref = p.add.dataset.add!;
+			drag.said = `Picked up ${p.add.dataset.addName ?? 'a card'}.`;
+		} else if (p.card && sec) {
 			active = { card: p.card, from: sec.dataset.sec!, kind: p.card.dataset.kind ?? '' };
 			drag.ref = p.card.dataset.ref!;
 			drag.said = `Picked up ${p.card.getAttribute('aria-label') ?? 'a card'}.`;
-		} else {
+		} else if (sec) {
 			active = { section: sec, from: sec.dataset.sec!, kind: '' };
 			drag.section = sec.dataset.sec!;
 			drag.said = `Picked up the ${sec.getAttribute('aria-label') ?? 'section'}.`;
 		}
-		const lift = (p.card ?? p.handle)!;
+		const lift = (p.add ?? p.card ?? p.handle)!;
 		const r = lift.getBoundingClientRect();
 		offset = { x: x - r.left, y: y - r.top };
 		ghost = lift.cloneNode(true) as HTMLElement;
@@ -141,10 +169,14 @@ export function start(root: HTMLElement, host: DragHost): () => void {
 		if (!active) return;
 		const under = document.elementFromPoint(last.x, last.y);
 		const sec = sectionOf(under);
-		if (!sec || !root.contains(sec)) return;
+		if (!sec || !root.contains(sec)) {
+			// Back over the sheet, an add lands nowhere.
+			if (active.add) [drag.into, drag.refused] = [null, null];
+			return;
+		}
 		const id = sec.dataset.sec!;
-		if (active.card) {
-			const ref = active.card.dataset.ref!;
+		if (active.card || active.add) {
+			const ref = drag.ref!;
 			const why = host.refuses(id, ref, active.kind, active.from);
 			if (why) {
 				drag.refused = { section: id, why };
@@ -165,15 +197,13 @@ export function start(root: HTMLElement, host: DragHost): () => void {
 
 	/** The card in a section that the held one would go in front of; null for the end. */
 	function beforeIn(sec: HTMLElement, held: string): string | null {
-		const cards = [...sec.querySelectorAll<HTMLElement>('[data-ref]')].filter(
-			(c) => c.dataset.ref !== held && sectionOf(c) === sec
-		);
-		for (const c of cards) {
-			const r = c.getBoundingClientRect();
-			if (last.y < r.top) return c.dataset.ref!;
-			if (last.y <= r.bottom && last.x < r.left + r.width / 2) return c.dataset.ref!;
-		}
-		return null;
+		const cards = [...sec.querySelectorAll<HTMLElement>('[data-ref]')]
+			.filter((c) => c.dataset.ref !== held && sectionOf(c) === sec)
+			.map((c) => {
+				const r = c.getBoundingClientRect();
+				return { ref: c.dataset.ref!, top: r.top, bottom: r.bottom, left: r.left, width: r.width };
+			});
+		return beforeAt(cards, last.x, last.y);
 	}
 
 	function nextSection(sec: HTMLElement): string | null {
@@ -197,6 +227,14 @@ export function start(root: HTMLElement, host: DragHost): () => void {
 		if (pending && e.pointerId === pending.id) return stopPending();
 		if (!active) return;
 		const a = active;
+		if (a.add && drag.into && !drag.refused) {
+			const [into, before] = [drag.into, drag.before];
+			finish();
+			// The row's own click adds it, at the spot just set; the stray click after is eaten.
+			host.dropAdd(a.add, into, before);
+			swallowClick();
+			return;
+		}
 		if (a.card && drag.into && !drag.refused) {
 			host.dropCard(a.card.dataset.ref!, drag.into, drag.before);
 			swallowClick();
@@ -251,9 +289,10 @@ export function start(root: HTMLElement, host: DragHost): () => void {
 		window.removeEventListener('pointercancel', cancel);
 	}
 
-	root.addEventListener('pointerdown', down);
+	// The document, so the Add sheet beside the page is heard too.
+	document.addEventListener('pointerdown', down);
 	return () => {
-		root.removeEventListener('pointerdown', down);
+		document.removeEventListener('pointerdown', down);
 		stopPending();
 		finish();
 	};

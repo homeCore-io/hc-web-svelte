@@ -36,9 +36,9 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 8px;
+		gap: 6px;
 		width: 100%;
-		padding: 12px 8px 10px;
+		padding: 10px 6px 8px;
 		box-sizing: border-box;
 		border-radius: 14px;
 		border: 1px solid var(--line);
@@ -53,8 +53,8 @@
 		display: flex;
 		flex-direction: column;
 		justify-content: flex-end;
-		width: 34px;
-		height: 54px;
+		width: 28px;
+		height: 44px;
 		padding: 3px;
 		box-sizing: border-box;
 		border-radius: 8px;
@@ -65,7 +65,7 @@
 		justify-content: flex-start;
 	}
 	.paddle {
-		height: 26px;
+		height: 20px;
 		border-radius: 5px;
 		background: var(--surface-2);
 	}
@@ -86,5 +86,21 @@
 	.sub {
 		font-size: 11px;
 		color: var(--ink-muted);
+	}
+	@media (max-width: 599px) {
+		.rocker {
+			gap: 6px;
+			padding: 10px 4px 8px;
+		}
+		.plate {
+			width: 28px;
+			height: 44px;
+		}
+		.paddle {
+			height: 20px;
+		}
+		.name {
+			font-size: 12px;
+		}
 	}
 </style>

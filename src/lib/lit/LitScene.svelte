@@ -73,7 +73,7 @@
 <style>
 	.scene {
 		position: relative;
-		width: 76px;
+		width: 70px;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -89,8 +89,8 @@
 	.disc {
 		display: grid;
 		place-items: center;
-		width: 60px;
-		height: 60px;
+		width: 52px;
+		height: 52px;
 		border-radius: 999px;
 		box-shadow: 0 0 0 1px var(--line);
 		color: #e9edf5;
@@ -104,7 +104,7 @@
 	}
 	.badges {
 		position: absolute;
-		top: 40px;
+		top: 34px;
 		left: 50%;
 		margin-left: 14px;
 		display: flex;

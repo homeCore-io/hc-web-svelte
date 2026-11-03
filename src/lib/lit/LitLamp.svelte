@@ -124,7 +124,7 @@
 	.lamp {
 		position: relative;
 		overflow: hidden;
-		min-height: 84px;
+		min-height: 72px;
 		border-radius: 18px;
 		background: var(--surface);
 		border: 1px solid var(--line);
@@ -148,7 +148,7 @@
 		flex-direction: column;
 		gap: 2px;
 		height: 100%;
-		min-height: 84px;
+		min-height: 72px;
 		box-sizing: border-box;
 		padding: 10px 14px;
 		pointer-events: none;

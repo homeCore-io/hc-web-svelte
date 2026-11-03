@@ -132,7 +132,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 6px;
-		min-height: 104px;
+		min-height: 84px;
 		padding: 14px 16px;
 		border-radius: 18px;
 		border: 1px solid var(--line);

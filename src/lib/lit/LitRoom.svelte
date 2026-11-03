@@ -353,8 +353,8 @@
 		flex-direction: column;
 		justify-content: space-between;
 		gap: 18px;
-		min-height: 170px;
-		padding: 24px 26px 20px;
+		min-height: 132px;
+		padding: 20px 22px 16px;
 		box-sizing: border-box;
 		border-radius: 24px;
 		border: 1px solid var(--line);
@@ -367,7 +367,7 @@
 	}
 	.big {
 		font-family: var(--font-num);
-		font-size: 60px;
+		font-size: 48px;
 		line-height: 1;
 	}
 	.small {
@@ -455,15 +455,15 @@
 	}
 	.doors {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-		gap: 12px;
+		grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+		gap: 10px;
 	}
 	.door {
 		display: flex;
 		flex-direction: column;
-		gap: 12px;
-		padding: 14px;
-		border-radius: 20px;
+		gap: 10px;
+		padding: 12px;
+		border-radius: 18px;
 		background: var(--surface);
 		border: 1px solid var(--line);
 	}
@@ -473,7 +473,7 @@
 	.pic {
 		display: grid;
 		place-items: end center;
-		height: 86px;
+		height: 64px;
 		padding: 0;
 		border: none;
 		border-radius: 12px;
@@ -482,8 +482,10 @@
 		overflow: hidden;
 	}
 	.pic svg {
+		width: 34px;
+		height: 40px;
 		stroke: var(--alert);
-		margin-bottom: 14px;
+		margin-bottom: 10px;
 	}
 	.pic svg.ok {
 		stroke: var(--ok, #6fd39a);
@@ -491,7 +493,7 @@
 	.frame {
 		position: relative;
 		width: 30%;
-		height: 72px;
+		height: 52px;
 		border: 2px solid var(--line);
 		border-bottom: none;
 		border-radius: 4px 4px 0 0;
@@ -511,7 +513,7 @@
 	.garage {
 		position: relative;
 		width: 70%;
-		height: 72px;
+		height: 52px;
 		border: 2px solid var(--line);
 		border-bottom: none;
 		border-radius: 6px 6px 0 0;
@@ -600,7 +602,7 @@
 	/* The panel's rockers, as many to a row as fit. */
 	.rockers {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
 		gap: 10px;
 	}
 	/* Scenes in rows, not a column. */
@@ -679,5 +681,67 @@
 		color: var(--ink);
 		text-align: left;
 		font-size: 14px;
+	}
+	/* On a phone (12, step 4): the header shorter; doors two to a row, their
+	   pictures smaller; lights two to a row; three rockers to a row; scenes
+	   one row that scrolls sideways. */
+	@media (max-width: 599px) {
+		.hero {
+			min-height: 128px;
+			padding: 18px 18px 16px;
+			gap: 12px;
+			border-radius: 20px;
+		}
+		.big {
+			font-size: 46px;
+		}
+		.doors {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 8px;
+		}
+		.door {
+			gap: 8px;
+			padding: 10px;
+			border-radius: 16px;
+		}
+		.pic {
+			height: 56px;
+		}
+		.pic svg {
+			width: 30px;
+			height: 36px;
+			margin-bottom: 8px;
+		}
+		.frame,
+		.garage {
+			height: 46px;
+		}
+		.door .row {
+			flex-wrap: wrap;
+		}
+		.door b {
+			font-size: 13px;
+		}
+		.lamps {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 8px;
+		}
+		.panel {
+			padding: 12px;
+		}
+		.rockers {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 8px;
+		}
+		.scenes {
+			flex-wrap: nowrap;
+			overflow-x: auto;
+			margin: 0 -16px;
+			padding: 0 16px 4px;
+			scrollbar-width: none;
+		}
+		.scenes > :global(*) {
+			flex: none;
+		}
 	}
 </style>

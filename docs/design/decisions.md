@@ -126,6 +126,7 @@ UI round rather than block on it.
 ## D9 — Look and extensibility (2026-10-15)
 
 **D9a — Design tokens, with per-user choice.**
+
 - One built-in design system with a small set of card forms.
 - Themes are sets of design tokens — colour, type, radius, density — and
   never CSS that reaches into a component's internals.
@@ -133,6 +134,7 @@ UI round rather than block on it.
   choose another theme; a display (D7) has its own.
 
 **D9b — Third-party cards: later, as code components.**
+
 - Not in round one.
 - Later, third parties ship their own card forms as code through a stable,
   versioned interface (Home Assistant's custom-card model).
@@ -154,6 +156,7 @@ and so the contract has to be designed to contain them.
 ## D10 — The house model for round one (2026-10-15)
 
 **Rooms — stable id and typed name in core; icon and order in the UI.**
+
 - homeCore keeps a room's **name as typed** ("TV Room", "Kid's Room"), still
   deriving the slug rules use, and gives rooms an **id that survives a
   rename**. Today the server stores only the slug and derives the id from it
@@ -390,6 +393,7 @@ household.
 
 **homeCore keeps** facts about the house and identity — small, structured,
 the same for every client, working with no UI open:
+
 - rooms: stable id and the name as typed (D10);
 - display and PIN **credentials** (D7, N9) — identities only;
 - alert rules and their evaluation (M6);
@@ -403,6 +407,7 @@ third-party card code (D9b). Its formats change with the UI without touching
 homeCore.
 
 **Consequences:**
+
 - **Sign-in stays homeCore's.** The UI server accepts a homeCore session and
   asks homeCore who it is and what it may do.
 - **The UI server announces its own changes** to open screens; device and
@@ -538,7 +543,7 @@ the admin console; room and device permissions.
   **B (Night panel)** the dark theme. C (Bright tiles) is not taken forward.
 - Everything but colour is shared: **Figtree** for all text, **IBM Plex Mono**
   for numbers and readings; 14px card corners; one spacing scale.
-- Amber means *on*; red/coral means *needs attention*; nothing else is
+- Amber means _on_; red/coral means _needs attention_; nothing else is
   coloured. Token values are in `06-visual-design.md` §1.
 
 **Why:** a night mode is needed, and A and B already share the warm amber
@@ -565,6 +570,7 @@ the admin console; room and device permissions.
 ## V5 — The performance budget (2026-10-15)
 
 On a mid-range phone and a base iPad, on the home network:
+
 - cold load to a usable home ≤ 1.5 s; reload with the app cached ≤ 0.5 s;
 - tap to visible response ≤ 100 ms;
 - a device change on screen ≤ 250 ms after homeCore announces it;
@@ -1160,10 +1166,67 @@ regression shows plainly against today's Home.
 - In Customise and Edit the side sections move up and down and hide like
   any section, and each one's tools choose "Beside the rooms" or "Under the
   rooms". The choice is a section `config` change, `{ column: 'side' |
-  'main' }`, in the layer being changed, so a person's choice wins over the
+'main' }`, in the layer being changed, so a person's choice wins over the
   household's. Only the room field reads it.
 - The rooms lead the main column, and the band stays on top. Cards beside
   the rooms are as wide as the column and never Large. Scenes and modes
   there are chips.
 - On a phone the column follows the field in the same order, and the
   alerts are one line after the big numbers.
+
+# From 13: the interface as a whole, and looks anyone can make
+
+The design is 13-ui-and-looks.md. These are its decisions (the user,
+2026-11-02); the reasons and the details are there.
+
+## U1: A look is five layers, chosen as a whole (S1)
+
+- Theme, feel, drawings, frame and grouping. Classic and Lit are two looks
+  written that way. Mixing is done by making a look.
+
+## U2: Grouping makes the page document, so arranging works in every look
+
+- A look's grouping rules make the sections a generated page starts with.
+  Customise and Edit, Add, Move to and card settings work the same in every
+  look. No per-room looks (S2).
+
+## U3: Each look keeps its own arrangements (S3)
+
+- A new look starts with a copy of its source's. Today's arrangements become
+  Classic's. Favorites, the phone bar and pages people made are shared.
+
+## U4: Drag and drop, and resizing by dragging (S12)
+
+- Cards and sections drag, things drag in from Add, sizes snap from a corner
+  handle. Buttons and the keyboard do the same, so dragging is never the only
+  way.
+
+## U5: Home keeps its sections; a look arranges them (S6)
+
+- Home's sections can still be added, removed and deleted. What 11 called
+  styles are now Home layouts.
+
+## U6: Things show their own color; motion is welcome (S7, S8)
+
+- A light shows its color, a scene its colors, amber means on for anything
+  else, red needs someone. Motion levels still, gentle, lively; Classic is
+  still, Lit lively; reduced motion wins.
+
+## U7: Where looks reach (S9)
+
+- The built-in looks stop at household pages and displays. A look someone
+  makes may reach every screen, settings included.
+
+## U8: Looks are made in homeCore or in code, and shared as bundles (S4, S5)
+
+- The look editor in Settings › Look, or a bundle written offline from a
+  template. Export and import. Drawings in code are installed by an admin, as
+  plugins are; a bundle of choices alone can be imported by anyone.
+
+## U9: The device sheet's top follows the look (S11)
+
+## U10: The Home Assistant ideas come in §13.1's order (S10)
+
+## U11: American spelling
+
+- color, favorite, customize, in the app and its documents.

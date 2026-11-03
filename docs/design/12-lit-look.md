@@ -1,5 +1,9 @@
 # 12 · The Lit look
 
+**Superseded in part by 13** (13-ui-and-looks.md, 2026-11-02): Lit becomes one look
+in the five-layer model there, and its rooms are drawn through the page
+document so they can be arranged. What follows is how it was first built.
+
 A second way of drawing the pages people use every day. Today's look stays
 as **Classic**; the new one is **Lit**. Mockups: the Home canvas, boards
 "A · The lit room", "A on a phone", "A wall display at rest" and "A for a
@@ -10,12 +14,12 @@ room of switches: the garage" (2026-11-02).
 The app already has three choices that change how it looks, and a look is a
 fourth, separate from each:
 
-| Choice | Who | What it changes |
-|---|---|---|
-| Light or dark | each person | the ground and ink |
-| Theme (Amber, Sage, Harbour, Plum) | the house, a person may differ | the colours |
-| Home's style (List, Room field, Tiles, Rooms in the sidebar) | the house's page, a person's own | how Home's sections are arranged |
-| **Look (Classic, Lit)** | **the house, a person may differ** | **how a room and its things are drawn** |
+| Choice                                                       | Who                                | What it changes                         |
+| ------------------------------------------------------------ | ---------------------------------- | --------------------------------------- |
+| Light or dark                                                | each person                        | the ground and ink                      |
+| Theme (Amber, Sage, Harbour, Plum)                           | the house, a person may differ     | the colours                             |
+| Home's style (List, Room field, Tiles, Rooms in the sidebar) | the house's page, a person's own   | how Home's sections are arranged        |
+| **Look (Classic, Lit)**                                      | **the house, a person may differ** | **how a room and its things are drawn** |
 
 So Lit works in any theme, light or dark, and with any of Home's styles.
 

@@ -44,6 +44,7 @@
 	import SectionTools from './SectionTools.svelte';
 	import KindView from './KindView.svelte';
 	import { adding } from '#lib/adding.svelte.js';
+	import { drag } from '#lib/drag.svelte.js';
 
 	let {
 		page,
@@ -161,7 +162,82 @@
 					: undefined
 		};
 	}
-	const ghostIn = (sec: string) => adding.page === key && (adding.into ?? home) === sec;
+	// Where "Goes here" shows: where a dragged card would land (13 §9.2), else
+	// where the Add sheet will add.
+	const spot = $derived(
+		drag.page === key && drag.ref !== null
+			? drag.into !== null
+				? { into: drag.into, before: drag.before }
+				: null
+			: adding.page === key
+				? { into: adding.into ?? home, before: adding.before }
+				: null
+	);
+	const ghostIn = (sec: string) => spot?.into === sec;
+
+	// ---- dragging (13 §9.2): the pointer work loads only while arranging ----
+	let root = $state<HTMLElement>();
+	$effect(() => {
+		if (!arranging || !root) return;
+		const el = root;
+		let stop: (() => void) | undefined;
+		let gone = false;
+		void import('#lib/drag/controller.js').then((m) => {
+			if (!gone) stop = m.start(el, host);
+		});
+		return () => {
+			gone = true;
+			stop?.();
+		};
+	});
+	const cardName = (ref: string) => {
+		for (const s of shown.sections)
+			for (const g of s.groups) {
+				const c = [...g.shown, ...g.hidden].find((x) => x.ref === ref);
+				if (c) return g.name(c.ref) ?? kindOf(c).name(c);
+			}
+		return 'It';
+	};
+	const host = {
+		get page() {
+			return key;
+		},
+		/** Why a section won't take a card (13 §9.4); null when it will. */
+		refuses(section: string, ref: string, kind: string, from: string): string | null {
+			const s = shown.sections.find((x) => x.section.id === section);
+			if (!s) return 'Not here';
+			if (s.section.favourites) return 'Favorites holds only starred things';
+			if (s.section.fixed || s.section.bare) return `${s.title} keeps its own`;
+			if (kind === 'room' && section !== from) return 'A room stays among the rooms';
+			if (section === 'rooms' && kind !== 'room') return 'Rooms holds only rooms';
+			if (!s.section.accepts && section !== from) return `${s.title} takes only its own`;
+			return null;
+		},
+		dropCard(ref: string, into: string, before: string | null) {
+			view.change(key, { op: 'move', ref, before, into });
+			const title = shown.sections.find((x) => x.section.id === into)?.title ?? '';
+			drag.said = `${cardName(ref)} moved ${before ? 'before ' + cardName(before) : 'to the end'} in ${title}.`;
+		},
+		dropSection(id: string, before: string | null, column: string | undefined) {
+			const s = shown.sections.find((x) => x.section.id === id);
+			view.change(key, {
+				op: 'move',
+				ref: sectionRef(id),
+				before: before ? sectionRef(before) : null
+			});
+			// Into the other column, where it may go (G32).
+			const movable = s && (s.section.field?.movable ?? s.section.field === undefined);
+			if (field && s && movable && (column === 'main' || column === 'side') && column !== s.column)
+				view.change(key, { op: 'config', ref: sectionRef(id), config: { ...s.config, column } });
+			drag.said = `${s?.title ?? 'The section'} moved.`;
+		}
+	};
+	// What just happened shows for a moment, and is read out.
+	$effect(() => {
+		if (!drag.said) return;
+		const t = setTimeout(() => (drag.said = ''), 3500);
+		return () => clearTimeout(t);
+	});
 	/** The spot comes into view as it's chosen, from the page or the sheet. */
 	function seen(node: HTMLElement) {
 		const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -245,6 +321,8 @@
 			hidden={g.hidden.includes(card)}
 			star={kind.star}
 			form={kind.forms(card).length > 0 ? form : undefined}
+			forms={kind.forms(card)}
+			kind={card.kind}
 			wide={drawnAs === 'large'}
 			list={favourites ? 'favourites' : 'page'}
 			added={card.added ?? false}
@@ -273,18 +351,34 @@
 	<div class="ghost" use:seen><Plus size={14} aria-hidden="true" />Goes here</div>
 {/snippet}
 
+{#snippet gap(id: string)}
+	{#if drag.page === key && drag.section !== null && drag.sectionBefore === id}<div
+			class="secgap"
+		></div>{/if}
+{/snippet}
+{#snippet gapEnd(column: string | undefined)}
+	{#if drag.page === key && drag.section !== null && drag.sectionBefore === null && drag.column === column}<div
+			class="secgap"
+		></div>{/if}
+{/snippet}
+
 {#snippet block(s: ShownSection, place?: Place)}
 	{@const sec = s.section}
 	<section
-		aria-label={sec.bare ? s.title : undefined}
+		aria-label={sec.bare || arranging ? s.title : undefined}
 		class:in-sidebar={sec.id === 'rooms' && sideRooms && !arranging}
 		class:alerts={field && sec.id === 'alerts'}
+		class:refused={drag.refused?.section === sec.id}
+		data-sec={arranging ? sec.id : undefined}
+		data-col={arranging ? s.column : undefined}
 	>
 		{#if arranging && !sec.fixed}
-			<div class="head">
+			<div class="head" data-sec-handle title="Drag to move this section">
+				<span class="grip" aria-hidden="true">⋮⋮</span>
 				<h2 class="section-label" class:faded={s.hidden}>
 					{s.title}{#if s.hidden}<span class="note"> · hidden</span>{/if}
 				</h2>
+				{#if drag.refused?.section === sec.id}<span class="why">{drag.refused.why}</span>{/if}
 				<SectionTools
 					page={key}
 					ref={sectionRef(sec.id)}
@@ -398,7 +492,7 @@
 								<div class={run.layout}>
 									{#each run.cards as card (card.ref)}
 										{#if g}
-											{#if ghostIn(sec.id) && adding.before === card.ref}{@render ghost()}{/if}
+											{#if ghostIn(sec.id) && spot?.before === card.ref}{@render ghost()}{/if}
 											{@render piece(
 												card,
 												g,
@@ -409,7 +503,7 @@
 											)}
 										{/if}
 									{/each}
-									{#if ghostIn(sec.id) && adding.before === null && lastGroup && j === runs.length - 1}
+									{#if ghostIn(sec.id) && spot?.before === null && lastGroup && j === runs.length - 1}
 										{@render ghost()}
 									{/if}
 								</div>
@@ -422,29 +516,43 @@
 	</section>
 {/snippet}
 
-{#if field}
-	<!-- The room field (mockup A): the band, then the rooms with what's beside them. -->
-	<div class="fieldpage">
-		{#each inColumn('band') as s (s.section.id)}{@render block(s, 'band')}{/each}
-		{#if briefAlerts && !arranging}
-			<div class="brief">
-				{@render piece(briefAlerts, undefined, false, 'grid', undefined, 'brief')}
-			</div>
-		{/if}
-		<div class="cols">
-			<div class="column">
-				{#each inColumn('main') as s (s.section.id)}{@render block(s)}{/each}
-			</div>
-			<div class="column side" role="complementary" aria-label="Beside the rooms">
-				{#each inColumn('side') as s (s.section.id)}{@render block(s, 'side')}{/each}
+<div class="drag-root" bind:this={root}>
+	{#if field}
+		<!-- The room field (mockup A): the band, then the rooms with what's beside them. -->
+		<div class="fieldpage">
+			{#each inColumn('band') as s (s.section.id)}{@render gap(s.section.id)}{@render block(
+					s,
+					'band'
+				)}{/each}
+			{#if briefAlerts && !arranging}
+				<div class="brief">
+					{@render piece(briefAlerts, undefined, false, 'grid', undefined, 'brief')}
+				</div>
+			{/if}
+			<div class="cols">
+				<div class="column">
+					{#each inColumn('main') as s (s.section.id)}{@render gap(s.section.id)}{@render block(
+							s
+						)}{/each}
+					{@render gapEnd('main')}
+				</div>
+				<div class="column side" role="complementary" aria-label="Beside the rooms">
+					{#each inColumn('side') as s (s.section.id)}{@render gap(s.section.id)}{@render block(
+							s,
+							'side'
+						)}{/each}
+					{@render gapEnd('side')}
+				</div>
 			</div>
 		</div>
-	</div>
-{:else}
-	{#each shown.sections as s (s.section.id)}
-		{#if drawn(s, arranging)}{@render block(s)}{/if}
-	{/each}
-{/if}
+	{:else}
+		{#each shown.sections as s (s.section.id)}
+			{#if drawn(s, arranging)}{@render gap(s.section.id)}{@render block(s)}{/if}
+		{/each}
+		{@render gapEnd(undefined)}
+	{/if}
+</div>
+{#if arranging && drag.said}<p class="said" role="status">{drag.said}</p>{/if}
 
 {#if arranging}
 	<button class="new-section" onclick={() => (making = true)}
@@ -612,6 +720,57 @@
 		.swatches > :global(*) {
 			flex: none;
 		}
+	}
+	/* Dragging (13 §9.2). */
+	.drag-root {
+		display: contents;
+	}
+	@media (pointer: fine) {
+		.drag-root :global(.arrange[data-list='page']),
+		.head[data-sec-handle] {
+			cursor: grab;
+		}
+	}
+	:global(html[data-dragging]),
+	:global(html[data-dragging] *) {
+		cursor: grabbing !important;
+		user-select: none;
+	}
+	.grip {
+		color: var(--ink-muted);
+		letter-spacing: -2px;
+		font-weight: 700;
+		cursor: grab;
+	}
+	section.refused {
+		opacity: 0.45;
+		outline: 1px dashed var(--alert);
+		outline-offset: 4px;
+		border-radius: var(--radius);
+	}
+	.why {
+		color: var(--alert);
+		font-size: 12px;
+	}
+	.secgap {
+		height: 6px;
+		border-radius: 6px;
+		background: var(--accent);
+	}
+	.said {
+		position: fixed;
+		left: 50%;
+		bottom: calc(84px + env(safe-area-inset-bottom));
+		z-index: 30;
+		translate: -50% 0;
+		margin: 0;
+		padding: 8px 16px;
+		border-radius: 999px;
+		background: var(--ink);
+		color: var(--bg);
+		font-size: 13px;
+		font-weight: 600;
+		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 	}
 	/* Where Add will put what's picked next (G-f). */
 	.ghost {

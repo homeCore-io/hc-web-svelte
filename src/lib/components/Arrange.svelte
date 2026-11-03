@@ -2,14 +2,20 @@
 	Wraps something that can be arranged. Normally it is just the thing; in
 	Customise or Edit the thing goes quiet (it can't be operated) with its
 	tools under it, and a hidden thing shows faded so it can be brought back.
-	Edit's frame is the accent colour, so the household's page never looks
+	Edit's frame is the accent color, so the household's page never looks
 	like one's own (N6).
+
+	It can be dragged (13 §9: drag/controller.ts finds it by `data-ref`), moved
+	with the keyboard (Space picks it up, the arrows move it, Space or Escape
+	puts it down), and resized from its corner, snapping between its sizes.
 -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import type { Form } from '#lib/layers.js';
 	import { view } from '#lib/view.svelte.js';
 	import { adding } from '#lib/adding.svelte.js';
+	import { drag } from '#lib/drag.svelte.js';
+	import { nudge } from '#lib/layers.js';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Tools from './Tools.svelte';
 
@@ -30,6 +36,8 @@
 		addBefore,
 		addAfter,
 		axis = 'x',
+		forms = [],
+		kind = '',
 		children
 	}: {
 		page: string;
@@ -53,10 +61,74 @@
 		addAfter?: { label: string; pick: () => void };
 		/** Which way its section runs: across (grid, row) or down (list). */
 		axis?: 'x' | 'y';
+		/** The sizes it can be, for resizing from its corner. */
+		forms?: Form[];
+		/** Its kind of card, so dragging knows where it may go (a room stays among the rooms). */
+		kind?: string;
 		children: Snippet;
 	} = $props();
 
 	const mode = $derived(view.mode(page));
+	const held = $derived(drag.page === page && drag.ref === ref);
+
+	// ---- the keyboard (13 §9.3): Space picks it up, the arrows move it ----
+	let picked = $state(false);
+	function key(e: KeyboardEvent) {
+		if (e.target !== box || list !== 'page') return;
+		if (e.key === ' ' || e.key === 'Enter') {
+			e.preventDefault();
+			picked = !picked;
+			drag.said = picked
+				? `${name} picked up. Arrow keys move it; Space puts it down.`
+				: `${name} put down.`;
+		} else if (e.key === 'Escape' && picked) {
+			picked = false;
+			drag.said = `${name} put down.`;
+		} else if (picked && ['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'].includes(e.key)) {
+			e.preventDefault();
+			const by = e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 1;
+			const change = nudge(shown, ref, by);
+			if (!change) return;
+			view.change(page, change);
+			drag.said = `${name} moved ${by === -1 ? 'earlier' : 'later'}.`;
+			// Focus stays with it as it moves.
+			queueMicrotask(() => box?.focus());
+		}
+	}
+
+	// ---- resizing from the corner (13 §9.5): snaps between its sizes ----
+	let sizing = $state<Form | null>(null);
+	function resize(e: PointerEvent) {
+		if (!form || forms.length < 2) return;
+		const start = e.clientX + e.clientY;
+		const from = forms.indexOf(form);
+		let moved = false;
+		const handle = e.currentTarget as HTMLElement;
+		handle.setPointerCapture(e.pointerId);
+		const move = (m: PointerEvent) => {
+			const d = m.clientX + m.clientY - start;
+			if (Math.abs(d) > 6) moved = true;
+			const to = Math.max(0, Math.min(forms.length - 1, from + Math.round(d / 90)));
+			sizing = forms[to] ?? form ?? null;
+		};
+		const up = () => {
+			handle.removeEventListener('pointermove', move);
+			handle.removeEventListener('pointerup', up);
+			handle.removeEventListener('pointercancel', up);
+			// A click without a drag steps to the next size.
+			const next = moved ? sizing : forms[(from + 1) % forms.length];
+			sizing = null;
+			if (next && next !== form) {
+				view.change(page, { op: 'form', ref, form: next });
+				drag.said = `${name} is ${next} now.`;
+			}
+		};
+		handle.addEventListener('pointermove', move);
+		handle.addEventListener('pointerup', up);
+		handle.addEventListener('pointercancel', up);
+		e.preventDefault();
+		e.stopPropagation();
+	}
 
 	// Just added from Add: bring it into view and mark it.
 	let box = $state<HTMLElement>();
@@ -73,16 +145,35 @@
 </script>
 
 {#if mode !== null}
+	<!-- A card you can move from the keyboard (13 §9.3): focusable, with its own keys. -->
+	<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
 	<div
 		bind:this={box}
 		class="arrange"
 		class:hidden
 		class:wide
 		class:fresh
+		class:held
+		class:picked
 		class:shared={mode === 'edit'}
+		data-ref={ref}
+		data-kind={kind}
+		data-list={list}
+		tabindex={list === 'page' ? 0 : undefined}
+		role="group"
+		aria-roledescription="card you can move"
+		aria-label={name}
+		onkeydown={key}
 	>
 		<div class="card">
 			<div class="quiet" inert>{@render children()}</div>
+			{#if sizing}<span class="sizing" aria-hidden="true">{sizing}</span>{/if}
+			{#if form && forms.length > 1}<button
+					class="resize"
+					aria-label={`${name}: size ${form}. Change size`}
+					title="Drag to change its size"
+					onpointerdown={resize}>◢</button
+				>{/if}
 			{#if addBefore}<button
 					class="slot before {axis}"
 					aria-label={addBefore.label}
@@ -171,6 +262,48 @@
 	}
 	/* The + in the gap beside a card (G-f): centred in the gap, over both
 	   neighbours' edges, a ring inside a target big enough to tap. */
+	/* Held: where it was, faded; picked up from the keyboard: ringed. */
+	.held .card {
+		opacity: 0.35;
+	}
+	.picked .quiet {
+		outline: 2px solid var(--accent);
+	}
+	.arrange:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 4px;
+		border-radius: var(--radius);
+	}
+	.resize {
+		position: absolute;
+		right: 2px;
+		bottom: 2px;
+		z-index: 2;
+		width: 24px;
+		height: 24px;
+		padding: 0;
+		border: none;
+		background: none;
+		color: var(--accent);
+		font-size: 14px;
+		line-height: 1;
+		cursor: nwse-resize;
+		touch-action: none;
+	}
+	.sizing {
+		position: absolute;
+		inset: 0;
+		z-index: 1;
+		display: grid;
+		place-items: center;
+		border-radius: var(--radius);
+		outline: 2px solid var(--accent);
+		background: color-mix(in srgb, var(--accent) 12%, transparent);
+		color: var(--accent);
+		font-weight: 700;
+		text-transform: capitalize;
+		pointer-events: none;
+	}
 	.slot {
 		position: absolute;
 		z-index: 2;

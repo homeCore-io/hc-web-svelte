@@ -1,26 +1,29 @@
 /**
- * UI extensions: drawings that live outside the app, each in a folder of its
- * own under the data directory (`extensions/{id}/extension.json` and its
- * files). The app reads the folder; how an extension gets there is for later.
+ * UI extensions (13 §12.6): drawings that live outside the app, each in a
+ * folder of its own under the data directory (`extensions/{id}/extension.json`
+ * and its files), installed from the Catalog or a file (extensionCatalog.ts).
  *
- * An element names its family, the file it draws with, and how: today only
- * `rive`, an animated drawing whose view model the app fills from the thing.
+ * An element names the look family it draws and how:
+ *
+ * - `rive`: a `.riv` file whose view model the app fills from the thing.
+ * - `code`: a JavaScript module defining a custom element, given the thing
+ *   and a `host` (13 U1). Code runs in the browser of everyone who sees a
+ *   look that uses it, so only those who may install plugins can install one.
  */
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { readdir, readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { dataDir } from '#server/config.js';
 import { RIVE_VALUES } from '#lib/rive/values.js';
 
-export interface ExtensionElement {
+interface Element {
 	id: string;
-	kind: 'rive';
 	label: string;
 	/** The look family it draws (13 §6). */
 	draws: string;
-	file: string;
-	artboard?: string;
-	stateMachine?: string;
 }
+export type ExtensionElement =
+	| (Element & { kind: 'rive'; file: string; artboard?: string; stateMachine?: string })
+	| (Element & { kind: 'code'; module: string; element: string });
 
 export interface Extension {
 	id: string;
@@ -32,13 +35,68 @@ export interface Extension {
 }
 
 const ID = /^[a-z0-9][a-z0-9._-]{0,63}$/;
-/** A file inside an extension's folder: a plain name, no folders. */
-const FILE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}\.riv$/;
+/** A custom element's name: lowercase, starting with a letter, with a hyphen. */
+const TAG = /^[a-z][a-z0-9._]*-[a-z0-9._-]*$/;
 const MAX_FILE = 8 * 1024 * 1024;
+
+/** The files an extension may serve, and their types. Anything else isn't served. */
+export const TYPES: Record<string, string> = {
+	'.riv': 'application/octet-stream',
+	'.js': 'text/javascript',
+	'.mjs': 'text/javascript',
+	'.css': 'text/css',
+	'.json': 'application/json',
+	'.png': 'image/png',
+	'.jpg': 'image/jpeg',
+	'.jpeg': 'image/jpeg',
+	'.webp': 'image/webp',
+	'.svg': 'image/svg+xml',
+	'.woff2': 'font/woff2',
+	'.txt': 'text/plain; charset=utf-8',
+	'.md': 'text/plain; charset=utf-8'
+};
+
+/** A path inside an extension's folder: no `..`, no root, and no hidden names. */
+export const filePath = (p: string): boolean =>
+	p.length > 0 &&
+	p.length <= 255 &&
+	!/[\\\0]/.test(p) &&
+	p.split('/').every((s) => /^[A-Za-z0-9_][A-Za-z0-9._-]*$/.test(s) && !s.includes('..'));
+
+const typed = (p: string, ...ext: string[]) =>
+	filePath(p) && ext.includes(path.extname(p).toLowerCase());
 
 export const extensionsDir = () => path.join(dataDir(), 'extensions');
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+
+function readElement(x: Record<string, unknown>): ExtensionElement | undefined {
+	const id = str(x.id);
+	const label = str(x.label);
+	const draws = str(x.draws);
+	if (!id || !ID.test(id) || !label || !draws) return undefined;
+	if (x.kind === 'rive') {
+		const file = str(x.file);
+		if (!file || !typed(file, '.riv')) return undefined;
+		return {
+			id,
+			kind: 'rive',
+			label,
+			draws,
+			file,
+			artboard: str(x.artboard),
+			stateMachine: str(x.stateMachine)
+		};
+	}
+	if (x.kind === 'code') {
+		const module = str(x.module);
+		const element = str(x.element);
+		if (!module || !typed(module, '.js', '.mjs') || !element || !TAG.test(element))
+			return undefined;
+		return { id, kind: 'code', label, draws, module, element };
+	}
+	return undefined;
+}
 
 /** An extension's manifest, or why it can't be used. */
 export function readManifest(id: string, raw: unknown): Extension | string {
@@ -49,27 +107,16 @@ export function readManifest(id: string, raw: unknown): Extension | string {
 	if (values > RIVE_VALUES) return `${id} needs a newer app (values ${values}).`;
 	const elements: ExtensionElement[] = [];
 	for (const e of Array.isArray(o.elements) ? o.elements : []) {
-		const x = (e ?? {}) as Record<string, unknown>;
-		const eid = str(x.id);
-		const file = str(x.file);
-		const label = str(x.label);
-		const draws = str(x.draws);
-		if (x.kind !== 'rive' || !eid || !ID.test(eid) || !file || !FILE.test(file) || !label || !draws)
-			continue;
-		if (elements.some((y) => y.id === eid)) continue;
-		elements.push({
-			id: eid,
-			kind: 'rive',
-			label,
-			draws,
-			file,
-			artboard: str(x.artboard),
-			stateMachine: str(x.stateMachine)
-		});
+		const x = readElement((e ?? {}) as Record<string, unknown>);
+		if (x && !elements.some((y) => y.id === x.id)) elements.push(x);
 	}
 	if (!elements.length) return 'extension.json has no elements the app can use.';
 	return { id, name: str(o.name) ?? id, version: str(o.version) ?? '0', elements };
 }
+
+/** The file each element needs, so an install can check they're all there. */
+export const neededFiles = (x: Extension) =>
+	x.elements.map((e) => (e.kind === 'rive' ? e.file : e.module));
 
 /** Every usable extension in the folder. One that can't be read is left out. */
 export async function listExtensions(dir = extensionsDir()): Promise<Extension[]> {
@@ -97,17 +144,22 @@ export async function listExtensions(dir = extensionsDir()): Promise<Extension[]
 	return out;
 }
 
-/** A file an extension's elements draw with, or undefined if it names none. */
+/**
+ * One of an installed extension's files, with its type: one of `TYPES`, at a
+ * plain path inside its folder, and not reached through a link out of it.
+ */
 export async function extensionFile(
 	id: string,
 	file: string,
 	dir = extensionsDir()
-): Promise<Uint8Array<ArrayBuffer> | undefined> {
-	if (!ID.test(id) || !FILE.test(file)) return undefined;
-	const ext = (await listExtensions(dir)).find((x) => x.id === id);
-	if (!ext?.elements.some((e) => e.file === file)) return undefined;
-	const at = path.join(dir, id, file);
+): Promise<{ bytes: Uint8Array<ArrayBuffer>; type: string } | undefined> {
+	const type = TYPES[path.extname(file).toLowerCase()];
+	if (!ID.test(id) || !filePath(file) || !type) return undefined;
+	if (!(await listExtensions(dir)).some((x) => x.id === id)) return undefined;
+	const root = await realpath(path.join(dir, id)).catch(() => undefined);
+	const at = await realpath(path.join(dir, id, ...file.split('/'))).catch(() => undefined);
+	if (!root || !at || !at.startsWith(root + path.sep)) return undefined;
 	const s = await stat(at).catch(() => undefined);
 	if (!s?.isFile() || s.size > MAX_FILE) return undefined;
-	return new Uint8Array(await readFile(at));
+	return { bytes: new Uint8Array(await readFile(at)), type };
 }

@@ -45,13 +45,19 @@ export function riveDrawings(family: string): RiveSource[] {
 	extensions.ensure();
 	pluginUis.ensure();
 	return [
-		...extensions.drawing(family).map((e) => ({
-			id: e.id,
-			name: `${e.element.label} · ${e.extension.name}`,
-			src: e.src,
-			artboard: e.element.artboard,
-			stateMachine: e.element.stateMachine
-		})),
+		...extensions.drawing(family).flatMap((e) =>
+			e.element.kind === 'rive'
+				? [
+						{
+							id: e.id,
+							name: `${e.element.label} · ${e.extension.name}`,
+							src: e.src,
+							artboard: e.element.artboard,
+							stateMachine: e.element.stateMachine
+						}
+					]
+				: []
+		),
 		...pluginUis.looks('look.drawing', family).filter(isRiveSlot).map(fromPlugin)
 	];
 }

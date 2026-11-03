@@ -17,8 +17,9 @@ import { ask } from '../confirm.svelte.js';
 import { openDevice } from '../popup.js';
 import { lifecycle, loadConfig, runAction, saveConfig } from '../pluginAdmin.js';
 import { fromShown, readingText, shown, units } from '../units.js';
-import type { Alert, Device, Host, Result } from './types.js';
+import type { Alert, Device, ExtensionHost, Host, Result } from './types.js';
 import kit from './kit.css?raw';
+import { look } from '../look.svelte.js';
 
 let sheet: CSSStyleSheet | undefined;
 function theSheet(): CSSStyleSheet {
@@ -267,6 +268,37 @@ export function createHost(pluginId: string): Host {
 			},
 			// The app's own choice (`data-theme`), else the system's.
 			dark: () => getComputedStyle(document.documentElement).colorScheme.includes('dark')
-		}
+		},
+		rive: riveHost
+	};
+}
+
+/** `host.rive`: the app's Rive runtime, the same for plugins and extensions. */
+export const riveHost: NonNullable<Host['rive']> = {
+	play: (canvas, o) =>
+		import('../rive/player.js').then((m) =>
+			m.play(canvas, { ...o, motion: o.motion ?? look.def.feel.motion })
+		),
+	motion: () =>
+		typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+			? 'still'
+			: look.def.feel.motion
+};
+
+/** The `host` an extension's code is given: only what drawing needs, no devices. */
+export function createExtensionHost(
+	extensionId: string,
+	fileUrl: (path: string) => string
+): ExtensionHost {
+	const h = createHost('');
+	return {
+		api: h.api,
+		appVersion: h.appVersion,
+		me: h.me,
+		units: h.units,
+		theme: h.theme,
+		rive: riveHost,
+		extensionId,
+		fileUrl
 	};
 }

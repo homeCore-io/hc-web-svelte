@@ -34,6 +34,8 @@
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import { lookHere } from '#lib/look.svelte.js';
 	import { riveFor } from '#lib/rive/source.js';
+	import { extensions } from '#lib/extensions.svelte.js';
+	import { thingOf } from '#lib/looks/thing.js';
 	import { climateValues } from '#lib/rive/values.js';
 	import Icon from './Icon.svelte';
 
@@ -63,6 +65,10 @@
 	const look = lookHere();
 	const rive = $derived(riveFor(look.draws('climate'), 'climate'));
 	const RiveDrawing = $derived(rive ? import('#lib/rive/RiveDrawing.svelte') : undefined);
+	// Or an extension's code drawing (13 §12.6), given the same values and the thing.
+	extensions.ensure();
+	const code = $derived(extensions.code(look.draws('climate'), 'climate'));
+	let codeFailed = $state(false);
 
 	// ---- − and + ----
 	let pending = $state<number | undefined>();
@@ -196,7 +202,21 @@
 
 {#snippet dialFace()}
 	<div class="face">
-		{#if rive && RiveDrawing}
+		{#if code && !codeFailed}
+			{#await import('#lib/components/ExtensionSlot.svelte') then { default: ExtensionSlot }}
+				<ExtensionSlot
+					ext={code}
+					props={{
+						thing: thingOf(device, card, name, ''),
+						values: climateValues(t, target, look.def.feel.motion === 'lively')
+					}}
+					on={{
+						act: (x) => !look.preview && x.do === 'open' && openDevice(device.device_id, page.url)
+					}}
+					onfail={() => (codeFailed = true)}
+				/>
+			{/await}
+		{:else if rive && RiveDrawing}
 			{#await RiveDrawing then { default: Drawing }}
 				<Drawing
 					src={rive.src}

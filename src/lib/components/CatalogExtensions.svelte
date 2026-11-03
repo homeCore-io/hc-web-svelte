@@ -120,7 +120,17 @@
 		if (picker) picker.value = '';
 		note = `${x.name} ${x.version} is installed from a file. Choose it in a look’s Drawings.`;
 	}
-	const FAMILY: Record<string, string> = { climate: 'Thermostats' };
+	const FAMILY: Record<string, string> = {
+		lights: 'Lights',
+		switches: 'Switches',
+		scenes: 'Scenes',
+		doors: 'Doors and locks',
+		readings: 'Readings',
+		watching: 'Watching',
+		media: 'Players',
+		climate: 'Thermostats'
+	};
+	const hasCode = $derived(!!held?.elements.some((e) => e.kind === 'code'));
 </script>
 
 {#if !may}
@@ -238,12 +248,18 @@
 			<p><strong>{held.name}</strong> · version {held.version}</p>
 			<ul class="holds">
 				{#each held.elements as e (e.id)}
-					<li>{e.label}, a drawing for {FAMILY[e.draws] ?? e.draws} (Rive)</li>
+					<li>
+						{e.label}, a drawing for {FAMILY[e.draws] ?? e.draws} ({e.kind === 'code'
+							? 'code'
+							: 'Rive'})
+					</li>
 				{/each}
 			</ul>
 			<p class="warn">
 				It isn’t from the homeCore catalog, so nothing vouches for it. Its drawings are shown to
-				everyone who sees a look that uses them.
+				everyone who sees a look that uses them.{#if hasCode}
+					Some of them are code: it runs in the browser of everyone who sees a look that uses it,
+					with the same reach as the app itself.{/if}
 			</p>
 			<button type="button" class="go" disabled={busy} onclick={installFile}
 				>{have(held.id) ? `Replace ${held.name}` : 'Install anyway'}</button

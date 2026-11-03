@@ -7,6 +7,10 @@ import type { CardView } from '../card.js';
 import type { CoreDevice } from '../devices.js';
 import type { Vars } from './expr.js';
 import { colourOf } from '../lit/room.js';
+import { readingUnit, toShown } from '../units.js';
+
+/** Readings reach a drawing in °C, whatever unit the device reports in. */
+const CORE = { temperature: 'C', measures: 'metric' } as const;
 
 /** The names a drawing can read, with what each is, for the editor's help. */
 export const THING_NAMES: Record<string, string> = {
@@ -49,6 +53,13 @@ export function sceneThing(name: string, colors: string[], active: boolean, room
 	};
 }
 
+/** A device's temperature in °C: its schema's unit, or the reading's own `_unit`, converted. */
+export function celsius(d: CoreDevice, v: unknown): number | null {
+	if (typeof v !== 'number') return null;
+	const unit = readingUnit(d.schema?.attributes.temperature?.unit, d.attributes?.temperature_unit);
+	return toShown(v, unit, CORE);
+}
+
 export function thingOf(d: CoreDevice, view: CardView, name: string, room: string): Vars {
 	const a = d.attributes ?? {};
 	const sw = view.control?.kind === 'switch' ? view.control : null;
@@ -61,7 +72,7 @@ export function thingOf(d: CoreDevice, view: CardView, name: string, room: strin
 		color: hex(colourOf(d)),
 		room,
 		state: view.stateLine,
-		temperature: num(a.temperature),
+		temperature: celsius(d, a.temperature),
 		humidity: num(a.humidity),
 		available: view.available,
 		alarm: view.alarm ?? null,

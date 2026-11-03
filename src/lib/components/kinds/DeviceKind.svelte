@@ -16,6 +16,7 @@
 	import DeviceCard from '../DeviceCard.svelte';
 	import SceneCard from '../SceneCard.svelte';
 	import { look } from '#lib/look.svelte.js';
+	import { drawsOwn } from '#lib/looks/model.js';
 	import { kindOf } from '#lib/card.js';
 
 	// What Lit may draw itself (lit/room.ts), without loading Lit to ask: lights
@@ -76,7 +77,7 @@
 	{/if}
 {/snippet}
 
-{#if look.lit && (card.scene || LIT.has(kindOf(d)))}
+{#if drawsOwn(look.def) && (card.scene || LIT.has(kindOf(d)))}
 	{#await import('#lib/lit/LitDevice.svelte') then { default: LitDevice }}
 		<LitDevice {card} {label} options={o} {layout}>{@render today()}</LitDevice>
 	{/await}

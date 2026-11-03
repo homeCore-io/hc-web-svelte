@@ -1,39 +1,46 @@
 <!--
-	The look (12): Classic or Lit. The house's on Settings › Look; a person's on
-	Me, where "Same as the house" leaves it to the house (L1).
+	The look (13 §3): Classic, Lit, the house's own, a person's own. The
+	house's on Settings › Look; a person's on Me, where "Same as the house"
+	leaves it to the house (L1).
 -->
 <script lang="ts">
-	import { LOOKS, type LookId } from '#lib/layers.js';
+	import { drawingOf, type Look } from '#lib/looks/model.js';
 
 	let {
 		label,
+		looks,
 		current,
 		house,
 		pick
 	}: {
 		label: string;
+		/** The looks to choose from. */
+		looks: readonly Look[];
 		/** The look chosen here; none for "Same as the house". */
-		current: LookId | undefined;
+		current: string | undefined;
 		/** The house's look, when a person may leave it to the house. */
-		house?: LookId;
-		pick: (id: LookId | undefined) => void;
+		house?: Look;
+		pick: (id: string | undefined) => void;
 	} = $props();
 
-	const houseName = $derived(LOOKS.find((l) => l.id === house)?.name);
+	// A hint of each: Lit's glow where a look draws lights its way.
+	const glows = (l: Look) => drawingOf(l, 'lights') === 'lit';
 </script>
 
 <div class="looks" role="radiogroup" aria-label={label}>
 	{#if house !== undefined}
 		<button role="radio" aria-checked={current === undefined} onclick={() => pick(undefined)}>
 			<b>Same as the house</b>
-			<small>{houseName}</small>
+			<small>{house.name}</small>
 		</button>
 	{/if}
-	{#each LOOKS as l (l.id)}
+	{#each looks as l (l.id)}
 		<button role="radio" aria-checked={current === l.id} onclick={() => pick(l.id)}>
-			<span class="sample {l.id}" aria-hidden="true"><span></span><span></span><span></span></span>
+			<span class="sample" class:lit={glows(l)} aria-hidden="true"
+				><span></span><span></span><span></span></span
+			>
 			<b>{l.name}</b>
-			<small>{l.sub}</small>
+			{#if l.sub}<small>{l.sub}</small>{/if}
 		</button>
 	{/each}
 </div>

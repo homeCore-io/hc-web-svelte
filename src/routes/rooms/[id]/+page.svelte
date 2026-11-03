@@ -3,8 +3,9 @@
 	its scenes, its readings, then infrastructure (C6) — and what the household
 	added from elsewhere. `/rooms/none` holds the devices that are in no room.
 
-	In the Lit look its grouping makes the page (13 §8.2), loaded only then;
-	either way the one renderer draws it, so it is arranged in place.
+	A look with a room grouping of its own makes the page by its rules (13
+	§8), loaded only then; either way the one renderer draws it, so it is
+	arranged in place.
 -->
 <script lang="ts">
 	import { page } from '$app/state';
@@ -27,11 +28,11 @@
 	$effect(() => heading.show(name ?? null));
 
 	const key = $derived(`room:${id}`);
-	// Lit groups a room its own way (13 §8.2); its grouping loads only in Lit.
-	let litGrouping = $state<typeof import('#lib/lit/grouping.js') | null>(null);
+	// A look may group a room its own way (13 §8); grouping loads only then.
+	const rules = $derived(look.def.grouping.room);
+	let grouping = $state<typeof import('#lib/looks/grouping.js') | null>(null);
 	$effect(() => {
-		if (look.lit && !litGrouping)
-			void import('#lib/lit/grouping.js').then((m) => (litGrouping = m));
+		if (rules && !grouping) void import('#lib/looks/grouping.js').then((m) => (grouping = m));
 	});
 	const input = $derived<RoomInput>({
 		devices: devices.byId,
@@ -48,10 +49,10 @@
 		now: clock.now
 	});
 	const doc = $derived(
-		look.lit && litGrouping ? litGrouping.litRoomPage(id, input) : roomPage(id, input)
+		rules && grouping ? grouping.groupRoom(id, input, rules) : roomPage(id, input)
 	);
-	// Lit draws the room's name in its header; until its grouping has loaded, nothing yet.
-	const waiting = $derived(look.lit && !litGrouping);
+	// Such a look draws the room's name in its header; until its grouping has loaded, nothing yet.
+	const waiting = $derived(!!rules && !grouping);
 </script>
 
 {#if !devices.loaded}

@@ -14,7 +14,7 @@
 	import { session } from '#lib/me.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
-	import { nudgeFavourite } from '#lib/layers.js';
+	import { lookOf, looksOf, nudgeFavourite } from '#lib/layers.js';
 	import { tabsFor, type DisplayDoc } from '#lib/display.js';
 	import { displayPages } from '#lib/built.js';
 	import { household } from '#lib/household.svelte.js';
@@ -123,6 +123,13 @@
 	const setPages = (pages: string[]) => save({ ...doc, pages });
 	const setKiosk = (k: Partial<NonNullable<DisplayDoc['kiosk']>>) =>
 		save({ ...doc, kiosk: { ...doc.kiosk, ...k } });
+	// Its own look (13 §10), among the house's; none is the house's.
+	const looks = $derived(looksOf(undefined, household.doc));
+	const houseLook = $derived(lookOf(undefined, household.doc, looks));
+	function setLook(id: string) {
+		const { look: _drop, ...rest } = doc;
+		void save(id ? { ...rest, look: id } : rest);
+	}
 
 	const ago = (at: string | null) => {
 		if (!at) return 'not set up yet';
@@ -252,6 +259,15 @@
 								</label>
 
 								<h3 class="section-label">As a kiosk</h3>
+								<label class="add">
+									<span>Look</span>
+									<select value={doc.look ?? ''} onchange={(e) => setLook(e.currentTarget.value)}>
+										<option value="">The house’s ({houseLook.name})</option>
+										{#each looks as l (l.id)}
+											<option value={l.id}>{l.name}</option>
+										{/each}
+									</select>
+								</label>
 								<label class="check"
 									><input
 										type="checkbox"

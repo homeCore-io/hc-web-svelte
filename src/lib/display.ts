@@ -22,6 +22,8 @@ export interface DisplayDoc {
 	/** The pages it shows, in order; the first is its home. */
 	pages?: string[];
 	kiosk?: Kiosk;
+	/** Its own look (13 §10); absent, the house's. */
+	look?: string;
 }
 
 export interface Tab {

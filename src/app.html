@@ -18,8 +18,18 @@
 				if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
 				var p = localStorage.getItem('hc.palette');
 				if (p && /^[a-z]+$/.test(p)) document.documentElement.dataset.palette = p;
-				if (localStorage.getItem('hc.look') === 'lit')
-					document.documentElement.dataset.look = 'lit';
+				// The look's feel (look.svelte.ts keeps it): its tokens and motion.
+				var l = null;
+				try {
+					l = JSON.parse(localStorage.getItem('hc.look') || 'null');
+				} catch (e) {}
+				if (l && typeof l.id === 'string' && /^[a-z0-9-]+$/.test(l.id)) {
+					document.documentElement.dataset.look = l.id;
+					document.documentElement.dataset.motion = String(l.motion);
+					for (var k in l.vars)
+						if (/^--feel-[a-z-]+$/.test(k))
+							document.documentElement.style.setProperty(k, String(l.vars[k]));
+				}
 				// The sidebar folded to its icons on this screen, so it never opens and shuts on load.
 				if (localStorage.getItem('hc.sidebar') === 'folded')
 					document.documentElement.dataset.sidebar = 'folded';

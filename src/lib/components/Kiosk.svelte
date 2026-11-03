@@ -39,6 +39,12 @@
 		return () => clearInterval(t);
 	});
 
+	// Its own look, if the admin chose one (13 §10); else the house's.
+	$effect(() => {
+		look.display = doc?.look;
+		return () => (look.display = undefined);
+	});
+
 	const tabs = $derived(tabsFor(doc, rooms.list, household.doc.built ?? []));
 	const pathname = $derived(page.url.pathname);
 
@@ -112,15 +118,16 @@
 
 	let unlocking = $state(false);
 
-	// ---- at rest (12): in the Lit look, a minute untouched settles into LitRest ----
-	const REST_AFTER = 60_000;
+	// ---- at rest (13 §7): where the look has a rest view, a while untouched settles into it ----
+	const rest = $derived(look.def.frame.rest);
 	let touched = Date.now();
 	let resting = $state(false);
 	$effect(() => {
-		if (!look.lit) return;
+		if (!rest.on) return;
+		const after = rest.after * 1000;
 		const seen = () => (touched = Date.now());
 		const t = setInterval(() => {
-			if (!resting && !unlocking && Date.now() - touched >= REST_AFTER) resting = true;
+			if (!resting && !unlocking && Date.now() - touched >= after) resting = true;
 		}, 5_000);
 		window.addEventListener('pointerdown', seen, true);
 		window.addEventListener('keydown', seen, true);
@@ -170,7 +177,7 @@
 		<DetailsHost />
 	</div>
 	{#if unlocking}<PinPad close={() => (unlocking = false)} />{/if}
-	{#if resting && look.lit}
+	{#if resting && rest.on}
 		{#await import('#lib/lit/LitRest.svelte') then { default: LitRest }}
 			<LitRest {now} {wake} />
 		{/await}

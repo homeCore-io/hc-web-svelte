@@ -9,7 +9,7 @@
 	let { card, label }: KindProps<'scene'> = $props();
 </script>
 
-{#if look.lit}
+{#if look.draws('scenes') === 'lit'}
 	{#await import('#lib/lit/room.js') then { houseScene }}
 		{#await import('#lib/lit/LitScene.svelte') then { default: LitScene }}
 			<LitScene

@@ -7,7 +7,9 @@
 	import { personal } from '#lib/personal.svelte.js';
 	import { household } from '#lib/household.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
-	import { BAR_SIZE, LOOKS, PALETTES, barOf, lookOf, paletteOf, type LookId } from '#lib/layers.js';
+	import { BAR_SIZE, PALETTES, barOf, lookOf, looksOf, paletteOf } from '#lib/layers.js';
+	import { allLooks, findLook } from '#lib/looks/model.js';
+	import LookShelf from '#lib/components/LookShelf.svelte';
 	import LookPicker from '#lib/components/LookPicker.svelte';
 	import BarChooser from '#lib/components/BarChooser.svelte';
 	import { roleName } from '#lib/people.js';
@@ -93,8 +95,12 @@
 	}
 
 	// ---- look (12, L1): the house's, unless they choose another ----
-	const myLook = $derived(LOOKS.find((l) => l.id === personal.doc.look)?.id);
-	function setLook(id: LookId | undefined) {
+	const looks = $derived(looksOf(personal.doc, household.doc));
+	const myLook = $derived(looks.find((l) => l.id === personal.doc.look)?.id);
+	const houseLook = $derived(lookOf(undefined, household.doc));
+	// Their own: those after the built-in ones and the house's.
+	const mine = $derived(looks.slice(allLooks(household.doc.looks).length));
+	function setLook(id: string | undefined) {
 		void personal.change((d) => {
 			const { look: _drop, ...rest } = d;
 			return id === undefined ? rest : { ...rest, look: id };
@@ -192,10 +198,13 @@
 
 	<section>
 		<h2 class="section-label">Look</h2>
-		<LookPicker
-			label="Your look"
-			current={myLook}
-			house={lookOf(undefined, household.doc)}
+		<LookPicker label="Your look" {looks} current={myLook} house={houseLook} pick={setLook} />
+		<LookShelf
+			label="Your own looks"
+			own={mine}
+			all={looks}
+			chosen={myLook ? findLook(looks, myLook) : houseLook}
+			save={(next) => void personal.change((d) => ({ ...d, looks: next }))}
 			pick={setLook}
 		/>
 	</section>

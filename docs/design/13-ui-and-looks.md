@@ -601,6 +601,23 @@ that's gone falls back to Classic's (principle 6). Migration: 12's
 `look: "lit"` reads as the built-in Lit, and today's `pages` become
 Classic's (§8.4). A bundle (§12.3) is a look plus its drawings and pictures.
 
+**As built in step 3** (`src/lib/looks/model.ts`):
+
+- Arrangements stay in the one `pages` map, under `look|page` keys (Classic's
+  under the bare page key, as before), instead of a map per look. Nothing had
+  to move, and a look with none of its own falls back through `from`.
+- A look's drawings are chosen per family (lights, switches, scenes, doors,
+  readings, watching), each `classic` or `lit` for now. Plugin drawings
+  (step 5) add ids to these lists.
+- The frame has only `rest` so far; `depth` in feel and `grouping.home`
+  wait for the look editor (step 4), which needs them.
+- A look file is `{ "homeCoreLook": 1, "look": { … } }`, choices only. Anyone
+  may add one to their own looks; the house's looks are changed by people
+  who may edit the house. A look's id that's taken is renamed on the way in.
+- Reading a look (`readLook`) fills what it leaves out from the look it was
+  made from, else Classic, clamps what's out of range, and drops what it
+  can't use, so a hand-written or older file never breaks a page.
+
 ## 16. What happens to what's built
 
 Nothing a person sees changes until step 3; the work is moving code into the

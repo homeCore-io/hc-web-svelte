@@ -277,10 +277,22 @@ describe('themes (D9a)', () => {
 
 describe('looks (12)', () => {
 	it('a person 19s own, else the house 19s, else Classic; unknown ones are ignored', () => {
-		expect(lookOf()).toBe('classic');
-		expect(lookOf({ version: 1 }, { version: 1, look: 'lit' })).toBe('lit');
-		expect(lookOf({ version: 1, look: 'classic' }, { version: 1, look: 'lit' })).toBe('classic');
-		expect(lookOf({ version: 1, look: 'neon' }, { version: 1 })).toBe('classic');
+		expect(lookOf().id).toBe('classic');
+		expect(lookOf({ version: 1 }, { version: 1, look: 'lit' }).id).toBe('lit');
+		expect(lookOf({ version: 1, look: 'classic' }, { version: 1, look: 'lit' }).id).toBe('classic');
+		expect(lookOf({ version: 1, look: 'neon' }, { version: 1 }).id).toBe('classic');
+	});
+
+	it('finds the house’s own looks and a person’s, and a look’s theme under theirs (13 §15)', () => {
+		const ours = { id: 'evening', name: 'Evening', from: 'lit', theme: 'plum', version: 1 };
+		const mine = { id: 'mine', name: 'Mine', version: 1 };
+		const house = { version: 1, look: 'evening', looks: [ours] };
+		const l = lookOf({ version: 1 }, house);
+		expect(l.id).toBe('evening');
+		expect(l.grouping.room?.[0]?.id).toBe('head');
+		expect(lookOf({ version: 1, look: 'mine', looks: [mine] }, house).id).toBe('mine');
+		expect(paletteOf({ version: 1 }, house, l)).toBe('plum');
+		expect(paletteOf({ version: 1 }, { ...house, palette: 'sage' }, l)).toBe('sage');
 	});
 });
 

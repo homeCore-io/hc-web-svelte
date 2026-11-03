@@ -1,43 +1,82 @@
 /**
- * The look this screen shows (12): Classic or Lit, the person's own, else the
- * house's. It is on the page as `data-look`, and this browser keeps a copy so
- * the first paint is drawn in it before anything has loaded (`app.html`).
+ * The look this screen shows (13 §3): the person's own, else a display's or
+ * the house's, else Classic, as a whole look (looks/model.ts), not just a
+ * name. Its feel is on the page as tokens and `data-motion`, its id as
+ * `data-look`, and this browser keeps a copy so the first paint is drawn in
+ * it before anything has loaded (`app.html`).
  */
-import type { Change, LookId } from './layers.js';
+import type { Change } from './layers.js';
+import {
+	BUILT_IN,
+	CLASSIC,
+	drawingOf,
+	feelVars,
+	findLook,
+	type Family,
+	type Look
+} from './looks/model.js';
 
 const KEY = 'hc.look';
 
-function read(): LookId {
+/** What the first paint needs of a look, kept in this browser. */
+interface Kept {
+	id: string;
+	vars: Record<string, string>;
+	motion: string;
+}
+
+function read(): Look {
 	try {
-		return localStorage.getItem(KEY) === 'lit' ? 'lit' : 'classic';
+		const raw = localStorage.getItem(KEY);
+		if (raw === 'lit') return BUILT_IN[1]!;
+		const kept = raw ? (JSON.parse(raw) as Kept) : null;
+		return findLook(BUILT_IN, kept?.id);
 	} catch {
-		return 'classic';
+		return CLASSIC;
 	}
 }
 
-class Look {
-	current = $state<LookId>(typeof localStorage === 'undefined' ? 'classic' : read());
+class LookNow {
+	/** The look shown; until the documents load, the built-in one kept here, or Classic. */
+	def = $state<Look>(typeof localStorage === 'undefined' ? CLASSIC : read());
+	/** Every look there is to choose: built in, the house's, the person's. */
+	all = $state<readonly Look[]>(BUILT_IN);
+	/** A display's own look (13 §10), set while this screen is one. */
+	display = $state<string | undefined>(undefined);
 
-	get lit(): boolean {
-		return this.current === 'lit';
+	get id(): string {
+		return this.def.id;
 	}
 
-	/** Show a look: remember it here, and mark the page. */
-	show(id: LookId): void {
-		this.current = id;
+	/** How this look draws a family of things (§6). */
+	draws(f: Family): string {
+		return drawingOf(this.def, f);
+	}
+
+	/** Show a look: mark the page with its feel, and remember it here. */
+	show(l: Look, all?: readonly Look[]): void {
+		this.def = l;
+		if (all) this.all = all;
+		const root = document.documentElement;
+		const vars = feelVars(l.feel);
+		for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
+		root.dataset.motion = l.feel.motion;
+		if (l.id === 'classic') delete root.dataset.look;
+		else root.dataset.look = l.id;
 		try {
-			if (id === 'classic') localStorage.removeItem(KEY);
-			else localStorage.setItem(KEY, id);
+			if (l.id === 'classic') localStorage.removeItem(KEY);
+			else
+				localStorage.setItem(
+					KEY,
+					JSON.stringify({ id: l.id, vars, motion: l.feel.motion } satisfies Kept)
+				);
 		} catch {
 			// Private browsing: the copy lasts this visit.
 		}
-		const root = document.documentElement;
-		if (id === 'classic') delete root.dataset.look;
-		else root.dataset.look = id;
 	}
 }
 
-export const look = new Look();
+export const look = new LookNow();
 
 // ---- each look's own arrangements (13 §8.4, U3) ----
 
@@ -45,37 +84,45 @@ export const look = new Look();
  * Where a page's changes are kept for a look: Classic's under the page's own
  * key, as they always were, and every other look's under `look|page`.
  */
-export const lookKey = (page: string, id: LookId = look.current): string =>
+export const lookKey = (page: string, id: string = look.id): string =>
 	id === 'classic' ? page : `${id}|${page}`;
 
-/** Pages a look groups differently from Classic: its arrangements start fresh. */
-const regroups = (page: string, id: LookId): boolean => id === 'lit' && page.startsWith('room:');
+/** Whether two looks group a page differently: one's rooms by rules, the other's not. */
+const regroups = (page: string, a: Look, b: Look): boolean =>
+	page.startsWith('room:') && !a.grouping.room !== !b.grouping.room;
 
 /**
- * A look's changes to a page. Until it has made some, a page it groups as
- * Classic does shows Classic's (a new look starts with a copy, U3); its first
- * change copies them and goes on from there.
+ * A look's changes to a page. Until it has made some, it shows those of the
+ * look it was made from (a new look starts with a copy, U3), unless that one
+ * groups the page differently; its first change copies them and goes on.
  */
 export function pageChanges(
 	pages: Record<string, Change[]> | undefined,
 	page: string,
-	id: LookId = look.current
+	id: string = look.id,
+	all: readonly Look[] = look.all
 ): Change[] {
-	const own = pages?.[lookKey(page, id)];
-	if (own) return own;
-	if (id !== 'classic' && !regroups(page, id)) return pages?.[page] ?? [];
+	let l = findLook(all, id);
+	for (let hops = 0; hops < 8; hops++) {
+		const own = pages?.[lookKey(page, l.id)];
+		if (own) return own;
+		if (l.id === 'classic') return [];
+		const from = findLook(all, l.from ?? 'classic');
+		if (regroups(page, l, from)) return [];
+		l = from;
+	}
 	return [];
 }
 
 /**
  * A page's changes, gone for a look: Classic's deleted; another look's set
- * empty, since deleting them would bring Classic's back instead of the page
- * as generated.
+ * empty, since deleting them would bring back those it started from instead
+ * of the page as generated.
  */
 export function withoutChanges(
 	pages: Record<string, Change[]> | undefined,
 	page: string,
-	id: LookId = look.current
+	id: string = look.id
 ): Record<string, Change[]> {
 	const out = { ...pages };
 	if (id === 'classic') delete out[page];

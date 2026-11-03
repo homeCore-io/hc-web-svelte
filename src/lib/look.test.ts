@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Change } from './layers.js';
 import { lookKey, pageChanges, withoutChanges } from './look.svelte.js';
+import { BUILT_IN, LIT, copyOf } from './looks/model.js';
 
 const hide = (ref: string): Change => ({ op: 'hide', ref });
 
@@ -31,5 +32,19 @@ describe('each look keeps its own arrangements (13 §8.4)', () => {
 		expect(pageChanges(reset, 'home', 'lit')).toEqual([]);
 		expect(pageChanges(reset, 'home', 'classic')).toEqual([hide('section:worth')]);
 		expect(withoutChanges(pages, 'home', 'classic').home).toBeUndefined();
+	});
+
+	it('starts a look made from Lit with Lit’s arrangements, rooms included (U3)', () => {
+		const evening = copyOf(LIT, 'Evening', BUILT_IN);
+		const all = [...BUILT_IN, evening];
+		const pages = {
+			'room:den': [hide('device:a')],
+			'lit|room:den': [hide('device:b')],
+			home: [hide('section:worth')]
+		};
+		expect(pageChanges(pages, 'room:den', 'evening', all)).toEqual([hide('device:b')]);
+		// Home, which Lit hasn't arranged, comes from Classic's through Lit.
+		expect(pageChanges(pages, 'home', 'evening', all)).toEqual([hide('section:worth')]);
+		expect(lookKey('room:den', 'evening')).toBe('evening|room:den');
 	});
 });

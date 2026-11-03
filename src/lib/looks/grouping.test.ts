@@ -2,18 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { HOUSE, ROOMS, FIXTURE_NOW } from '../fixtures/house.js';
 import { roomFromCore } from '../house.js';
 import type { Devices } from '../devices.js';
-import { litRoomPage } from './grouping.js';
+import { groupRoom } from './grouping.js';
+import { LIT, type Rule } from './model.js';
 
 const devices: Devices = Object.fromEntries(HOUSE.map((d) => [d.device_id, d]));
 const rooms = ROOMS.map(roomFromCore);
-const page = (id: string) =>
-	litRoomPage(id, {
-		devices,
-		rooms,
-		added: [],
-		pluginCard: () => undefined,
-		now: FIXTURE_NOW
-	});
+const input = { devices, rooms, added: [], pluginCard: () => undefined, now: FIXTURE_NOW };
+const page = (id: string, rules: readonly Rule[] = LIT.grouping.room!) =>
+	groupRoom(id, input, rules);
 const where = (p: ReturnType<typeof page>, ref: string) =>
 	p.sections.find((s) => s.cards.some((c) => c.ref === ref))?.id;
 
@@ -51,5 +47,31 @@ describe('Lit’s grouping of a room (13 §8.2)', () => {
 			watching: 'lines',
 			more: 'fold'
 		});
+	});
+});
+
+describe('a look’s own rules (13 §8.1)', () => {
+	it('gives a thing to the first rule that takes it', () => {
+		const rules: Rule[] = [
+			{
+				id: 'all-lights',
+				title: 'All lights',
+				takes: ['lights', 'switches.lights'],
+				layout: 'grid',
+				place: 'main'
+			},
+			{ id: 'lights', title: 'Lights', takes: ['lights'], layout: 'grid', place: 'main' }
+		];
+		const p = page('r-den', rules);
+		expect(where(p, 'device:hue_lamp')).toBe('all-lights');
+		expect(p.sections.find((s) => s.id === 'lights')?.cards).toEqual([]);
+	});
+
+	it('puts what no rule takes in Also here, so nothing is lost', () => {
+		const p = page('r-garage', [
+			{ id: 'lights', title: 'Lights', takes: ['lights'], layout: 'grid', place: 'main' }
+		]);
+		expect(where(p, 'device:shelly_heater')).toBe('added');
+		expect(p.sections.at(-1)?.title).toBe('Also here');
 	});
 });

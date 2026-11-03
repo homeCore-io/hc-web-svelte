@@ -1,14 +1,23 @@
 <!--
-	Look (D9a, N2, 12): the house's look and theme, and the phone bar for anyone
-	who hasn't chosen their own. Each person may still choose differently on Me.
+	Look (D9a, N2, 13 §11): the house's look, its own looks, its theme, and
+	the phone bar for anyone who hasn't chosen their own. Each person may
+	still choose differently on Me.
 -->
 <script lang="ts">
 	import { household } from '#lib/household.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { session } from '#lib/me.svelte.js';
-	import { BAR_SIZE, PALETTES, houseBar, lookOf, paletteOf } from '#lib/layers.js';
+	import { BAR_SIZE, PALETTES, houseBar, lookOf, looksOf, paletteOf } from '#lib/layers.js';
+	import { BUILT_IN, allLooks } from '#lib/looks/model.js';
 	import BarChooser from '#lib/components/BarChooser.svelte';
 	import LookPicker from '#lib/components/LookPicker.svelte';
+	import LookShelf from '#lib/components/LookShelf.svelte';
+
+	// The house's looks: built in and its own, not anyone's personal ones.
+	const looks = $derived(looksOf(undefined, household.doc));
+	const ours = $derived(allLooks(household.doc.looks).slice(BUILT_IN.length));
+	const chosen = $derived(lookOf(undefined, household.doc, looks));
+	const pickLook = (id: string | undefined) => household.change((d) => ({ ...d, look: id }));
 
 	const current = $derived(paletteOf(undefined, household.doc));
 	const bar = $derived(
@@ -29,10 +38,14 @@
 			<p class="quiet">
 				How rooms, Home and displays are drawn, for everyone who hasn't chosen their own on Me.
 			</p>
-			<LookPicker
-				label="The house's look"
-				current={lookOf(undefined, household.doc)}
-				pick={(id) => household.change((d) => ({ ...d, look: id }))}
+			<LookPicker label="The house's look" {looks} current={chosen.id} pick={pickLook} />
+			<LookShelf
+				label="The house's own looks"
+				own={ours}
+				all={looks}
+				{chosen}
+				save={(next) => household.change((d) => ({ ...d, looks: next }))}
+				pick={pickLook}
 			/>
 		</section>
 

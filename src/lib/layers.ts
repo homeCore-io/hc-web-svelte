@@ -16,6 +16,7 @@
  */
 
 import type { UnitsChoice } from './units.js';
+import { allLooks, findLook, type Look } from './looks/model.js';
 
 export type Form = 'compact' | 'standard' | 'large';
 
@@ -70,8 +71,10 @@ export interface PersonDoc {
 	theme?: 'system' | 'light' | 'dark';
 	/** A theme other than the house's (D9a). */
 	palette?: string;
-	/** A look other than the house's (12, L1). */
+	/** A look other than the house's (12, L1): a built-in one's id, the house's, or their own. */
 	look?: string;
+	/** Looks of their own (13 §15), read with `readLook`. */
+	looks?: unknown[];
 	/** °F or °C, US measures or metric; unset, the browser's (`units.ts`). */
 	units?: UnitsChoice;
 }
@@ -100,6 +103,8 @@ export interface HouseDoc {
 	palette?: string;
 	/** The house's look (12, L1); absent is Classic (L3). */
 	look?: string;
+	/** The house's own looks (13 §15), read with `readLook`. */
+	looks?: unknown[];
 	/** Confirmation overrides (D2): by device id, and by kind. */
 	confirm?: { devices?: Record<string, Ask>; kinds?: Record<string, Ask> };
 }
@@ -379,25 +384,26 @@ export const PALETTES = [
 	{ id: 'plum', name: 'Plum', swatch: '#7a3b74' }
 ] as const;
 
-// ---- looks (12) ----
+// ---- looks (12, 13 §3) ----
 
-/** How rooms, Home and displays are drawn (12, L2): today's, or Lit. */
-export const LOOKS = [
-	{ id: 'classic', name: 'Classic', sub: 'Cards of one size, a switch on each.' },
-	{ id: 'lit', name: 'Lit', sub: 'Rooms glow as they are lit; drag to dim; a panel of switches.' }
-] as const;
-export type LookId = (typeof LOOKS)[number]['id'];
+/** Every look a person may choose: built in, the house's, their own. */
+export const looksOf = (doc?: PersonDoc, house?: HouseDoc): Look[] =>
+	allLooks(house?.looks, doc?.looks);
 
 /** The look a person sees: their own, else the house's, else Classic (L1, L3). */
-export function lookOf(doc?: PersonDoc, house?: HouseDoc): LookId {
-	const known = (l?: string): l is LookId => LOOKS.some((x) => x.id === l);
-	const mine = doc?.look;
-	const ours = house?.look;
-	return known(mine) ? mine : known(ours) ? ours : 'classic';
+export function lookOf(doc?: PersonDoc, house?: HouseDoc, all = looksOf(doc, house)): Look {
+	const has = (id?: string) => id !== undefined && all.some((l) => l.id === id);
+	return findLook(all, has(doc?.look) ? doc?.look : has(house?.look) ? house?.look : 'classic');
 }
 
-/** The theme a person sees: their own, else the house's, else Amber. */
-export function paletteOf(doc?: PersonDoc, house?: HouseDoc): string {
+/** The theme a person sees: their own, else the house's, else their look's, else Amber (13 §3.1). */
+export function paletteOf(doc?: PersonDoc, house?: HouseDoc, l?: Look): string {
 	const known = (p?: string) => PALETTES.some((x) => x.id === p);
-	return known(doc?.palette) ? doc!.palette! : known(house?.palette) ? house!.palette! : 'amber';
+	return known(doc?.palette)
+		? doc!.palette!
+		: known(house?.palette)
+			? house!.palette!
+			: known(l?.theme)
+				? l!.theme!
+				: 'amber';
 }

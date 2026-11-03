@@ -60,8 +60,8 @@
 	--quick: 150ms;
 	--sheet-in: 250ms;
 
-	/* Feel (13 §5): set by the look on screen. Classic's are 06's; Lit's
-	   below. Drawings read these, never their own numbers. */
+	/* Feel (13 §5): set by the look on screen (looks/model.ts); these are
+	   Classic's, 06's. Drawings read these, never their own numbers. */
 	--feel-card-radius: var(--radius);
 	--feel-box-radius: 20px;
 	--feel-gap: 10px;
@@ -137,13 +137,7 @@
  * and light/dark resolves to one set.
  */
 
-/* Lit's feel (13 §5): rounder, a little tighter, livelier. */
-:root[data-look='lit'] {
-	--feel-card-radius: 18px;
-	--feel-box-radius: 20px;
-	--feel-gap: 8px;
-	--feel-slow: 0.6s;
-}
+/* A look's feel (13 §5) is set on the page from looks/model.ts; these are Classic's. */
 @media (prefers-reduced-motion: reduce) {
 	:root {
 		--feel-slow: 0s;

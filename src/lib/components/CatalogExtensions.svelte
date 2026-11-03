@@ -25,6 +25,8 @@
 		description: string;
 		category: string;
 		versions: Release[];
+		/** When this app can use none of its versions: the oldest app that can. */
+		needs?: string;
 	}
 
 	const may = $derived(session.isAdmin || session.can('plugins:write'));
@@ -172,7 +174,9 @@
 							>
 								<strong>{x.name}</strong>
 								<span>{x.description || catOf(x)}</span>
-								{#if mine}<em>Installed · {mine.version}</em>{/if}
+								{#if mine}<em>Installed · {mine.version}</em>{:else if x.needs}<em class="needs"
+										>Needs app v{x.needs}</em
+									>{/if}
 							</button>
 						</li>
 					{/each}
@@ -211,7 +215,10 @@
 							>
 						</label>
 					{:else}
-						<p class="quiet">It needs a newer app than this one.</p>
+						<p class="quiet">
+							It needs app {chosen.needs ? `v${chosen.needs}` : 'a newer version'} or later; this is v{__APP_VERSION__}.
+							Update the app first.
+						</p>
 					{/if}
 					<p class="quiet">
 						Downloads it from the hc-extensions releases, checks its signature and checksum, and
@@ -350,6 +357,9 @@
 		font-style: normal;
 		font-size: 12px;
 		color: var(--lit-ink);
+	}
+	.list em.needs {
+		color: var(--ink-muted);
 	}
 	.card {
 		display: flex;

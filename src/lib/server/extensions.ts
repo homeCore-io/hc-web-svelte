@@ -14,6 +14,7 @@ import { readdir, readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { dataDir } from '#server/config.js';
 import { RIVE_VALUES } from '#lib/rive/values.js';
+import { compareVersions } from '#lib/plugins.js';
 
 /** A choice a drawing offers, shown under it in the look editor: on or off. */
 export interface DrawingOption {
@@ -134,12 +135,19 @@ function readElement(x: Record<string, unknown>): ExtensionElement | undefined {
 }
 
 /** An extension's manifest, or why it can't be used. */
-export function readManifest(id: string, raw: unknown): Extension | string {
+export function readManifest(
+	id: string,
+	raw: unknown,
+	app: string = __APP_VERSION__
+): Extension | string {
 	if (!raw || typeof raw !== 'object') return 'extension.json is not an object.';
 	const o = raw as Record<string, unknown>;
 	if (o.id !== id) return `extension.json says it is ${String(o.id)}, but its folder is ${id}.`;
 	const values = typeof o.values === 'number' ? o.values : 1;
 	if (values > RIVE_VALUES) return `${id} needs a newer app (values ${values}).`;
+	const minApp = str(o.min_app);
+	if (minApp && compareVersions(app, minApp) < 0)
+		return `${id} needs app v${minApp} or later; this is v${app}.`;
 	const elements: ExtensionElement[] = [];
 	for (const e of Array.isArray(o.elements) ? o.elements : []) {
 		const x = readElement((e ?? {}) as Record<string, unknown>);

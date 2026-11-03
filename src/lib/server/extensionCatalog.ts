@@ -15,6 +15,7 @@ import { createHash, createPublicKey, verify } from 'node:crypto';
 import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { RIVE_VALUES } from '#lib/rive/values.js';
+import { compareVersions } from '#lib/plugins.js';
 import {
 	extensionsDir,
 	neededFiles,
@@ -48,6 +49,8 @@ export interface CatalogExtension {
 	description: string;
 	category: string;
 	versions: CatalogRelease[];
+	/** When this app can use none of its versions: the oldest app that can. */
+	needs?: string;
 }
 
 /** Where an installed extension came from, kept beside it. */
@@ -80,7 +83,8 @@ const sha256 = (b: Uint8Array) => createHash('sha256').update(b).digest('hex');
 /** The catalog's extensions, if the index is there and its signature holds. */
 export async function catalogIndex(
 	get: typeof fetch = fetch,
-	{ url, key } = registry()
+	{ url, key } = registry(),
+	app: string = __APP_VERSION__
 ): Promise<CatalogExtension[]> {
 	const [doc, sig] = await Promise.all([get(url), get(`${url}.sig`)]);
 	// No index yet: the catalog has no extensions, which isn't an error.
@@ -91,11 +95,18 @@ export async function catalogIndex(
 	if (!signedBy(bytes, await sig.text(), key))
 		throw new CatalogError('The catalog’s list of extensions isn’t signed by homeCore’s key.');
 	const idx = JSON.parse(new TextDecoder().decode(bytes)) as { extensions?: CatalogExtension[] };
-	return (idx.extensions ?? []).map((x) => ({
-		...x,
-		// Only what this app can draw.
-		versions: (x.versions ?? []).filter((v) => (v.values ?? 1) <= RIVE_VALUES)
-	}));
+	return (idx.extensions ?? []).map((x) => {
+		const all = x.versions ?? [];
+		// Only what this app can draw, and install: a version may need a newer app.
+		const fits = (v: CatalogRelease) =>
+			(v.values ?? 1) <= RIVE_VALUES && (!v.min_app || compareVersions(app, v.min_app) >= 0);
+		const versions = all.filter(fits);
+		const wanting = all
+			.map((v) => v.min_app)
+			.filter((m): m is string => !!m && compareVersions(app, m) < 0)
+			.sort(compareVersions);
+		return { ...x, versions, ...(!versions.length && wanting[0] ? { needs: wanting[0] } : {}) };
+	});
 }
 
 /** Unpacks an extension's file and checks it is one, and the one expected. */

@@ -704,3 +704,12 @@ before the next step.
   same in every look.
 - **S10. The order of the Home Assistant ideas** is §13.1's, after the
   foundation, dragging and the look editor.
+
+### Decided on the step 4 mockup (the user, 2026-11-02)
+
+- **E1. One editor for every look of one's own.** Me opens the same editor
+  as Settings › Look, with every tab, for a person's own looks.
+- **E2. The Rooms tab groups every room;** arranging one room stays on that
+  room's page (§8.4).
+- **E3. The tabs, in order:** Drawings, Feel, Colors, Frame, Rooms, Home,
+  Displays, Reaches.

@@ -3,7 +3,7 @@ import { HOUSE, FIXTURE_NOW } from '../fixtures/house.js';
 import { cardFor, type CardView } from '../card.js';
 import type { CoreDevice } from '../devices.js';
 import type { Card } from '../page.js';
-import { colourOf, isGroup, kelvinToRgb, litRoom, stemOf, xyToRgb } from './room.js';
+import { colourOf, houseScene, isGroup, kelvinToRgb, litRoom, stemOf, xyToRgb } from './room.js';
 
 const byId = (id: string) => HOUSE.find((d) => d.device_id === id)!;
 const asCard = (d: CoreDevice): Card => ({
@@ -84,5 +84,38 @@ describe('a light’s colour', () => {
 	it('takes the name’s stem for grouping', () => {
 		expect(stemOf('Holiday Lights 3')).toBe('Holiday Lights');
 		expect(stemOf('Pico')).toBeNull();
+	});
+});
+
+describe('sensors and house scenes in the Lit look', () => {
+	it('gives a temperature sensor its day, and other sensors a line each', () => {
+		const r = room([byId('ecowitt_den'), byId('yolink_leak'), byId('hue_motion')]);
+		expect(r.readings.map((x) => [x.card.ref, x.attr])).toEqual([
+			['device:ecowitt_den', 'temperature']
+		]);
+		expect(r.watch.map((w) => w.card.ref)).toEqual(['device:yolink_leak', 'device:hue_motion']);
+	});
+
+	it('keeps a sensor’s own safe range, when it has one', () => {
+		const den = byId('ecowitt_den');
+		const probe = {
+			...den,
+			attributes: { ...den.attributes, temp_limit_low: -20, temp_limit_high: -5 }
+		};
+		expect(room([probe]).readings[0]?.range).toEqual({ low: -20, high: -5 });
+	});
+
+	it('reads a house scene from what it sets: dark, a lock, its words', () => {
+		const devices = Object.fromEntries(HOUSE.map((d) => [d.device_id, d]));
+		const night = houseScene(
+			{ hue_lamp: { on: false }, yolink_front_lock: { locked: true } },
+			devices
+		);
+		expect(night.dark).toBe(true);
+		expect(night.badges).toEqual(['lock']);
+		expect(night.does).toBe('Lights off · locks');
+		const evening = houseScene({ hue_lamp: { on: true, color_temp: 2700 } }, devices);
+		expect(evening.dark).toBe(false);
+		expect(evening.colours).toHaveLength(1);
 	});
 });

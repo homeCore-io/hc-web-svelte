@@ -5,8 +5,8 @@
  * The page's own arrangement still applies (what is hidden, what a card is
  * called); Lit only decides where each kind of thing goes on the page.
  */
-import type { CoreDevice } from '../devices.js';
-import { INFRASTRUCTURE, isOpen, type CardView } from '../card.js';
+import type { CoreDevice, Devices } from '../devices.js';
+import { INFRASTRUCTURE, isOpen, kindOf, type CardView } from '../card.js';
 import type { Card } from '../page.js';
 
 /** A light or a switch, as Lit draws it. */
@@ -38,6 +38,8 @@ export interface Problem {
 }
 
 export type SceneShape = 'light' | 'house' | 'keypad';
+/** What else a house scene changes, besides lights. */
+export type SceneBadge = 'lock' | 'heat' | 'media' | 'other';
 
 export interface SceneDisc {
 	card: Card;
@@ -47,7 +49,33 @@ export interface SceneDisc {
 	colours: string[];
 	/** What it does, in a few words. */
 	does: string;
+	/** For a house scene: the other kinds of thing it changes, in the order they matter. */
+	badges: SceneBadge[];
+	/** For a house scene that turns every light it sets off: the room goes dark. */
+	dark: boolean;
 }
+
+/** A reading worth a line of its last day: temperature or humidity. */
+export interface Reading {
+	card: Card & { kind: 'device' };
+	view: CardView;
+	name: string;
+	/** The attribute drawn over time. */
+	attr: 'temperature' | 'humidity';
+	/** The device's own safe range, when it keeps one (a freezer probe), in °C. */
+	range?: { low: number; high: number };
+}
+
+/** A sensor that only needs a glance: a dot and a word. */
+export interface Watch {
+	card: Card & { kind: 'device' };
+	name: string;
+	state: string;
+	tone: 'ok' | 'on' | 'bad' | 'quiet';
+}
+
+/** A homeCore scene's states, by its id, for reading what it does. */
+export type SceneStates = Record<string, Record<string, unknown> | undefined>;
 
 export interface LitRoom {
 	/** Lights that dim, one card each, and groups of lights or switches. */
@@ -59,6 +87,10 @@ export interface LitRoom {
 	scenes: SceneDisc[];
 	/** Everything else, drawn as it is today: thermostats, players, readings, plugins' cards. */
 	rest: Card[];
+	/** Temperature and humidity sensors, each with its last day. */
+	readings: Reading[];
+	/** Other sensors, one line each. */
+	watch: Watch[];
 	/** Remotes, keypads, hubs: folded away under "More in this room". */
 	more: Card[];
 	problems: Problem[];
@@ -77,6 +109,20 @@ const UNNAMED = /^(zone|device|load|output|channel|circuit|switch|light|relay)$/
 const LAMPS = new Set(['light', 'dimmer', 'group', 'switch', 'outlet']);
 /** Scenes from lighting systems (`hue_scene`): light scenes, colours or not. */
 const LIGHT_SCENE = /hue|light|lifx|wiz|nanoleaf|govee/i;
+/** Sensors drawn with their last day. */
+const READING_KINDS = new Set(['temperature_sensor', 'humidity_sensor', 'sensor']);
+/** Sensors that need only a glance. */
+const WATCH_KINDS = new Set([
+	'water_sensor',
+	'motion_sensor',
+	'occupancy_sensor',
+	'vibration_sensor',
+	'smoke_sensor',
+	'binary_sensor',
+	'rain_sensor',
+	'lightning_sensor'
+]);
+const MEDIA_KINDS = new Set(['media_player', 'tv', 'speaker']);
 const DOORS = new Set(['lock', 'garage', 'gate', 'garage_door', 'cover']);
 
 /** CIE xy at full brightness, as sRGB. */
@@ -134,8 +180,12 @@ const named = (c: Card, names: Record<string, string>) => names[c.ref];
 export function litRoom(
 	cards: Card[],
 	views: Record<string, CardView>,
-	names: Record<string, string> = {}
+	names: Record<string, string> = {},
+	sceneStates: SceneStates = {},
+	devices: Devices = {}
 ): LitRoom {
+	const readings: Reading[] = [];
+	const watch: Watch[] = [];
 	const lamps: Lamp[] = [];
 	const doors: Card[] = [];
 	const scenes: SceneDisc[] = [];
@@ -148,9 +198,7 @@ export function litRoom(
 			scenes.push({
 				card,
 				name: named(card, names) ?? card.name,
-				shape: 'house',
-				colours: [],
-				does: 'homeCore scene'
+				...houseScene(sceneStates[card.id] ?? {}, devices)
 			});
 			continue;
 		}
@@ -187,7 +235,9 @@ export function litRoom(
 				name,
 				shape: lights ? 'light' : 'keypad',
 				colours: palette.length > 0 ? palette : lights ? ['#ffd29a', '#ffb45a'] : [],
-				does: lights ? 'Sets the lights' : 'A keypad scene'
+				does: lights ? 'Sets the lights' : 'A keypad scene',
+				badges: [],
+				dark: false
 			});
 			continue;
 		}
@@ -223,6 +273,41 @@ export function litRoom(
 				level: dim && dim.kind === 'slider' ? Math.round(dim.value) : null,
 				rgb: view.kind === 'switch' || view.kind === 'outlet' ? WARM : colourOf(d),
 				attr: sw.attr
+			});
+			continue;
+		}
+		const a = d.attributes ?? {};
+		if (
+			READING_KINDS.has(view.kind) &&
+			(typeof a.temperature === 'number' || typeof a.humidity === 'number')
+		) {
+			const low = a.temp_limit_low;
+			const high = a.temp_limit_high;
+			readings.push({
+				card,
+				view,
+				name,
+				attr: typeof a.temperature === 'number' ? 'temperature' : 'humidity',
+				range:
+					typeof low === 'number' && typeof high === 'number' && low < high
+						? { low, high }
+						: undefined
+			});
+			continue;
+		}
+		if (WATCH_KINDS.has(view.kind)) {
+			watch.push({
+				card,
+				name,
+				state: view.stateLine,
+				tone:
+					!view.available || view.alarm
+						? 'bad'
+						: view.tone === 'on'
+							? 'on'
+							: view.tone === 'alert'
+								? 'bad'
+								: 'ok'
 			});
 			continue;
 		}
@@ -268,8 +353,62 @@ export function litRoom(
 		doors,
 		scenes,
 		rest,
+		readings,
+		watch,
 		more,
 		problems,
 		glow
+	};
+}
+
+/**
+ * A homeCore scene, read from what it sets: the light it leaves (its lights'
+ * warmth, or dark when it turns them all off) and a badge for each other kind
+ * of thing it changes, said in a few words.
+ */
+export function houseScene(
+	states: Record<string, unknown>,
+	devices: Devices
+): { shape: SceneShape; colours: string[]; does: string; badges: SceneBadge[]; dark: boolean } {
+	let on = 0;
+	let off = 0;
+	const colours: string[] = [];
+	const badges = new Set<SceneBadge>();
+	const words: string[] = [];
+	for (const [id, raw] of Object.entries(states)) {
+		const d = devices[id];
+		const want = (raw ?? {}) as Record<string, unknown>;
+		const kind = d ? kindOf(d) : '';
+		if (LAMPS.has(kind) && 'on' in want) {
+			if (want.on === false) off++;
+			else {
+				on++;
+				const c = colourOf({ ...(d as CoreDevice), attributes: { ...d!.attributes, ...want } });
+				const hex =
+					'#' +
+					c
+						.split(',')
+						.map((n) => Number(n).toString(16).padStart(2, '0'))
+						.join('');
+				if (!colours.includes(hex)) colours.push(hex);
+			}
+		} else if (kind === 'lock' && 'locked' in want) badges.add('lock');
+		else if (kind === 'thermostat') badges.add('heat');
+		else if (MEDIA_KINDS.has(kind)) badges.add('media');
+		else if (d) badges.add('other');
+	}
+	if (on > 0) words.push(on === 1 ? 'A light on' : ` lights on`);
+	else if (off > 0) words.push('Lights off');
+	if (badges.has('lock')) words.push('locks');
+	if (badges.has('heat')) words.push('sets the heat');
+	if (badges.has('media')) words.push('a player');
+	const dark = on === 0 && off > 0;
+	const order: SceneBadge[] = ['lock', 'heat', 'media', 'other'];
+	return {
+		shape: 'house',
+		colours: on > 0 ? colours : [],
+		does: words.join(' · ') || 'homeCore scene',
+		badges: order.filter((b) => badges.has(b)).slice(0, 3),
+		dark
 	};
 }

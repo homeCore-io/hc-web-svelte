@@ -27,6 +27,7 @@
 	import KindView from '#lib/components/KindView.svelte';
 	import { kindOf } from '#lib/kinds.js';
 	import LitLamp from './LitLamp.svelte';
+	import LitReading from './LitReading.svelte';
 	import { litRoom, type Lamp, type SceneDisc } from './room.js';
 
 	let { doc, room }: { doc: Page; room: string } = $props();
@@ -73,7 +74,11 @@
 			)
 		)
 	);
-	const lit = $derived(litRoom(cards, views, names));
+	// homeCore's scenes, by id, so a house scene says what it does.
+	const sceneStates = $derived(
+		Object.fromEntries(homeScenes.list.map((s) => [s.id, s.states as Record<string, unknown>]))
+	);
+	const lit = $derived(litRoom(cards, views, names, sceneStates, devices.byId));
 
 	// The room's readings, as its box on Home says them.
 	const box = $derived(
@@ -144,10 +149,13 @@
 		if (s.card.kind === 'scene') void homeScenes.run(s.card.id);
 		else if (s.card.kind === 'device') void commands.act(s.card.device.device_id, 'activate');
 	}
+	// A scene's colours, round; a house scene that leaves the room dark is night blue.
 	const disc = (s: SceneDisc) =>
-		s.shape === 'light'
+		s.colours.length > 0
 			? `conic-gradient(from 210deg, ${[...s.colours, s.colours[0]].join(', ')})`
-			: undefined;
+			: s.dark
+				? 'radial-gradient(circle at 35% 30%, #34407a, #141a3a 70%)'
+				: undefined;
 	// Drawn as an overhead door: its kind, the Garage door symbol, or a name that says so.
 	const OVERHEAD = /^(garage|garage_door)$/;
 	const OVERHEAD_NAME = /\b(garage door|overhead|oh ?\d+)\b/i;
@@ -308,13 +316,26 @@
 						{#each lit.scenes as s (s.card.ref)}
 							<button
 								class="scene"
+								class:wide={s.shape === 'house'}
 								disabled={!may}
 								title={s.does}
 								aria-label={`Run ${s.name}`}
 								onclick={() => run(s)}
 							>
 								<span class="disc {s.shape}" style:background={disc(s)} aria-hidden="true">
-									{#if s.shape === 'house'}
+									{#if s.shape === 'house' && s.dark}
+										<svg
+											width="24"
+											height="24"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="1.8"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"></path></svg
+										>
+									{:else if s.shape === 'house' && s.colours.length === 0}
 										<svg
 											width="24"
 											height="24"
@@ -333,7 +354,13 @@
 										>
 									{/if}
 								</span>
+								{#if s.badges.length}
+									<span class="badges" aria-hidden="true">
+										{#each s.badges as b (b)}<span class="badge {b}"></span>{/each}
+									</span>
+								{/if}
 								<span class="s-name">{s.name}</span>
+								{#if s.shape === 'house'}<span class="s-does">{s.does}</span>{/if}
 							</button>
 						{/each}
 					</div>
@@ -342,6 +369,21 @@
 		</div>
 
 		<div class="col">
+			{#each lit.readings as r (r.card.ref)}<LitReading {r} />{/each}
+			{#if lit.watch.length}
+				<section aria-label="Watching">
+					<h2 class="label">Watching</h2>
+					<div class="watch">
+						{#each lit.watch as w (w.card.ref)}
+							<button class="watch-row" onclick={() => details(w.card)}>
+								<span class="wdot {w.tone}" aria-hidden="true"></span>
+								<span class="wname">{w.name}</span>
+								<small>{w.state}</small>
+							</button>
+						{/each}
+					</div>
+				</section>
+			{/if}
 			{#each lit.rest as c (c.ref)}
 				<!-- At the size its kind draws it on this page: a player large, with its channels. -->
 				<KindView
@@ -724,6 +766,87 @@
 		box-shadow:
 			0 0 0 3px var(--bg),
 			0 0 0 5px var(--accent);
+	}
+	.scene {
+		position: relative;
+	}
+	.scene.wide {
+		width: 108px;
+	}
+	.badges {
+		position: absolute;
+		top: 40px;
+		left: 50%;
+		margin-left: 14px;
+		display: flex;
+		gap: 2px;
+	}
+	.badge {
+		width: 20px;
+		height: 20px;
+		border-radius: 999px;
+		border: 2px solid var(--bg);
+		background: var(--surface-2) center / 12px no-repeat;
+	}
+	/* Each kind of thing a house scene changes, as a small sign on its disc. */
+	.badge.lock {
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e9edf5' stroke-width='2.4' stroke-linecap='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E");
+	}
+	.badge.heat {
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e9edf5' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M10 13V5a2 2 0 0 1 4 0v8a4 4 0 1 1-4 0z'/%3E%3C/svg%3E");
+	}
+	.badge.media {
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e9edf5' stroke-width='2.4' stroke-linecap='round'%3E%3Crect x='3' y='5' width='18' height='12' rx='2'/%3E%3Cpath d='M8 21h8'/%3E%3C/svg%3E");
+	}
+	.badge.other {
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e9edf5'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E");
+	}
+	.s-does {
+		font-size: 11px;
+		color: var(--ink-muted);
+		text-align: center;
+		line-height: 1.3;
+	}
+	.watch {
+		display: flex;
+		flex-direction: column;
+		padding: 2px 16px;
+		border-radius: 18px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+	}
+	.watch-row {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 11px 0;
+		border: none;
+		border-bottom: 1px solid var(--line);
+		background: none;
+		color: var(--ink);
+		text-align: left;
+	}
+	.watch-row:last-child {
+		border-bottom: none;
+	}
+	.wname {
+		flex: 1;
+		font-size: 14px;
+	}
+	.wdot {
+		width: 10px;
+		height: 10px;
+		border-radius: 999px;
+		background: #6fd39a;
+	}
+	.wdot.on {
+		background: var(--accent);
+	}
+	.wdot.bad {
+		background: var(--alert);
+	}
+	.wdot.quiet {
+		background: var(--line);
 	}
 	.s-name {
 		font-size: 12px;

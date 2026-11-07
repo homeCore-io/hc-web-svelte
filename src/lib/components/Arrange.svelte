@@ -18,6 +18,8 @@
 	import { nudge } from '#lib/layers.js';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Tools from './Tools.svelte';
+	import { CARD_GAP, CARD_ROW } from '#lib/stack.js';
+	import { setStack } from '#lib/stacking.js';
 
 	let {
 		page,
@@ -29,6 +31,7 @@
 		form,
 		wide = false,
 		rows,
+		span,
 		list = 'page',
 		added = false,
 		renamed = false,
@@ -51,6 +54,8 @@
 		wide?: boolean;
 		/** Card rows of its grid it takes: a stack (13 §13.2). */
 		rows?: number;
+		/** Columns of its grid it takes, by a number of its own: a stack (13 §13.2). */
+		span?: number;
 		list?: 'page' | 'favourites';
 		added?: boolean;
 		renamed?: boolean;
@@ -102,8 +107,58 @@
 	}
 
 	// ---- resizing from the corner (13 §9.5): snaps between its sizes ----
-	let sizing = $state<Form | null>(null);
+	// The size shown while the corner is dragged: a form, or a stack's "One wide · 3 tall".
+	let sizing = $state<string | null>(null);
+	/**
+	 * A stack's corner sizes it both ways (13 §13.2): across, one to four cards
+	 * wide; down or up, one to six cards tall. A click without a drag fits its
+	 * height to its things again.
+	 */
+	function resizeStack(e: PointerEvent) {
+		const [x0, y0] = [e.clientX, e.clientY];
+		const from = { width: span ?? 1, rows: rows ?? 1 };
+		let to = { ...from };
+		let moved = false;
+		const handle = e.currentTarget as HTMLElement;
+		handle.setPointerCapture(e.pointerId);
+		// A card's width and height in its grid, with the gap: one step each way.
+		const across = (box?.getBoundingClientRect().width ?? 200) / from.width + CARD_GAP;
+		const down = CARD_ROW + CARD_GAP;
+		const WORDS = ['', 'One', 'Two', 'Three', 'Four'];
+		const move = (m: PointerEvent) => {
+			const [dx, dy] = [m.clientX - x0, m.clientY - y0];
+			if (Math.hypot(dx, dy) > 6) moved = true;
+			to = {
+				width: Math.max(1, Math.min(4, from.width + Math.round(dx / across))),
+				rows: Math.max(1, Math.min(6, from.rows + Math.round(dy / down)))
+			};
+			sizing = `${WORDS[to.width]} wide · ${to.rows} tall`;
+		};
+		const up = () => {
+			handle.removeEventListener('pointermove', move);
+			handle.removeEventListener('pointerup', up);
+			handle.removeEventListener('pointercancel', up);
+			sizing = null;
+			if (!moved) {
+				setStack(page, ref, { height: 'fit' });
+				drag.said = `${name} fits its things.`;
+				return;
+			}
+			setStack(page, ref, {
+				...(to.width !== from.width ? { width: to.width } : {}),
+				...(to.rows !== from.rows ? { height: String(to.rows) } : {})
+			});
+			drag.said = `${name} is ${WORDS[to.width]!.toLowerCase()} wide and ${to.rows} tall now.`;
+		};
+		handle.addEventListener('pointermove', move);
+		handle.addEventListener('pointerup', up);
+		handle.addEventListener('pointercancel', up);
+		e.preventDefault();
+		e.stopPropagation();
+	}
+
 	function resize(e: PointerEvent) {
+		if (kind === 'stack') return resizeStack(e);
 		if (!form || forms.length < 2) return;
 		const start = e.clientX + e.clientY;
 		const from = forms.indexOf(form);
@@ -121,7 +176,7 @@
 			handle.removeEventListener('pointerup', up);
 			handle.removeEventListener('pointercancel', up);
 			// A click without a drag steps to the next size.
-			const next = moved ? sizing : forms[(from + 1) % forms.length];
+			const next = (moved ? sizing : forms[(from + 1) % forms.length]) as Form | null;
 			sizing = null;
 			if (next && next !== form) {
 				view.change(page, { op: 'form', ref, form: next });
@@ -158,6 +213,7 @@
 		class:hidden
 		class:wide
 		style:grid-row={rows ? `span ${rows}` : undefined}
+		data-span={span && span > 1 ? span : undefined}
 		class:fresh
 		class:held
 		class:picked

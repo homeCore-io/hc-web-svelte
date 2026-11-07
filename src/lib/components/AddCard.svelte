@@ -14,6 +14,7 @@
 	card can be added twice, set differently.
 -->
 <script lang="ts">
+	import { sideSheet } from '#lib/sideSheet.js';
 	import { onMount } from 'svelte';
 	import SearchIcon from '@lucide/svelte/icons/search';
 	import Puzzle from '@lucide/svelte/icons/puzzle';
@@ -56,6 +57,8 @@
 	onMount(() => {
 		dialog?.show();
 		dialog?.focus();
+		// The page makes room for the sheet, so what it adds to stays in reach.
+		return sideSheet();
 	});
 	const into = $derived(adding.into ?? home);
 	const target = $derived(sections.find((s) => s.id === into) ?? sections[0]);

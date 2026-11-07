@@ -676,7 +676,8 @@ beside other cards.
 
 - **Adding one.** While customizing or editing, Add › Cards › Stack. Its
   settings open as it appears, beside the page, so the stack changes as it's
-  set; each change is kept as it's made.
+  set; each change is kept as it's made. While Add or its settings are open
+  the page makes room for them, so nothing is hidden under the sheet.
 - **What's in it.** Its settings choose things: this room's first, then the
   whole house by search or kind. Things of any kind mix: switches, lights,
   sensors, locks, scenes. Each keeps its own control: a switch to flip, Run
@@ -688,9 +689,14 @@ beside other cards.
 - **Styles.** List, Pills, Rockers (wall switches), Keypad (engraved buttons
   with a light beside each), and busy first with the rest folded. Busy is on,
   open or needing a look.
-- **Size.** One card wide or two, which is the card's size (Standard or
-  Large), so it resizes by dragging too. As tall as its things need, or two or
-  three cards tall, scrolling inside past that.
+- **Size.** One to four cards wide, and its things in one column or two, so a
+  wide stack can give long names and whole states room (with two cards to a
+  column it shows a state whole, "Closed · 8 d ago"; narrower, "Closed"). As
+  tall as its things need, or one to six cards tall, scrolling inside past
+  that. Its corner, dragged, sets both: across for its width, down for its
+  height; a click on it fits its height to its things again. (App v0.1.50
+  kept its width as the card's size; a Large one reads as two wide, in two
+  columns, until it says otherwise.) On a phone it is at most two wide.
 - **Order.** As they were put in, or busy first.
 - **The heading.** Its name, a count of what adds up ("3 of 6 on · 1 open"),
   and All off while anything is on, which leaves locks and sensors alone.

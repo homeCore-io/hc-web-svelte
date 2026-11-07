@@ -5,8 +5,8 @@
 	control: a switch to flip, a scene to run, a lock to lock (asking where it
 	should before unlocking), or only its state. Its name opens a device.
 
-	One card wide or two (its size); as tall as its things need, or two or
-	three cards tall, scrolling inside.
+	One to four cards wide, its things in one column or two; as tall as its
+	things need, or a number of cards tall, scrolling inside.
 -->
 <script lang="ts">
 	import { page as here } from '$app/state';
@@ -28,9 +28,8 @@
 
 	let { card, page, label, form, options }: KindProps<'stack'> = $props();
 	const s = $derived(
-		readStack(options ?? kindOptions.of(page, 'stack', card.ref, stackBase(card)))
+		readStack(options ?? kindOptions.of(page, 'stack', card.ref, stackBase(card)), form === 'large')
 	);
-	const wide = $derived(form === 'large');
 
 	// On a room's page its things go by their names without the room's.
 	const roomName = $derived(
@@ -55,6 +54,8 @@
 		alert: boolean;
 	}
 
+	// Two cards or more to each column of things: room for a whole state.
+	const roomy = $derived(s.width / s.columns >= 2);
 	const rows = $derived.by(() => {
 		const out: Row[] = [];
 		// What the page gave it to draw (none two stacks share), else all it names.
@@ -87,8 +88,13 @@
 				view: v,
 				scene: isScene ? { id: d.device_id, plugin: true } : undefined,
 				switchOn: sw?.on,
-				// Its state's first part: "Closed", not "Closed · 8 d ago", so the name has room.
-				state: isScene ? 'Scene' : (v.stateLine.split(' · ')[0] ?? v.stateLine),
+				// All of it with room (two cards to a column); narrower, its first part,
+				// "Closed", not "Closed · 8 d ago", so the name has room.
+				state: isScene
+					? 'Scene'
+					: roomy
+						? v.stateLine
+						: (v.stateLine.split(' · ')[0] ?? v.stateLine),
 				busy: sw ? sw.on : alert || isOpen(v),
 				alert
 			});
@@ -118,7 +124,7 @@
 	});
 	const lit = $derived(onCount > 0 || open > 0 || alerts > 0);
 
-	const span = $derived(stackRows(s, wide, shown.length, folds));
+	const span = $derived(stackRows(s, shown.length, folds));
 	const fixed = $derived(s.height === 'fit' ? undefined : stackHeight(span));
 
 	// Pressed: what a tap does, the way the thing's own card does it.
@@ -219,7 +225,7 @@
 
 <article
 	class="stack {s.style}"
-	class:wide
+	data-span={s.width > 1 ? s.width : undefined}
 	class:lit
 	style:grid-row={`span ${span}`}
 	style:height={fixed ? `${fixed}px` : undefined}
@@ -237,7 +243,7 @@
 	{#if rows.length === 0}
 		<p class="empty">Nothing in it yet. Choose things in its settings.</p>
 	{:else}
-		<div class="body" style:--across={across(s.style, wide)}>
+		<div class="body" style:--across={across(s.style, s.columns)}>
 			{#each shown as r (r.ref)}
 				{@const busy = r.busy || ran[r.ref]}
 				{#if s.style === 'list' || s.style === 'folded'}
@@ -336,9 +342,6 @@
 		border-radius: var(--feel-card-radius, var(--radius));
 		background: var(--surface);
 		box-shadow: var(--shadow);
-	}
-	.stack.wide {
-		grid-column: span 2;
 	}
 	.stack.lit {
 		border-color: color-mix(in srgb, var(--accent) 35%, var(--card-line));

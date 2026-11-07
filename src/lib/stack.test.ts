@@ -18,7 +18,9 @@ describe('a stack’s settings (13 §13.2)', () => {
 			style: 'list',
 			height: 'fit',
 			busyFirst: false,
-			things: []
+			things: [],
+			width: 1,
+			columns: 1
 		});
 		expect(
 			readStack({ name: ' Doors ', style: 'keypad', height: '3', order: 'busy', things: [] })
@@ -116,16 +118,16 @@ describe('a thing in a stack is on the page once', () => {
 describe('how much room a stack takes', () => {
 	const s = (o: Record<string, unknown>) => readStack(o);
 	it('fits its things, in card rows of the grid', () => {
-		expect(stackRows(s({}), false, 0)).toBe(1);
-		expect(stackRows(s({}), false, 7)).toBe(3);
-		// Two wide: two columns, so half as tall.
-		expect(stackRows(s({}), true, 7)).toBe(2);
-		expect(stackRows(s({ style: 'rockers' }), false, 7)).toBe(3);
-		expect(across('rockers', true)).toBe(4);
+		expect(stackRows(s({}), 0)).toBe(1);
+		expect(stackRows(s({}), 7)).toBe(3);
+		// Two columns: half as tall.
+		expect(stackRows(s({ columns: 2 }), 7)).toBe(2);
+		expect(stackRows(s({ style: 'rockers' }), 7)).toBe(3);
+		expect(across('rockers', 2)).toBe(4);
 	});
 
 	it('is as tall as it was set to, scrolling inside past that', () => {
-		expect(stackRows(s({ height: '2' }), false, 30)).toBe(2);
+		expect(stackRows(s({ height: '2' }), 30)).toBe(2);
 		expect(stackHeight(2)).toBe(242);
 		expect(stackHeight(3)).toBe(368);
 	});
@@ -176,5 +178,19 @@ describe('a stack someone filled and one a grouping filled', () => {
 		);
 		expect(m.get('device:b')).toBe(T);
 		expect(m.get('device:a')).toBe(S);
+	});
+});
+
+describe('a stack’s width and columns', () => {
+	it('is one to four cards wide, its things in one column or two', () => {
+		expect(readStack({ width: 3, columns: 1 })).toMatchObject({ width: 3, columns: 1 });
+		expect(readStack({ width: 9, columns: 5 })).toMatchObject({ width: 1, columns: 1 });
+		// Wider leaves its things in one column, with room for their names.
+		expect(stackRows(readStack({ width: 3 }), 7)).toBe(stackRows(readStack({}), 7));
+	});
+
+	it('reads a Large card from before as two wide, in two columns, until it says', () => {
+		expect(readStack({}, true)).toMatchObject({ width: 2, columns: 2 });
+		expect(readStack({ width: 3, columns: 1 }, true)).toMatchObject({ width: 3, columns: 1 });
 	});
 });

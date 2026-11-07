@@ -132,10 +132,15 @@
 	let setting = $state<{ card: Card; name: string; form?: Form } | null>(null);
 	// A stack (13 §13.2): the rows of the grid it takes while arranging, and
 	// for its sheet, the page's other stacks and what it draws as cards.
-	const stackRowsOf = (card: Card, wide: boolean) => {
-		if (card.kind !== 'stack') return undefined;
-		const s = readStack(kindOptions.of(key, 'stack', card.ref, stackBase(card)));
-		return stackRows(s, wide, card.held?.length ?? s.things.length);
+	const stackOf = (card: Card, large: boolean) =>
+		card.kind === 'stack'
+			? readStack(kindOptions.of(key, 'stack', card.ref, stackBase(card)), large)
+			: undefined;
+	const stackRowsOf = (card: Card, large: boolean) => {
+		const s = stackOf(card, large);
+		return s && card.kind === 'stack'
+			? stackRows(s, card.held?.length ?? s.things.length)
+			: undefined;
 	};
 	const allCards = $derived(
 		shown.sections.flatMap((s) => s.groups.flatMap((g) => [...g.shown, ...g.hidden]))
@@ -378,7 +383,8 @@
 			form={kind.forms(card).length > 0 ? form : undefined}
 			forms={kind.forms(card)}
 			kind={card.kind}
-			wide={drawnAs === 'large'}
+			wide={drawnAs === 'large' && card.kind !== 'stack'}
+			span={stackOf(card, drawnAs === 'large')?.width}
 			rows={card.kind === 'stack' ? stackRowsOf(card, drawnAs === 'large') : undefined}
 			list={favourites ? 'favourites' : 'page'}
 			added={card.added ?? false}
@@ -495,6 +501,25 @@
 			{#if arranging && sec.hint && s.groups.every((g) => listOf(g).length === 0)}
 				{#if ghostIn(sec.id)}<div class={s.layout}>{@render ghost()}</div>{/if}
 				<p class="hint">{sec.hint}</p>
+			{:else if s.layout === 'grid' && s.groups.length > 1}
+				<!-- Its runs ("Also here"'s things, then its cards) in one grid, so a card of
+				     one sits beside a card of the other: a stack among things (13 §13.2). -->
+				<div class="grid">
+					{#each s.groups as g (g)}
+						{#each listOf(g) as card (card.ref)}
+							{#if ghostIn(sec.id) && spot?.before === card.ref}{@render ghost()}{/if}
+							{@render piece(
+								card,
+								g,
+								sec.favourites,
+								s.layout,
+								sec.accepts ? sec.id : undefined,
+								place
+							)}
+						{/each}
+					{/each}
+					{#if ghostIn(sec.id) && spot?.before === null}{@render ghost()}{/if}
+				</div>
 			{:else}
 				{#each s.groups.length > 0 ? s.groups : [null] as g, i (i)}
 					{@const runs = g ? runsOf(listOf(g), s.layout) : [{ layout: s.layout, cards: [] }]}

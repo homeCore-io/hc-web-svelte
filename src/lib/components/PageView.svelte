@@ -31,6 +31,7 @@
 	import { clock } from '#lib/clock.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
 	import { ROOM_BUILT_IN } from '#lib/options.js';
+	import { readStack, STACK_BUILT_IN, stackRows } from '#lib/stack.js';
 	import { fieldPlan, roomBox, type Plot } from '#lib/roomBox.js';
 	import { homeStyle } from '#lib/styles.js';
 	import { view } from '#lib/view.svelte.js';
@@ -128,6 +129,21 @@
 
 	// A kind's settings sheet, for one card (G2). A room's settings are its box's.
 	let setting = $state<{ card: Card; name: string; form?: Form } | null>(null);
+	// A stack (13 §13.2): the rows of the grid it takes while arranging, and
+	// for its sheet, the page's other stacks and what it draws as cards.
+	const stackRowsOf = (card: Card, wide: boolean) =>
+		stackRows(readStack(kindOptions.of(key, 'stack', card.ref, STACK_BUILT_IN)), wide);
+	const allCards = $derived(
+		shown.sections.flatMap((s) => s.groups.flatMap((g) => [...g.shown, ...g.hidden]))
+	);
+	const stacksHere = $derived(
+		allCards
+			.filter((c) => c.kind === 'stack')
+			.map((c) => ({
+				ref: c.ref,
+				name: readStack(kindOptions.of(key, 'stack', c.ref, STACK_BUILT_IN)).name || 'another stack'
+			}))
+	);
 	// Every room's box, from the Rooms section's tools.
 	let everyRoom = $state<{ rooms: Card[]; names: Record<string, string> } | null>(null);
 	// Rooms in the sidebar, with their status (G3): their boxes' settings show there.
@@ -330,6 +346,7 @@
 			forms={kind.forms(card)}
 			kind={card.kind}
 			wide={drawnAs === 'large'}
+			rows={card.kind === 'stack' ? stackRowsOf(card, drawnAs === 'large') : undefined}
 			list={favourites ? 'favourites' : 'page'}
 			added={card.added ?? false}
 			renamed={label !== undefined}
@@ -597,7 +614,20 @@
 		{/if}
 	{/await}
 {/if}
-{#if setting}
+{#if setting?.card.kind === 'stack'}
+	{#await import('./StackSettings.svelte') then { default: StackSettings }}
+		{#if setting}
+			<StackSettings
+				page={key}
+				card={setting.card}
+				form={setting.form}
+				others={stacksHere.filter((x) => x.ref !== setting?.card.ref)}
+				onPage={new Set(allCards.map((c) => c.ref))}
+				close={() => (setting = null)}
+			/>
+		{/if}
+	{/await}
+{:else if setting}
 	{#await import('./CardOptions.svelte') then { default: CardOptions }}
 		{#if setting}
 			<CardOptions

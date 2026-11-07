@@ -28,6 +28,7 @@
 		star = true,
 		form,
 		wide = false,
+		rows,
 		list = 'page',
 		added = false,
 		renamed = false,
@@ -48,6 +49,8 @@
 		star?: boolean;
 		form?: Form;
 		wide?: boolean;
+		/** Card rows of its grid it takes: a stack (13 §13.2). */
+		rows?: number;
 		list?: 'page' | 'favourites';
 		added?: boolean;
 		renamed?: boolean;
@@ -152,6 +155,7 @@
 		class="arrange"
 		class:hidden
 		class:wide
+		style:grid-row={rows ? `span ${rows}` : undefined}
 		class:fresh
 		class:held
 		class:picked

@@ -57,16 +57,26 @@ export const isStackRef = (r: string) => r.startsWith('kind:stack/');
 
 /**
  * Which stack each thing is in, from the changes a page shows: for each stack
- * on the page, the last `things` any layer set. A thing two stacks name is in
- * the first one put on the page.
+ * on the page, the last `things` any layer set, else what its grouping put in
+ * it. A thing two stacks name is in the one someone chose it for, over one a
+ * grouping filled; between two alike, the first on the page.
  */
-export function stacked(changes: Change[], stacks: string[]): Map<string, string> {
-	const things = new Map<string, string[]>();
+export function stacked(
+	changes: Change[],
+	stacks: { ref: string; things?: string[] }[]
+): Map<string, string> {
+	const things = new Map(stacks.map((s) => [s.ref, (s.things ?? []).filter(stackable)]));
 	for (const c of changes)
-		if (c.op === 'config' && stacks.includes(c.ref) && Array.isArray(c.config.things))
+		if (c.op === 'config' && things.has(c.ref) && Array.isArray(c.config.things))
 			things.set(c.ref, readStack(c.config).things);
+	const chosen = new Set(
+		changes.flatMap((c) =>
+			c.op === 'config' && things.has(c.ref) && Array.isArray(c.config.things) ? [c.ref] : []
+		)
+	);
+	const order = [...things.keys()].sort((a, b) => Number(chosen.has(b)) - Number(chosen.has(a)));
 	const out = new Map<string, string>();
-	for (const s of stacks) for (const t of things.get(s) ?? []) if (!out.has(t)) out.set(t, s);
+	for (const s of order) for (const t of things.get(s)!) if (!out.has(t)) out.set(t, s);
 	return out;
 }
 
@@ -101,3 +111,10 @@ export function stackRows(s: Stack, wide: boolean, shown = s.things.length, fold
 
 /** A fixed height in pixels, for a stack set to a number of cards; it scrolls inside past that. */
 export const stackHeight = (rows: number) => rows * CARD_ROW + (rows - 1) * CARD_GAP;
+
+/** A stack's settings before anyone sets any: what its grouping put in it, if anything. */
+export const stackBase = (card: { things?: string[]; name?: string }): Options => ({
+	...STACK_BUILT_IN,
+	...(card.things?.length ? { things: card.things } : {}),
+	...(card.name ? { name: card.name } : {})
+});

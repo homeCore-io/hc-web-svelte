@@ -62,7 +62,15 @@ export type Card = Base &
 		| { kind: 'weather' }
 		| { kind: 'chart' }
 		/** Several things in one tall card (13 §13.2): what's in it is its settings. */
-		| { kind: 'stack' }
+		/** `things`: what a look's grouping put in it, until its settings choose. */
+		| {
+				kind: 'stack';
+				things?: string[];
+				/** Its grouping's name for it: its section's. */
+				name?: string;
+				/** What it draws, once the page is laid out: its things that no stack before it holds. */
+				held?: string[];
+		  }
 		/** A room's header in a look that has one (13 §7): its name, readings, glow. */
 		| { kind: 'roomhead'; id: string; name: string; devices: CoreDevice[] }
 		/** What in a room needs someone, each with its fix (13 §7). */
@@ -554,16 +562,24 @@ export function applyPage(
 		page = { ...page, sections: page.sections.filter((s) => !s.field?.only) };
 	// A thing in a stack (13 §13.2) is drawn there, so its own card leaves its
 	// section. Favourites keep theirs: they're each person's own list.
-	const stacks = page.sections.flatMap((s) => s.cards.filter((c) => c.kind === 'stack'));
-	const inStack = stacked(
-		changes,
-		stacks.map((c) => c.ref)
+	const stacks = page.sections.flatMap((s) =>
+		s.cards.flatMap((c) => (c.kind === 'stack' ? [{ ref: c.ref, things: c.things }] : []))
 	);
-	if (inStack.size > 0)
+	const inStack = stacked(changes, stacks);
+	// Each stack draws what it holds: a thing two stacks name is drawn in the first.
+	const heldBy = (ref: string) => [...inStack].filter(([, s]) => s === ref).map(([t]) => t);
+	if (stacks.length > 0)
 		page = {
 			...page,
 			sections: page.sections.map((s) =>
-				s.favourites || s.fixed ? s : { ...s, cards: s.cards.filter((c) => !inStack.has(c.ref)) }
+				s.favourites || s.fixed
+					? s
+					: {
+							...s,
+							cards: s.cards
+								.filter((c) => !inStack.has(c.ref))
+								.map((c) => (c.kind === 'stack' ? { ...c, held: heldBy(c.ref) } : c))
+						}
 			)
 		};
 	// Added into a section (G16): placed as a move would, ahead of the rest.

@@ -20,7 +20,8 @@
 	import type { Card } from '#lib/page.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { scenes } from '#lib/scenes.svelte.js';
-	import { readStack, STACK_BUILT_IN } from '#lib/stack.js';
+	import { readStack, stackBase } from '#lib/stack.js';
+	import { putIn, takeOut, thingsIn } from '#lib/stacking.js';
 	import { view } from '#lib/view.svelte.js';
 
 	let {
@@ -44,7 +45,9 @@
 	let dialog = $state<HTMLDialogElement>();
 	onMount(() => dialog?.show());
 
-	const sheet = $derived(kindOptions.card(page, 'stack', card.ref, STACK_BUILT_IN));
+	const sheet = $derived(
+		kindOptions.card(page, 'stack', card.ref, stackBase(card as { things?: string[] }))
+	);
 	const now = $derived(readStack({ ...sheet.without, ...sheet.mine } as Record<string, unknown>));
 	const who = $derived(
 		view.mode(page) === 'edit' ? 'For everyone.' : 'Only you see this, on top of the house’s.'
@@ -114,7 +117,7 @@
 	const otherStacks = $derived(
 		others.map((o) => ({
 			...o,
-			things: readStack(kindOptions.of(page, 'stack', o.ref, STACK_BUILT_IN)).things
+			things: thingsIn(page, o.ref)
 		}))
 	);
 	const where = (r: string): string => {
@@ -125,14 +128,9 @@
 	};
 
 	function tick(r: string) {
-		if (now.things.includes(r)) return set({ things: now.things.filter((x) => x !== r) });
+		if (now.things.includes(r)) return takeOut(page, card.ref, r);
 		// On the page once: out of any other stack first.
-		for (const o of otherStacks)
-			if (o.things.includes(r)) {
-				const theirs = kindOptions.card(page, 'stack', o.ref, STACK_BUILT_IN);
-				theirs.save({ ...theirs.mine, things: o.things.filter((x) => x !== r) });
-			}
-		set({ things: [...now.things, r] });
+		putIn(page, card.ref, r, { from: otherStacks.find((o) => o.things.includes(r))?.ref });
 	}
 	function nudge(i: number, by: -1 | 1) {
 		const j = i + by;

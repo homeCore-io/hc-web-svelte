@@ -46,7 +46,7 @@ describe('which stack a thing is in', () => {
 				config(S, { things: ['device:b'] }),
 				config('kind:stack/gone', { things: ['device:c'] })
 			],
-			[S]
+			[{ ref: S }]
 		);
 		expect([...m]).toEqual([['device:b', S]]);
 	});
@@ -54,7 +54,7 @@ describe('which stack a thing is in', () => {
 	it('puts a thing two stacks name in the first one', () => {
 		const m = stacked(
 			[config(T, { things: ['device:a'] }), config(S, { things: ['device:a', 'scene:z'] })],
-			[S, T]
+			[{ ref: S }, { ref: T }]
 		);
 		expect(m.get('device:a')).toBe(S);
 		expect(m.get('scene:z')).toBe(S);
@@ -128,5 +128,53 @@ describe('how much room a stack takes', () => {
 		expect(stackRows(s({ height: '2' }), false, 30)).toBe(2);
 		expect(stackHeight(2)).toBe(242);
 		expect(stackHeight(3)).toBe(368);
+	});
+});
+
+describe('a stack a look’s grouping made', () => {
+	it('holds what it was given until a layer chooses', () => {
+		const g = [{ ref: S, things: ['device:a', 'device:b'] }];
+		expect([...stacked([], g).keys()]).toEqual(['device:a', 'device:b']);
+		expect([...stacked([config(S, { things: ['device:b'] })], g).keys()]).toEqual(['device:b']);
+		// A style alone leaves what it holds.
+		expect([...stacked([config(S, { style: 'pills' })], g).keys()]).toEqual([
+			'device:a',
+			'device:b'
+		]);
+	});
+});
+
+describe('what each stack draws', () => {
+	it('is what it holds, a thing two stacks name in the first only', () => {
+		const page: Page = {
+			id: 'room:x',
+			cardTools: true,
+			sections: [
+				{
+					id: 'a',
+					title: 'A',
+					layout: 'grid',
+					cards: [
+						{ ref: S, kind: 'stack', things: ['device:a', 'device:b'] },
+						{ ref: T, kind: 'stack', things: ['device:b', 'device:c'] }
+					]
+				}
+			]
+		};
+		const held = applyPage(page)
+			.sections[0]!.groups.flatMap((g) => g.shown)
+			.map((c) => (c.kind === 'stack' ? c.held : undefined));
+		expect(held).toEqual([['device:a', 'device:b'], ['device:c']]);
+	});
+});
+
+describe('a stack someone filled and one a grouping filled', () => {
+	it('gives a thing both name to the one someone chose it for', () => {
+		const m = stacked(
+			[config(T, { things: ['device:b'] })],
+			[{ ref: S, things: ['device:a', 'device:b'] }, { ref: T }]
+		);
+		expect(m.get('device:b')).toBe(T);
+		expect(m.get('device:a')).toBe(S);
 	});
 });

@@ -24,10 +24,12 @@
 	import { openDevice } from '#lib/popup.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { scenes } from '#lib/scenes.svelte.js';
-	import { across, readStack, STACK_BUILT_IN, stackHeight, stackRows } from '#lib/stack.js';
+	import { across, readStack, stackBase, stackHeight, stackRows } from '#lib/stack.js';
 
 	let { card, page, label, form, options }: KindProps<'stack'> = $props();
-	const s = $derived(readStack(options ?? kindOptions.of(page, 'stack', card.ref, STACK_BUILT_IN)));
+	const s = $derived(
+		readStack(options ?? kindOptions.of(page, 'stack', card.ref, stackBase(card)))
+	);
 	const wide = $derived(form === 'large');
 
 	// On a room's page its things go by their names without the room's.
@@ -35,7 +37,8 @@
 		page.startsWith('room:') ? (rooms.list.find((r) => r.id === page.slice(5))?.name ?? '') : ''
 	);
 	const short = (n: string) =>
-		roomName && n.startsWith(`${roomName} `) && n.length > roomName.length + 1
+		// Only where what is left is a name of its own: "Garage Deck" is "Deck", "Garage ceiling" stays.
+		roomName && n.startsWith(`${roomName} `) && /^[A-Z0-9]/.test(n.slice(roomName.length + 1))
 			? n.slice(roomName.length + 1)
 			: n;
 
@@ -54,7 +57,8 @@
 
 	const rows = $derived.by(() => {
 		const out: Row[] = [];
-		for (const r of s.things) {
+		// What the page gave it to draw (none two stacks share), else all it names.
+		for (const r of card.held ?? s.things) {
 			if (r.startsWith('scene:')) {
 				const sc = scenes.list.find((x) => x.id === r.slice(6));
 				if (sc)
@@ -237,7 +241,7 @@
 			{#each shown as r (r.ref)}
 				{@const busy = r.busy || ran[r.ref]}
 				{#if s.style === 'list' || s.style === 'folded'}
-					<div class="line" class:busy={r.switchOn}>
+					<div class="line" class:busy={r.switchOn} data-thing={r.ref} data-name={r.name}>
 						<button class="name" onclick={() => (r.device ? details(r) : press(r))}>
 							<span>{r.name}</span>
 							{#if r.switchOn === undefined && !r.scene}<span
@@ -251,6 +255,8 @@
 				{:else if s.style === 'pills'}
 					<button
 						class="pill"
+						data-thing={r.ref}
+						data-name={r.name}
 						class:busy
 						class:alert={r.alert}
 						aria-label={pressLabel(r)}
@@ -266,6 +272,8 @@
 					{#if r.switchOn !== undefined}
 						<button
 							class="tile"
+							data-thing={r.ref}
+							data-name={r.name}
 							class:busy
 							role="switch"
 							aria-checked={r.switchOn}
@@ -279,6 +287,8 @@
 					{:else}
 						<button
 							class="tile"
+							data-thing={r.ref}
+							data-name={r.name}
 							class:busy
 							class:alert={r.alert}
 							aria-label={pressLabel(r)}
@@ -291,6 +301,8 @@
 				{:else}
 					<button
 						class="key"
+						data-thing={r.ref}
+						data-name={r.name}
 						class:busy
 						class:alert={r.alert}
 						aria-label={pressLabel(r)}

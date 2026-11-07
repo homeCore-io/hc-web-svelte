@@ -698,8 +698,17 @@ beside other cards.
   layer being arranged, like any card's settings. A thing someone can't see
   has no line for them.
 
-Not yet: dragging a card onto a stack to put it in, and a grouping rule that
-makes stacks by itself ("switches in a stack when there are five or more").
+- **Moving things in and out.** While arranging, a card (or a thing in Add's
+  list) dropped on a stack goes in it, which lights up as "Goes in here". A
+  line dragged out of a stack becomes its own card where it's let go, or goes
+  into another stack. Without dragging, a card's Move to lists the page's
+  stacks ("Into stack: Switches"), and the settings take things out.
+- **Made by a look.** A look's room section can start "in a stack from N
+  things" (the look editor's Rooms tab): with that many devices and scenes,
+  the section begins with one stack holding them, named after the section,
+  and each person can change it like any stack. Their cards stay in the
+  section, so a thing taken out of it has its card back there. A stack
+  someone chose things for keeps them over one a look filled.
 
 ## 14. The whole app, screen by screen
 

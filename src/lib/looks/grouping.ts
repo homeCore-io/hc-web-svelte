@@ -15,6 +15,7 @@ import { roomPage, type RoomInput } from '../page.js';
 import { byRoom } from '../summary.js';
 import { ref } from '../layers.js';
 import { isGroup, litRoom } from '../lit/room.js';
+import { stackable } from '../stack.js';
 import type { Family, Frame, Place, Rule, Take } from './model.js';
 
 /** The family of things a take holds, for how the look draws them. */
@@ -112,11 +113,20 @@ export function groupRoom(
 		const mine = r.takes.filter((t) => !taken.has(t));
 		for (const t of mine) taken.add(t);
 		const piece = mine.some((t) => t === 'header' || t === 'needs' || t === 'batteries');
+		const cards = mine.flatMap((t) => holds[t]);
+		// Enough of them, and they start in one stack (13 §13.2). Their cards stay
+		// in the section, so one taken out of the stack has its card back here.
+		const things = r.stack ? cards.map((c) => c.ref).filter(stackable) : [];
+		const stack: Card[] =
+			r.stack && things.length >= r.stack
+				? [{ ref: `kind:stack/rule-${r.id}`, kind: 'stack', things, name: r.title }]
+				: [];
 		return {
 			id: r.id,
 			title: r.title,
-			layout: layoutFor(r, drawn),
-			cards: mine.flatMap((t) => holds[t]),
+			// A stack sits among cards, in a grid.
+			layout: stack.length ? 'grid' : layoutFor(r, drawn),
+			cards: [...stack, ...cards],
 			field: FIELD[r.place],
 			accepts: !piece,
 			...(piece ? {} : { hint: 'Nothing here now. Move a card in from another section.' }),

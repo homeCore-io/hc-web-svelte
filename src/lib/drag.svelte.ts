@@ -13,6 +13,8 @@ class Drag {
 	/** Where a held card would land: its section, and the card it goes before (null: the end). */
 	into = $state<string | null>(null);
 	before = $state<string | null>(null);
+	/** A stack a held thing would go in (13 §13.2). */
+	stack = $state<string | null>(null);
 	/** Where a held section would land: before this one (null: the end of its column). */
 	sectionBefore = $state<string | null | undefined>(undefined);
 	/** The column a held section would land in (Home's room field, a Lit room). */
@@ -30,6 +32,7 @@ class Drag {
 		this.ref = null;
 		this.section = null;
 		this.into = null;
+		this.stack = null;
 		this.before = null;
 		this.sectionBefore = undefined;
 		this.column = undefined;

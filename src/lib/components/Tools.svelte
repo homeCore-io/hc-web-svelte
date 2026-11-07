@@ -24,6 +24,7 @@
 	import { nudge, nudgeFavourite, toggleFavourite, type Form } from '#lib/layers.js';
 	import { personal } from '#lib/personal.svelte.js';
 	import { view } from '#lib/view.svelte.js';
+	import { putIn } from '#lib/stacking.js';
 
 	let {
 		page,
@@ -61,10 +62,11 @@
 	} = $props();
 
 	let moving = $state(false);
-	/** Into another section, at its end; up and down place it from there. */
+	/** Into another section, at its end; up and down place it from there. Or into a stack (13 §13.2). */
 	function moveInto(id: string) {
 		moving = false;
-		view.change(page, { op: 'move', ref, before: null, into: id });
+		if (id.startsWith('stack:')) putIn(page, id.slice(6), ref);
+		else view.change(page, { op: 'move', ref, before: null, into: id });
 	}
 
 	const shared = $derived(view.mode(page) === 'edit');

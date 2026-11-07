@@ -1231,3 +1231,45 @@ The design is 13-ui-and-looks.md. These are its decisions (the user,
 ## U11: American spelling
 
 - color, favorite, customize, in the app and its documents.
+
+## P1: Free layout is the whole page (2026-11-07)
+
+- A page is one grid; its sections' headings are cards placed like anything
+  else (14 §1, §6).
+
+**Why:** the user wants to place anything anywhere. Free sections stacked one
+under another would still box cards in.
+
+## P2: A card dropped on others moves them aside, else down
+
+- Aside in the drag's direction when those rows have room; otherwise down,
+  and on down. Nothing overlaps (14 §5).
+
+## P3: 12 columns, 4 on phones
+
+- As Home's room field.
+
+## P4: Phones read the page in order
+
+- Top to bottom, left to right. A phone arrangement of its own can come
+  later.
+
+## P5: Gaps stay
+
+- Where they're left, with a Tidy that closes them up.
+
+## P6: Room pages and made pages first
+
+- Then Home and displays; floor plans build on it.
+
+## P7: Every page is free from the start
+
+- Laid out as today until someone moves something; no switch.
+
+## P8: Widgets for designing pages
+
+- Title, heading, text box, divider, space, picture, link to a page, clock,
+  in Add › Cards (14 §6).
+
+**Why:** the user asked for headings, text boxes and the like to help design
+pages and layouts.

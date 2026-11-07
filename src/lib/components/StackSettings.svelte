@@ -9,6 +9,7 @@
 	on the page once.
 -->
 <script lang="ts">
+	import { sideSheet } from '#lib/sideSheet.js';
 	import { onMount, untrack } from 'svelte';
 	import X from '@lucide/svelte/icons/x';
 	import ArrowUp from '@lucide/svelte/icons/arrow-up';
@@ -43,24 +44,30 @@
 	} = $props();
 
 	let dialog = $state<HTMLDialogElement>();
-	onMount(() => dialog?.show());
+	onMount(() => {
+		dialog?.show();
+		// The page makes room for the sheet, so every card stays in reach.
+		return sideSheet();
+	});
 
 	const sheet = $derived(
 		kindOptions.card(page, 'stack', card.ref, stackBase(card as { things?: string[] }))
 	);
-	const now = $derived(readStack({ ...sheet.without, ...sheet.mine } as Record<string, unknown>));
+	const now = $derived(
+		readStack({ ...sheet.without, ...sheet.mine } as Record<string, unknown>, form === 'large')
+	);
 	const who = $derived(
 		view.mode(page) === 'edit' ? 'For everyone.' : 'Only you see this, on top of the house’s.'
 	);
 	function set(next: Record<string, unknown>) {
 		sheet.save({ ...sheet.mine, ...next });
 	}
-	// Read once, when the sheet opens; it changes the size from here.
-	let wide = $state(untrack(() => form === 'large'));
-	function setWide(w: boolean) {
-		wide = w;
-		view.change(page, { op: 'form', ref: card.ref, form: w ? 'large' : 'standard' });
-	}
+	const WIDTHS = [
+		[1, 'One card'],
+		[2, 'Two'],
+		[3, 'Three'],
+		[4, 'Four']
+	] as const;
 
 	const STYLES = [
 		['list', 'List'],
@@ -71,8 +78,10 @@
 	] as const;
 	const HEIGHTS = [
 		['fit', 'Fits its things'],
-		['2', 'Two cards'],
-		['3', 'Three cards']
+		['1', 'One card'],
+		['2', 'Two'],
+		['3', 'Three'],
+		['4', 'Four']
 	] as const;
 
 	// Everything that can go in: devices but hubs, and homeCore's scenes.
@@ -192,8 +201,20 @@
 			<fieldset>
 				<legend>Width</legend>
 				<div class="pills">
-					<button aria-pressed={!wide} onclick={() => setWide(false)}>One card</button>
-					<button aria-pressed={wide} onclick={() => setWide(true)}>Two cards</button>
+					{#each WIDTHS as [w, name] (w)}
+						<button aria-pressed={now.width === w} onclick={() => set({ width: w })}>{name}</button>
+					{/each}
+				</div>
+			</fieldset>
+			<fieldset>
+				<legend>Things across</legend>
+				<div class="pills">
+					<button aria-pressed={now.columns === 1} onclick={() => set({ columns: 1 })}
+						>One column</button
+					>
+					<button aria-pressed={now.columns === 2} onclick={() => set({ columns: 2 })}
+						>Two columns</button
+					>
 				</div>
 			</fieldset>
 			<fieldset>

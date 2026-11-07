@@ -301,3 +301,33 @@ a {
 		animation-duration: 0ms !important;
 	}
 }
+
+/* A sheet beside the page (Add, a stack's settings): the page makes room for
+   it, so every card can still be reached, moved and dragged (sideSheet.ts). */
+@media (min-width: 900px) {
+	html[data-side-sheet] main {
+		padding-right: calc(420px + 28px);
+	}
+}
+@media (max-width: 899px) {
+	html[data-side-sheet] main {
+		padding-bottom: 62dvh;
+	}
+}
+
+/* A card that spans columns of its section's grid by a number of its own (a
+   stack, 13 §13.2): itself, or while arranging the box holding it. A phone
+   has two columns, so at most two there. */
+:is(.grid, .row) > [data-span='2'],
+:is(.grid, .row) > [data-span='3'],
+:is(.grid, .row) > [data-span='4'] {
+	grid-column: span 2;
+}
+@media (min-width: 900px) {
+	:is(.grid, .row) > [data-span='3'] {
+		grid-column: span 3;
+	}
+	:is(.grid, .row) > [data-span='4'] {
+		grid-column: span 4;
+	}
+}

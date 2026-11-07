@@ -44,3 +44,9 @@ export function takeOut(page: string, stack: string, thing: string): void {
 		thingsIn(page, stack).filter((t) => t !== thing)
 	);
 }
+
+/** Changes a stack's own settings: its width and height, when its corner is dragged. */
+export function setStack(page: string, stack: string, patch: Record<string, unknown>): void {
+	const sheet = kindOptions.card(page, 'stack', stack, base(stack));
+	sheet.save({ ...sheet.mine, ...patch });
+}

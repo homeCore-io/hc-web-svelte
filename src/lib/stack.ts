@@ -6,14 +6,15 @@
  *
  * A thing in a stack is on the page once: its own card leaves its section
  * while it's in one (`stacked`). Its width is the card's size: Standard is
- * one card wide, Large two.
+ * one card wide, Large two, until its own width says (one to four cards);
+ * how many of its things go across is its own setting.
  */
 import type { Change } from './layers.js';
 import type { Options } from './options.js';
 
 export const STACK_STYLES = ['list', 'pills', 'rockers', 'keypad', 'folded'] as const;
 export type StackStyle = (typeof STACK_STYLES)[number];
-export const STACK_HEIGHTS = ['fit', '2', '3'] as const;
+export const STACK_HEIGHTS = ['fit', '1', '2', '3', '4', '5', '6'] as const;
 export type StackHeight = (typeof STACK_HEIGHTS)[number];
 
 export const STACK_BUILT_IN: Options = {
@@ -32,6 +33,10 @@ export interface Stack {
 	busyFirst: boolean;
 	/** `device:<id>` and `scene:<id>`, in the order they were put in. */
 	things: string[];
+	/** How many cards wide: one to four. */
+	width: number;
+	/** Its things side by side: one column, or two (rockers, twice that). */
+	columns: 1 | 2;
 }
 
 const pick = <T extends string>(all: readonly T[], v: unknown, or: T): T =>
@@ -41,15 +46,22 @@ const pick = <T extends string>(all: readonly T[], v: unknown, or: T): T =>
 export const stackable = (r: unknown): r is string =>
 	typeof r === 'string' && /^(device|scene):.+/.test(r);
 
-/** A stack's settings, read safely: anything unknown is its default, and nothing twice. */
-export function readStack(o: Options): Stack {
+/**
+ * A stack's settings, read safely: anything unknown is its default, and
+ * nothing twice. `large`: its card's size was Large, which (before a width of
+ * its own) meant two cards wide, its things in two columns.
+ */
+export function readStack(o: Options, large = false): Stack {
+	const width = typeof o.width === 'number' ? Math.round(o.width) : NaN;
 	const things = Array.isArray(o.things) ? [...new Set(o.things.filter(stackable))] : [];
 	return {
 		name: typeof o.name === 'string' ? o.name.trim() : '',
 		style: pick(STACK_STYLES, o.style, 'list'),
 		height: pick(STACK_HEIGHTS, o.height, 'fit'),
 		busyFirst: o.order === 'busy',
-		things
+		things,
+		width: width >= 1 && width <= 4 ? width : large ? 2 : 1,
+		columns: o.columns === 2 ? 2 : o.columns === 1 ? 1 : large ? 2 : 1
 	};
 }
 
@@ -95,16 +107,16 @@ export const CARD_ROW = 116;
 export const CARD_GAP = 10;
 
 /** Things side by side: one column a card's width, rockers two. */
-export const across = (style: StackStyle, wide: boolean) =>
-	(wide ? 2 : 1) * (style === 'rockers' ? 2 : 1);
+export const across = (style: StackStyle, columns: number) =>
+	columns * (style === 'rockers' ? 2 : 1);
 
 /**
  * How many card rows of the page's grid a stack takes: what it was set to, or
  * — fitting its things — enough for its heading and every line shown.
  */
-export function stackRows(s: Stack, wide: boolean, shown = s.things.length, folds = false): number {
+export function stackRows(s: Stack, shown = s.things.length, folds = false): number {
 	if (s.height !== 'fit') return Number(s.height);
-	const lines = Math.max(1, Math.ceil(shown / across(s.style, wide)));
+	const lines = Math.max(1, Math.ceil(shown / across(s.style, s.columns)));
 	const px = 52 + lines * ROW[s.style] + (folds ? 40 : 0) + PAD[s.style];
 	return Math.max(1, Math.ceil((px + CARD_GAP) / (CARD_ROW + CARD_GAP)));
 }

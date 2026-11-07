@@ -108,3 +108,36 @@ describe('a section laid out for how its things are drawn (13 §13.1)', () => {
 		expect(where(p, 'device:yolink_front_lock')).toBe('doors');
 	});
 });
+
+describe('a section that starts its things in a stack (13 §13.2)', () => {
+	const rules = (stack?: number): Rule[] => [
+		{
+			id: 'all',
+			title: 'Everything',
+			takes: ['lights', 'switches.lights', 'switches.power', 'scenes', 'rest'],
+			layout: 'panel',
+			place: 'main',
+			...(stack ? { stack } : {})
+		}
+	];
+	const den = (stack?: number) => groupRoom('r-den', input, rules(stack), undefined, false);
+
+	it('makes one when there are enough, keeping their cards for when one is taken out', () => {
+		const p = den(2);
+		const s = p.sections.find((x) => x.id === 'all')!;
+		const stack = s.cards[0]!;
+		expect(stack.kind).toBe('stack');
+		expect(stack.ref).toBe('kind:stack/rule-all');
+		const things = stack.kind === 'stack' ? (stack.things ?? []) : [];
+		expect(things.length).toBeGreaterThanOrEqual(2);
+		expect(things.every((t) => /^(device|scene):/.test(t))).toBe(true);
+		expect(s.cards.slice(1).map((c) => c.ref)).toEqual(expect.arrayContaining(things));
+		expect(s.layout).toBe('grid');
+	});
+
+	it('makes none when there are fewer, or when the section doesn’t ask', () => {
+		expect(den(50).sections[0]!.cards.some((c) => c.kind === 'stack')).toBe(false);
+		expect(den().sections[0]!.cards.some((c) => c.kind === 'stack')).toBe(false);
+		expect(den().sections[0]!.layout).toBe('panel');
+	});
+});

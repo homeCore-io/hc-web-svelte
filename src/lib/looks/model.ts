@@ -200,6 +200,11 @@ export interface Rule {
 	place: Place;
 	/** Drawn without its heading. */
 	headless?: boolean;
+	/**
+	 * Its devices and scenes start in one stack (13 §13.2) when it has this many
+	 * or more; each person can change the stack, or take things out of it.
+	 */
+	stack?: number;
 }
 
 export interface Grouping {
@@ -536,7 +541,10 @@ export function readLook(raw: unknown, known: readonly Look[] = BUILT_IN): Look 
 					takes,
 					layout: oneOf(x.layout, LAYOUTS, 'grid'),
 					place: oneOf(x.place, PLACES, 'main'),
-					...(x.headless === true ? { headless: true } : {})
+					...(x.headless === true ? { headless: true } : {}),
+					...(typeof x.stack === 'number' && x.stack >= 2 && x.stack <= 50
+						? { stack: Math.round(x.stack) }
+						: {})
 				}
 			];
 		});

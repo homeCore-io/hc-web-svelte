@@ -660,6 +660,30 @@
 													onchange={(e) => editRule(i, { headless: !e.currentTarget.checked })}
 												/> Heading</label
 											>
+											<!-- 13 §13.2: its devices and scenes start in one stack, from this many. -->
+											<label class="check small"
+												><input
+													type="checkbox"
+													checked={r.stack !== undefined}
+													onchange={(e) =>
+														editRule(i, { stack: e.currentTarget.checked ? 5 : undefined })}
+												/> In a stack from</label
+											>
+											{#if r.stack !== undefined}
+												<input
+													class="count"
+													type="number"
+													min="2"
+													max="50"
+													aria-label={`${r.title}: in a stack from this many things`}
+													value={r.stack}
+													onchange={(e) =>
+														editRule(i, {
+															stack: Math.min(50, Math.max(2, Number(e.currentTarget.value) || 5))
+														})}
+												/>
+												<span class="quiet">things</span>
+											{/if}
 										</div>
 									</div>
 								{/each}
@@ -1066,6 +1090,10 @@
 	}
 	.check.small {
 		font-size: 12.5px;
+	}
+	.count {
+		width: 64px;
+		min-height: 36px;
 	}
 	.rule {
 		display: flex;

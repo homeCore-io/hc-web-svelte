@@ -28,6 +28,7 @@
 		star = true,
 		form,
 		wide = false,
+		rows,
 		list = 'page',
 		added = false,
 		renamed = false,
@@ -48,6 +49,8 @@
 		star?: boolean;
 		form?: Form;
 		wide?: boolean;
+		/** Card rows of its grid it takes: a stack (13 §13.2). */
+		rows?: number;
 		list?: 'page' | 'favourites';
 		added?: boolean;
 		renamed?: boolean;
@@ -70,6 +73,8 @@
 
 	const mode = $derived(view.mode(page));
 	const held = $derived(drag.page === page && drag.ref === ref);
+	// A stack a held thing would go in (13 §13.2).
+	const taking = $derived(drag.page === page && drag.stack === ref);
 
 	// ---- the keyboard (13 §9.3): Space picks it up, the arrows move it ----
 	let picked = $state(false);
@@ -152,9 +157,11 @@
 		class="arrange"
 		class:hidden
 		class:wide
+		style:grid-row={rows ? `span ${rows}` : undefined}
 		class:fresh
 		class:held
 		class:picked
+		class:taking
 		class:shared={mode === 'edit'}
 		data-ref={ref}
 		data-kind={kind}
@@ -168,6 +175,7 @@
 		<div class="card">
 			<div class="quiet" inert>{@render children()}</div>
 			{#if sizing}<span class="sizing" aria-hidden="true">{sizing}</span>{/if}
+			{#if taking}<span class="sizing" aria-hidden="true">Goes in here</span>{/if}
 			{#if form && forms.length > 1}<button
 					class="resize"
 					aria-label={`${name}: size ${form}. Change size`}
@@ -265,6 +273,10 @@
 	/* Held: where it was, faded; picked up from the keyboard: ringed. */
 	.held .card {
 		opacity: 0.35;
+	}
+	.taking .quiet {
+		outline: 2px solid var(--accent);
+		box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 30%, transparent);
 	}
 	.picked .quiet {
 		outline: 2px solid var(--accent);

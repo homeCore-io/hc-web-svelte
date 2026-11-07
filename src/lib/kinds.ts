@@ -27,6 +27,7 @@ import {
 	weatherDescriptor,
 	worthDescriptor
 } from './options.js';
+import { STACK_BUILT_IN } from './stack.js';
 import AlertsKind from './components/kinds/AlertsKind.svelte';
 import ChipsKind from './components/kinds/ChipsKind.svelte';
 import DeviceKind from './components/kinds/DeviceKind.svelte';
@@ -224,6 +225,21 @@ export const kinds: { [K in Card['kind']]: Kind<K> } = {
 		offer: { name: 'Chart', sub: 'A temperature or humidity over time' },
 		setFirst: true,
 		load: lazy(() => import('./components/kinds/ChartKind.svelte'))
+	},
+	stack: {
+		// One card wide (Standard) or two (Large).
+		forms: () => ['standard', 'large'],
+		form: (_c, given) => (given === 'large' ? 'large' : 'standard'),
+		name: () => 'Stack',
+		star: false,
+		// Its own sheet (StackSettings): the things in it aren't a form's fields.
+		options: null,
+		settable: () => true,
+		defaults: STACK_BUILT_IN,
+		addable: anywhere,
+		offer: { name: 'Stack', sub: 'Several things in one tall card, of any kind' },
+		setFirst: true,
+		load: lazy(() => import('./components/kinds/StackKind.svelte'))
 	},
 	// A look's frame pieces and groups (13 §6, §7): drawn only by a look that has
 	// them, so they load only then.

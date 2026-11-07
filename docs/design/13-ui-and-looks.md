@@ -666,6 +666,50 @@ this order, and why:
 | 13    | **Energy flow**                                             | Power Flow Card Plus, Helios                                        | needs energy readings (Mysa's, once used)                            |
 | later | cameras, vacuums, calendars, schedules                      | Advanced Camera Card, Vacuum Map, Calendar Card Pro, Scheduler Card | homeCore has none of these devices yet                               |
 
+### 13.2 Stacks
+
+Agreed with the user on 2026-11-07, from the canvas boards "Stacks" and
+"Stacks · adding one", after a garage full of switch cards. A stack is one
+tall card holding several things: one of the app's own cards
+(`kind:stack/<n>`), so it goes in any section of any page, in every look,
+beside other cards.
+
+- **Adding one.** While customizing or editing, Add › Cards › Stack. Its
+  settings open as it appears, beside the page, so the stack changes as it's
+  set; each change is kept as it's made.
+- **What's in it.** Its settings choose things: this room's first, then the
+  whole house by search or kind. Things of any kind mix: switches, lights,
+  sensors, locks, scenes. Each keeps its own control: a switch to flip, Run
+  for a scene, Lock or Unlock (which still asks where it should), or only its
+  state. Its name opens the device. Things are reordered and taken out there.
+- **On the page once.** A thing ticked into a stack leaves its own card, or
+  another stack. Taking it out, or removing the stack, gives it its card
+  back. Favorites keep theirs: they're each person's own.
+- **Styles.** List, Pills, Rockers (wall switches), Keypad (engraved buttons
+  with a light beside each), and busy first with the rest folded. Busy is on,
+  open or needing a look.
+- **Size.** One card wide or two, which is the card's size (Standard or
+  Large), so it resizes by dragging too. As tall as its things need, or two or
+  three cards tall, scrolling inside past that.
+- **Order.** As they were put in, or busy first.
+- **The heading.** Its name, a count of what adds up ("3 of 6 on · 1 open"),
+  and All off while anything is on, which leaves locks and sensors alone.
+- **Kept** as the card's `config` (name, style, height, order, things) in the
+  layer being arranged, like any card's settings. A thing someone can't see
+  has no line for them.
+
+- **Moving things in and out.** While arranging, a card (or a thing in Add's
+  list) dropped on a stack goes in it, which lights up as "Goes in here". A
+  line dragged out of a stack becomes its own card where it's let go, or goes
+  into another stack. Without dragging, a card's Move to lists the page's
+  stacks ("Into stack: Switches"), and the settings take things out.
+- **Made by a look.** A look's room section can start "in a stack from N
+  things" (the look editor's Rooms tab): with that many devices and scenes,
+  the section begins with one stack holding them, named after the section,
+  and each person can change it like any stack. Their cards stay in the
+  section, so a thing taken out of it has its card back there. A stack
+  someone chose things for keeps them over one a look filled.
+
 ## 14. The whole app, screen by screen
 
 Which layers reach each part of the app (02 §2), so nothing sits outside the

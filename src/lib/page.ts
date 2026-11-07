@@ -13,6 +13,7 @@ import { displayName, type CoreDevice, type Devices } from './devices.js';
 import type { Room } from './house.js';
 import { apply, cardRef, kindRef, ref, type Change, type Form, type Layered } from './layers.js';
 import { byRoom, roomSections, type Chip } from './summary.js';
+import { stacked } from './stack.js';
 
 /**
  * How a section lays its cards out (G3). A look's grouping (13 §8) adds three:
@@ -60,6 +61,16 @@ export type Card = Base &
 		| { kind: 'playing' }
 		| { kind: 'weather' }
 		| { kind: 'chart' }
+		/** Several things in one tall card (13 §13.2): what's in it is its settings. */
+		/** `things`: what a look's grouping put in it, until its settings choose. */
+		| {
+				kind: 'stack';
+				things?: string[];
+				/** Its grouping's name for it: its section's. */
+				name?: string;
+				/** What it draws, once the page is laid out: its things that no stack before it holds. */
+				held?: string[];
+		  }
 		/** A room's header in a look that has one (13 §7): its name, readings, glow. */
 		| { kind: 'roomhead'; id: string; name: string; devices: CoreDevice[] }
 		/** What in a room needs someone, each with its fix (13 §7). */
@@ -70,7 +81,15 @@ export type Card = Base &
 	);
 
 /** The app's own cards Add offers (G21), in the order offered. */
-export const APP_KINDS = ['heading', 'text', 'worth', 'playing', 'weather', 'chart'] as const;
+export const APP_KINDS = [
+	'heading',
+	'text',
+	'worth',
+	'playing',
+	'weather',
+	'chart',
+	'stack'
+] as const;
 export type AppKind = (typeof APP_KINDS)[number];
 const isAppKind = (k: string): k is AppKind => (APP_KINDS as readonly string[]).includes(k);
 
@@ -541,6 +560,28 @@ export function applyPage(
 	// What only the room field draws is left out of the other styles (G32).
 	if (!o.field && page.sections.some((s) => s.field?.only))
 		page = { ...page, sections: page.sections.filter((s) => !s.field?.only) };
+	// A thing in a stack (13 §13.2) is drawn there, so its own card leaves its
+	// section. Favourites keep theirs: they're each person's own list.
+	const stacks = page.sections.flatMap((s) =>
+		s.cards.flatMap((c) => (c.kind === 'stack' ? [{ ref: c.ref, things: c.things }] : []))
+	);
+	const inStack = stacked(changes, stacks);
+	// Each stack draws what it holds: a thing two stacks name is drawn in the first.
+	const heldBy = (ref: string) => [...inStack].filter(([, s]) => s === ref).map(([t]) => t);
+	if (stacks.length > 0)
+		page = {
+			...page,
+			sections: page.sections.map((s) =>
+				s.favourites || s.fixed
+					? s
+					: {
+							...s,
+							cards: s.cards
+								.filter((c) => !inStack.has(c.ref))
+								.map((c) => (c.kind === 'stack' ? { ...c, held: heldBy(c.ref) } : c))
+						}
+			)
+		};
 	// Added into a section (G16): placed as a move would, ahead of the rest.
 	changes = [
 		...changes.flatMap((c): Change[] =>

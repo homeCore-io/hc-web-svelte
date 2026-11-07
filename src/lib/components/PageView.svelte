@@ -31,6 +31,8 @@
 	import { clock } from '#lib/clock.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
 	import { ROOM_BUILT_IN } from '#lib/options.js';
+	import { readStack, stackable, stackBase, stackRows } from '#lib/stack.js';
+	import { grouped, putIn, takeOut } from '#lib/stacking.js';
 	import { fieldPlan, roomBox, type Plot } from '#lib/roomBox.js';
 	import { homeStyle } from '#lib/styles.js';
 	import { view } from '#lib/view.svelte.js';
@@ -128,6 +130,28 @@
 
 	// A kind's settings sheet, for one card (G2). A room's settings are its box's.
 	let setting = $state<{ card: Card; name: string; form?: Form } | null>(null);
+	// A stack (13 §13.2): the rows of the grid it takes while arranging, and
+	// for its sheet, the page's other stacks and what it draws as cards.
+	const stackRowsOf = (card: Card, wide: boolean) => {
+		if (card.kind !== 'stack') return undefined;
+		const s = readStack(kindOptions.of(key, 'stack', card.ref, stackBase(card)));
+		return stackRows(s, wide, card.held?.length ?? s.things.length);
+	};
+	const allCards = $derived(
+		shown.sections.flatMap((s) => s.groups.flatMap((g) => [...g.shown, ...g.hidden]))
+	);
+	const stacksHere = $derived(
+		allCards
+			.filter((c) => c.kind === 'stack')
+			.map((c) => ({
+				ref: c.ref,
+				name: readStack(kindOptions.of(key, 'stack', c.ref, stackBase(c))).name || 'Stack'
+			}))
+	);
+	// What a look's grouping put in its stacks, for putting things in and out of them.
+	$effect(() => {
+		for (const c of allCards) if (c.kind === 'stack' && c.things) grouped.set(c.ref, c.things);
+	});
 	// Every room's box, from the Rooms section's tools.
 	let everyRoom = $state<{ rooms: Card[]; names: Record<string, string> } | null>(null);
 	// Rooms in the sidebar, with their status (G3): their boxes' settings show there.
@@ -231,6 +255,23 @@
 				view.change(key, { op: 'config', ref: sectionRef(id), config: { ...s.config, column } });
 			drag.said = `${s?.title ?? 'The section'} moved.`;
 		},
+		stackable,
+		dropInStack(ref: string, stack: string, from?: string) {
+			// From the Add sheet or another room's: into the stack, with no card of its own.
+			putIn(key, stack, ref, { from });
+			adding.added = stack;
+			const name = stacksHere.find((x) => x.ref === stack)?.name ?? 'the stack';
+			drag.said = `${cardName(ref) === 'It' ? 'It' : cardName(ref)} put in ${name}.`;
+		},
+		dropOut(ref: string, stack: string, into: string, before: string | null) {
+			takeOut(key, stack, ref);
+			// Its own card where it was let go: moved, if the page has one, else added there.
+			if (presentRefs(full).has(ref)) view.change(key, { op: 'move', ref, before, into });
+			else view.change(key, { op: 'add', ref, into, before });
+			adding.added = ref;
+			const title = shown.sections.find((x) => x.section.id === into)?.title ?? '';
+			drag.said = `Taken out of the stack, into ${title}.`;
+		},
 		dropAdd(row: HTMLElement, into: string, before: string | null) {
 			adding.spot(into, before);
 			row.click();
@@ -286,8 +327,16 @@
 			.filter((s) => s.section.accepts && !s.hidden)
 			.map((s) => ({ id: s.section.id, title: s.title }))
 	);
+	// A device or a scene can go into a stack on the page too (13 §13.2).
 	const moveTargets = (card: Card, from: string) =>
-		card.kind === 'room' ? [] : targets.filter((t) => t.id !== from);
+		card.kind === 'room'
+			? []
+			: [
+					...targets.filter((t) => t.id !== from),
+					...(stackable(card.ref)
+						? stacksHere.map((s) => ({ id: `stack:${s.ref}`, title: `Into stack: ${s.name}` }))
+						: [])
+				];
 	const hasSettings = (card: Card, layout: Layout) => {
 		const k = kindOf(card);
 		return (
@@ -330,6 +379,7 @@
 			forms={kind.forms(card)}
 			kind={card.kind}
 			wide={drawnAs === 'large'}
+			rows={card.kind === 'stack' ? stackRowsOf(card, drawnAs === 'large') : undefined}
 			list={favourites ? 'favourites' : 'page'}
 			added={card.added ?? false}
 			renamed={label !== undefined}
@@ -597,7 +647,20 @@
 		{/if}
 	{/await}
 {/if}
-{#if setting}
+{#if setting?.card.kind === 'stack'}
+	{#await import('./StackSettings.svelte') then { default: StackSettings }}
+		{#if setting}
+			<StackSettings
+				page={key}
+				card={setting.card}
+				form={setting.form}
+				others={stacksHere.filter((x) => x.ref !== setting?.card.ref)}
+				onPage={new Set(allCards.map((c) => c.ref))}
+				close={() => (setting = null)}
+			/>
+		{/if}
+	{/await}
+{:else if setting}
 	{#await import('./CardOptions.svelte') then { default: CardOptions }}
 		{#if setting}
 			<CardOptions

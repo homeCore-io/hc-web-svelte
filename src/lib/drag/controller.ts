@@ -11,6 +11,10 @@
  *
  * On a wide screen a thing in the Add sheet (`data-add` on its row) can be
  * dragged onto the page too, landing where it's let go.
+ *
+ * A stack (13 §13.2) takes a thing dropped on it, from the page or the Add
+ * sheet; a line in a stack (`data-thing`) is picked up like a card, and let
+ * go in a section it becomes its own card there, or in another stack, goes in.
  */
 import { drag } from '../drag.svelte.js';
 import { beforeAt } from './rules.js';
@@ -23,6 +27,12 @@ export interface DragHost {
 	dropSection(id: string, before: string | null, column: string | undefined): void;
 	/** Add what an Add sheet row offers, at this spot. */
 	dropAdd(row: HTMLElement, into: string, before: string | null): void;
+	/** Whether a thing can go in a stack: a device or a scene. */
+	stackable(ref: string): boolean;
+	/** Put a thing in a stack; `from`, the stack it was in. */
+	dropInStack(ref: string, stack: string, from?: string): void;
+	/** A thing taken out of a stack, as its own card at this spot. */
+	dropOut(ref: string, stack: string, into: string, before: string | null): void;
 }
 
 const HOLD_MS = 400;
@@ -40,12 +50,17 @@ export function start(root: HTMLElement, host: DragHost): () => void {
 		card?: HTMLElement;
 		handle?: HTMLElement;
 		add?: HTMLElement;
+		/** A line in a stack. */
+		thing?: HTMLElement;
 		timer?: ReturnType<typeof setTimeout>;
 	} | null = null;
 	let active: {
 		card?: HTMLElement;
 		section?: HTMLElement;
 		add?: HTMLElement;
+		thing?: HTMLElement;
+		/** The stack a held line came out of. */
+		fromStack?: string;
 		from: string;
 		kind: string;
 	} | null = null;
@@ -82,10 +97,19 @@ export function start(root: HTMLElement, host: DragHost): () => void {
 			id: e.pointerId,
 			touch,
 			card: card ?? undefined,
-			handle: handle ?? undefined
+			handle: handle ?? undefined,
+			thing: card?.dataset.kind === 'stack' ? lineAt(card, e.clientX, e.clientY) : undefined
 		};
 		if (touch) pending.timer = setTimeout(() => pending && begin(pending.x, pending.y), HOLD_MS);
 		listen();
+	}
+
+	/** A stack's line under the pointer: its drawing is inert while arranging, so found by place. */
+	function lineAt(stack: HTMLElement, x: number, y: number): HTMLElement | undefined {
+		return [...stack.querySelectorAll<HTMLElement>('[data-thing]')].find((l) => {
+			const r = l.getBoundingClientRect();
+			return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+		});
 	}
 
 	function listen() {
@@ -106,6 +130,15 @@ export function start(root: HTMLElement, host: DragHost): () => void {
 			active = { add: p.add, from: '', kind: p.add.dataset.addKind ?? '' };
 			drag.ref = p.add.dataset.add!;
 			drag.said = `Picked up ${p.add.dataset.addName ?? 'a card'}.`;
+		} else if (p.thing && p.card && sec) {
+			active = {
+				thing: p.thing,
+				fromStack: p.card.dataset.ref,
+				from: sec.dataset.sec!,
+				kind: 'device'
+			};
+			drag.ref = p.thing.dataset.thing!;
+			drag.said = `Picked up ${p.thing.dataset.name ?? 'a thing'}.`;
 		} else if (p.card && sec) {
 			active = { card: p.card, from: sec.dataset.sec!, kind: p.card.dataset.kind ?? '' };
 			drag.ref = p.card.dataset.ref!;
@@ -115,7 +148,7 @@ export function start(root: HTMLElement, host: DragHost): () => void {
 			drag.section = sec.dataset.sec!;
 			drag.said = `Picked up the ${sec.getAttribute('aria-label') ?? 'section'}.`;
 		}
-		const lift = (p.add ?? p.card ?? p.handle)!;
+		const lift = (p.add ?? p.thing ?? p.card ?? p.handle)!;
 		const r = lift.getBoundingClientRect();
 		offset = { x: x - r.left, y: y - r.top };
 		ghost = lift.cloneNode(true) as HTMLElement;
@@ -168,6 +201,21 @@ export function start(root: HTMLElement, host: DragHost): () => void {
 	function aim() {
 		if (!active) return;
 		const under = document.elementFromPoint(last.x, last.y);
+		// Over a stack, a thing goes in it; never back into the one it came from.
+		const stack = under?.closest('[data-ref][data-kind="stack"]') as HTMLElement | null;
+		const held = drag.ref;
+		if (
+			stack &&
+			root.contains(stack) &&
+			!active.section &&
+			held &&
+			host.stackable(held) &&
+			stack.dataset.ref !== active.fromStack
+		) {
+			[drag.stack, drag.into, drag.refused] = [stack.dataset.ref!, null, null];
+			return;
+		}
+		drag.stack = null;
 		const sec = sectionOf(under);
 		if (!sec || !root.contains(sec)) {
 			// Back over the sheet, an add lands nowhere.
@@ -175,7 +223,7 @@ export function start(root: HTMLElement, host: DragHost): () => void {
 			return;
 		}
 		const id = sec.dataset.sec!;
-		if (active.card || active.add) {
+		if (active.card || active.add || active.thing) {
 			const ref = drag.ref!;
 			const why = host.refuses(id, ref, active.kind, active.from);
 			if (why) {
@@ -227,6 +275,20 @@ export function start(root: HTMLElement, host: DragHost): () => void {
 		if (pending && e.pointerId === pending.id) return stopPending();
 		if (!active) return;
 		const a = active;
+		if (drag.stack) {
+			const [ref, stack] = [drag.ref!, drag.stack];
+			finish();
+			host.dropInStack(ref, stack, a.fromStack);
+			swallowClick();
+			return;
+		}
+		if (a.thing && a.fromStack && drag.into && !drag.refused) {
+			const [ref, into, before] = [drag.ref!, drag.into, drag.before];
+			finish();
+			host.dropOut(ref, a.fromStack, into, before);
+			swallowClick();
+			return;
+		}
 		if (a.add && drag.into && !drag.refused) {
 			const [into, before] = [drag.into, drag.before];
 			finish();

@@ -345,8 +345,10 @@ Found while building steps 1 to 3, kept here until each is done:
 - **Dragging from the Add sheet** onto a free page (the Add button works).
 - **Dragging by cells on a narrower screen**; today the keyboard and up and
   down arrange it there.
-- **Not yet tried:** touch dragging, phones, Move to and Add here in the
-  browser, a page someone made. Edit mode saving for the household works.
+- **Not yet tried:** touch dragging and arranging on a phone, which need a
+  real device. Tried in the browser and working: Edit mode saving for the
+  household, Move to (into a stack only), the Add sheet, and a page someone
+  made from a room.
 - **Pictures are never deleted** from the UI server when taken off a page;
   a tidy-up of ones no page uses is still to come. Pictures, and video when
   it comes, stay on the UI server, never in core.

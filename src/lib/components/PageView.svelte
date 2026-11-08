@@ -805,7 +805,10 @@
 			layouts={freePage && sec.id !== 'rooms' ? [] : sec.layouts}
 			layout={s.layout}
 			config={s.config}
-			column={field && (sec.field?.movable ?? sec.field === undefined) ? s.column : undefined}
+			// On a free page a look’s areas say where things start (N2, N3).
+			column={field && !freePage && (sec.field?.movable ?? sec.field === undefined)
+				? s.column
+				: undefined}
 			mine={mineSection(sec.own)}
 			remove={sec.own ? () => removeSection(sec.id) : undefined}
 			settings={sec.id === 'rooms' && (s.layout !== 'list' || sideRooms)

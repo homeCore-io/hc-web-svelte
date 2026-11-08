@@ -144,7 +144,7 @@
 		{#if star && !shared}
 			<button
 				aria-pressed={fav}
-				aria-label={fav ? `Remove ${name} from favourites` : `Add ${name} to favourites`}
+				aria-label={fav ? `Remove ${name} from favorites` : `Add ${name} to favorites`}
 				onclick={() =>
 					personal.change((d) => ({ ...d, favourites: toggleFavourite(d.favourites, ref) }))}
 			>
@@ -180,7 +180,9 @@
 			>
 			{#if moveTo.length > 0}
 				<button
-					aria-label={`Move ${name} to another section`}
+					aria-label={moveTo.every((t) => t.id.startsWith('stack:'))
+						? `Move ${name} into a stack`
+						: `Move ${name} to another section`}
 					aria-expanded={moving}
 					onclick={() => (moving = !moving)}><FolderInput size={18} /></button
 				>

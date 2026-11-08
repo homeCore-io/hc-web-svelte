@@ -280,7 +280,12 @@
 								<span class="ico"><Plus size={18} aria-hidden="true" /></span>
 								<span class="words">
 									<b>{c.name}</b>
-									<small>{c.sub}</small>
+									<!-- On a free page a heading holds nothing (N1): only a title. -->
+									<small
+										>{free && c.kind === 'heading'
+											? 'A title over what you put under it'
+											: c.sub}</small
+									>
 								</span>
 							</button>
 						{/each}

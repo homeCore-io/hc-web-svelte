@@ -183,6 +183,39 @@ kind by kind; until then they draw their largest form, stretched.
 - **Layouts to share:** copy a room's layout to another, start a room from a
   layout, and export it with a look.
 
+**As agreed and built (step 5), 2026-11-07.** The canvas boards "Looks on
+the grid" (L1 to L5) and "A look's own areas" (A1 to A4, which replace L2)
+are what this was decided on.
+
+- **L1. A look's grouped rooms are on the grid.** A look that groups rooms
+  (Lit) draws them on the free grid, starting as its areas say; nothing moves
+  until someone moves something. Built.
+- **A1. A look draws its own areas:** rows of areas on the room's 12 columns,
+  as many as it likes, each named and as wide as the author wants. A look
+  that says none has Lit's: across the top, then main (8) and beside (4).
+  The user's point: looks are made by authors, so the editor can't assume
+  Lit's shape. The model is built (`Grouping.areas`); **the areas editor
+  waits on the user's word on the board.**
+- **A2. Each section starts in an area:** a rule names one (`Rule.area`);
+  several can share one and fill it in order; rows of areas lay out one
+  under another. A rule from before areas keeps its place's (top, main,
+  beside); what no rule takes goes to the last area. Built.
+- **A3. An area four columns wide or less lays its cards one a row,** as
+  wide as it, as Lit's side did. Built.
+- **A4. Narrower screens read in order.** Built (§3).
+- **L3. A room's Layout menu,** while arranging: back to the look's layout
+  (this layer's places go, nothing else), copy this room's layout to other
+  rooms, start from another room's. A copy takes the headings, widgets,
+  cards added from elsewhere, and where the look's stacks are; each room's
+  own devices fill in under the headings; a stack someone made arrives
+  empty. Built.
+- **L4. A made drawing says its size:** smallest and largest from 2 × 1 to
+  12 × 6 in the drawing editor, which shows it at each size between. A card
+  drawn by it is kept within that range. Built.
+- **L5. Home and displays** are step 6.
+- **"Needs you" takes no room** when nothing needs someone: the grouping
+  leaves it out until something does.
+
 ## 9. What it could break, and how it's handled
 
 | What | How |

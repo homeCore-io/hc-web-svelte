@@ -1,15 +1,17 @@
-<!-- A picture on a page (14 §6): uploaded to the app's own server, filling its place or shown whole. -->
+<!--
+	A picture on a page (14 §6), from the pictures library (design 15): filling
+	its place or shown whole. A video shows its first frame here (P6).
+-->
 <script lang="ts">
 	import { kindOptions } from '#lib/kindOptions.svelte.js';
 	import type { KindProps } from '#lib/kinds.js';
 	import { PICTURE_BUILT_IN } from '#lib/options.js';
+	import { isLibrary, isVideo, sized } from '#lib/pictures.svelte.js';
 
 	let { card, page, label, options }: KindProps<'picture'> = $props();
 	const o = $derived(options ?? kindOptions.of(page, 'picture', card.ref, PICTURE_BUILT_IN));
 	// Only the app's own pictures: never an address someone typed.
-	const src = $derived(
-		/^\/ui\/pictures\/[a-f0-9]{24}\.(png|jpg|webp|gif)$/.test(String(o.src)) ? String(o.src) : ''
-	);
+	const src = $derived(isLibrary(o.src) ? sized(o.src, isVideo(o.src) ? 'poster' : 'screen') : '');
 	const caption = $derived(String(o.caption ?? '').trim());
 	const fit = $derived(o.fit === 'contain' ? 'contain' : 'cover');
 </script>

@@ -13,6 +13,8 @@ export interface Person {
 	username: string;
 	role: string;
 	scopes: string[];
+	/** A display's session, not a person's (D7). */
+	display?: boolean;
 }
 
 export type Identity =
@@ -52,7 +54,8 @@ export async function whoIs(event: RequestEvent): Promise<Identity> {
 		id: body.id,
 		username: String(body.username ?? ''),
 		role: String(body.role ?? ''),
-		scopes: Array.isArray(body.scopes) ? body.scopes.map(String) : []
+		scopes: Array.isArray(body.scopes) ? body.scopes.map(String) : [],
+		...((body as { kind?: unknown }).kind === 'display' ? { display: true } : {})
 	};
 	known.set(token, { person, at: now });
 	return { ok: true, person, setCookies };

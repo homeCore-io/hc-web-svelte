@@ -17,6 +17,7 @@
 	import Monitor from '@lucide/svelte/icons/monitor';
 	import MessageCircleQuestion from '@lucide/svelte/icons/message-circle-question';
 	import Palette from '@lucide/svelte/icons/palette';
+	import Images from '@lucide/svelte/icons/images';
 	import Plug from '@lucide/svelte/icons/plug';
 	import Puzzle from '@lucide/svelte/icons/puzzle';
 	import Users from '@lucide/svelte/icons/users';
@@ -58,6 +59,7 @@
 		displays: Monitor,
 		asking: MessageCircleQuestion,
 		look: Palette,
+		pictures: Images,
 		plugins: Plug,
 		extensions: Puzzle,
 		people: Users,

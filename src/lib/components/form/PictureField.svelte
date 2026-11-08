@@ -1,8 +1,13 @@
 <!--
-	A picture for a Picture widget (14 §6): chosen from this device, sent to
-	the app's own server, kept as its address there. Shown as it is now.
+	A picture for a Picture card (14 §6): chosen with the one picker (design 15,
+	P3), from the pictures library or a new one. Chosen while editing the
+	household’s page, it’s shared with everyone (P5).
 -->
 <script lang="ts">
+	import PicturePicker from '../PicturePicker.svelte';
+	import { editing } from '#lib/edit.svelte.js';
+	import { isLibrary, isVideo, sized } from '#lib/pictures.svelte.js';
+
 	let {
 		value,
 		id,
@@ -15,56 +20,31 @@
 		onchange: (v: unknown) => void;
 	} = $props();
 
-	const src = $derived(typeof value === 'string' ? value : '');
-	let busy = $state(false);
-	let problem = $state('');
-	let input = $state<HTMLInputElement>();
-
-	async function send(e: Event) {
-		const file = (e.currentTarget as HTMLInputElement).files?.[0];
-		if (!file) return;
-		problem = '';
-		busy = true;
-		try {
-			const res = await fetch('/ui/pictures', {
-				method: 'POST',
-				headers: { 'content-type': file.type || 'application/octet-stream' },
-				body: file
-			});
-			const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
-			if (res.ok && body.url) onchange(body.url);
-			else problem = body.error ?? 'It couldn’t be sent.';
-		} catch {
-			problem = 'It couldn’t be sent.';
-		} finally {
-			busy = false;
-			if (input) input.value = '';
-		}
-	}
+	const src = $derived(isLibrary(value) ? value : '');
+	let choosing = $state(false);
 </script>
 
 <div class="picture-field">
-	{#if src}<img {src} alt="" />{/if}
+	{#if src}<img src={sized(src, isVideo(src) ? 'poster' : 'tile')} alt="" />{/if}
 	<div class="row">
-		<input
-			bind:this={input}
-			{id}
-			type="file"
-			accept="image/png,image/jpeg,image/webp,image/gif"
-			{disabled}
-			onchange={send}
-			hidden
-		/>
-		<button type="button" disabled={disabled || busy} onclick={() => input?.click()}>
-			{busy ? 'Sending…' : src ? 'Choose another' : 'Choose a picture'}
+		<button type="button" {id} {disabled} onclick={() => (choosing = true)}>
+			{src ? 'Choose another' : 'Choose a picture'}
 		</button>
 		{#if src && !disabled}<button type="button" class="plain" onclick={() => onchange('')}
 				>Take it off</button
 			>{/if}
 	</div>
-	<small>PNG, JPEG, WebP or GIF, up to 8 MB.</small>
-	{#if problem}<span class="problem" role="alert">{problem}</span>{/if}
+	<small>From your pictures, or a new one. Settings › Pictures keeps them all.</small>
 </div>
+{#if choosing}
+	<PicturePicker
+		title="A picture for this card"
+		value={src ? { url: src } : undefined}
+		shared={editing.page !== null}
+		pick={(p) => onchange(p.url)}
+		close={() => (choosing = false)}
+	/>
+{/if}
 
 <style>
 	.picture-field {
@@ -101,9 +81,5 @@
 	}
 	small {
 		color: var(--ink-muted);
-	}
-	.problem {
-		color: var(--alert);
-		font-size: 13px;
 	}
 </style>

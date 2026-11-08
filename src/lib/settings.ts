@@ -81,6 +81,13 @@ export const SETTINGS: SettingsItem[] = [
 		detail: 'Which commands ask before they go'
 	},
 	{
+		slug: 'pictures',
+		label: 'Pictures',
+		group: 'house',
+		words: 'pictures photos images videos albums upload delete picture frame',
+		detail: 'Your pictures and the household’s'
+	},
+	{
 		slug: 'look',
 		label: 'Look',
 		group: 'house',
@@ -178,6 +185,8 @@ const NEEDS: Record<string, string> = {
 	alerts: 'automations:write',
 	asking: 'content:write',
 	look: 'content:write',
+	// Everyone looks after their own pictures (design 15): anyone who reads the house.
+	pictures: 'devices:read',
 	events: 'devices:read',
 	// Looking, for those whose role reads them (observer, operators, editors).
 	audit: 'audit:read',

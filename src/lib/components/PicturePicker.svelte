@@ -12,6 +12,7 @@
 	import Play from '@lucide/svelte/icons/play';
 	import {
 		ACCEPT,
+		FOCUS,
 		isVideo,
 		pictures,
 		sized,
@@ -61,17 +62,7 @@
 	const choices = $derived(pictures.items.filter((p) => videos || p.kind !== 'video'));
 	const picked = $derived(pictures.items.find((p) => p.url === chosen));
 	const theirs = $derived(shared && picked !== undefined && !picked.shared);
-	const POS = [
-		'0% 0%',
-		'50% 0%',
-		'100% 0%',
-		'0% 50%',
-		'50% 50%',
-		'100% 50%',
-		'0% 100%',
-		'50% 100%',
-		'100% 100%'
-	];
+	const POS = FOCUS;
 	const SPOT = [
 		'Top left',
 		'Top',
@@ -158,7 +149,7 @@
 						{#if p.kind === 'video'}<span class="badge"><Play size={11} aria-hidden="true" /></span
 							>{/if}
 						<span class="name"
-							>{p.name}{#if !p.shared}<em> · just me</em>{/if}</span
+							>{p.name}{#if !p.shared}<em>{' · just me'}</em>{/if}</span
 						>
 					</button>
 				{/each}

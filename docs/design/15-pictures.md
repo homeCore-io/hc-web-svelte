@@ -82,10 +82,12 @@ own photo in place of its icon, a scene's picture, a page's backdrop.
 - **Round 1, the library on the UI server:** P1, P4, P7 (serving), P8.
 - **Round 2, the library and picker in the app:** Settings › Pictures, the
   picker, the Picture card's settings.
+- **Round 3, rooms and people:** a room's photo, chosen in Settings › Rooms,
+  behind its header (a video plays there) and its box on Home, field and
+  tiles alike; a person's picture, chosen on Me, in the sidebar.
 
 ## 6. Still to do
 
-- Room photos, people's pictures (round 3); a display's picture frame
-  (round 4).
+- A display's picture frame (round 4).
 - The in-app backup to include pictures.
 - Replacing a picture's file while keeping its uses.

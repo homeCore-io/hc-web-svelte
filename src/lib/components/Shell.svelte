@@ -34,6 +34,7 @@
 	import { alerts } from '#lib/alerts.svelte.js';
 	import { adding } from '#lib/adding.svelte.js';
 	import RoomIcon from './RoomIcon.svelte';
+	import Avatar from './Avatar.svelte';
 	import SideRoomStatus from './SideRoomStatus.svelte';
 	import { kindOptions } from '#lib/kindOptions.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
@@ -134,7 +135,6 @@
 		}
 	}
 
-	const initial = $derived((session.me?.username ?? '?').slice(0, 1).toUpperCase());
 	const liveLabel = $derived(
 		live.state === 'live'
 			? 'Connected to homeCore'
@@ -210,7 +210,7 @@
 			</a>
 		{/if}
 		<a class="dest" href="/me" aria-current={isAt(pathname, '/me') ? 'page' : undefined} title="Me">
-			<span class="avatar" aria-hidden="true">{initial}</span>
+			<Avatar name={session.me?.username ?? ''} photo={personal.doc.photo} />
 			<span class="label">Me</span>
 		</a>
 	</nav>
@@ -638,20 +638,6 @@
 	.dest[aria-current='page'] {
 		background: var(--nav-on);
 		color: var(--ink);
-	}
-	.avatar {
-		width: 22px;
-		height: 22px;
-		flex: none;
-		border-radius: 50%;
-		background: var(--surface);
-		border: 1px solid var(--line);
-		color: var(--ink);
-		font-size: 11px;
-		font-weight: 700;
-		display: flex;
-		align-items: center;
-		justify-content: center;
 	}
 	.rooms {
 		margin-top: var(--space-4);

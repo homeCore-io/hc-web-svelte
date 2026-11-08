@@ -43,6 +43,19 @@ export interface Picked {
 	dim?: number;
 }
 
+/** Where a picture sits, by its : the part kept in view (P3). */
+export const FOCUS = [
+	'0% 0%',
+	'50% 0%',
+	'100% 0%',
+	'0% 50%',
+	'50% 50%',
+	'100% 50%',
+	'0% 100%',
+	'50% 100%',
+	'100% 100%'
+];
+
 export const MAX_PICTURE_MB = 20;
 export const MAX_VIDEO_MB = 200;
 export const ACCEPT = 'image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm';

@@ -53,6 +53,15 @@ export interface BuiltPage {
 	icon?: string;
 }
 
+/** A picture from the library behind words (design 15, P3): which part stays in view, how dark. */
+export interface Photo {
+	src?: string;
+	/** 0 to 8, left to right, top to bottom; 4, the middle. */
+	focus?: number;
+	/** How dark behind the words, 0 to 70 (percent). */
+	dim?: number;
+}
+
 export interface PersonDoc {
 	version: number;
 	/** The document's shape (`SCHEMA`); `version` counts saves. Absent is 1. */
@@ -61,6 +70,8 @@ export interface PersonDoc {
 	defaults?: Record<string, Record<string, unknown>>;
 	/** The frame: the sidebar's rooms as names, or with their status (G3). */
 	shell?: { rooms?: 'names' | 'status' };
+	/** Their picture, from the library, in place of their initial (design 15). */
+	photo?: string;
 	/** Starred cards, in the order they appear in Favourites on Home. */
 	favourites?: string[];
 	/** Changes per page: `home`, `room:{id}`, `page:{id}`. */
@@ -99,6 +110,8 @@ export interface HouseDoc {
 	shell?: { rooms?: 'names' | 'status' };
 	/** Each room's icon, by room id (D10). */
 	icons?: Record<string, string>;
+	/** Each room's photo, by room id (design 15): behind its header and its box on Home. */
+	photos?: Record<string, Photo>;
 	/** The phone bar for anyone who hasn't chosen their own (N2). */
 	bar?: string[];
 	/** The house's theme (D9a). */

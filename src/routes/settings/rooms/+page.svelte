@@ -25,6 +25,8 @@
 	import { createRoom, deleteRoom, mergeRoom, renameRoom } from '#lib/admin.js';
 	import ListDetail from '#lib/components/admin/ListDetail.svelte';
 	import RoomIcon, { ROOM_ICONS, type RoomIconName } from '#lib/components/RoomIcon.svelte';
+	import PicturePicker from '#lib/components/PicturePicker.svelte';
+	import { isVideo, sized, type Picked } from '#lib/pictures.svelte.js';
 
 	const members = $derived(byRoom(devices.byId, rooms.list));
 	const countOf = (id: string) => members.get(id)?.length ?? 0;
@@ -91,6 +93,21 @@
 		const id = room.id;
 		void household.change((d) => ({ ...d, icons: { ...d.icons, [id]: icon } }));
 		picking = false;
+	}
+
+	// ---- its photo (design 15): behind its header and its box on Home ----
+	let choosingPhoto = $state(false);
+	const photo = $derived(room ? household.photoOf(room.id) : undefined);
+	function setPhoto(p: Picked | null) {
+		if (!room) return;
+		const id = room.id;
+		void household.change((d) => {
+			const { [id]: _gone, ...rest } = d.photos ?? {};
+			return {
+				...d,
+				photos: p ? { ...rest, [id]: { src: p.url, focus: p.focus, dim: p.dim } } : rest
+			};
+		});
 	}
 
 	// ---- new room ----
@@ -221,6 +238,35 @@
 								>
 							{/each}
 						</div>
+					{/if}
+
+					<div class="photo-row">
+						{#if photo}<img
+								src={sized(photo.src, isVideo(photo.src) ? 'poster' : 'tile')}
+								alt=""
+							/>{/if}
+						<div class="photo-words">
+							<strong>Photo</strong>
+							<span class="quiet"
+								>{photo
+									? 'Behind its header and its box on Home, for everyone.'
+									: 'None: the look draws it. A photo goes behind its header and its box on Home.'}</span
+							>
+						</div>
+						<button type="button" class="ghost" onclick={() => (choosingPhoto = true)}
+							>{photo ? 'Change…' : 'Choose a photo…'}</button
+						>
+					</div>
+					{#if choosingPhoto}
+						<PicturePicker
+							title={`A photo for ${room.name}`}
+							value={photo ? { url: photo.src, focus: photo.focus, dim: photo.dim } : undefined}
+							shared
+							over
+							pick={(p) => setPhoto(p)}
+							clear={() => setPhoto(null)}
+							close={() => (choosingPhoto = false)}
+						/>
 					{/if}
 
 					{#if merging}
@@ -450,6 +496,29 @@
 	}
 	.go:disabled {
 		opacity: 0.5;
+	}
+	.photo-row {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+	.photo-row img {
+		width: 88px;
+		height: 56px;
+		object-fit: cover;
+		border-radius: 10px;
+		flex: none;
+	}
+	.photo-words {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		flex: 1;
+		min-width: 0;
+	}
+	.photo-words .quiet {
+		color: var(--ink-muted);
+		font-size: 13px;
 	}
 	.icons {
 		display: flex;

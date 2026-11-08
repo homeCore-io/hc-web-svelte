@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
 	BUILT_IN,
+	areaFor,
+	areasOf,
+	narrowArea,
+	readAreas,
 	CLASSIC,
 	LIT,
 	allLooks,
@@ -169,5 +173,62 @@ describe('options for drawings', () => {
 		});
 		const plain = readLook({ id: 'p', name: 'P', version: 1 });
 		expect(typeof plain === 'string' ? plain : plain.options).toBeUndefined();
+	});
+});
+
+describe('a look’s areas (14 §8, A1 to A3)', () => {
+	const rule = (id: string, place: 'band' | 'main' | 'side', area?: string) => ({
+		id,
+		title: id,
+		takes: [],
+		layout: 'grid' as const,
+		place,
+		...(area ? { area } : {})
+	});
+
+	it('has Lit’s when it says none: across the top, then main and beside', () => {
+		expect(areasOf({}).map((a) => [a.id, a.x, a.w, a.row])).toEqual([
+			['top', 0, 12, 0],
+			['main', 0, 8, 1],
+			['beside', 8, 4, 1]
+		]);
+	});
+
+	it('starts a section in its rule’s area, else where its place meant, and the rest last', () => {
+		const g = {
+			areas: [
+				[
+					{ id: 'rail', name: 'Rail', w: 3 },
+					{ id: 'main', name: 'Main', w: 9 }
+				]
+			]
+		};
+		expect(areaFor(g, rule('a', 'main', 'rail'))?.id).toBe('rail');
+		expect(areaFor(g, rule('b', 'main'))?.id).toBe('main');
+		expect(areaFor(g, rule('c', 'band'))?.id).toBe('rail');
+		expect(areaFor(g, undefined)?.id).toBe('main');
+		expect(narrowArea({ id: 'rail', name: 'Rail', w: 3 })).toBe(true);
+	});
+
+	it('reads only areas that fit: known ids, none repeated, rows of 12 or less', () => {
+		expect(
+			readAreas([
+				[
+					{ id: 'a', name: 'A', w: 6 },
+					{ id: 'b', name: 'B', w: 6 }
+				]
+			])
+		).toHaveLength(1);
+		expect(
+			readAreas([
+				[
+					{ id: 'a', name: 'A', w: 8 },
+					{ id: 'b', name: 'B', w: 6 }
+				]
+			])
+		).toBeUndefined();
+		expect(readAreas([[{ id: 'a', w: 6 }], [{ id: 'a', w: 6 }]])).toBeUndefined();
+		expect(readAreas([[{ id: 'Bad id', w: 6 }]])).toBeUndefined();
+		expect(readAreas('rows')).toBeUndefined();
 	});
 });

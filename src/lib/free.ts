@@ -194,8 +194,11 @@ export function layout(items: Item[], changes: Change[] = [], cols = COLS): Plac
 	for (const it of items) {
 		if (out.some((p) => p.ref === it.ref)) continue;
 		const head = it.after === undefined ? undefined : out.find((p) => p.ref === it.after);
-		const from = head ? head.y + head.h : 0;
-		out.push({ ref: it.ref, ...firstGap(out, it.w, it.h, cols, from) });
+		// Under its heading, in its heading's columns.
+		const at = head
+			? firstGap(out, it.w, it.h, cols, head.y + head.h, head.x, head.w)
+			: firstGap(out, it.w, it.h, cols);
+		out.push({ ref: it.ref, ...at });
 	}
 	return reading(out);
 }

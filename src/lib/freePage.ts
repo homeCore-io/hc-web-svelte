@@ -22,8 +22,31 @@ export type Piece =
 	| { kind: 'whole'; section: ShownSection }
 	| { kind: 'card'; section: ShownSection; card: Card; g: Layered<Card> };
 
-/** A section drawn as one card: how tall to start it, before its contents say. */
-const WHOLE_ROWS = 2;
+/**
+ * A section drawn as one card: about how many rows it takes, by its layout
+ * and how much it holds, so it doesn't stretch the rows beside it (14 §8).
+ * Its heading is the first. A cell is taken as about 90 pixels across.
+ */
+export function wholeRows(layout: Layout, n: number, w: number): number {
+	const across = (px: number) => Math.max(1, Math.floor((w * 90) / px));
+	switch (layout) {
+		case 'lines':
+		case 'list':
+		case 'joined':
+			return 1 + Math.ceil((n * 42) / 64);
+		case 'fold':
+			return 1;
+		case 'panel':
+			return 1 + 2 * Math.ceil(n / across(104));
+		case 'chips':
+		case 'swatches':
+			return 1 + Math.ceil(n / across(130));
+		case 'row':
+			return 1 + Math.ceil(n / Math.max(1, Math.floor(w / 2)));
+		default:
+			return 2;
+	}
+}
 
 /**
  * What the page lays out, in its sections' order, and what each is. `cells`
@@ -35,7 +58,13 @@ export function piecesOf(
 	sections: ShownSection[],
 	cells: (card: Card, g: Layered<Card>, layout: Layout) => { w: number; h: number },
 	drawn: (s: ShownSection) => boolean,
-	arranging = false
+	arranging = false,
+	/**
+	 * Where a section starts (14 §8): a look's area, its columns and whether it's
+	 * beside the main one, whose cards are one a row; null, not drawn here.
+	 */
+	areaOf: (s: ShownSection) => { x: number; w: number; beside?: boolean } | null | undefined = () =>
+		undefined
 ): { items: Item[]; pieces: Map<string, Piece> } {
 	const items: Item[] = [];
 	const pieces = new Map<string, Piece>();
@@ -46,20 +75,25 @@ export function piecesOf(
 	);
 	for (const s of sections) {
 		if (!drawn(s) || (s.hidden && !arranging)) continue;
+		const a = areaOf(s);
+		if (a === null) continue;
+		const area = a && { x: a.x, w: a.w };
+		const across = a?.w ?? COLS;
 		const sec = s.section;
 		const ref = sectionRef(sec.id);
 		if (s.hidden) {
-			items.push({ ref, w: COLS, h: 1, breaks: true });
+			items.push({ ref, w: across, h: 1, breaks: true, area });
 			pieces.set(ref, { kind: 'heading', section: s });
 			continue;
 		}
 		if (!ONE_BY_ONE.includes(s.layout) || sec.bare || sec.lead) {
-			items.push({ ref, w: COLS, h: WHOLE_ROWS, breaks: true });
+			const n = s.groups.reduce((k, g) => k + g.shown.length, 0);
+			items.push({ ref, w: across, h: wholeRows(s.layout, n, across), breaks: true, area });
 			pieces.set(ref, { kind: 'whole', section: s });
 			continue;
 		}
 		if (!sec.headless) {
-			items.push({ ref, w: COLS, h: 1, breaks: true });
+			items.push({ ref, w: across, h: 1, breaks: true, area });
 			pieces.set(ref, { kind: 'heading', section: s });
 		}
 		let first = sec.headless;
@@ -72,6 +106,9 @@ export function piecesOf(
 				items.push({
 					ref: card.ref,
 					...size,
+					// Beside the main area, one a row, as wide as it; elsewhere no wider than it.
+					w: a?.beside ? a.w : Math.min(size.w, across),
+					area,
 					breaks: first || undefined,
 					after: sec.headless ? undefined : ref
 				});

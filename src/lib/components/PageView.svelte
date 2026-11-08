@@ -62,6 +62,8 @@
 		type Placed
 	} from '#lib/free.js';
 	import type { CellsHost } from '#lib/drag/cells.js';
+	import { lookHere } from '#lib/look.svelte.js';
+	import { areaFor, narrowArea, type AreaAt } from '#lib/looks/model.js';
 	import {
 		FORM_CELLS,
 		formFor,
@@ -371,7 +373,36 @@
 						: [])
 				];
 	// ---- free layout (14): a room's page and a made page are one grid ----
-	const freeHere = $derived(!field && (key.startsWith('room:') || key.startsWith('page:')));
+	// A room's page and a made page (14 §3), a look's grouped rooms too (L1).
+	const freeHere = $derived(key.startsWith('room:') || key.startsWith('page:'));
+	const here = lookHere();
+	/**
+	 * Where a grouped room's section starts (14 §8, A1 to A3): the area of the
+	 * look its rule names; what no rule took, the last. Null: not drawn here.
+	 * A page that isn't grouped has the whole width.
+	 */
+	function areaOf(s: ShownSection): AreaAt | null | undefined {
+		if (!page.columns) return undefined;
+		if (s.column === 'none') return null;
+		const g = here.def.grouping;
+		return areaFor(
+			g,
+			g.room?.find((r) => r.id === s.section.id)
+		);
+	}
+	/** The area a section starts in, with whether its cards are one a row (A3). */
+	const areaHere = (s: ShownSection) => {
+		const a = areaOf(s);
+		return a ? { x: a.x, w: a.w, beside: narrowArea(a) } : a;
+	};
+	/** How a grouped room draws a section's cards: one a row in a narrow area, or across the top. */
+	const placeOf = (s: ShownSection): Place | undefined => {
+		const a = areaOf(s);
+		return a && narrowArea(a) ? 'side' : page.columns && s.column === 'band' ? 'band' : undefined;
+	};
+	/** A grouped room's sections, a row of areas at a time (A2); in order within each. */
+	const inAreaOrder = (list: ShownSection[]) =>
+		page.columns ? [...list].sort((x, y) => (areaOf(x)?.row ?? 0) - (areaOf(y)?.row ?? 0)) : list;
 	/** A card's size in cells (14 §7): across the page, a stack's own, a button's, by its form. */
 	function cellsOf(card: Card, g: Layered<Card>, layout: Layout, as?: Form) {
 		const k = kindOf(card);
@@ -401,10 +432,11 @@
 	const freePage = $derived.by(() => {
 		if (!freeHere) return null;
 		const { items, pieces } = piecesOf(
-			shown.sections,
+			inAreaOrder(shown.sections),
 			cellsOf,
 			(s) => drawn(s, arranging),
-			arranging
+			arranging,
+			areaHere
 		);
 		const laid = freeLayout(items, changes);
 		return { pieces, laid, eight: narrow(laid, 8), four: narrow(laid, 4) };
@@ -811,7 +843,7 @@
 {/snippet}
 
 <div class="drag-root" bind:this={root}>
-	{#if field}
+	{#if field && !freePage}
 		<!-- The room field (mockup A): the band, then the rooms with what's beside them. -->
 		<div class="fieldpage">
 			{#each inColumn('band') as s (s.section.id)}{@render gap(s.section.id)}{@render block(
@@ -853,6 +885,7 @@
 							class:heading={it.kind === 'heading'}
 							class:arranging
 							class:held={it.kind === 'card' && it.card.kind === 'stack'}
+							class:side={placeOf(it.section) === 'side'}
 							data-ref={arranging ? p.ref : undefined}
 							data-stack={arranging && it.kind === 'card' && it.card.kind === 'stack'
 								? ''
@@ -864,7 +897,7 @@
 							{:else if it.kind === 'heading'}
 								<h2 class="section-label">{it.section.title}</h2>
 							{:else if it.kind === 'whole'}
-								{@render block(it.section)}
+								{@render block(it.section, placeOf(it.section))}
 							{:else}
 								{@render piece(
 									it.card,
@@ -872,7 +905,7 @@
 									false,
 									it.section.layout,
 									it.section.section.accepts ? it.section.section.id : undefined,
-									undefined,
+									placeOf(it.section),
 									formIn(it.card, it.g, it.section.layout, p),
 									{ w: p.w, h: p.h }
 								)}

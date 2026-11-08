@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	BUILT_IN,
+	sizeOf,
 	areaFor,
 	areasOf,
 	narrowArea,
@@ -230,5 +231,30 @@ describe('a look’s areas (14 §8, A1 to A3)', () => {
 		expect(readAreas([[{ id: 'a', w: 6 }], [{ id: 'a', w: 6 }]])).toBeUndefined();
 		expect(readAreas([[{ id: 'Bad id', w: 6 }]])).toBeUndefined();
 		expect(readAreas('rows')).toBeUndefined();
+	});
+});
+
+describe('a made drawing’s size (14 §7, L4)', () => {
+	const made = (size?: unknown) =>
+		readLook({
+			version: 1,
+			id: 'mine',
+			name: 'Mine',
+			made: [{ id: 'orb', name: 'Orb', family: 'lights', from: 'lit', ...(size ? { size } : {}) }]
+		});
+
+	it('keeps a range of the editor’s sizes, the smaller first', () => {
+		const l = made({ min: [2, 2], max: [6, 4] });
+		expect(typeof l !== 'string' && l.made[0]?.size).toEqual({ min: [2, 2], max: [6, 4] });
+	});
+
+	it('takes its family’s when it says none, or one that doesn’t fit', () => {
+		for (const size of [undefined, { min: [6, 4], max: [2, 1] }, { min: [5, 5], max: [6, 4] }]) {
+			const l = made(size);
+			expect(typeof l !== 'string' && l.made[0] && sizeOf(l.made[0])).toEqual({
+				min: [2, 1],
+				max: [6, 4]
+			});
+		}
 	});
 });

@@ -141,7 +141,44 @@ export interface MadeDrawing {
 	css?: string;
 	/** JavaScript, an admin's: the body of `draw(thing, host)`, returning HTML. */
 	code?: string;
+	/**
+	 * How small and large it can be placed (14 §7, L4): one of `DRAWING_SIZES`
+	 * each, in cells. Absent, its family's.
+	 */
+	size?: { min: Cells; max: Cells };
 }
+
+/** A width and height in cells. */
+export type Cells = [number, number];
+
+/** The sizes the drawing editor offers, smallest first (L4). */
+export const DRAWING_SIZES: readonly Cells[] = [
+	[2, 1],
+	[2, 2],
+	[3, 2],
+	[4, 2],
+	[4, 3],
+	[6, 3],
+	[6, 4],
+	[8, 4],
+	[12, 4],
+	[12, 6]
+];
+
+/** Each family's range, for a drawing that doesn't say its own (14 §7). */
+export const FAMILY_SIZE: Record<Family, { min: Cells; max: Cells }> = {
+	lights: { min: [2, 1], max: [6, 4] },
+	switches: { min: [2, 1], max: [6, 4] },
+	scenes: { min: [2, 1], max: [4, 2] },
+	doors: { min: [2, 1], max: [6, 4] },
+	readings: { min: [2, 1], max: [12, 6] },
+	watching: { min: [2, 1], max: [12, 6] },
+	media: { min: [2, 1], max: [12, 6] },
+	climate: { min: [4, 3], max: [12, 6] }
+};
+
+/** A made drawing's range: its own, else its family's. */
+export const sizeOf = (m: MadeDrawing) => m.size ?? FAMILY_SIZE[m.family];
 
 /** The families a drawing can be made for: things with a state to show. */
 export const MAKEABLE: readonly Family[] = [
@@ -455,6 +492,16 @@ const text = (v: unknown, max: number): string | undefined =>
 	typeof v === 'string' && v.trim() ? v.slice(0, max) : undefined;
 
 /** A made drawing from untrusted data, or nothing if it can't be one. */
+/** A made drawing's range, read: two of the editor's sizes, the smaller first. */
+function readSize(v: unknown): { size?: { min: Cells; max: Cells } } {
+	const o = (v ?? {}) as { min?: unknown; max?: unknown };
+	const at = (c: unknown) =>
+		Array.isArray(c) ? DRAWING_SIZES.findIndex(([w, h]) => w === c[0] && h === c[1]) : -1;
+	const lo = at(o.min);
+	const hi = at(o.max);
+	return lo >= 0 && hi >= lo ? { size: { min: DRAWING_SIZES[lo]!, max: DRAWING_SIZES[hi]! } } : {};
+}
+
 function readMade(raw: unknown): MadeDrawing | null {
 	if (!raw || typeof raw !== 'object') return null;
 	const o = raw as Record<string, unknown>;
@@ -496,6 +543,7 @@ function readMade(raw: unknown): MadeDrawing | null {
 			...(icon ? { icon } : {})
 		},
 		...(css ? { css } : {}),
+		...readSize(o.size),
 		...(code ? { code } : {})
 	};
 }

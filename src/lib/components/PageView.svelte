@@ -64,7 +64,22 @@
 	import type { CellsHost } from '#lib/drag/cells.js';
 	import { lookHere } from '#lib/look.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
-	import { areaFor, narrowArea, type AreaAt } from '#lib/looks/model.js';
+	import { areaFor, narrowArea, sizeOf, type AreaAt, type Family } from '#lib/looks/model.js';
+	/** The family a look draws a device as, by its kind (13 §6), for its drawing's range. */
+	const familyOf = (scene: boolean, kind: string): Family | null =>
+		scene
+			? 'scenes'
+			: kind === 'light'
+				? 'lights'
+				: ['switch', 'outlet', 'fan'].includes(kind)
+					? 'switches'
+					: ['door', 'window', 'garage', 'gate', 'contact_sensor', 'lock'].includes(kind)
+						? 'doors'
+						: ['temperature_sensor', 'weather_station'].includes(kind)
+							? 'readings'
+							: ['media_player', 'tv', 'speaker'].includes(kind)
+								? 'media'
+								: null;
 	import {
 		FORM_CELLS,
 		formFor,
@@ -456,7 +471,13 @@
 		if (it.kind !== 'card') return rangeOf({ ref, kind: 'heading' }, undefined, []);
 		const usual = formsOf(it.card, it.g, it.section.layout).map((f) => f.size);
 		const device = it.card.kind === 'device' ? cardFor(it.card.device, clock.now).kind : undefined;
-		return rangeOf(it.card, device, usual);
+		const r = rangeOf(it.card, device, usual);
+		// Drawn by a drawing made in the look editor: the range it says (L4).
+		const fam = it.card.kind === 'device' ? familyOf(it.card.scene, device ?? '') : null;
+		const made = fam && here.def.made.find((m) => m.id === here.draws(fam) && m.family === fam);
+		if (!made) return r;
+		const { min, max } = sizeOf(made);
+		return { ...r, min: { w: min[0], h: min[1] }, max: { w: max[0], h: max[1] }, snap: false };
 	}
 	/** Which drawing a card shows in its place: the largest that fits (14 §7). Not a stack's. */
 	function formIn(card: Card, g: Layered<Card>, layout: Layout, place: Size): Form | undefined {

@@ -36,7 +36,14 @@ small { color: var(--ink-muted); }`;
 	import { drawWithCode } from '#lib/looks/codeRunner.js';
 	import { sceneThing, thingOf, THING_NAMES } from '#lib/looks/thing.js';
 	import { deviceScene } from '#lib/lit/room.js';
-	import type { Expressions, Look, MadeDrawing, Parts } from '#lib/looks/model.js';
+	import {
+		DRAWING_SIZES,
+		sizeOf,
+		type Expressions,
+		type Look,
+		type MadeDrawing,
+		type Parts
+	} from '#lib/looks/model.js';
 	import DrawingSample from './DrawingSample.svelte';
 
 	let {
@@ -66,6 +73,24 @@ small { color: var(--ink-muted); }`;
 	let useCode = $state(untrack(() => !!start.code));
 	const mayCode = $derived(admin);
 	const codeLocked = $derived(!admin && !!start.code);
+
+	// Its range (L4): an index into the editor's sizes at each end.
+	const sizeAt = (end: 'min' | 'max') => {
+		const [w, h] = sizeOf(m)[end];
+		return Math.max(
+			0,
+			DRAWING_SIZES.findIndex(([x, y]) => x === w && y === h)
+		);
+	};
+	function stepSize(end: 'min' | 'max', by: -1 | 1) {
+		const lo = sizeAt('min');
+		const hi = sizeAt('max');
+		const next = { min: lo, max: hi };
+		next[end] = Math.max(0, Math.min(DRAWING_SIZES.length - 1, next[end] + by));
+		if (next.min > next.max) return;
+		m.size = { min: DRAWING_SIZES[next.min]!, max: DRAWING_SIZES[next.max]! };
+	}
+	const inRange = $derived(DRAWING_SIZES.slice(sizeAt('min'), sizeAt('max') + 1));
 
 	const DRAFT = 'draft-drawing';
 	const drawn = $derived<MadeDrawing>({
@@ -248,6 +273,29 @@ small { color: var(--ink-muted); }`;
 								>{/each}
 						</div>
 					</fieldset>
+					<!-- 14 §7, L4: how small and large it can be placed on a page. -->
+					<fieldset class="sizes">
+						<legend>Its size on a page</legend>
+						{#each [['min', 'Smallest'], ['max', 'Largest']] as const as [end, name] (end)}
+							{@const at = sizeAt(end)}
+							<div class="size-row">
+								<span>{name}</span>
+								<button
+									class="step"
+									aria-label={`${name}: smaller`}
+									disabled={end === 'min' ? at === 0 : at <= sizeAt('min')}
+									onclick={() => stepSize(end, -1)}>−</button
+								>
+								<span class="cells">{DRAWING_SIZES[at]![0]} × {DRAWING_SIZES[at]![1]}</span>
+								<button
+									class="step"
+									aria-label={`${name}: larger`}
+									disabled={end === 'max' ? at === DRAWING_SIZES.length - 1 : at >= sizeAt('max')}
+									onclick={() => stepSize(end, 1)}>+</button
+								>
+							</div>
+						{/each}
+					</fieldset>
 					<fieldset>
 						<legend>When on</legend>
 						<div class="seg">
@@ -355,6 +403,23 @@ small { color: var(--ink-muted); }`;
 			<p class="quiet">
 				Not responding, turning on, and needing someone are drawn for it, whatever the drawing.
 			</p>
+			{#if samples[0]}
+				<span class="label">At each size it can be placed</span>
+				<div class="at-sizes">
+					{#each inRange as [w, h] (`${w}x${h}`)}
+						<figure>
+							<div
+								class="cellbox"
+								style:width={`${w * 44 + (w - 1) * 8}px`}
+								style:height={`${h * 44 + (h - 1) * 8}px`}
+							>
+								<DrawingSample look={shown} card={samples[0]} />
+							</div>
+							<figcaption>{w} × {h}</figcaption>
+						</figure>
+					{/each}
+				</div>
+			{/if}
 		</div>
 	</div>
 </div>
@@ -403,6 +468,59 @@ small { color: var(--ink-muted); }`;
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
+	}
+	.size-row {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.size-row > span:first-child {
+		width: 72px;
+	}
+	.step {
+		width: 32px;
+		height: 32px;
+		border-radius: 999px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--ink);
+	}
+	.cells {
+		width: 56px;
+		text-align: center;
+		font-variant-numeric: tabular-nums;
+	}
+	.at-sizes {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-end;
+		gap: 14px;
+	}
+	.at-sizes figure {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		margin: 0;
+	}
+	/* Its place's size, outlined; the drawing fills it, as on a page (14 §7). */
+	.cellbox {
+		display: grid;
+		overflow: hidden;
+		outline: 1px dashed var(--line);
+		outline-offset: 3px;
+		border-radius: var(--radius);
+	}
+	.cellbox > :global(*),
+	.cellbox :global(.sample > *) {
+		min-width: 0;
+		min-height: 0;
+		height: 100%;
+		box-sizing: border-box;
+	}
+	.at-sizes figcaption {
+		color: var(--ink-muted);
+		font-size: 12px;
+		font-variant-numeric: tabular-nums;
 	}
 	.preview-side {
 		flex: 999 1 420px;
@@ -556,6 +674,52 @@ small { color: var(--ink-muted); }`;
 
 	/* On a phone, the preview is above, and the choices scroll under it (13 §11). */
 	@media (max-width: 899px) {
+		.size-row {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+		.size-row > span:first-child {
+			width: 72px;
+		}
+		.step {
+			width: 32px;
+			height: 32px;
+			border-radius: 999px;
+			border: 1px solid var(--line);
+			background: var(--surface);
+			color: var(--ink);
+		}
+		.cells {
+			width: 56px;
+			text-align: center;
+			font-variant-numeric: tabular-nums;
+		}
+		.at-sizes {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: flex-end;
+			gap: 14px;
+		}
+		.at-sizes figure {
+			display: flex;
+			flex-direction: column;
+			gap: 4px;
+			margin: 0;
+		}
+		.cellbox {
+			display: grid;
+			overflow: hidden;
+		}
+		.cellbox > :global(*) {
+			min-width: 0;
+			min-height: 0;
+		}
+		.at-sizes figcaption {
+			color: var(--ink-muted);
+			font-size: 12px;
+			font-variant-numeric: tabular-nums;
+		}
 		.preview-side {
 			order: -1;
 			position: sticky;

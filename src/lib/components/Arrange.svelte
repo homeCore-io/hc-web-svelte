@@ -8,6 +8,8 @@
 	It can be dragged (13 §9: drag/controller.ts finds it by `data-ref`), moved
 	with the keyboard (Space picks it up, the arrows move it, Space or Escape
 	puts it down), and resized from its corner, snapping between its sizes.
+	On a free page (14 §5) the page's own pointer work moves and sizes it by
+	cells, the arrows move it a cell and Shift and the arrows size it.
 -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
@@ -42,6 +44,8 @@
 		axis = 'x',
 		forms = [],
 		kind = '',
+		cells,
+		step,
 		children
 	}: {
 		page: string;
@@ -73,6 +77,10 @@
 		forms?: Form[];
 		/** Its kind of card, so dragging knows where it may go (a room stays among the rooms). */
 		kind?: string;
+		/** On a free page (14 §5): moved a cell, or sized a cell with `size`; says where it is now. */
+		cells?: (dx: number, dy: number, size: boolean) => string | undefined;
+		/** On a free page: up and down trade places with the card before or after it. */
+		step?: (by: -1 | 1) => void;
 		children: Snippet;
 	} = $props();
 
@@ -89,7 +97,9 @@
 			e.preventDefault();
 			picked = !picked;
 			drag.said = picked
-				? `${name} picked up. Arrow keys move it; Space puts it down.`
+				? cells
+					? `${name} picked up. Arrow keys move it; Shift and the arrows size it; Space puts it down.`
+					: `${name} picked up. Arrow keys move it; Space puts it down.`
 				: `${name} put down.`;
 		} else if (e.key === 'Escape' && picked) {
 			picked = false;
@@ -97,6 +107,13 @@
 		} else if (picked && ['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'].includes(e.key)) {
 			e.preventDefault();
 			const by = e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 1;
+			if (cells) {
+				const across = e.key === 'ArrowLeft' || e.key === 'ArrowRight';
+				const said = cells(across ? by : 0, across ? 0 : by, e.shiftKey);
+				if (said) drag.said = `${name}: ${said}.`;
+				queueMicrotask(() => box?.focus());
+				return;
+			}
 			const change = nudge(shown, ref, by);
 			if (!change) return;
 			view.change(page, change);
@@ -158,6 +175,8 @@
 	}
 
 	function resize(e: PointerEvent) {
+		// A free page sizes it by cells (drag/cells.ts).
+		if (cells) return;
 		if (kind === 'stack') return resizeStack(e);
 		if (!form || forms.length < 2) return;
 		const start = e.clientX + e.clientY;
@@ -232,9 +251,11 @@
 			<div class="quiet" inert>{@render children()}</div>
 			{#if sizing}<span class="sizing" aria-hidden="true">{sizing}</span>{/if}
 			{#if taking}<span class="sizing" aria-hidden="true">Goes in here</span>{/if}
-			{#if form && forms.length > 1}<button
+			{#if cells || (form && forms.length > 1)}<button
 					class="resize"
-					aria-label={`${name}: size ${form}. Change size`}
+					aria-label={cells
+						? `${name}: drag to change its size`
+						: `${name}: size ${form}. Change size`}
 					title="Drag to change its size"
 					onpointerdown={resize}>◢</button
 				>{/if}
@@ -264,6 +285,7 @@
 			{renamed}
 			{settings}
 			{moveTo}
+			{step}
 		/>
 		<!-- Down a column, after the last goes under its tools, not on them. -->
 		{#if addAfter && axis === 'y'}<button

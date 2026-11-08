@@ -1,9 +1,8 @@
 # 14 · Free layout: any card anywhere, any size
 
 **Status:** agreed, 2026-11-07 (decisions P1 to P8 in `decisions.md`).
-Building follows §11, room pages and made pages first. Step 1 is built
-locally (not released): those pages draw on the free grid; arranging still
-draws sections until step 2. Floor plans are held for research (§12).
+Building follows §11, room pages and made pages first. Steps 1 and 2 are
+built locally (not released): those pages draw and arrange on the free grid. Floor plans are held for research (§12).
 
 **What it builds on.** 11 (one page document, one renderer, changes in
 layers), 13 (looks, each keeping its own arrangements, §8.4; arranging and
@@ -74,8 +73,11 @@ a new device doesn't reshuffle it.
   cells. Let go and it's there.
 - **When it lands on others (P2)**, each one it covers moves aside, the way
   the drag was going, if those rows have room for it; otherwise it moves down
-  below the card, and whatever that lands on moves down in turn. Nothing ever
-  overlaps.
+  below the card, and whatever that lands on moves down in turn. A card
+  never ends up above one it was below, so cards stay under their heading
+  when it's pushed down. Nothing ever overlaps.
+- **The page shows what it will be** while it's dragged: the cards it covers
+  move aside or down as it goes, and the footprint shows where it lands.
 - **Gaps stay (P5).** **Tidy**, in the arranging bar, closes them up: every
   card moves up as far as it can, keeping its column.
 - **The corner** sizes a card to any width and height its drawing allows
@@ -83,9 +85,18 @@ a new device doesn't reshuffle it.
   drawing's next usual size.
 - **Never only by dragging** (13 §9.3). The keyboard picks a card up with
   Space; the arrows move it a cell; Shift and the arrows size it. Up and down
-  in a card's tools move it a row. **Move to** places it in the first gap
-  after a heading. A screen reader hears its place ("Office TV, row 2,
-  columns 1 to 6, beside Office-1").
+  in a card's tools trade places with the card before or after it in reading
+  order, which works the same on every width. **Move to** places it in the
+  first gap after a heading, as Add here does. A screen reader hears its
+  place ("Office TV, row 2, columns 1 to 6").
+- **Its tools float over it** while it's pointed at or chosen (a tap on a
+  phone), so the page keeps the shape it will have.
+- **On a narrower screen** the page is arranged with the keyboard and up and
+  down; dragging by cells is on the twelve-column grid.
+- **Stacks.** A device or a scene dragged onto a stack goes in it; a line
+  dragged out of a stack becomes its own card where it's let go.
+- **Changing a card's size** in its tools or its settings gives it that
+  size's cells where it is; a stack's width and height do too.
 - **Two layers.** The household places cards, then a person places theirs
   on top. Where a person's place lands on the household's, the person's wins
   and the other moves aside or down, as when dragging.

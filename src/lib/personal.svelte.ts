@@ -17,10 +17,13 @@ class Personal extends Synced<PersonDoc> {
 		return pageChanges(this.doc.pages, page);
 	}
 
-	changePage(page: string, change: Change): Promise<void> {
+	changePage(page: string, ...changes: Change[]): Promise<void> {
 		return this.change((d) => ({
 			...d,
-			pages: { ...d.pages, [lookKey(page)]: addChange(pageChanges(d.pages, page), change) }
+			pages: {
+				...d.pages,
+				[lookKey(page)]: changes.reduce(addChange, pageChanges(d.pages, page))
+			}
 		}));
 	}
 

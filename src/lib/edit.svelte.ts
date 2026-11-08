@@ -39,12 +39,15 @@ class Editing {
 		return pageChanges(this.draft.pages, page);
 	}
 
-	changePage(page: string, change: Change): void {
+	changePage(page: string, ...changes: Change[]): void {
 		this.#edits = [
 			...this.#edits,
 			(d) => ({
 				...d,
-				pages: { ...d.pages, [lookKey(page)]: addChange(pageChanges(d.pages, page), change) }
+				pages: {
+					...d.pages,
+					[lookKey(page)]: changes.reduce(addChange, pageChanges(d.pages, page))
+				}
 			})
 		];
 	}

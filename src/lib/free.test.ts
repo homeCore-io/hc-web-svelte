@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { across, firstGap, flow, freeze, land, layout, narrow, tidy, type Placed } from './free.js';
+import {
+	across,
+	firstGap,
+	flow,
+	freeze,
+	land,
+	layout,
+	narrow,
+	step,
+	tidy,
+	where,
+	type Placed
+} from './free.js';
 import { addChange, type Change } from './layers.js';
 
 const at = (placed: Placed[], ref: string) => {
@@ -186,5 +198,78 @@ describe('a narrower page (P4)', () => {
 		expect(phone.get('lamp')).toEqual({ x: 0, y: 4, w: 2, h: 2 });
 		expect(phone.get('section:b')).toEqual({ x: 0, y: 6, w: 4, h: 1 });
 		expect(phone.get('scene')).toEqual({ x: 0, y: 7, w: 2, h: 1 });
+	});
+});
+
+describe('arranging a placed page (14 §5, §6)', () => {
+	const items = [
+		{ ref: 'section:a', w: 12, h: 1, breaks: true },
+		{ ref: 'one', w: 2, h: 2, after: 'section:a' },
+		{ ref: 'two', w: 2, h: 2, after: 'section:a' },
+		{ ref: 'section:b', w: 12, h: 1, breaks: true },
+		{ ref: 'three', w: 2, h: 2, after: 'section:b' }
+	];
+	const frozen = freeze(layout(items));
+
+	it('puts a new card in the first gap under its heading', () => {
+		const out = layout([...items, { ref: 'new', w: 2, h: 2, after: 'section:b' }], frozen);
+		expect(at(out, 'new')).toEqual([2, 4, 2, 2]);
+	});
+
+	it('steps a card earlier or later, trading places', () => {
+		const out = step(layout(items, frozen), 'two', -1);
+		expect(at(out, 'two')).toEqual([0, 1, 2, 2]);
+		expect(at(out, 'one')).toEqual([2, 1, 2, 2]);
+		expect(overlapping(out)).toBe(false);
+	});
+
+	it('gives a card its usual size again when its form changes after it was placed', () => {
+		const placed: Change[] = [...frozen, { op: 'place', ref: 'one', x: 0, y: 1, w: 6, h: 4 }];
+		const bigger = items.map((i) => (i.ref === 'one' ? { ...i, w: 4, h: 3 } : i));
+		expect(at(layout(bigger, placed), 'one')).toEqual([0, 1, 6, 4]);
+		const sized = [...placed, { op: 'form', ref: 'one', form: 'large' } as Change];
+		expect(at(layout(bigger, sized), 'one')).toEqual([0, 1, 4, 3]);
+	});
+
+	it('says where a card is', () => {
+		expect(where({ x: 0, y: 1, w: 6, h: 2 })).toBe('row 2, columns 1 to 6');
+		expect(where({ x: 3, y: 0, w: 1, h: 1 })).toBe('row 1, column 4');
+	});
+});
+
+describe('Move to on a placed page', () => {
+	it('puts the card in the first gap under its new heading', () => {
+		const items = [
+			{ ref: 'section:a', w: 12, h: 1, breaks: true },
+			{ ref: 'one', w: 2, h: 2, after: 'section:a' },
+			{ ref: 'section:b', w: 12, h: 1, breaks: true },
+			{ ref: 'two', w: 2, h: 2, after: 'section:b' }
+		];
+		const changes: Change[] = [
+			...freeze(layout(items)),
+			{ op: 'move', ref: 'one', before: null, into: 'b' }
+		];
+		const moved = items.map((i) => (i.ref === 'one' ? { ...i, after: 'section:b' } : i));
+		expect(at(layout(moved, changes), 'one')).toEqual([2, 4, 2, 2]);
+	});
+});
+
+describe('pushing down keeps cards under their heading', () => {
+	it('carries what was under a heading down with it', () => {
+		const page: Placed[] = [
+			{ ref: 'lamp', x: 0, y: 0, w: 2, h: 2 },
+			{ ref: 'section:scenes', x: 0, y: 2, w: 12, h: 1 },
+			{ ref: 'a', x: 0, y: 3, w: 2, h: 1 },
+			{ ref: 'b', x: 6, y: 3, w: 2, h: 1 },
+			{ ref: 'c', x: 0, y: 4, w: 2, h: 1 }
+		];
+		// The lamp made taller: it lands on the heading, which moves below it.
+		const out = land(page, 'lamp', { x: 0, y: 0, w: 2, h: 4 }, 0);
+		const y = (r: string) => out.find((p) => p.ref === r)!.y;
+		expect(y('section:scenes')).toBe(4);
+		expect(y('a')).toBeGreaterThan(4);
+		expect(y('b')).toBeGreaterThan(4);
+		expect(y('c')).toBeGreaterThan(y('a'));
+		expect(overlapping(out)).toBe(false);
 	});
 });

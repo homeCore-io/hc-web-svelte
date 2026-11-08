@@ -38,7 +38,8 @@
 		added = false,
 		renamed = false,
 		settings,
-		moveTo = []
+		moveTo = [],
+		step
 	}: {
 		page: string;
 		ref: string;
@@ -59,6 +60,8 @@
 		settings?: () => void;
 		/** The other sections it can be moved into, as headed on the page (G22). */
 		moveTo?: { id: string; title: string }[];
+		/** On a free page (14 §5): up and down trade places in reading order. */
+		step?: (by: -1 | 1) => void;
 	} = $props();
 
 	let moving = $state(false);
@@ -82,6 +85,7 @@
 			}));
 			return;
 		}
+		if (step) return step(by);
 		const change = by === -1 ? up : down;
 		if (change) view.change(page, change);
 	}
@@ -168,10 +172,10 @@
 					onclick={startNaming}><Pencil size={17} /></button
 				>
 			{/if}
-			<button aria-label={`Move ${name} up`} disabled={!up} onclick={() => move(-1)}
+			<button aria-label={`Move ${name} up`} disabled={!step && !up} onclick={() => move(-1)}
 				><ArrowUp size={18} /></button
 			>
-			<button aria-label={`Move ${name} down`} disabled={!down} onclick={() => move(1)}
+			<button aria-label={`Move ${name} down`} disabled={!step && !down} onclick={() => move(1)}
 				><ArrowDown size={18} /></button
 			>
 			{#if moveTo.length > 0}

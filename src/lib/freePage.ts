@@ -27,19 +27,32 @@ const WHOLE_ROWS = 2;
 
 /**
  * What the page lays out, in its sections' order, and what each is. `cells`
- * says a card's size; `drawn` whether a section shows at all.
+ * says a card's size; `drawn` whether a section shows at all. While
+ * arranging, hidden cards are laid out too, and a hidden section's heading,
+ * so they can be shown again.
  */
 export function piecesOf(
 	sections: ShownSection[],
 	cells: (card: Card, g: Layered<Card>, layout: Layout) => { w: number; h: number },
-	drawn: (s: ShownSection) => boolean
+	drawn: (s: ShownSection) => boolean,
+	arranging = false
 ): { items: Item[]; pieces: Map<string, Piece> } {
 	const items: Item[] = [];
 	const pieces = new Map<string, Piece>();
+	// A thing shown in one section and hidden in another (a room's scenes) is
+	// laid out where it's shown.
+	const shownSomewhere = new Set(
+		sections.flatMap((s) => (s.hidden ? [] : s.groups.flatMap((g) => g.shown.map((c) => c.ref))))
+	);
 	for (const s of sections) {
-		if (!drawn(s) || s.hidden) continue;
+		if (!drawn(s) || (s.hidden && !arranging)) continue;
 		const sec = s.section;
 		const ref = sectionRef(sec.id);
+		if (s.hidden) {
+			items.push({ ref, w: COLS, h: 1, breaks: true });
+			pieces.set(ref, { kind: 'heading', section: s });
+			continue;
+		}
 		if (!ONE_BY_ONE.includes(s.layout) || sec.bare || sec.lead) {
 			items.push({ ref, w: COLS, h: WHOLE_ROWS, breaks: true });
 			pieces.set(ref, { kind: 'whole', section: s });
@@ -51,10 +64,17 @@ export function piecesOf(
 		}
 		let first = sec.headless;
 		for (const g of s.groups)
-			for (const card of g.shown) {
+			for (const card of arranging
+				? [...g.shown, ...g.hidden.filter((c) => !shownSomewhere.has(c.ref))]
+				: g.shown) {
 				if (pieces.has(card.ref)) continue;
 				const size = cells(card, g, s.layout);
-				items.push({ ref: card.ref, ...size, breaks: first || undefined });
+				items.push({
+					ref: card.ref,
+					...size,
+					breaks: first || undefined,
+					after: sec.headless ? undefined : ref
+				});
 				first = false;
 				pieces.set(card.ref, { kind: 'card', section: s, card, g });
 			}

@@ -34,6 +34,13 @@ export interface Item {
 	h: number;
 	/** Starts a new row below everything before it: a heading, a section drawn whole. */
 	breaks?: boolean;
+	/** Its heading: on a placed page, a new card takes the first gap under it (14 §6, Add here). */
+	after?: string;
+	/**
+	 * Changes that size it, after which its place takes its usual size again:
+	 * a new form from its tools or its settings; a stack's own width and height.
+	 */
+	sizedBy?: Change['op'][];
 }
 
 /** A place made to fit the grid: at least a cell, no wider than it, never off its left or top. */
@@ -83,42 +90,40 @@ export function flow(items: Item[], cols = COLS): Placed[] {
 /**
  * `ref` put at `to`, and whatever it covers moved out of its way (P2): aside,
  * the way the drag was going, if those rows have room; otherwise down below
- * it, and what that lands on moves down in turn. `dx` is the drag's way across:
- * below 0 left, above 0 right, 0 straight down.
+ * it. Everything else keeps its place unless something now sits on it, and
+ * then moves down; a card never ends up above one it was below, so cards
+ * keep under their heading. `dx` is the drag's way across: below 0 left,
+ * above 0 right, 0 straight down.
  */
 export function land(placed: Placed[], ref: string, to: Box, dx = 0, cols = COLS): Placed[] {
 	const at = { ref, ...fit(to, cols) };
 	const others = placed.filter((p) => p.ref !== ref);
+	const covered = others.filter((p) => overlaps(p, at));
 	const out: Placed[] = [at];
-	const moved: Placed[] = [];
-	for (const p of others) {
-		if (!overlaps(p, at)) {
-			out.push(p);
-			continue;
+	// Aside, in the same rows, where nothing else is.
+	const aside = new Map<Placed, Placed>();
+	const x0 = (p: Placed) => (dx > 0 ? at.x + at.w : dx < 0 ? at.x - p.w : -1);
+	for (const p of covered) {
+		const q = { ...p, x: x0(p) };
+		const rest = [...out, ...others.filter((o) => !covered.includes(o))];
+		if (dx !== 0 && q.x >= 0 && q.x + q.w <= cols && free(rest, q)) {
+			aside.set(p, q);
+			out.push(q);
 		}
-		// Aside, in the same rows, if nothing's there.
-		const x = dx > 0 ? at.x + at.w : dx < 0 ? at.x - p.w : -1;
-		const aside = { ...p, x };
-		if (x >= 0 && x + p.w <= cols && free([...out, ...others.filter((o) => o !== p)], aside)) {
-			out.push(aside);
-			continue;
-		}
-		moved.push({ ...p, y: at.y + at.h });
 	}
-	// Down, top first, each pushing what it lands on further down.
-	for (const p of moved.sort((a, b) => a.y - b.y || a.x - b.x)) push(out, p);
+	// The rest top first, each below what it was below, then down until free.
+	const done: [Placed, Placed][] = [...aside];
+	for (const p of reading(others)) {
+		if (aside.has(p)) continue;
+		let y = p.y;
+		for (const [o, n] of done)
+			if (o.y + o.h <= p.y && o.x < p.x + p.w && p.x < o.x + o.w) y = Math.max(y, n.y + n.h);
+		const q = { ...p, y };
+		while (!free(out, q)) q.y++;
+		out.push(q);
+		done.push([p, q]);
+	}
 	return out;
-}
-
-/** `p` added to `out`, and anything it now overlaps moved down below it, in turn. */
-function push(out: Placed[], p: Placed) {
-	out.push(p);
-	for (;;) {
-		const hit = out.find((o) => o !== p && overlaps(o, p));
-		if (!hit) return;
-		out.splice(out.indexOf(hit), 1);
-		push(out, { ...hit, y: p.y + p.h });
-	}
 }
 
 /** Tidy (P5): every card up as far as it goes, keeping its column. */
@@ -154,11 +159,43 @@ export function layout(items: Item[], changes: Change[] = [], cols = COLS): Plac
 	if (places.length === 0) return flow(items, cols);
 	const here = new Map(items.map((i) => [i.ref, i]));
 	let out: Placed[] = [];
-	for (const p of places) if (here.has(p.ref)) out = land(out, p.ref, p, 0, cols);
-	for (const it of items)
-		if (!out.some((p) => p.ref === it.ref))
-			out.push({ ref: it.ref, ...firstGap(out, it.w, it.h, cols) });
+	changes.forEach((c, i) => {
+		const it = here.get(c.ref);
+		if (c.op !== 'place' || !it) return;
+		const later = changes.slice(i + 1).filter((d) => d.ref === c.ref);
+		// Moved to another heading since (Move to): the first gap under it.
+		if (later.some((d) => (d.op === 'move' && d.into !== undefined) || d.op === 'add')) return;
+		// Sized since it was placed: where it was, at its usual size.
+		const by = it.sizedBy ?? ['form'];
+		const sized = later.some((d) => by.includes(d.op));
+		out = land(out, c.ref, sized ? { ...c, w: it.w, h: it.h } : c, 0, cols);
+	});
+	for (const it of items) {
+		if (out.some((p) => p.ref === it.ref)) continue;
+		const head = it.after === undefined ? undefined : out.find((p) => p.ref === it.after);
+		const from = head ? head.y + head.h : 0;
+		out.push({ ref: it.ref, ...firstGap(out, it.w, it.h, cols, from) });
+	}
 	return reading(out);
+}
+
+/**
+ * Up and down in a card's tools (14 §5): it trades places with the card before
+ * or after it in reading order, which moves aside into the spot it left.
+ */
+export function step(placed: Placed[], ref: string, by: -1 | 1, cols = COLS): Placed[] {
+	const order = reading(placed);
+	const at = order.findIndex((p) => p.ref === ref);
+	const other = order[at + by];
+	if (at < 0 || !other) return placed;
+	const me = order[at]!;
+	return land(placed, ref, { x: other.x, y: other.y, w: me.w, h: me.h }, -by, cols);
+}
+
+/** Where a card is, said (14 §5): "row 2, columns 1 to 6". */
+export function where(b: Box): string {
+	const cols = b.w === 1 ? `column ${b.x + 1}` : `columns ${b.x + 1} to ${b.x + b.w}`;
+	return `row ${b.y + 1}, ${cols}`;
 }
 
 /** Every card where it's drawn, as changes (§4): what the first place on a page writes. */

@@ -32,7 +32,7 @@
 	import { devices } from '#lib/devices.svelte.js';
 	import { ROOM_BUILT_IN } from '#lib/options.js';
 	import { readStack, stackable, stackBase, stackRows } from '#lib/stack.js';
-	import { grouped, putIn, takeOut } from '#lib/stacking.js';
+	import { grouped, putIn, setStack, takeOut } from '#lib/stacking.js';
 	import { fieldPlan, roomBox, type Plot } from '#lib/roomBox.js';
 	import { homeStyle } from '#lib/styles.js';
 	import { view } from '#lib/view.svelte.js';
@@ -48,7 +48,20 @@
 	import { adding } from '#lib/adding.svelte.js';
 	import { drag } from '#lib/drag.svelte.js';
 	import { refusal } from '#lib/drag/rules.js';
-	import { COLS, layout as freeLayout, narrow } from '#lib/free.js';
+	import {
+		COLS,
+		fit,
+		freeze,
+		land,
+		layout as freeLayout,
+		narrow,
+		step as stepIn,
+		tidy,
+		where,
+		type Box,
+		type Placed
+	} from '#lib/free.js';
+	import type { CellsHost } from '#lib/drag/cells.js';
 	import { FORM_CELLS, piecesOf } from '#lib/freePage.js';
 
 	let {
@@ -218,9 +231,14 @@
 		const el = root;
 		let stop: (() => void) | undefined;
 		let gone = false;
-		void import('#lib/drag/controller.js').then((m) => {
-			if (!gone) stop = m.start(el, host);
-		});
+		if (freeHere)
+			void import('#lib/drag/cells.js').then((m) => {
+				if (!gone) stop = m.start(el, cellsHost);
+			});
+		else
+			void import('#lib/drag/controller.js').then((m) => {
+				if (!gone) stop = m.start(el, host);
+			});
 		return () => {
 			gone = true;
 			stop?.();
@@ -345,10 +363,7 @@
 						: [])
 				];
 	// ---- free layout (14): a room's page and a made page are one grid ----
-	// Arranging still draws the sections until it moves cards by cells (14 §11, step 2).
-	const freeHere = $derived(
-		!field && !arranging && (key.startsWith('room:') || key.startsWith('page:'))
-	);
+	const freeHere = $derived(!field && (key.startsWith('room:') || key.startsWith('page:')));
 	/** A card's size in cells (14 §7): across the page, a stack's own, a button's, by its form. */
 	function cellsOf(card: Card, g: Layered<Card>, layout: Layout) {
 		const k = kindOf(card);
@@ -358,7 +373,9 @@
 			const large = form === 'large';
 			return {
 				w: Math.min(COLS, 2 * (stackOf(card, large)?.width ?? 1)),
-				h: 2 * (stackRowsOf(card, large) ?? 2)
+				h: 2 * (stackRowsOf(card, large) ?? 2),
+				// Its settings' width and height size it again.
+				sizedBy: ['form', 'config'] as Change['op'][]
 			};
 		}
 		if (card.kind === 'scene' || (card.kind === 'device' && card.scene) || layout === 'row')
@@ -370,10 +387,120 @@
 	}
 	const freePage = $derived.by(() => {
 		if (!freeHere) return null;
-		const { items, pieces } = piecesOf(shown.sections, cellsOf, (s) => drawn(s, false));
+		const { items, pieces } = piecesOf(
+			shown.sections,
+			cellsOf,
+			(s) => drawn(s, arranging),
+			arranging
+		);
 		const laid = freeLayout(items, changes);
 		return { pieces, laid, eight: narrow(laid, 8), four: narrow(laid, 4) };
 	});
+
+	// ---- arranging a free page (14 §5) ----
+	/** What a drag would make of the page, as it goes, and where the card would land. */
+	let preview = $state<{ laid: Placed[] | null; foot: (Box & { label?: string }) | null }>({
+		laid: null,
+		foot: null
+	});
+	const drawnLaid = $derived(preview.laid ?? freePage?.laid ?? []);
+	const boxOf = (ref: string) => freePage?.laid.find((p) => p.ref === ref);
+	/** Every card's place, as one save: the first place on a page places them all (14 §4). */
+	function placeAll(next: Placed[]) {
+		view.changeAll(key, freeze(next));
+	}
+	const pieceName = (ref: string) => {
+		const it = freePage?.pieces.get(ref);
+		if (!it) return cardName(ref);
+		return it.kind === 'card'
+			? (it.g.name(ref) ?? kindOf(it.card).name(it.card))
+			: it.section.title;
+	};
+	/** Moved a cell, or sized a cell, from the keyboard; where it is now, said. */
+	function cellKey(ref: string, dx: number, dy: number, size: boolean): string | undefined {
+		const b = boxOf(ref);
+		if (!b || !freePage) return;
+		const to = fit(size ? { ...b, w: b.w + dx, h: b.h + dy } : { ...b, x: b.x + dx, y: b.y + dy });
+		if (size) to.w = Math.min(to.w, COLS - b.x);
+		const next = land(freePage.laid, ref, to, dx);
+		placeAll(next);
+		const at = next.find((p) => p.ref === ref)!;
+		return size ? `${at.w} wide, ${at.h} tall` : where(at);
+	}
+	function stepCard(ref: string, by: -1 | 1) {
+		if (!freePage) return;
+		const next = stepIn(freePage.laid, ref, by);
+		placeAll(next);
+		const at = next.find((p) => p.ref === ref);
+		if (at) drag.said = `${pieceName(ref)}: ${where(at)}.`;
+	}
+	/** Tidy (P5): every card up as far as it goes. */
+	function tidyPage() {
+		if (!freePage) return;
+		placeAll(tidy(freePage.laid));
+		drag.said = 'Tidied: every card moved up as far as it goes.';
+	}
+	const cellsHost: CellsHost = {
+		get page() {
+			return key;
+		},
+		laid: () => freePage?.laid ?? [],
+		preview(next, foot) {
+			preview = { laid: next, foot };
+		},
+		commit(next, moved, sized) {
+			placeAll(next);
+			const at = next.find((p) => p.ref === moved);
+			if (at)
+				drag.said = sized
+					? `${pieceName(moved)} is ${at.w} wide and ${at.h} tall.`
+					: `${pieceName(moved)} moved: ${where(at)}.`;
+		},
+		stepSize(ref) {
+			const it = freePage?.pieces.get(ref);
+			if (it?.kind !== 'card') return;
+			const k = kindOf(it.card);
+			// A stack fits its things again; another card takes its next usual size.
+			if (it.card.kind === 'stack') {
+				setStack(key, ref, { height: 'fit' });
+				drag.said = `${pieceName(ref)} fits its things.`;
+				return;
+			}
+			const forms = k.forms(it.card);
+			const form = k.form(it.card, it.g.form(ref));
+			if (forms.length < 2 || !form) return;
+			const next = forms[(forms.indexOf(form) + 1) % forms.length]!;
+			view.change(key, { op: 'form', ref, form: next });
+			drag.said = `${pieceName(ref)} is ${next} now.`;
+		},
+		stackable,
+		taking(stack) {
+			drag.page = stack ? key : drag.page;
+			drag.stack = stack;
+		},
+		dropInStack(ref, stack) {
+			// Named before it goes: in the stack, it has no card of its own.
+			const name = pieceName(ref);
+			host.dropInStack(ref, stack);
+			const into = stacksHere.find((x) => x.ref === stack)?.name ?? 'the stack';
+			drag.said = `${name} put in ${into}.`;
+		},
+		takeOut(thing, stack, next) {
+			const it = freePage?.pieces.get(stack);
+			const into = it?.kind === 'card' ? it.section.section.id : home;
+			takeOut(key, stack, thing);
+			if (presentRefs(full).has(thing))
+				view.change(key, { op: 'move', ref: thing, before: null, into });
+			else view.change(key, { op: 'add', ref: thing, into, before: null });
+			placeAll(next);
+			adding.added = thing;
+			drag.said = `Taken out of the stack.`;
+		},
+		say(words) {
+			drag.said = words;
+		},
+		name: pieceName
+	};
 
 	const hasSettings = (card: Card, layout: Layout) => {
 		const k = kindOf(card);
@@ -400,7 +527,11 @@
 	{@const drawnAs = sized ?? (place === 'side' && form === 'large' ? 'standard' : form)}
 	{@const name = label ?? kind.name(card)}
 	{@const at =
-		from !== undefined && layout !== 'field' && g !== undefined && !g.hidden.includes(card)
+		from !== undefined &&
+		layout !== 'field' &&
+		g !== undefined &&
+		!g.hidden.includes(card) &&
+		!freePage
 			? spots(from, card, name)
 			: {}}
 	{#if g === undefined}
@@ -427,6 +558,10 @@
 			addBefore={at.addBefore}
 			addAfter={at.addAfter}
 			axis={layout === 'list' || (place === 'side' && layout !== 'row') ? 'y' : 'x'}
+			cells={freePage && !favourites
+				? (dx, dy, size) => cellKey(card.ref, dx, dy, size)
+				: undefined}
+			step={freePage && !favourites ? (by) => stepCard(card.ref, by) : undefined}
 		>
 			<KindView
 				{card}
@@ -457,6 +592,49 @@
 		></div>{/if}
 {/snippet}
 
+{#snippet sectionHead(s: ShownSection)}
+	{@const sec = s.section}
+	<div class="head" data-sec-handle title="Drag to move this section">
+		<span class="grip" aria-hidden="true">⋮⋮</span>
+		<h2 class="section-label" class:faded={s.hidden}>
+			{s.title}{#if s.hidden}<span class="note"> · hidden</span>{/if}
+		</h2>
+		{#if drag.refused?.section === sec.id}<span class="why">{drag.refused.why}</span>{/if}
+		<SectionTools
+			page={key}
+			ref={sectionRef(sec.id)}
+			title={s.title}
+			shown={freePage ? [] : peers(s)}
+			hidden={s.hidden}
+			renamed={s.renamed}
+			add={sec.accepts ? () => adding.open(key, sec.id) : undefined}
+			layouts={sec.layouts}
+			layout={s.layout}
+			config={s.config}
+			column={field && (sec.field?.movable ?? sec.field === undefined) ? s.column : undefined}
+			mine={mineSection(sec.own)}
+			remove={sec.own ? () => removeSection(sec.id) : undefined}
+			settings={sec.id === 'rooms' && (s.layout !== 'list' || sideRooms)
+				? {
+						label: 'Every room’s box',
+						open: () =>
+							(everyRoom = {
+								rooms: s.groups.flatMap((g) => [...g.shown, ...g.hidden]),
+								names: Object.fromEntries(
+									s.groups.flatMap((g) =>
+										[...g.shown, ...g.hidden].map((c) => [
+											c.ref,
+											g.name(c.ref) ?? kindOf(c).name(c)
+										])
+									)
+								)
+							})
+					}
+				: undefined}
+		/>
+	</div>
+{/snippet}
+
 {#snippet block(s: ShownSection, place?: Place)}
 	{@const sec = s.section}
 	<section
@@ -468,45 +646,7 @@
 		data-col={arranging ? s.column : undefined}
 	>
 		{#if arranging && !sec.fixed}
-			<div class="head" data-sec-handle title="Drag to move this section">
-				<span class="grip" aria-hidden="true">⋮⋮</span>
-				<h2 class="section-label" class:faded={s.hidden}>
-					{s.title}{#if s.hidden}<span class="note"> · hidden</span>{/if}
-				</h2>
-				{#if drag.refused?.section === sec.id}<span class="why">{drag.refused.why}</span>{/if}
-				<SectionTools
-					page={key}
-					ref={sectionRef(sec.id)}
-					title={s.title}
-					shown={peers(s)}
-					hidden={s.hidden}
-					renamed={s.renamed}
-					add={sec.accepts ? () => adding.open(key, sec.id) : undefined}
-					layouts={sec.layouts}
-					layout={s.layout}
-					config={s.config}
-					column={field && (sec.field?.movable ?? sec.field === undefined) ? s.column : undefined}
-					mine={mineSection(sec.own)}
-					remove={sec.own ? () => removeSection(sec.id) : undefined}
-					settings={sec.id === 'rooms' && (s.layout !== 'list' || sideRooms)
-						? {
-								label: 'Every room’s box',
-								open: () =>
-									(everyRoom = {
-										rooms: s.groups.flatMap((g) => [...g.shown, ...g.hidden]),
-										names: Object.fromEntries(
-											s.groups.flatMap((g) =>
-												[...g.shown, ...g.hidden].map((c) => [
-													c.ref,
-													g.name(c.ref) ?? kindOf(c).name(c)
-												])
-											)
-										)
-									})
-							}
-						: undefined}
-				/>
-			</div>
+			{@render sectionHead(s)}
 		{:else if field && s.layout === 'field' && !arranging}
 			<!-- The rooms' heading in the field, with what the glow means (mockup A). -->
 			<div class="head">
@@ -663,7 +803,7 @@
 		<!-- One grid (14 §3): each card at its place; narrower, in reading order (P4). -->
 		<div class="free">
 			<div class="cells">
-				{#each freePage.laid as p (p.ref)}
+				{#each drawnLaid as p (p.ref)}
 					{@const it = freePage.pieces.get(p.ref)}
 					{@const e = freePage.eight.get(p.ref) ?? p}
 					{@const f = freePage.four.get(p.ref) ?? p}
@@ -671,18 +811,41 @@
 						<div
 							class="slot"
 							class:heading={it.kind === 'heading'}
+							class:arranging
+							data-ref={arranging ? p.ref : undefined}
+							data-stack={arranging && it.kind === 'card' && it.card.kind === 'stack'
+								? ''
+								: undefined}
 							style={`--x: ${p.x + 1}; --y: ${p.y + 1}; --w: ${p.w}; --h: ${p.h}; --x8: ${e.x + 1}; --y8: ${e.y + 1}; --w8: ${e.w}; --x4: ${f.x + 1}; --y4: ${f.y + 1}; --w4: ${f.w}`}
 						>
-							{#if it.kind === 'heading'}
+							{#if it.kind === 'heading' && arranging}
+								{@render sectionHead(it.section)}
+							{:else if it.kind === 'heading'}
 								<h2 class="section-label">{it.section.title}</h2>
 							{:else if it.kind === 'whole'}
 								{@render block(it.section)}
 							{:else}
-								{@render piece(it.card, it.g, false, it.section.layout)}
+								{@render piece(
+									it.card,
+									it.g,
+									false,
+									it.section.layout,
+									it.section.section.accepts ? it.section.section.id : undefined
+								)}
 							{/if}
 						</div>
 					{/if}
 				{/each}
+				{#if preview.foot}
+					{@const b = preview.foot}
+					<div
+						class="foot"
+						aria-hidden="true"
+						style={`--x: ${b.x + 1}; --y: ${b.y + 1}; --w: ${b.w}; --h: ${b.h}`}
+					>
+						{b.label ?? ''}
+					</div>
+				{/if}
 			</div>
 		</div>
 	{:else}
@@ -695,9 +858,15 @@
 {#if arranging && drag.said}<p class="said" role="status">{drag.said}</p>{/if}
 
 {#if arranging}
-	<button class="new-section" onclick={() => (making = true)}
-		><Plus size={16} aria-hidden="true" />New section</button
-	>
+	<div class="page-tools">
+		<button class="new-section" onclick={() => (making = true)}
+			><Plus size={16} aria-hidden="true" />New section</button
+		>
+		{#if freePage}
+			<!-- Gaps stay where they're left (P5); Tidy closes them up. -->
+			<button class="new-section" onclick={tidyPage}>Tidy</button>
+		{/if}
+	</div>
 {/if}
 
 <!-- The sheets load when first opened: they aren't Home's first paint (06 V5). -->
@@ -995,6 +1164,58 @@
 	}
 	.slot.heading {
 		justify-content: flex-end;
+	}
+	.slot.heading.arranging {
+		justify-content: center;
+	}
+	/* Where a dragged card lands (14 §5), with its size as it's sized. */
+	.foot {
+		z-index: 3;
+		display: grid;
+		place-items: center;
+		grid-column: var(--x) / span var(--w);
+		grid-row: var(--y) / span var(--h);
+		border: 2px dashed var(--accent);
+		border-radius: var(--radius);
+		background: color-mix(in srgb, var(--accent) 10%, transparent);
+		color: var(--accent);
+		font-weight: 700;
+		pointer-events: none;
+	}
+	@media (pointer: fine) {
+		.slot.arranging:not(.heading) {
+			cursor: grab;
+		}
+	}
+	/* A card's tools float over its foot while it's pointed at or chosen, so
+	   the page arranges as it will look (14 §5). */
+	.slot.arranging {
+		position: relative;
+	}
+	.slot.arranging :global(.arrange > .tools) {
+		position: absolute;
+		left: 6px;
+		right: 6px;
+		bottom: 6px;
+		z-index: 4;
+		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 0.12s;
+	}
+	.slot.arranging:hover :global(.arrange > .tools),
+	.slot.arranging :global(.arrange:focus-within > .tools) {
+		opacity: 1;
+		pointer-events: auto;
+	}
+	:global(html[data-dragging]) .slot.arranging :global(.arrange > .tools) {
+		opacity: 0;
+		pointer-events: none;
+	}
+	.page-tools {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
 	}
 	.slot.heading > h2 {
 		flex: none;

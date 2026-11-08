@@ -458,6 +458,8 @@
 		// Widgets (14 §6): their usual sizes.
 		if (card.kind === 'picture') return { w: 4, h: 4 };
 		if (card.kind === 'clock') return { w: 3, h: 2 };
+		// A forecast reads across: four wide, its rows as it needs them.
+		if (card.kind === 'weather') return { w: 4, h: 4 };
 		if (card.kind === 'link' || card.kind === 'space') return { w: 2, h: 1 };
 		const plot = card.kind === 'room' && layout === 'field' ? roomPlots.get(card.ref) : undefined;
 		if (plot) return roomCells(plot);
@@ -523,7 +525,8 @@
 			return { row, x: at?.x ?? a?.x ?? 0 };
 		};
 		const by = rows.length > 0 ? areaAt : undefined;
-		return { pieces, laid, eight: narrow(laid, 8, by), four: narrow(laid, 4, by) };
+		const heads = new Set([...pieces].filter(([, p]) => p.kind !== 'card').map(([ref]) => ref));
+		return { pieces, laid, eight: narrow(laid, 8, by, heads), four: narrow(laid, 4, by, heads) };
 	});
 
 	/** A card's drawings and their usual sizes, smallest first (14 §7). */
@@ -1382,6 +1385,8 @@
 		align-self: start;
 		min-height: calc(var(--h) * 56px + (var(--h) - 1) * var(--feel-gap, 10px));
 		min-width: 0;
+		/* Its width, for a drawing to fit its words to (a light at 2 × 1). */
+		container: slot / inline-size;
 		grid-column: var(--x4) / span var(--w4);
 		grid-row: var(--y4) / span var(--h);
 	}

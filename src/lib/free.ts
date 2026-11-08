@@ -99,7 +99,8 @@ export function firstGap(
  * of its run; an item that `breaks` starts a run of its own below everything
  * in its columns. An item with an `area` flows within it (§8), so a look's
  * main area and the one beside it fill side by side under what's across the
- * top; a row of areas starts below everything in the rows above it.
+ * top; a row of areas starts below what the rows above have in its columns,
+ * and below their first line of cards.
  */
 export function flow(items: Item[], cols = COLS): Placed[] {
 	const out: Placed[] = [];
@@ -109,11 +110,18 @@ export function flow(items: Item[], cols = COLS): Placed[] {
 		const a = it.area ?? { x: 0, w: cols };
 		const row = a.row ?? 0;
 		const key = `${row}:${a.x}:${a.w}`;
-		if (it.breaks)
-			tops.set(
-				key,
-				bottom(out.filter((p, i) => rows[i]! < row || (p.x < a.x + a.w && a.x < p.x + p.w)))
+		if (it.breaks) {
+			// Below what’s in its columns, and below the first line of cards in the
+			// rows above, so they read across the top; a card further down there
+			// (a stack under the doors) leaves the room beside it to this area.
+			const above = out.filter((_, i) => rows[i]! < row);
+			const cards = above.filter((p) => p.w < cols);
+			const line = Math.min(...cards.map((p) => p.y));
+			const mine = out.filter(
+				(p, i) => (rows[i]! < row && p.y === line) || (p.x < a.x + a.w && a.x < p.x + p.w)
 			);
+			tops.set(key, bottom(mine));
+		}
 		const at = firstGap(out, Math.min(a.w, it.w), it.h, cols, tops.get(key) ?? 0, a.x, a.w);
 		out.push({ ref: it.ref, ...at });
 		rows.push(row);
@@ -269,12 +277,15 @@ export function across(w: number, cols: number): number {
  * as `across` says, a card across the whole page starting a run of its own,
  * so nothing is pulled up past a heading. With `areaOf` (a look's areas,
  * N6), a row of areas reads one area at a time, left to right, so what's
- * beside the main area follows it instead of mixing in.
+ * beside the main area follows it instead of mixing in. Each area, and each
+ * of `heads` (a title, a section drawn whole), starts below what’s already
+ * there, across the whole width, so nothing is pulled up past it.
  */
 export function narrow(
 	placed: Placed[],
 	cols: number,
-	areaOf?: (p: Placed) => { row: number; x: number }
+	areaOf?: (p: Placed) => { row: number; x: number },
+	heads: Set<string> = new Set()
 ): Map<string, Box> {
 	const order = areaOf
 		? [...placed].sort((a, b) => {
@@ -283,12 +294,13 @@ export function narrow(
 				return p.row - q.row || p.x - q.x || a.y - b.y || a.x - b.x;
 			})
 		: reading(placed);
+	const key = (p: Placed) => (areaOf ? `${areaOf(p).row}:${areaOf(p).x}` : '');
 	const out = flow(
-		order.map((p) => ({
+		order.map((p, i) => ({
 			ref: p.ref,
-			w: across(p.w, cols),
+			w: heads.has(p.ref) ? cols : across(p.w, cols),
 			h: p.h,
-			breaks: p.w >= COLS
+			breaks: p.w >= COLS || heads.has(p.ref) || (i > 0 && key(p) !== key(order[i - 1]!))
 		})),
 		cols
 	);

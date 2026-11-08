@@ -320,15 +320,18 @@ researched further.
 
 ## 13. Still to do
 
+Done since step 6: a light at 2 × 1 shows its name before its icon; a
+plugin's card in a place bigger than its largest form keeps that width,
+centered; the weather card starts 4 wide; a row of areas starts below the
+first line of cards above it, so an area can sit beside a card further down
+there; and on narrower screens each area and each title starts its own line,
+so nothing is pulled up past it.
+
 Found while building steps 1 to 3, kept here until each is done:
 
 - **Drawings that show more as they grow**, kind by kind: a TV's apps, a
   reading's graph, a player's controls. Until then a big card is its largest
   drawing, stretched.
-- **A light at 2 × 1 cuts a long name** ("Ceili…"): the compact drawing
-  needs to wrap or shrink its words at that width.
-- **A plugin's card in a place bigger than its largest form** should draw at
-  its largest, centered; it stretches today.
 - **Dragging from the Add sheet** onto a free page (the Add button works).
 - **Dragging by cells on a narrower screen**; today the keyboard and up and
   down arrange it there.
@@ -337,12 +340,10 @@ Found while building steps 1 to 3, kept here until each is done:
 - **Pictures are never deleted** from the server when taken off a page; a
   tidy-up of ones no page uses is still to come.
 - **Displays** follow Home and the rooms; not yet tried on a display itself.
-- **Usual sizes for tall drawings:** the weather card starts 2 wide and 7
-  rows tall; it reads better 4 wide, so its usual size could be wider.
 - **Floor plans**, held for research (§12).
+- **A card in the middle of an area above** (the Garage's stack, landed
+  beside its scenes) leaves room either side that nothing below is narrow
+  enough to use, until someone arranges it.
 - **A heading's layout choice** (list, panel) still turns what's under it
   into one box; with no sections that wants its own name, such as "Group
   these", or to move to the look editor only.
-- **Lit's Garage** now starts its beside area below the stack someone put
-  under the doors (N2's rows), which leaves a gap beside the stack until
-  someone arranges it.

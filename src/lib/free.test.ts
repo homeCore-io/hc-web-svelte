@@ -296,6 +296,24 @@ describe('a look’s areas on a narrower screen (N6)', () => {
 		const phone = narrow(wide, 4, area);
 		expect(phone.get('hall')!.y).toBeLessThan(phone.get('pinned')!.y);
 	});
+
+	it('starts each area and each title below what’s there, nothing pulled up past them', () => {
+		const wide: Placed[] = [
+			{ ref: 'stack', x: 0, y: 0, w: 6, h: 6 },
+			{ ref: 'section:lights', x: 0, y: 6, w: 8, h: 1 },
+			{ ref: 'lamp', x: 0, y: 7, w: 2, h: 2 },
+			{ ref: 'section:readings', x: 8, y: 6, w: 4, h: 1 },
+			{ ref: 'temp', x: 8, y: 7, w: 4, h: 2 }
+		];
+		const area = (p: Placed) => ({ row: p.y < 6 ? 0 : 1, x: p.y >= 6 && p.x >= 8 ? 8 : 0 });
+		const tablet = narrow(wide, 8, area, new Set(['section:lights', 'section:readings']));
+		// The stack takes six of eight: the lamp waits under the Lights title.
+		expect(tablet.get('section:lights')!.y).toBe(6);
+		expect(tablet.get('lamp')!.y).toBe(7);
+		// Readings starts its own line; its first reading under it, not beside it.
+		expect(tablet.get('section:readings')!.y).toBe(9);
+		expect(tablet.get('temp')!.y).toBe(10);
+	});
 });
 
 describe('a look’s areas (14 §8)', () => {
@@ -322,11 +340,25 @@ describe('a look’s areas (14 §8)', () => {
 		expect(at(out, 'lamp')).toEqual([0, 6, 2, 2]);
 	});
 
-	it('starts a row of areas below everything in the rows above it', () => {
+	it('starts a row of areas below the first line of cards above it', () => {
 		const out = flow([
 			{ ref: 'door', w: 2, h: 2, breaks: true, area: { x: 0, w: 12, row: 0 } },
 			{ ref: 'section:lights', w: 4, h: 1, breaks: true, area: { x: 4, w: 4, row: 1 } }
 		]);
 		expect(at(out, 'section:lights')).toEqual([4, 2, 4, 1]);
+	});
+
+	it('starts an area beside a card further down the rows above (Lit’s Garage)', () => {
+		const out = flow([
+			{ ref: 'section:doors', w: 12, h: 1, breaks: true, area: { x: 0, w: 12, row: 0 } },
+			{ ref: 'door', w: 4, h: 2, breaks: true, area: { x: 0, w: 12, row: 0 } },
+			{ ref: 'stack', w: 4, h: 4, breaks: true, area: { x: 0, w: 12, row: 0 } },
+			{ ref: 'section:lights', w: 8, h: 1, breaks: true, area: { x: 0, w: 8, row: 1 } },
+			{ ref: 'section:climate', w: 4, h: 1, breaks: true, area: { x: 8, w: 4, row: 1 } }
+		]);
+		expect(at(out, 'stack')).toEqual([0, 3, 4, 4]);
+		// Main is under the stack; beside it starts under the doors, by the stack.
+		expect(at(out, 'section:lights')).toEqual([0, 7, 8, 1]);
+		expect(at(out, 'section:climate')).toEqual([8, 3, 4, 1]);
 	});
 });

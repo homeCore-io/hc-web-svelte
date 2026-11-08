@@ -15,6 +15,7 @@ import {
 	bigNumbers,
 	fieldPlan,
 	fieldText,
+	outsideTemperature,
 	readingOf,
 	roomBox,
 	sourced,
@@ -327,5 +328,20 @@ describe('styles (G3)', () => {
 		expect(shellRooms(undefined, undefined)).toBe('names');
 		expect(shellRooms({}, { shell: { rooms: 'status' } })).toBe('status');
 		expect(shellRooms({ shell: { rooms: 'names' } }, { shell: { rooms: 'status' } })).toBe('names');
+	});
+});
+
+describe('the temperature outside', () => {
+	const station = {
+		device_id: 'ws',
+		name: 'Station',
+		device_type: 'weather_station',
+		available: true,
+		attributes: { temperature: 13 }
+	} as unknown as CoreDevice;
+	it('is the house’s weather station, unless a sensor is chosen', () => {
+		expect(outsideTemperature({ ...all, ws: station })).toBe(13);
+		expect(outsideTemperature(all)).toBeUndefined();
+		expect(outsideTemperature({ ...all, ws: station }, ['far'])).toBe(30);
 	});
 });

@@ -102,6 +102,7 @@ describe('every kind homeCore has reads as words', () => {
 			{ ButtonEvent: { device_id: 'zz_keypad', button_number: 2, event: 'Held' } },
 			'Den Keypad button 2 is held'
 		],
+		[{ ButtonEvent: { device_id: 'zz_bell', event: 'Pushed' } }, 'Front Door Bell doorbell rings'],
 		[
 			{
 				NumericThreshold: {

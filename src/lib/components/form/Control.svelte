@@ -443,7 +443,14 @@
 							`Row ${i + 1}`}</legend
 					>
 					{#each shownColumns as c (c.key)}
-						<label class="cell">
+						<!-- A list, a map or long text takes the row's width: chips need room. -->
+						<label
+							class="cell"
+							class:wide={c.kind === 'list' ||
+								c.kind === 'map' ||
+								c.kind === 'table' ||
+								(c.kind === 'text' && c.render === 'multiline')}
+						>
 							<span
 								>{c.label ?? c.key}{#if wants(row, c)}<em class="ask"> — wants one</em>{/if}</span
 							>
@@ -770,7 +777,7 @@
 	}
 	.row {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 		gap: var(--space-2) var(--space-3);
 		width: 100%;
 		box-sizing: border-box;
@@ -791,9 +798,12 @@
 		font-size: 13px;
 		color: var(--ink-muted);
 	}
-	.remove {
-		justify-self: start;
-		align-self: end;
+	.cell.wide {
+		grid-column: 1 / -1;
+	}
+	.row > .remove {
+		grid-column: 1 / -1;
+		justify-self: end;
 		color: var(--alert);
 	}
 	.group {

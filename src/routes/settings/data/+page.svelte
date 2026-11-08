@@ -173,21 +173,18 @@
 		const f = input.files?.[0];
 		input.value = '';
 		if (!f) return;
-		let doc: unknown;
-		try {
-			doc = JSON.parse(await f.text());
-		} catch {
-			return void (appNote = 'That isn’t a backup of this app.');
-		}
 		const ok = await ask({
 			title: 'Put this app’s pages and Homes back?',
-			body: 'Each page, display and person’s Home in the backup replaces the one here now. Others are left alone.',
+			body: 'Each page, display and person’s Home in the backup replaces the one here now. Others are left alone. Pictures in it that aren’t here are added; those here are kept.',
 			go: 'Put them back',
 			danger: true
 		});
 		if (!ok) return;
-		const r = await restoreApp(doc);
-		appNote = r.ok ? `Put back ${r.data.restored} documents.` : r.error;
+		appNote = 'Putting it back…';
+		const r = await restoreApp(f);
+		appNote = r.ok
+			? `Put back ${r.data.restored} documents${r.data.pictures ? ` and added ${r.data.pictures} pictures` : ''}.`
+			: r.error;
 	}
 
 	// ---- calendars ----
@@ -336,7 +333,8 @@
 				>
 				{#if backing}<p class="sub" role="status">{backing}</p>{/if}
 				<p class="sub">
-					This app’s own pages, displays and everyone’s Home are kept apart from homeCore —
+					This app’s own pages, displays, everyone’s Home and the pictures library are kept apart
+					from homeCore —
 					<button class="link" onclick={backupApp}>save them too</button>.
 				</p>
 				{#if appBacking}<p class="sub" role="status">{appBacking}</p>{/if}
@@ -412,10 +410,10 @@
 				{/if}
 				{#if restoreNote}<p class="sub" role="status">{restoreNote}</p>{/if}
 				<p class="sub">
-					This app’s pages and Homes: <label class="link file"
+					This app’s pages, Homes and pictures: <label class="link file"
 						>put a saved copy back<input
 							type="file"
-							accept=".json,application/json"
+							accept=".tar,application/x-tar,.json,application/json"
 							onchange={choseApp}
 						/></label
 					>

@@ -261,13 +261,22 @@ export const everySaid = (hours: number) =>
 			: `every ${hours} hours`;
 
 /** The UI server's own documents — pages, people's Homes, displays — saved too. */
-export async function backUpApp(): Promise<Answer<{ filename: string; bytes: number }>> {
-	const r = await call<unknown>('GET', '/ui/backup');
+/**
+ * This app's pages and Homes, with the pictures library, as one tar the
+ * browser saves as it arrives (it can be large, with videos). Asked first
+ * whether it may, so a refusal is said here rather than saved as a file.
+ */
+export async function backUpApp(): Promise<Answer<{ filename: string }>> {
+	const r = await call<unknown>('HEAD', '/ui/backup?pictures=1');
 	if (!r.ok) return r;
-	const text = JSON.stringify(r.data, null, '\t');
-	const filename = `hc-web-backup-${new Date().toISOString().slice(0, 10)}.json`;
-	save(new Blob([text], { type: 'application/json' }), filename);
-	return { ok: true, data: { filename, bytes: text.length } };
+	const filename = `hc-web-backup-${new Date().toISOString().slice(0, 10)}.tar`;
+	const a = document.createElement('a');
+	a.href = '/ui/backup?pictures=1';
+	a.download = filename;
+	document.body.append(a);
+	a.click();
+	a.remove();
+	return { ok: true, data: { filename } };
 }
 
 function save(blob: Blob, filename: string) {
@@ -310,7 +319,24 @@ export const stageRestore = (file: Blob) =>
 	});
 
 /** Put the UI server's documents back from an app backup. */
-export const restoreApp = (doc: unknown) => call<{ restored: number }>('POST', '/ui/backup', doc);
+/** A saved copy put back: a tar (with pictures), or the JSON of before. */
+export async function restoreApp(
+	file: File
+): Promise<Answer<{ restored: number; pictures: number }>> {
+	const head = new Uint8Array(await file.slice(257, 262).arrayBuffer());
+	if (new TextDecoder().decode(head) === 'ustar')
+		return call('POST', '/ui/backup', undefined, {
+			headers: { 'content-type': 'application/x-tar' },
+			body: file
+		});
+	let doc: unknown;
+	try {
+		doc = JSON.parse(await file.text());
+	} catch {
+		return { ok: false, error: 'That isn’t a backup of this app.' };
+	}
+	return call('POST', '/ui/backup', doc);
+}
 
 // ---- restarting ----
 

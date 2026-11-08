@@ -71,6 +71,17 @@ class Editing {
 		];
 	}
 
+	/** This page's household changes, made over by `edit` (14 §8, L3). */
+	editPage(page: string, edit: (changes: Change[]) => Change[]): void {
+		this.#edits = [
+			...this.#edits,
+			(d) => ({
+				...d,
+				pages: { ...d.pages, [lookKey(page)]: edit(pageChanges(d.pages, page)) }
+			})
+		];
+	}
+
 	/** Every household change to this page, gone — back to the generated page. */
 	reset(page: string): void {
 		this.#edits = [...this.#edits, (d) => ({ ...d, pages: withoutChanges(d.pages, page) })];

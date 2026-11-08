@@ -63,6 +63,7 @@
 	} from '#lib/free.js';
 	import type { CellsHost } from '#lib/drag/cells.js';
 	import { lookHere } from '#lib/look.svelte.js';
+	import { rooms } from '#lib/rooms.svelte.js';
 	import { areaFor, narrowArea, type AreaAt } from '#lib/looks/model.js';
 	import {
 		FORM_CELLS,
@@ -503,6 +504,12 @@
 		const at = next.find((p) => p.ref === ref);
 		if (at) drag.said = `${pieceName(ref)}: ${where(at)}.`;
 	}
+	/** The other rooms, for a room's Layout menu (L3). */
+	const otherRooms = $derived(
+		rooms.list
+			.filter((r) => `room:${r.id}` !== key)
+			.map((r) => ({ key: `room:${r.id}`, name: r.name }))
+	);
 	/** Tidy (P5): every card up as far as it goes. */
 	function tidyPage() {
 		if (!freePage) return;
@@ -942,6 +949,16 @@
 		{#if freePage}
 			<!-- Gaps stay where they're left (P5); Tidy closes them up. -->
 			<button class="new-section" onclick={tidyPage}>Tidy</button>
+		{/if}
+		{#if freePage && key.startsWith('room:')}
+			{#await import('./LayoutMenu.svelte') then { default: LayoutMenu }}
+				<LayoutMenu
+					page={key}
+					edit={mode === 'edit'}
+					rooms={otherRooms}
+					said={(words) => (drag.said = words)}
+				/>
+			{/await}
 		{/if}
 	</div>
 {/if}

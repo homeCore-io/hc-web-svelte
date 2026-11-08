@@ -27,6 +27,14 @@ class Personal extends Synced<PersonDoc> {
 		}));
 	}
 
+	/** This page's changes, made over by `edit`: a room's layout from another's (14 §8, L3). */
+	editPage(page: string, edit: (changes: Change[]) => Change[]): Promise<void> {
+		return this.change((d) => ({
+			...d,
+			pages: { ...d.pages, [lookKey(page)]: edit(pageChanges(d.pages, page)) }
+		}));
+	}
+
 	/** "Reset to shared": this page back to how everyone else sees it. */
 	resetPage(page: string): Promise<void> {
 		return this.change((d) => ({ ...d, pages: withoutChanges(d.pages, page) }));

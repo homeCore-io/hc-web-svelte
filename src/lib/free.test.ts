@@ -273,3 +273,28 @@ describe('pushing down keeps cards under their heading', () => {
 		expect(overlapping(out)).toBe(false);
 	});
 });
+
+describe('a look’s areas (14 §8)', () => {
+	it('fills the main area and the one beside it side by side, under what’s across the top', () => {
+		const main = { x: 0, w: 8 };
+		const side = { x: 8, w: 4 };
+		const out = flow([
+			{ ref: 'header', w: 12, h: 2, breaks: true },
+			{ ref: 'section:doors', w: 8, h: 1, breaks: true, area: main },
+			{ ref: 'door1', w: 2, h: 2, area: main },
+			{ ref: 'door2', w: 2, h: 2, area: main },
+			{ ref: 'section:readings', w: 4, h: 1, breaks: true, area: side },
+			{ ref: 'temp', w: 4, h: 1, area: side },
+			{ ref: 'leak', w: 4, h: 1, area: side },
+			{ ref: 'section:lights', w: 8, h: 1, breaks: true, area: main },
+			{ ref: 'lamp', w: 2, h: 2, area: main }
+		]);
+		expect(at(out, 'section:doors')).toEqual([0, 2, 8, 1]);
+		expect(at(out, 'door2')).toEqual([2, 3, 2, 2]);
+		expect(at(out, 'section:readings')).toEqual([8, 2, 4, 1]);
+		expect(at(out, 'leak')).toEqual([8, 4, 4, 1]);
+		// Under the doors, not under the readings beside them.
+		expect(at(out, 'section:lights')).toEqual([0, 5, 8, 1]);
+		expect(at(out, 'lamp')).toEqual([0, 6, 2, 2]);
+	});
+});

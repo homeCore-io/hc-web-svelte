@@ -37,6 +37,12 @@ export interface Item {
 	/** Its heading: on a placed page, a new card takes the first gap under it (14 §6, Add here). */
 	after?: string;
 	/**
+	 * Where its section starts (14 §8): the columns of a look's area, the main
+	 * one or the one beside it. A starting layout flows it there; left out, the
+	 * whole width.
+	 */
+	area?: { x: number; w: number };
+	/**
 	 * Changes that size it, after which its place takes its usual size again:
 	 * a new form from its tools or its settings; a stack's own width and height.
 	 */
@@ -62,11 +68,22 @@ const bottom = (placed: Box[]) => placed.reduce((n, p) => Math.max(n, p.y + p.h)
 
 const free = (placed: Box[], b: Box) => !placed.some((p) => overlaps(p, b));
 
-/** The first spot `w` by `h` fits, from row `from` down, left to right in each row. */
-export function firstGap(placed: Box[], w: number, h: number, cols = COLS, from = 0): Box {
-	w = Math.min(cols, w);
+/**
+ * The first spot `w` by `h` fits, from row `from` down, left to right in
+ * each row; within columns `x0` to `x0 + span` if given.
+ */
+export function firstGap(
+	placed: Box[],
+	w: number,
+	h: number,
+	cols = COLS,
+	from = 0,
+	x0 = 0,
+	span = cols
+): Box {
+	w = Math.min(span, w);
 	for (let y = from; ; y++)
-		for (let x = 0; x + w <= cols; x++) {
+		for (let x = x0; x + w <= x0 + span; x++) {
 			const b = { x, y, w, h };
 			if (free(placed, b)) return b;
 		}
@@ -74,14 +91,18 @@ export function firstGap(placed: Box[], w: number, h: number, cols = COLS, from 
 
 /**
  * The starting layout (§4): each item in order at the first gap from the top
- * of its run; an item that `breaks` starts a run of its own below everything.
+ * of its run; an item that `breaks` starts a run of its own below everything
+ * in its columns. An item with an `area` flows within it (§8), so a look's
+ * main area and the one beside it fill side by side under what's across the top.
  */
 export function flow(items: Item[], cols = COLS): Placed[] {
 	const out: Placed[] = [];
-	let top = 0;
+	const tops = new Map<string, number>();
 	for (const it of items) {
-		if (it.breaks) top = bottom(out);
-		const at = firstGap(out, Math.min(cols, it.w), it.h, cols, top);
+		const a = it.area ?? { x: 0, w: cols };
+		const key = `${a.x}:${a.w}`;
+		if (it.breaks) tops.set(key, bottom(out.filter((p) => p.x < a.x + a.w && a.x < p.x + p.w)));
+		const at = firstGap(out, Math.min(a.w, it.w), it.h, cols, tops.get(key) ?? 0, a.x, a.w);
 		out.push({ ref: it.ref, ...at });
 	}
 	return out;

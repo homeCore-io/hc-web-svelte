@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formFor, piecesOf, rangeOf, within } from './freePage.js';
+import { formFor, headingRef, hiddenIn, piecesOf, rangeOf, within } from './freePage.js';
 import { apply } from './layers.js';
 import type { Card, ShownSection } from './page.js';
 
@@ -47,6 +47,40 @@ describe('a page’s sections as pieces (14 §4)', () => {
 			() => true
 		);
 		expect(normally.map((i) => i.ref)).toEqual(['section:controls', 'lamp']);
+	});
+});
+
+describe('a title on a free page holds nothing (N1)', () => {
+	const lights = () => [section('lights', ['lamp', 'ceiling'])];
+	const off = () => true;
+
+	it('hides only the title: what was under it stays, and lands with its kind', () => {
+		const { items } = piecesOf(lights(), size, () => true, false, undefined, off);
+		expect(items.map((i) => [i.ref, i.kin])).toEqual([
+			['lamp', 'lights'],
+			['ceiling', 'lights']
+		]);
+	});
+
+	it('shows a hidden title faded while arranging, to show it again', () => {
+		const { items, pieces } = piecesOf(lights(), size, () => true, true, undefined, off);
+		expect(items[0]?.ref).toBe('section:lights');
+		expect(pieces.get('section:lights')).toMatchObject({ kind: 'heading', hidden: true });
+	});
+
+	it('reads a title hidden or shown again, the last saying', () => {
+		const r = headingRef('lights');
+		expect(hiddenIn([{ op: 'hide', ref: r }], r)).toBe(true);
+		expect(
+			hiddenIn(
+				[
+					{ op: 'hide', ref: r },
+					{ op: 'show', ref: r }
+				],
+				r
+			)
+		).toBe(false);
+		expect(hiddenIn([{ op: 'hide', ref: 'section:lights' }], r)).toBe(false);
 	});
 });
 

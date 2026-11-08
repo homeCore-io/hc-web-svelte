@@ -3,7 +3,7 @@
  * a full-width card, then its cards one by one. A section a look draws as one
  * box (a list, swatches, a panel, folded) is placed whole, its heading with it.
  */
-import type { Form, Layered } from './layers.js';
+import type { Change, Form, Layered } from './layers.js';
 import { sectionRef, type Card, type Layout, type ShownSection } from './page.js';
 import { COLS, type Item } from './free.js';
 
@@ -18,7 +18,8 @@ export const FORM_CELLS: Record<Form, { w: number; h: number }> = {
 const ONE_BY_ONE: Layout[] = ['grid', 'row'];
 
 export type Piece =
-	| { kind: 'heading'; section: ShownSection }
+	/** `hidden`: its title alone is hidden (N1), shown faded while arranging. */
+	| { kind: 'heading'; section: ShownSection; hidden?: boolean }
 	| { kind: 'whole'; section: ShownSection }
 	| { kind: 'card'; section: ShownSection; card: Card; g: Layered<Card> };
 
@@ -49,6 +50,21 @@ export function wholeRows(layout: Layout, n: number, w: number): number {
 }
 
 /**
+ * A heading's own ref on a free page (14 §8, N1): hiding it hides the title
+ * and nothing under it. A section hidden before (`section:<id>`) still hides
+ * all it held, until it's shown again.
+ */
+export const headingRef = (id: string) => `heading:${id}`;
+
+/** Whether the changes leave `ref` hidden: the last hide or show of it wins. */
+export function hiddenIn(changes: Change[], ref: string): boolean {
+	let out = false;
+	for (const c of changes)
+		if (c.ref === ref && (c.op === 'hide' || c.op === 'show')) out = c.op === 'hide';
+	return out;
+}
+
+/**
  * What the page lays out, in its sections' order, and what each is. `cells`
  * says a card's size; `drawn` whether a section shows at all. While
  * arranging, hidden cards are laid out too, and a hidden section's heading,
@@ -63,8 +79,12 @@ export function piecesOf(
 	 * Where a section starts (14 §8): a look's area, its columns and whether it's
 	 * beside the main one, whose cards are one a row; null, not drawn here.
 	 */
-	areaOf: (s: ShownSection) => { x: number; w: number; beside?: boolean } | null | undefined = () =>
-		undefined
+	areaOf: (
+		s: ShownSection
+	) => { x: number; w: number; row?: number; beside?: boolean } | null | undefined = () =>
+		undefined,
+	/** Whether a section's title alone is hidden (N1). */
+	titleHidden: (s: ShownSection) => boolean = () => false
 ): { items: Item[]; pieces: Map<string, Piece> } {
 	const items: Item[] = [];
 	const pieces = new Map<string, Piece>();
@@ -77,7 +97,7 @@ export function piecesOf(
 		if (!drawn(s) || (s.hidden && !arranging)) continue;
 		const a = areaOf(s);
 		if (a === null) continue;
-		const area = a && { x: a.x, w: a.w };
+		const area = a && { x: a.x, w: a.w, row: a.row };
 		const across = a?.w ?? COLS;
 		const sec = s.section;
 		const ref = sectionRef(sec.id);
@@ -92,9 +112,10 @@ export function piecesOf(
 			pieces.set(ref, { kind: 'whole', section: s });
 			continue;
 		}
-		if (!sec.headless) {
+		const off = titleHidden(s);
+		if (!sec.headless && (!off || arranging)) {
 			items.push({ ref, w: across, h: 1, breaks: true, area });
-			pieces.set(ref, { kind: 'heading', section: s });
+			pieces.set(ref, { kind: 'heading', section: s, hidden: off || undefined });
 		}
 		let first = sec.headless;
 		for (const g of s.groups)
@@ -110,7 +131,7 @@ export function piecesOf(
 					w: a?.beside ? a.w : Math.min(size.w, across),
 					area,
 					breaks: first || undefined,
-					after: sec.headless ? undefined : ref
+					kin: sec.id
 				});
 				first = false;
 				pieces.set(card.ref, { kind: 'card', section: s, card, g });

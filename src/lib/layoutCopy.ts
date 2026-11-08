@@ -36,7 +36,9 @@ const ruleStack = (ref: string) => kindRef(ref)?.kind === 'stack' && ref.include
  */
 export function layoutOf(changes: Change[]): Change[] {
 	return changes.flatMap((c): Change[] => {
-		if (c.ref.startsWith('section:')) return SECTION_OPS.includes(c.op) ? [c] : [];
+		// A section's, or its title's alone on a free page (N1).
+		if (c.ref.startsWith('section:') || c.ref.startsWith('heading:'))
+			return SECTION_OPS.includes(c.op) ? [c] : [];
 		if (ruleStack(c.ref)) return c.op === 'place' || c.op === 'form' ? [c] : [];
 		if (!c.ref.startsWith('kind:') && !c.ref.startsWith('card:')) return [];
 		if (!ADDED_OPS.includes(c.op)) return [];

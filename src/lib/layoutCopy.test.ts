@@ -7,6 +7,7 @@ const garage: Change[] = [
 	{ op: 'rename', ref: 'section:doors', name: 'Ways in' },
 	{ op: 'place', ref: 'device:garage_door', x: 0, y: 3, w: 4, h: 3 },
 	{ op: 'hide', ref: 'device:attic' },
+	{ op: 'hide', ref: 'heading:readings' },
 	{ op: 'add', ref: 'kind:title/a1', into: 'doors' },
 	{ op: 'config', ref: 'kind:title/a1', config: { text: 'Garage' } },
 	{ op: 'place', ref: 'kind:title/a1', x: 0, y: 0, w: 12, h: 2 },
@@ -21,6 +22,7 @@ describe('a room’s layout, carried (14 §8, L3)', () => {
 		expect(refs).toContain('rename section:doors');
 		expect(refs).toContain('add kind:title/a1');
 		expect(refs).toContain('place kind:stack/rule-switches');
+		expect(refs).toContain('hide heading:readings');
 		// Another room's stack holds its own things; its devices aren't these.
 		expect(refs).not.toContain('config kind:stack/rule-switches');
 		expect(refs.some((r) => r.includes('device:'))).toBe(false);

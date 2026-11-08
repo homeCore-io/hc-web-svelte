@@ -36,7 +36,9 @@
 		type Place,
 		type PluginRef,
 		type Rule,
-		type Take
+		type Take,
+		areaFor,
+		areasOf
 	} from '#lib/looks/model.js';
 	import { changesFrom } from '#lib/looks/diff.js';
 	import { litRoom } from '#lib/lit/room.js';
@@ -48,6 +50,7 @@
 	import LookPreview from './LookPreview.svelte';
 	import DrawingSample from './DrawingSample.svelte';
 	import DrawingEditor from './DrawingEditor.svelte';
+	import AreasEditor from './AreasEditor.svelte';
 
 	let {
 		initial,
@@ -572,13 +575,23 @@
 								class="make"
 								onclick={() =>
 									setRules(structuredClone($state.snapshot(LIT.grouping.room!)) as Rule[])}
-								>Group rooms by sections of this look's own</button
+								>Start rooms this look's own way</button
 							>
 						{:else}
 							<p class="quiet">
-								Each section takes what it names, and a thing goes to the first that takes it. What
-								none takes goes to "Also here". This is every room; arranging one room stays with
-								that room.
+								How this look starts every room, and where new things land in a room someone has
+								arranged. Arranging one room stays with that room.
+							</p>
+							<h3 class="sub">Areas</h3>
+							<AreasEditor
+								grouping={draft.grouping}
+								set={(rows) => (draft.grouping = { ...draft.grouping, areas: rows })}
+							/>
+							<h3 class="sub">What starts where, in order</h3>
+							<p class="quiet">
+								Each takes what it names, and a thing goes to the first that takes it. Anything none
+								takes goes in the last area. A title is a widget it puts above them to start; on the
+								page it holds nothing, and hiding it hides only the title.
 							</p>
 							<div class="list" use:reorder={{ move: (a, b) => setRules(moved(rules, a, b)) }}>
 								{#each rules as r, i (r.id)}
@@ -588,7 +601,7 @@
 												>⋮⋮</span
 											>
 											<input
-												aria-label="Section name"
+												aria-label="Title"
 												value={r.title}
 												oninput={(e) => editRule(i, { title: e.currentTarget.value })}
 											/>
@@ -647,18 +660,20 @@
 													>{/each}
 											</select>
 											<select
-												aria-label="Where"
-												value={r.place}
-												onchange={(e) => editRule(i, { place: e.currentTarget.value as Place })}
+												aria-label={`Where ${r.title} starts`}
+												value={areaFor(draft.grouping, r)?.id}
+												onchange={(e) => editRule(i, { area: e.currentTarget.value })}
 											>
-												{#each PLACES as [id, name] (id)}<option value={id}>{name}</option>{/each}
+												{#each areasOf(draft.grouping) as a (a.id)}<option value={a.id}
+														>{a.name}</option
+													>{/each}
 											</select>
 											<label class="check small"
 												><input
 													type="checkbox"
 													checked={!r.headless}
 													onchange={(e) => editRule(i, { headless: !e.currentTarget.checked })}
-												/> Heading</label
+												/> Title above</label
 											>
 											<!-- 13 §13.2: its devices and scenes start in one stack, from this many. -->
 											<label class="check small"
@@ -699,14 +714,14 @@
 											e.currentTarget.value = '';
 										}}
 									>
-										<option value="">+ Add a section that takes…</option>
+										<option value="">+ Add one that takes…</option>
 										{#each untaken as t (t)}<option value={t}>{TAKES[t]}</option>{/each}
 									</select>
 								{/if}
 								<button
 									class="plain"
 									onclick={() => (draft.grouping = { ...draft.grouping, room: undefined })}
-									>Back to Classic's sections</button
+									>Back to Classic's rooms</button
 								>
 							</div>
 						{/if}
@@ -966,6 +981,12 @@
 		border-radius: 18px;
 		background: var(--surface);
 		border: 1px solid var(--line);
+	}
+	.sub {
+		margin: 6px 0 0;
+		font-size: 13px;
+		font-weight: 700;
+		letter-spacing: 0.04em;
 	}
 	.quiet {
 		margin: 0;

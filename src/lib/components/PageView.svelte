@@ -39,7 +39,7 @@
 	import { personal } from '#lib/personal.svelte.js';
 	import { editing } from '#lib/edit.svelte.js';
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
-	import { added, type Change, type Form, type Layered } from '#lib/layers.js';
+	import { added, newId, ref as refOf, type Change, type Form, type Layered } from '#lib/layers.js';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Arrange from './Arrange.svelte';
 	import { kindOptions } from '#lib/kindOptions.svelte.js';
@@ -83,6 +83,8 @@
 	import {
 		FORM_CELLS,
 		formFor,
+		headingRef,
+		hiddenIn,
 		piecesOf,
 		rangeOf,
 		within,
@@ -379,18 +381,20 @@
 			.map((s) => ({ id: s.section.id, title: s.title }))
 	);
 	// A device or a scene can go into a stack on the page too (13 §13.2).
+	// A free page has no sections to move a card to (N1): only its stacks.
 	const moveTargets = (card: Card, from: string) =>
 		card.kind === 'room'
 			? []
 			: [
-					...targets.filter((t) => t.id !== from),
+					...(freeHere ? [] : targets.filter((t) => t.id !== from)),
 					...(stackable(card.ref)
 						? stacksHere.map((s) => ({ id: `stack:${s.ref}`, title: `Into stack: ${s.name}` }))
 						: [])
 				];
 	// ---- free layout (14): a room's page and a made page are one grid ----
 	// A room's page and a made page (14 §3), a look's grouped rooms too (L1).
-	const freeHere = $derived(key.startsWith('room:') || key.startsWith('page:'));
+	// The look editor's preview of a room too, so it follows the look's areas (N2).
+	const freeHere = $derived(/^(preview\|)?(room|page):/.test(key));
 	const here = lookHere();
 	/**
 	 * Where a grouped room's section starts (14 §8, A1 to A3): the area of the
@@ -409,7 +413,7 @@
 	/** The area a section starts in, with whether its cards are one a row (A3). */
 	const areaHere = (s: ShownSection) => {
 		const a = areaOf(s);
-		return a ? { x: a.x, w: a.w, beside: narrowArea(a) } : a;
+		return a ? { x: a.x, w: a.w, row: a.row, beside: narrowArea(a) } : a;
 	};
 	/** How a grouped room draws a section's cards: one a row in a narrow area, or across the top. */
 	const placeOf = (s: ShownSection): Place | undefined => {
@@ -452,7 +456,8 @@
 			cellsOf,
 			(s) => drawn(s, arranging),
 			arranging,
-			areaHere
+			areaHere,
+			(s) => hiddenIn(changes, headingRef(s.section.id))
 		);
 		const laid = freeLayout(items, changes);
 		return { pieces, laid, eight: narrow(laid, 8), four: narrow(laid, 4) };
@@ -531,6 +536,23 @@
 			.filter((r) => `room:${r.id}` !== key)
 			.map((r) => ({ key: `room:${r.id}`, name: r.name }))
 	);
+	/**
+	 * Add a title (N1): a title widget across the bottom of the page, its
+	 * settings open to name it. The first place on a page places them all.
+	 */
+	function addTitle() {
+		if (!freePage) return;
+		const r = refOf.kind('title', newId());
+		const laid = freePage.laid;
+		const y = laid.reduce((n, p) => Math.max(n, p.y + p.h), 0);
+		view.changeAll(key, [
+			...freeze(laid),
+			{ op: 'add', ref: r, into: home },
+			{ op: 'place', ref: r, x: 0, y, w: COLS, h: 1 }
+		]);
+		adding.settle = r;
+		drag.said = 'A title added at the bottom of the page. Name it, then move it where it goes.';
+	}
 	/** Tidy (P5): every card up as far as it goes. */
 	function tidyPage() {
 		if (!freePage) return;
@@ -692,12 +714,14 @@
 		></div>{/if}
 {/snippet}
 
-{#snippet sectionHead(s: ShownSection)}
+{#snippet sectionHead(s: ShownSection, titleOff = false, asTitle = false)}
 	{@const sec = s.section}
+	<!-- On a free page a title alone is hidden (N1); a section hidden before still hides what it held. -->
+	{@const hidden = s.hidden || titleOff}
 	<div class="head" data-sec-handle title="Drag to move this section">
 		<span class="grip" aria-hidden="true">⋮⋮</span>
-		<h2 class="section-label" class:faded={s.hidden}>
-			{s.title}{#if s.hidden}<span class="note"> · hidden</span>{/if}
+		<h2 class="section-label" class:faded={hidden}>
+			{s.title}{#if hidden}<span class="note"> · hidden</span>{/if}
 		</h2>
 		{#if drag.refused?.section === sec.id}<span class="why">{drag.refused.why}</span>{/if}
 		<SectionTools
@@ -705,9 +729,10 @@
 			ref={sectionRef(sec.id)}
 			title={s.title}
 			shown={freePage ? [] : peers(s)}
-			hidden={s.hidden}
+			{hidden}
+			hideRef={asTitle && !s.hidden ? headingRef(sec.id) : undefined}
 			renamed={s.renamed}
-			add={sec.accepts ? () => adding.open(key, sec.id) : undefined}
+			add={sec.accepts && !freePage ? () => adding.open(key, sec.id) : undefined}
 			layouts={sec.layouts}
 			layout={s.layout}
 			config={s.config}
@@ -921,7 +946,7 @@
 							style={`--x: ${p.x + 1}; --y: ${p.y + 1}; --w: ${p.w}; --h: ${p.h}; --x8: ${e.x + 1}; --y8: ${e.y + 1}; --w8: ${e.w}; --x4: ${f.x + 1}; --y4: ${f.y + 1}; --w4: ${f.w}`}
 						>
 							{#if it.kind === 'heading' && arranging}
-								{@render sectionHead(it.section)}
+								{@render sectionHead(it.section, it.hidden, true)}
 							{:else if it.kind === 'heading'}
 								<h2 class="section-label">{it.section.title}</h2>
 							{:else if it.kind === 'whole'}
@@ -964,9 +989,16 @@
 
 {#if arranging}
 	<div class="page-tools">
-		<button class="new-section" onclick={() => (making = true)}
-			><Plus size={16} aria-hidden="true" />New section</button
-		>
+		{#if freePage}
+			<!-- No sections on a free page (N1): a title is a widget like any other. -->
+			<button class="new-section" onclick={addTitle}
+				><Plus size={16} aria-hidden="true" />Add a title</button
+			>
+		{:else}
+			<button class="new-section" onclick={() => (making = true)}
+				><Plus size={16} aria-hidden="true" />New section</button
+			>
+		{/if}
 		{#if freePage}
 			<!-- Gaps stay where they're left (P5); Tidy closes them up. -->
 			<button class="new-section" onclick={tidyPage}>Tidy</button>
@@ -999,7 +1031,13 @@
 {#if adding.page === key && arranging}
 	{#await import('./AddCard.svelte') then { default: AddCard }}
 		{#if adding.page === key}
-			<AddCard {key} sections={into} {home} close={() => adding.close()} />
+			<AddCard
+				{key}
+				sections={freePage ? into.filter((s) => s.id === home) : into}
+				{home}
+				free={!!freePage}
+				close={() => adding.close()}
+			/>
 		{/if}
 	{/await}
 {/if}

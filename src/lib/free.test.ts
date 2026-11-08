@@ -135,13 +135,13 @@ describe('a page laid out', () => {
 		expect(at(layout(items), 'two')).toEqual([2, 1, 2, 2]);
 	});
 
-	it('holds still once frozen: a new thing takes the first gap', () => {
+	it('holds still once frozen: a new thing of no kind goes at the bottom', () => {
 		let changes: Change[] = freeze(layout(items));
 		changes = addChange(changes, { op: 'place', ref: 'one', x: 8, y: 1, w: 4, h: 3 });
 		const out = layout([...items, { ref: 'new', w: 2, h: 2 }], changes);
 		expect(at(out, 'one')).toEqual([8, 1, 4, 3]);
 		expect(at(out, 'two')).toEqual([2, 1, 2, 2]);
-		expect(at(out, 'new')).toEqual([0, 1, 2, 2]);
+		expect(at(out, 'new')).toEqual([0, 4, 2, 2]);
 	});
 
 	it('leaves the hole of something gone', () => {
@@ -204,16 +204,27 @@ describe('a narrower page (P4)', () => {
 describe('arranging a placed page (14 §5, §6)', () => {
 	const items = [
 		{ ref: 'section:a', w: 12, h: 1, breaks: true },
-		{ ref: 'one', w: 2, h: 2, after: 'section:a' },
-		{ ref: 'two', w: 2, h: 2, after: 'section:a' },
+		{ ref: 'one', w: 2, h: 2, kin: 'a' },
+		{ ref: 'two', w: 2, h: 2, kin: 'a' },
 		{ ref: 'section:b', w: 12, h: 1, breaks: true },
-		{ ref: 'three', w: 2, h: 2, after: 'section:b' }
+		{ ref: 'three', w: 2, h: 2, kin: 'b' }
 	];
 	const frozen = freeze(layout(items));
 
-	it('puts a new card in the first gap under its heading', () => {
-		const out = layout([...items, { ref: 'new', w: 2, h: 2, after: 'section:b' }], frozen);
+	it('lands a new card with the last of its kind (N4)', () => {
+		const out = layout([...items, { ref: 'new', w: 2, h: 2, kin: 'b' }], frozen);
 		expect(at(out, 'new')).toEqual([2, 4, 2, 2]);
+	});
+
+	it('lands it with its kind wherever they were moved, not under a heading', () => {
+		const moved: Change[] = [...frozen, { op: 'place', ref: 'three', x: 8, y: 1, w: 2, h: 2 }];
+		const out = layout([...items, { ref: 'new', w: 2, h: 2, kin: 'b' }], moved);
+		expect(at(out, 'new')).toEqual([10, 1, 2, 2]);
+	});
+
+	it('lands it at the bottom when none of its kind is left', () => {
+		const out = layout([...items, { ref: 'new', w: 2, h: 2, kin: 'c' }], frozen);
+		expect(at(out, 'new')).toEqual([0, 6, 2, 2]);
 	});
 
 	it('steps a card earlier or later, trading places', () => {
@@ -237,19 +248,19 @@ describe('arranging a placed page (14 §5, §6)', () => {
 	});
 });
 
-describe('Move to on a placed page', () => {
-	it('puts the card in the first gap under its new heading', () => {
+describe('moved among others on a placed page', () => {
+	it('lands the card with them', () => {
 		const items = [
 			{ ref: 'section:a', w: 12, h: 1, breaks: true },
-			{ ref: 'one', w: 2, h: 2, after: 'section:a' },
+			{ ref: 'one', w: 2, h: 2, kin: 'a' },
 			{ ref: 'section:b', w: 12, h: 1, breaks: true },
-			{ ref: 'two', w: 2, h: 2, after: 'section:b' }
+			{ ref: 'two', w: 2, h: 2, kin: 'b' }
 		];
 		const changes: Change[] = [
 			...freeze(layout(items)),
 			{ op: 'move', ref: 'one', before: null, into: 'b' }
 		];
-		const moved = items.map((i) => (i.ref === 'one' ? { ...i, after: 'section:b' } : i));
+		const moved = items.map((i) => (i.ref === 'one' ? { ...i, kin: 'b' } : i));
 		expect(at(layout(moved, changes), 'one')).toEqual([2, 4, 2, 2]);
 	});
 });
@@ -296,5 +307,13 @@ describe('a look’s areas (14 §8)', () => {
 		// Under the doors, not under the readings beside them.
 		expect(at(out, 'section:lights')).toEqual([0, 5, 8, 1]);
 		expect(at(out, 'lamp')).toEqual([0, 6, 2, 2]);
+	});
+
+	it('starts a row of areas below everything in the rows above it', () => {
+		const out = flow([
+			{ ref: 'door', w: 2, h: 2, breaks: true, area: { x: 0, w: 12, row: 0 } },
+			{ ref: 'section:lights', w: 4, h: 1, breaks: true, area: { x: 4, w: 4, row: 1 } }
+		]);
+		expect(at(out, 'section:lights')).toEqual([4, 2, 4, 1]);
 	});
 });

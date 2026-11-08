@@ -289,17 +289,21 @@ export function areasOf(g: Grouping): AreaAt[] {
 }
 
 /**
- * The area a section starts in (A2): its rule's, or the one its place meant,
- * else the first. What no rule takes goes to the last.
+ * The area a section starts in (A2, N3): its rule's, or the one its place
+ * meant; where the look has no such area, the widest for the main place, the
+ * narrowest for beside it, else the first. What no rule takes goes to the last.
  */
 export function areaFor(g: Grouping, rule: Rule | undefined): AreaAt | undefined {
 	const all = areasOf(g);
 	if (!rule) return all.at(-1);
-	return (
-		all.find((a) => a.id === rule.area) ??
-		all.find((a) => a.id === PLACE_AREA[rule.place]) ??
-		all[0]
-	);
+	const named =
+		all.find((a) => a.id === rule.area) ?? all.find((a) => a.id === PLACE_AREA[rule.place]);
+	if (named || all.length === 0) return named;
+	const by = (better: (a: AreaAt, b: AreaAt) => boolean) =>
+		all.reduce((best, a) => (better(a, best) ? a : best));
+	if (rule.place === 'main') return by((a, b) => a.w > b.w);
+	if (rule.place === 'side') return by((a, b) => a.w < b.w);
+	return all[0];
 }
 
 /** An area four columns wide or less lays its cards one a row (A3). */

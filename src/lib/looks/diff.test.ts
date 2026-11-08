@@ -19,7 +19,7 @@ describe('what changed from the look it was made from (13 §11)', () => {
 			'Motion: gentle',
 			'Lights drawn the Classic way',
 			'Header: plain',
-			expect.stringMatching(/^A room’s sections: Header, Needs you, Doors/)
+			expect.stringMatching(/^What starts where in a room: Header, Needs you, Doors/)
 		]);
 	});
 });

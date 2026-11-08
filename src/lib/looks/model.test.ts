@@ -209,6 +209,17 @@ describe('a look’s areas (14 §8, A1 to A3)', () => {
 		expect(areaFor(g, rule('c', 'band'))?.id).toBe('rail');
 		expect(areaFor(g, undefined)?.id).toBe('main');
 		expect(narrowArea({ id: 'rail', name: 'Rail', w: 3 })).toBe(true);
+		const three = {
+			areas: [
+				[
+					{ id: 'a', name: 'A', w: 3 },
+					{ id: 'b', name: 'B', w: 6 },
+					{ id: 'c', name: 'C', w: 3 }
+				]
+			]
+		};
+		expect(areaFor(three, rule('d', 'main'))?.id).toBe('b');
+		expect(areaFor(three, rule('e', 'side'))?.id).toBe('a');
 	});
 
 	it('reads only areas that fit: known ids, none repeated, rows of 12 or less', () => {

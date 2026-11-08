@@ -5,7 +5,8 @@
  * A page with no places of its own starts as its sections lay it out (§4):
  * each heading a full-width card, then its cards filled from the top left.
  * Once anyone places a card, every card is placed (`freeze`), and from then
- * on a new thing takes the first gap that fits it. When a card lands on
+ * on a new thing lands with its kind (N4): in the first gap from the row of
+ * the last card like it, or at the bottom if there's none. When a card lands on
  * others, each moves aside the way it was going if its rows have room, else
  * down (§5, P2). Nothing ever overlaps; gaps stay until Tidy closes them.
  *
@@ -34,14 +35,18 @@ export interface Item {
 	h: number;
 	/** Starts a new row below everything before it: a heading, a section drawn whole. */
 	breaks?: boolean;
-	/** Its heading: on a placed page, a new card takes the first gap under it (14 §6, Add here). */
-	after?: string;
+	/**
+	 * What it starts among (14 §8, N4): the look's kind of thing it is, or what it
+	 * was added to. On a placed page a new card lands with the last of its kind.
+	 * A heading is none: it labels what's under it and holds nothing (N1).
+	 */
+	kin?: string;
 	/**
 	 * Where its section starts (14 §8): the columns of a look's area, the main
 	 * one or the one beside it. A starting layout flows it there; left out, the
 	 * whole width.
 	 */
-	area?: { x: number; w: number };
+	area?: { x: number; w: number; row?: number };
 	/**
 	 * Changes that size it, after which its place takes its usual size again:
 	 * a new form from its tools or its settings; a stack's own width and height.
@@ -93,17 +98,25 @@ export function firstGap(
  * The starting layout (§4): each item in order at the first gap from the top
  * of its run; an item that `breaks` starts a run of its own below everything
  * in its columns. An item with an `area` flows within it (§8), so a look's
- * main area and the one beside it fill side by side under what's across the top.
+ * main area and the one beside it fill side by side under what's across the
+ * top; a row of areas starts below everything in the rows above it.
  */
 export function flow(items: Item[], cols = COLS): Placed[] {
 	const out: Placed[] = [];
+	const rows: number[] = [];
 	const tops = new Map<string, number>();
 	for (const it of items) {
 		const a = it.area ?? { x: 0, w: cols };
-		const key = `${a.x}:${a.w}`;
-		if (it.breaks) tops.set(key, bottom(out.filter((p) => p.x < a.x + a.w && a.x < p.x + p.w)));
+		const row = a.row ?? 0;
+		const key = `${row}:${a.x}:${a.w}`;
+		if (it.breaks)
+			tops.set(
+				key,
+				bottom(out.filter((p, i) => rows[i]! < row || (p.x < a.x + a.w && a.x < p.x + p.w)))
+			);
 		const at = firstGap(out, Math.min(a.w, it.w), it.h, cols, tops.get(key) ?? 0, a.x, a.w);
 		out.push({ ref: it.ref, ...at });
+		rows.push(row);
 	}
 	return out;
 }
@@ -172,8 +185,8 @@ export function placesOf(changes: Change[]): Placed[] {
 /**
  * The page laid out (§4, §5). With no places, it flows from its sections.
  * With some, each is landed in turn (the household's, then the person's on
- * top, so theirs wins); anything with no place takes the first gap that
- * fits it; a place naming something gone leaves its hole. In reading order.
+ * top, so theirs wins); anything with no place lands with its kind (N4); a
+ * place naming something gone leaves its hole. In reading order.
  */
 export function layout(items: Item[], changes: Change[] = [], cols = COLS): Placed[] {
 	const places = placesOf(changes);
@@ -184,20 +197,34 @@ export function layout(items: Item[], changes: Change[] = [], cols = COLS): Plac
 		const it = here.get(c.ref);
 		if (c.op !== 'place' || !it) return;
 		const later = changes.slice(i + 1).filter((d) => d.ref === c.ref);
-		// Moved to another heading since (Move to): the first gap under it.
+		// Moved or added among others since: it lands with them.
 		if (later.some((d) => (d.op === 'move' && d.into !== undefined) || d.op === 'add')) return;
 		// Sized since it was placed: where it was, at its usual size.
 		const by = it.sizedBy ?? ['form'];
 		const sized = later.some((d) => by.includes(d.op));
 		out = land(out, c.ref, sized ? { ...c, w: it.w, h: it.h } : c, 0, cols);
 	});
+	const kinOf = new Map(items.map((i) => [i.ref, i.kin]));
 	for (const it of items) {
 		if (out.some((p) => p.ref === it.ref)) continue;
-		const head = it.after === undefined ? undefined : out.find((p) => p.ref === it.after);
-		// Under its heading, in its heading's columns.
-		const at = head
-			? firstGap(out, it.w, it.h, cols, head.y + head.h, head.x, head.w)
-			: firstGap(out, it.w, it.h, cols);
+		const a = it.area ?? { x: 0, w: cols };
+		const like = it.kin === undefined ? [] : out.filter((p) => kinOf.get(p.ref) === it.kin);
+		const last = reading(like).at(-1);
+		const w = Math.min(a.w, it.w);
+		// In its area: after the last like it, in its row or the next; with none, under everything there.
+		const beside = last && { x: last.x + last.w, y: last.y, w, h: it.h };
+		const at =
+			beside && beside.x + w <= a.x + a.w && free(out, beside)
+				? beside
+				: firstGap(
+						out,
+						w,
+						it.h,
+						cols,
+						last ? last.y + 1 : bottom(out.filter((p) => p.x < a.x + a.w && a.x < p.x + p.w)),
+						a.x,
+						a.w
+					);
 		out.push({ ref: it.ref, ...at });
 	}
 	return reading(out);

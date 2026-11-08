@@ -48,6 +48,8 @@
 	import { adding } from '#lib/adding.svelte.js';
 	import { drag } from '#lib/drag.svelte.js';
 	import { refusal } from '#lib/drag/rules.js';
+	import { COLS, layout as freeLayout, narrow } from '#lib/free.js';
+	import { FORM_CELLS, piecesOf } from '#lib/freePage.js';
 
 	let {
 		page,
@@ -342,6 +344,37 @@
 						? stacksHere.map((s) => ({ id: `stack:${s.ref}`, title: `Into stack: ${s.name}` }))
 						: [])
 				];
+	// ---- free layout (14): a room's page and a made page are one grid ----
+	// Arranging still draws the sections until it moves cards by cells (14 §11, step 2).
+	const freeHere = $derived(
+		!field && !arranging && (key.startsWith('room:') || key.startsWith('page:'))
+	);
+	/** A card's size in cells (14 §7): across the page, a stack's own, a button's, by its form. */
+	function cellsOf(card: Card, g: Layered<Card>, layout: Layout) {
+		const k = kindOf(card);
+		if (k.wide) return { w: COLS, h: card.kind === 'heading' ? 1 : 2 };
+		const form = k.form(card, g.form(card.ref));
+		if (card.kind === 'stack') {
+			const large = form === 'large';
+			return {
+				w: Math.min(COLS, 2 * (stackOf(card, large)?.width ?? 1)),
+				h: 2 * (stackRowsOf(card, large) ?? 2)
+			};
+		}
+		if (card.kind === 'scene' || (card.kind === 'device' && card.scene) || layout === 'row')
+			return form ? FORM_CELLS[form] : { w: 2, h: 1 };
+		// A thermostat's dial needs room, as it has in a section's grid.
+		if (card.kind === 'device' && cardFor(card.device, clock.now).kind === 'thermostat')
+			return form === 'large' ? { w: 6, h: 4 } : { w: 4, h: 4 };
+		return FORM_CELLS[form ?? 'standard'];
+	}
+	const freePage = $derived.by(() => {
+		if (!freeHere) return null;
+		const { items, pieces } = piecesOf(shown.sections, cellsOf, (s) => drawn(s, false));
+		const laid = freeLayout(items, changes);
+		return { pieces, laid, eight: narrow(laid, 8), four: narrow(laid, 4) };
+	});
+
 	const hasSettings = (card: Card, layout: Layout) => {
 		const k = kindOf(card);
 		return (
@@ -624,6 +657,32 @@
 						)}{/each}
 					{@render gapEnd('side')}
 				</div>
+			</div>
+		</div>
+	{:else if freePage}
+		<!-- One grid (14 §3): each card at its place; narrower, in reading order (P4). -->
+		<div class="free">
+			<div class="cells">
+				{#each freePage.laid as p (p.ref)}
+					{@const it = freePage.pieces.get(p.ref)}
+					{@const e = freePage.eight.get(p.ref) ?? p}
+					{@const f = freePage.four.get(p.ref) ?? p}
+					{#if it}
+						<div
+							class="slot"
+							class:heading={it.kind === 'heading'}
+							style={`--x: ${p.x + 1}; --y: ${p.y + 1}; --w: ${p.w}; --h: ${p.h}; --x8: ${e.x + 1}; --y8: ${e.y + 1}; --w8: ${e.w}; --x4: ${f.x + 1}; --y4: ${f.y + 1}; --w4: ${f.w}`}
+						>
+							{#if it.kind === 'heading'}
+								<h2 class="section-label">{it.section.title}</h2>
+							{:else if it.kind === 'whole'}
+								{@render block(it.section)}
+							{:else}
+								{@render piece(it.card, it.g, false, it.section.layout)}
+							{/if}
+						</div>
+					{/if}
+				{/each}
 			</div>
 		</div>
 	{:else}
@@ -910,6 +969,54 @@
 	.list > :global(.span-all),
 	.list > :global(.arrange:has(.span-all)) {
 		grid-column: 1 / -1;
+	}
+	/* Free layout (14 §3): twelve columns of 56px rows from a 1080px page;
+	   narrower, eight and then a phone's four, laid out again in reading order. A card taller
+	   than its rows makes them taller rather than spilling. */
+	.free {
+		container: free / inline-size;
+	}
+	.cells {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		grid-auto-rows: minmax(56px, auto);
+		gap: var(--feel-gap, 10px);
+		max-width: 1600px;
+	}
+	.slot {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+		grid-column: var(--x4) / span var(--w4);
+		grid-row: var(--y4) / span var(--h);
+	}
+	.slot > :global(*) {
+		flex: 1 1 auto;
+	}
+	.slot.heading {
+		justify-content: flex-end;
+	}
+	.slot.heading > h2 {
+		flex: none;
+		margin: 0;
+	}
+	@container free (min-width: 600px) {
+		.cells {
+			grid-template-columns: repeat(8, minmax(0, 1fr));
+		}
+		.slot {
+			grid-column: var(--x8) / span var(--w8);
+			grid-row: var(--y8) / span var(--h);
+		}
+	}
+	@container free (min-width: 1080px) {
+		.cells {
+			grid-template-columns: repeat(12, minmax(0, 1fr));
+		}
+		.slot {
+			grid-column: var(--x) / span var(--w);
+			grid-row: var(--y) / span var(--h);
+		}
 	}
 	/* The room field (mockup A): twelve columns of 84px rows, the busiest
 	   rooms biggest; on a phone, four columns of 74px. */

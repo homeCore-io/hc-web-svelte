@@ -1,7 +1,9 @@
 # 14 · Free layout: any card anywhere, any size
 
 **Status:** agreed, 2026-11-07 (decisions P1 to P8 in `decisions.md`).
-Building follows §11, room pages and made pages first.
+Building follows §11, room pages and made pages first. Step 1 is built
+locally (not released): those pages draw on the free grid; arranging still
+draws sections until step 2. Floor plans are held for research (§12).
 
 **What it builds on.** 11 (one page document, one renderer, changes in
 layers), 13 (looks, each keeping its own arrangements, §8.4; arranging and
@@ -41,9 +43,13 @@ anyone until they move something.
   `{ op: 'place', ref, x, y, w, h }`, in the layer being arranged, like any
   change (11 §2.5). Each look keeps its own (13 §8.4), so a look made from
   another starts with its copy.
-- **Phones read the page in order (P4)**: top to bottom, left to right, by
-  place, each card two or four columns wide and no taller than its drawing
-  needs. A phone arrangement of its own can come later.
+- **Narrower screens read the page in order (P4)**: top to bottom, left to
+  right, by place, laid out again on a narrower grid. Under 1080 pixels of
+  page it's 8 columns, with cards in twos (2, 4, 6 or 8 wide); on a phone,
+  4, a usual card taking half and anything wider the whole. A card across
+  the whole page (a heading) starts a run of its own, so no card is pulled up
+  past its heading. A phone arrangement of its own can come later.
+- **A card taller than its rows** makes them taller rather than spilling.
 
 ## 4. Where a page starts
 
@@ -89,8 +95,13 @@ a new device doesn't reshuffle it.
 The old sections are **heading cards**: a heading is a card with words,
 placed and sized freely, so "Scenes" can sit beside a stack at part width.
 A section's tools go onto its heading: rename, hide, and **Add here**, which
-adds just under it. Hiding a heading hides the heading alone; each card
-hides on its own.
+adds just under it. Hiding a heading hides its cards too, as hiding a section
+does today: looks start some sections hidden (More, until someone shows it),
+and households have hidden sections, so hiding the heading alone would bring
+those cards back. A card can still be hidden on its own.
+
+A section a look draws as one box (a list, swatches, a panel, folded lines)
+is placed whole, its heading inside it, until step 3 lets its cards go free.
 
 **Widgets for designing a page (P8)**, all in Add › Cards, each placed in
 the first gap that fits and then moved and sized like any card:
@@ -184,8 +195,18 @@ and in a larger place it draws at its largest, centered.
    layouts to share (§8).
 6. **Home and displays (P6),** with Lit's columns and the room field as
    starting layouts.
-7. **Floor plans** (13 §18, step 8): a free page with a picture of the house
-   behind it.
+7. **Floor plans** (13 §18, step 8): held for research (§12).
 
 Each step is mocked up where it differs from the board, and tried on a
 sandbox before it's released.
+
+## 12. Floor plans: held for research
+
+The cells are too coarse for a floor plan, and they change shape: columns
+stretch with the screen while rows stay 56 pixels, so a picture behind the
+grid would drift away from the cards on it. The direction the user liked,
+2026-11-07, is a **floor plan card**: placed on the page grid like any card,
+with markers inside it at fractions of the picture (37.5% across, 62% down),
+so they stay on their spots at any size; markers a constant size; pinch and
+pan on a phone; floors as tabs. Nothing is decided or built until it's been
+researched further.

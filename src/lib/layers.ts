@@ -36,6 +36,8 @@ export type Change =
 	 * away with `remove`; placed, renamed and hidden like any section.
 	 */
 	| { op: 'section'; ref: string; title: string; layout: string }
+	/** Where a card is on a free page (14 §3): its column and row, its width and height in cells. */
+	| { op: 'place'; ref: string; x: number; y: number; w: number; h: number }
 	/**
 	 * A card's settings on this page: a plugin card's, as its settings element
 	 * made them; a room's or the big numbers', only what this layer set (G13);

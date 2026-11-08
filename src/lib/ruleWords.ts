@@ -824,6 +824,7 @@ export function stepOf(h: House, a: Json): Step {
 				t(`“${f.title ? `${f.title}: ` : ''}${f.message}”`),
 				t(` to ${f.channel === 'all' ? 'every channel' : f.channel}`)
 			];
+			if (f.picture_from) out.push(t(', with a picture from '), deviceBit(h, f.picture_from));
 			return s(out);
 		}
 		case 'Delay':

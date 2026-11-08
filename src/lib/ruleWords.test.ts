@@ -160,6 +160,10 @@ describe('every kind homeCore has reads as words', () => {
 			{ Notify: { channel: 'all', message: 'Hi', title: 'Door' } },
 			'send “Door: Hi” to every channel'
 		],
+		[
+			{ Notify: { channel: 'telegram', message: 'Hi', title: null, picture_from: 'zz_lamp_1' } },
+			'send “Hi” to telegram, with a picture from Reading Lamp'
+		],
 		[{ SetMode: { mode_id: 'mode_night', command: 'Off' } }, 'turn Night off'],
 		[{ RunRuleActions: { rule_id: 'r-door' } }, 'do the steps of “Pantry Door - Opened”'],
 		[{ PauseRule: { rule_id: 'gone' } }, 'pause a rule that no longer exists'],

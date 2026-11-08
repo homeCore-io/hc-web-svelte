@@ -802,6 +802,9 @@ export const commandable = (d: CoreDevice) => commandsOf(d).length > 0;
 /** Devices that report something a rule can wait for. */
 export const momentful = (d: CoreDevice) =>
 	d.device_type !== 'scene' || d.schema?.attributes?.on !== undefined;
+/** Devices that take pictures: a `snapshot` a notification can carry. */
+export const picturing = (d: CoreDevice) =>
+	d.schema?.attributes?.snapshot !== undefined || 'snapshot' in (d.attributes ?? {});
 
 // ---- the kinds offered by name ----
 

@@ -10,6 +10,7 @@ import {
 	momentOf,
 	momentsOf,
 	newOf,
+	picturing,
 	problemsOf,
 	rebuild,
 	stateOf,
@@ -560,5 +561,20 @@ describe('alerts and named numbers in rules', () => {
 		expect(checkKindOf('TriggerAlertActive')).toBe('alert');
 		expect(stepKindOf({ ForEachAlert: { filter: {}, actions: [] } })).toBe('alert');
 		expect(newStep('alert')).toEqual({ PressAlert: {} });
+	});
+});
+
+describe('picturing', () => {
+	test('a device with a snapshot can send a picture; a lamp cannot', () => {
+		const cam = { ...DEVICES[0]!, device_id: 'cam', attributes: { snapshot: 'snapshots/a.jpg' } };
+		const fresh = {
+			...DEVICES[0]!,
+			device_id: 'cam2',
+			attributes: {},
+			schema: { attributes: { snapshot: { type: 'string' } } }
+		} as unknown as CoreDevice;
+		expect(picturing(cam)).toBe(true);
+		expect(picturing(fresh)).toBe(true);
+		expect(DEVICES.some(picturing)).toBe(false);
 	});
 });

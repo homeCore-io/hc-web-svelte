@@ -219,20 +219,36 @@ export function layout(items: Item[], changes: Change[] = [], cols = COLS): Plac
 		const like = it.kin === undefined ? [] : out.filter((p) => kinOf.get(p.ref) === it.kin);
 		const last = reading(like).at(-1);
 		const w = Math.min(a.w, it.w);
-		// In its area: after the last like it, in its row or the next; with none, under everything there.
+		// In its area: after the last like it, in its row; else on the line under
+		// all like it, the cards there moving down to make room, so it never lands
+		// past another section’s title; with none like it, under its own title if
+		// that’s on the page, else under everything there.
 		const beside = last && { x: last.x + last.w, y: last.y, w, h: it.h };
-		const at =
-			beside && beside.x + w <= a.x + a.w && free(out, beside)
-				? beside
-				: firstGap(
-						out,
-						w,
-						it.h,
-						cols,
-						last ? last.y + 1 : bottom(out.filter((p) => p.x < a.x + a.w && a.x < p.x + p.w)),
-						a.x,
-						a.w
-					);
+		if (beside && beside.x + w <= a.x + a.w && free(out, beside)) {
+			out.push({ ref: it.ref, ...beside });
+			continue;
+		}
+		const title = it.kin === undefined ? undefined : out.find((p) => p.ref === `section:${it.kin}`);
+		const near = last ? like : title ? [title] : [];
+		if (near.length > 0) {
+			const under = {
+				x: Math.max(a.x, Math.min(...near.map((p) => p.x))),
+				y: bottom(near),
+				w,
+				h: it.h
+			};
+			out = land(out, it.ref, under, 0, cols);
+			continue;
+		}
+		const at = firstGap(
+			out,
+			w,
+			it.h,
+			cols,
+			bottom(out.filter((p) => p.x < a.x + a.w && a.x < p.x + p.w)),
+			a.x,
+			a.w
+		);
 		out.push({ ref: it.ref, ...at });
 	}
 	return reading(out);

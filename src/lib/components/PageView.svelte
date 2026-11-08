@@ -800,7 +800,9 @@
 			hideRef={asTitle && !s.hidden ? headingRef(sec.id) : undefined}
 			renamed={s.renamed}
 			add={sec.accepts && !freePage ? () => adding.open(key, sec.id) : undefined}
-			layouts={sec.layouts}
+			// On a free page a heading holds nothing (N1): how its cards are grouped is
+			// the look’s to say. Home’s rooms keep their style.
+			layouts={freePage && sec.id !== 'rooms' ? [] : sec.layouts}
 			layout={s.layout}
 			config={s.config}
 			column={field && (sec.field?.movable ?? sec.field === undefined) ? s.column : undefined}

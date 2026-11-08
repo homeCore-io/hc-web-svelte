@@ -325,7 +325,17 @@ plugin's card in a place bigger than its largest form keeps that width,
 centered; the weather card starts 4 wide; a row of areas starts below the
 first line of cards above it, so an area can sit beside a card further down
 there; and on narrower screens each area and each title starts its own line,
-so nothing is pulled up past it.
+so nothing is pulled up past it. A heading on a free page no longer offers
+a layout (list, panel): how a section's cards are grouped is the look's to
+say, in the look editor; Home's rooms keep their style. A person who wants a
+grouped list adds a stack.
+
+N4, refined: a new card with no room beside the last of its kind lands on
+the line under them, the cards there moving down, rather than in the first
+gap below, which could be past another section's title; the only one of its
+kind lands under its own title. Found when the household arranged a page a
+person had added to: their scenes landed under Lights, their stack at the
+bottom.
 
 Found while building steps 1 to 3, kept here until each is done:
 
@@ -335,15 +345,13 @@ Found while building steps 1 to 3, kept here until each is done:
 - **Dragging from the Add sheet** onto a free page (the Add button works).
 - **Dragging by cells on a narrower screen**; today the keyboard and up and
   down arrange it there.
-- **Not yet tried:** touch dragging, phones, Edit mode saving for the
-  household, Move to and Add here in the browser, a page someone made.
-- **Pictures are never deleted** from the server when taken off a page; a
-  tidy-up of ones no page uses is still to come.
+- **Not yet tried:** touch dragging, phones, Move to and Add here in the
+  browser, a page someone made. Edit mode saving for the household works.
+- **Pictures are never deleted** from the UI server when taken off a page;
+  a tidy-up of ones no page uses is still to come. Pictures, and video when
+  it comes, stay on the UI server, never in core.
 - **Displays** follow Home and the rooms; not yet tried on a display itself.
 - **Floor plans**, held for research (§12).
 - **A card in the middle of an area above** (the Garage's stack, landed
   beside its scenes) leaves room either side that nothing below is narrow
   enough to use, until someone arranges it.
-- **A heading's layout choice** (list, panel) still turns what's under it
-  into one box; with no sections that wants its own name, such as "Group
-  these", or to move to the look editor only.

@@ -19,10 +19,7 @@
 </script>
 
 {#if cap && cells}
-	<div
-		class="capped"
-		style={`--cw: ${cells.w}; --mw: ${Math.min(cap.w, cells.w)}`}
-	>
+	<div class="capped" style={`--cw: ${cells.w}; --mw: ${Math.min(cap.w, cells.w)}`}>
 		<PluginCard cardId={card.ref} {form} {config} />
 	</div>
 {:else}
@@ -37,8 +34,6 @@
 	/* Its largest form's columns, out of the ones it has, the gaps between them
 	   counted; its own height, so a taller drawing still gets its rows. */
 	.capped > :global(*) {
-		width: calc(
-			(100% + var(--feel-gap, 10px)) * var(--mw) / var(--cw) - var(--feel-gap, 10px)
-		);
+		width: calc((100% + var(--feel-gap, 10px)) * var(--mw) / var(--cw) - var(--feel-gap, 10px));
 	}
 </style>

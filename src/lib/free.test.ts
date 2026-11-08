@@ -222,6 +222,28 @@ describe('arranging a placed page (14 §5, §6)', () => {
 		expect(at(out, 'new')).toEqual([10, 1, 2, 2]);
 	});
 
+	it('lands it under its kind when their row is full, the next title moving down', () => {
+		const full = [
+			{ ref: 'section:a', w: 12, h: 1, breaks: true },
+			...[1, 2, 3, 4, 5, 6].map((n) => ({ ref: `a${n}`, w: 2, h: 2, kin: 'a' })),
+			{ ref: 'section:b', w: 12, h: 1, breaks: true },
+			{ ref: 'b1', w: 2, h: 2, kin: 'b' }
+		];
+		const out = layout([...full, { ref: 'new', w: 2, h: 2, kin: 'a' }], freeze(layout(full)));
+		expect(at(out, 'new')).toEqual([0, 3, 2, 2]);
+		expect(at(out, 'section:b')).toEqual([0, 5, 12, 1]);
+		expect(at(out, 'b1')).toEqual([0, 6, 2, 2]);
+		expect(overlapping(out)).toBe(false);
+	});
+
+	it('lands the only one of its kind under its own title', () => {
+		const only = layout(
+			[...items.filter((i) => i.ref !== 'three'), { ref: 'new', w: 2, h: 2, kin: 'b' }],
+			frozen.filter((c) => c.ref !== 'three')
+		);
+		expect(at(only, 'new')).toEqual([0, 4, 2, 2]);
+	});
+
 	it('lands it at the bottom when none of its kind is left', () => {
 		const out = layout([...items, { ref: 'new', w: 2, h: 2, kin: 'c' }], frozen);
 		expect(at(out, 'new')).toEqual([0, 6, 2, 2]);

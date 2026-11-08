@@ -39,3 +39,17 @@ export const PUT: RequestHandler = async (event) => {
 		);
 	return json(written.doc, 200, who.setCookies);
 };
+
+/** A display deleted in homeCore: its settings go with it. */
+export const DELETE: RequestHandler = async (event) => {
+	const who = await whoIs(event);
+	if (!who.ok) return json({ error: who.error }, who.status, who.setCookies);
+	if (!who.person.scopes.includes('content:write'))
+		return json(
+			{ error: 'Only people who may edit the house can change this.' },
+			403,
+			who.setCookies
+		);
+	const removed = await docs().remove(KIND, displayDocId(event.params.id));
+	return json({ removed }, 200, who.setCookies);
+};

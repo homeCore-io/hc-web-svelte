@@ -34,6 +34,14 @@
 	async function reload() {
 		const res = await fetch('/api/v1/displays').catch(() => null);
 		list = res?.ok ? ((await res.json()) as Display[]).filter((d) => !d.revoked) : null;
+		// Settings of displays deleted before theirs went with them: only from a list
+		// homeCore gave, never from none.
+		if (list)
+			void fetch('/ui/displays', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ keep: list.map((d) => d.id) })
+			}).catch(() => null);
 	}
 	onMount(() => {
 		void reload();
@@ -69,7 +77,8 @@
 			danger: true
 		});
 		if (!yes) return;
-		await fetch(`/api/v1/displays/${d.id}`, { method: 'DELETE' }).catch(() => null);
+		const gone = await fetch(`/api/v1/displays/${d.id}`, { method: 'DELETE' }).catch(() => null);
+		if (gone?.ok) await fetch(`/ui/displays/${d.id}`, { method: 'DELETE' }).catch(() => null);
 		if (open === d.id) open = null;
 		await reload();
 	}

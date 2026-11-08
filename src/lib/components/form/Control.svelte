@@ -85,6 +85,9 @@
 	// ---- secrets: never shown; replaced, not edited ----
 	let replacing = $state(false);
 	let before = $state<unknown>(undefined);
+	// Typing a first one: the field stays open until it's left, or its first
+	// letter would make it "set" and close it under the cursor.
+	let typing = $state(false);
 	function replace() {
 		before = value;
 		replacing = true;
@@ -293,7 +296,7 @@
 		{/each}
 	</select>
 {:else if isSecret}
-	{#if secretSet && !replacing}
+	{#if secretSet && !replacing && !typing}
 		<div class="secret">
 			<span class="dots">•••••••• set</span>
 			{#if !disabled}<button type="button" class="small" onclick={replace}>Replace</button>{/if}
@@ -308,7 +311,11 @@
 				{disabled}
 				placeholder={secretSet ? 'The new one' : placeholder}
 				value={replacing && same(value, before) ? '' : text}
-				oninput={(e) => typedSecret(e.currentTarget.value)}
+				oninput={(e) => {
+					typing = true;
+					typedSecret(e.currentTarget.value);
+				}}
+				onblur={() => (typing = false)}
 			/>
 			{#if replacing}
 				<button type="button" class="small" onclick={keep}>Keep the old one</button>

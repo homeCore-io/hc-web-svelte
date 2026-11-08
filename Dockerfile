@@ -15,12 +15,12 @@ RUN npm run build && npm run budget
 
 FROM node:24-alpine
 WORKDIR /app
-# BODY_SIZE_LIMIT: the largest thing sent to the UI server's own routes is a
-# plugin screen's stored document (2 MB, `/ui/plugin-store/…`). Files for a
-# plugin (a firmware image) go to homeCore through the `/api` proxy instead.
+# BODY_SIZE_LIMIT: lifted, because adding a picture or video (up to 200 MB)
+# and putting back a backup with its pictures stream their body to disk. The
+# app's own hook (src/lib/server/bodyLimit.ts) holds every other route to 8 MB.
 ENV NODE_ENV=production \
     HC_DATA_DIR=/data \
-    BODY_SIZE_LIMIT=8M \
+    BODY_SIZE_LIMIT=Infinity \
     PORT=3000
 # Everything the app needs is bundled into build/ (all packages are
 # devDependencies), so the runtime is the build plus the UI server's own files.

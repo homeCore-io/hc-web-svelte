@@ -1,8 +1,9 @@
 # 14 · Free layout: any card anywhere, any size
 
 **Status:** agreed, 2026-11-07 (decisions P1 to P8 in `decisions.md`).
-Building follows §11, room pages and made pages first. Steps 1 to 4 are
-built locally (not released): those pages draw and arrange on the free grid. Floor plans are held for research (§12).
+Building follows §11, room pages and made pages first. Steps 1 to 5 are
+built locally (not released): those pages draw and arrange on the free grid,
+and rooms have no sections (§8, N1). Floor plans are held for research (§12).
 
 **What it builds on.** 11 (one page document, one renderer, changes in
 layers), 13 (looks, each keeping its own arrangements, §8.4; arranging and
@@ -105,11 +106,15 @@ a new device doesn't reshuffle it.
 
 The old sections are **heading cards**: a heading is a card with words,
 placed and sized freely, so "Scenes" can sit beside a stack at part width.
-A section's tools go onto its heading: rename, hide, and **Add here**, which
-adds just under it. Hiding a heading hides its cards too, as hiding a section
-does today: looks start some sections hidden (More, until someone shows it),
-and households have hidden sections, so hiding the heading alone would bring
-those cards back. A card can still be hidden on its own.
+
+**Changed by N1 (§8), 2026-11-08:** on a free page a heading is a title. It
+labels what sits under it and holds nothing: hiding it hides only the title
+(`heading:<id>`), and its spot stays empty until something moves into it.
+A section hidden before free layout (`section:<id>`) still hides what it
+held until someone shows it again, so nothing hidden comes back by itself.
+"New section" becomes **Add a title**, which puts a title across the bottom
+of the page with its settings open. Add on a free page asks no section:
+what's added goes after what was added last, or at the bottom.
 
 A section a look draws as one box (a list, swatches, a panel, folded lines)
 is placed whole, its heading inside it, until step 3 lets its cards go free.
@@ -194,8 +199,8 @@ are what this was decided on.
   as many as it likes, each named and as wide as the author wants. A look
   that says none has Lit's: across the top, then main (8) and beside (4).
   The user's point: looks are made by authors, so the editor can't assume
-  Lit's shape. The model is built (`Grouping.areas`); **the areas editor
-  waits on the user's word on the board.**
+  Lit's shape. Built: the Rooms tab draws them (name, width against a
+  neighbor, split, move, remove, a new row) from four starting shapes.
 - **A2. Each section starts in an area:** a rule names one (`Rule.area`);
   several can share one and fill it in order; rows of areas lay out one
   under another. A rule from before areas keeps its place's (top, main,
@@ -213,6 +218,26 @@ are what this was decided on.
   12 × 6 in the drawing editor, which shows it at each size between. A card
   drawn by it is kept within that range. Built.
 - **L5. Home and displays** are step 6.
+
+**No sections (N1 to N6), agreed 2026-11-08** on the board "No sections",
+which replaces A1 to A4. The user asked why a room still had sections once
+anything could go anywhere. The answer: a section only matters for how a room
+starts and where a new thing lands, so that's all it keeps.
+
+- **N1. Rooms have no sections on screen.** A heading is a title that holds
+  nothing (§6). Move to offers only stacks. Built.
+- **N2. A look draws its areas** (A1). Built, with the areas editor. Each
+  row of areas starts below everything in the rows above it.
+- **N3. A look says what starts where:** each rule names its area and
+  whether a title goes above it to start ("Title above"). A rule naming an
+  area the look no longer has takes the widest for main, the narrowest for
+  beside, else the first. The editor's preview draws the room as a wide
+  screen does, made smaller, so the areas show as drawn. Built.
+- **N4. New things land with their kind:** in a room someone has arranged, a
+  new device goes after the last of its kind, in its row or the next, within
+  its area; with none left, at the bottom of its area. Built.
+- **N5. Narrow areas draw one a row** (A3). Built.
+- **N6. Phones read the grid as placed** (A4). Built.
 - **"Needs you" takes no room** when nothing needs someone: the grouping
   leaves it out until something does.
 
@@ -223,7 +248,7 @@ are what this was decided on.
 | Arranging saved order; it now saves places | Places are a new change; the old moves still read, to lay out a page that has no places yet (§4) |
 | Up, down, Move to, the keyboard | New meanings (§5) |
 | Phones | Reading order (§3) |
-| New and removed devices | First gap; holes stay; Tidy (§4, §5) |
+| New and removed devices | With their kind, else the bottom (N4); holes stay; Tidy (§4, §5) |
 | Two layers on the same cells | The person's wins, the other moves (§5) |
 | Each look's own arrangement | Places are kept per look; a copy keeps them; a look that groups rooms differently starts over, as today |
 | Drawings know three sizes | Smallest and largest per kind; three-size drawings snap (§7) |
@@ -235,7 +260,8 @@ are what this was decided on.
 ## 10. Changes to earlier decisions
 
 - **11 §2 (sections):** a page is still made of sections in the document,
-  but on screen they're headings in one grid.
+  but on screen there are none (N1): titles that hold nothing, in one grid.
+  The document's sections only say how a room starts and where new things land.
 - **13 §9.1 and §9.2:** arranging moves and sizes cards by cells instead of
   ordering them in sections; dragging between sections becomes dragging
   anywhere.
@@ -294,3 +320,9 @@ Found while building steps 1 to 3, kept here until each is done:
 - **Widgets on Home and on Lit's rooms** draw in their sections until step 6
   puts those pages on the grid.
 - **Floor plans**, held for research (§12).
+- **A heading's layout choice** (list, panel) still turns what's under it
+  into one box; with no sections that wants its own name, such as "Group
+  these", or to move to the look editor only.
+- **Lit's Garage** now starts its beside area below the stack someone put
+  under the doors (N2's rows), which leaves a gap beside the stack until
+  someone arranges it.

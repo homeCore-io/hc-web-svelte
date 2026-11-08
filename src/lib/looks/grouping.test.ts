@@ -147,3 +147,25 @@ describe('a section that starts its things in a stack (13 §13.2)', () => {
 		expect(den().sections[0]!.layout).toBe('panel');
 	});
 });
+
+describe('cameras', () => {
+	const cam = {
+		device_id: 'reolink_porch',
+		name: 'Porch',
+		device_type: 'camera',
+		plugin_id: 'plugin.reolink',
+		area: 'outdoor',
+		available: true,
+		attributes: { motion: false, snapshot: 'snapshots/a.jpg' }
+	} as unknown as Devices[string];
+	const withCam = { ...input, devices: { ...devices, [cam.device_id]: cam } };
+	it('have a section of their own in Lit', () => {
+		const p = groupRoom('r-outdoor', withCam, LIT.grouping.room!);
+		expect(where(p, 'device:reolink_porch')).toBe('cameras');
+	});
+	it('stay among everything else in a look that gives them no place', () => {
+		const rules = LIT.grouping.room!.filter((r) => r.id !== 'cameras');
+		const p = groupRoom('r-outdoor', withCam, rules);
+		expect(where(p, 'device:reolink_porch')).toBe('things');
+	});
+});

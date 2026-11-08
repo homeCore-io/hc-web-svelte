@@ -77,6 +77,12 @@ export function groupRoom(
 	);
 	const sorted = litRoom(cards, views);
 
+	// Cameras have a place of their own where a look gives them one; else they're
+	// among everything else, as they were.
+	const isCamera = (c: Card) => c.kind === 'device' && c.device.device_type === 'camera';
+	const cameras = rules.some((r) => r.takes.includes('cameras'))
+		? sorted.rest.filter(isCamera)
+		: [];
 	// What each take holds; pieces are cards of their own (§7).
 	const holds: Record<Take, Card[]> = {
 		header: [{ ref: `piece:roomhead/${id}`, kind: 'roomhead', id, name, devices: inRoom }],
@@ -104,7 +110,8 @@ export function groupRoom(
 		scenes: sorted.scenes.map((s) => s.card),
 		readings: sorted.readings.map((r) => r.card),
 		watching: sorted.watch.map((w) => w.card),
-		rest: sorted.rest,
+		cameras,
+		rest: sorted.rest.filter((c) => !cameras.includes(c)),
 		more: sorted.more,
 		// Every battery in the room, as one piece: it lists them, and they stay where they are.
 		batteries: inRoom.some((d) => batteryOf(d) !== undefined)

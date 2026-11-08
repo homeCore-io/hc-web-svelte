@@ -111,6 +111,18 @@ export function rangeOf(card: Card, device: string | undefined, usual: Size[]): 
 	switch (card.kind) {
 		case 'heading':
 			return r(sz(2, 1), sz(COLS, 2));
+		case 'title':
+			return r(sz(2, 1), sz(COLS, 4));
+		case 'divider':
+			return r(sz(2, 1), sz(COLS, 1));
+		case 'space':
+			return r(sz(1, 1), sz(COLS, 12));
+		case 'picture':
+			return r(sz(2, 2), sz(COLS, 12));
+		case 'link':
+			return r(sz(2, 1), sz(6, 2));
+		case 'clock':
+			return r(sz(2, 1), sz(COLS, 6));
 		case 'stack':
 			return r(sz(2, 3), sz(COLS, 10));
 		case 'scene':

@@ -14,6 +14,16 @@ import {
 	CHART_BUILT_IN,
 	DEVICE_BUILT_IN,
 	HEADING_BUILT_IN,
+	TITLE_BUILT_IN,
+	titleDescriptor,
+	DIVIDER_BUILT_IN,
+	dividerDescriptor,
+	PICTURE_BUILT_IN,
+	pictureDescriptor,
+	LINK_BUILT_IN,
+	linkDescriptor,
+	CLOCK_BUILT_IN,
+	clockDescriptor,
 	ROOM_BUILT_IN,
 	SUMMARY_BUILT_IN,
 	TEXT_BUILT_IN,
@@ -28,6 +38,7 @@ import {
 	worthDescriptor
 } from './options.js';
 import { STACK_BUILT_IN } from './stack.js';
+import { linkChoices } from './links.svelte.js';
 import AlertsKind from './components/kinds/AlertsKind.svelte';
 import ChipsKind from './components/kinds/ChipsKind.svelte';
 import DeviceKind from './components/kinds/DeviceKind.svelte';
@@ -242,6 +253,72 @@ export const kinds: { [K in Card['kind']]: Kind<K> } = {
 		offer: { name: 'Stack', sub: 'Several things in one tall card, of any kind' },
 		setFirst: true,
 		load: lazy(() => import('./components/kinds/StackKind.svelte'))
+	},
+	// Widgets for laying out a page (14 §6, P8).
+	title: {
+		...one,
+		name: () => 'Title',
+		star: false,
+		options: () => titleDescriptor(),
+		defaults: TITLE_BUILT_IN,
+		addable: anywhere,
+		offer: { name: 'Title', sub: 'Big words: a page’s or an area’s name' },
+		setFirst: true,
+		wide: true,
+		load: lazy(() => import('./components/kinds/TitleKind.svelte'))
+	},
+	divider: {
+		...one,
+		name: () => 'Divider',
+		star: false,
+		options: () => dividerDescriptor(),
+		defaults: DIVIDER_BUILT_IN,
+		addable: anywhere,
+		offer: { name: 'Divider', sub: 'A line between areas, with words if you like' },
+		wide: true,
+		load: lazy(() => import('./components/kinds/DividerKind.svelte'))
+	},
+	space: {
+		...one,
+		name: () => 'Space',
+		star: false,
+		options: null,
+		defaults: {},
+		addable: anywhere,
+		offer: { name: 'Space', sub: 'Empty room, seen only while arranging' },
+		load: lazy(() => import('./components/kinds/SpaceKind.svelte'))
+	},
+	picture: {
+		...one,
+		name: () => 'Picture',
+		star: false,
+		options: () => pictureDescriptor(),
+		defaults: PICTURE_BUILT_IN,
+		addable: anywhere,
+		offer: { name: 'Picture', sub: 'A photo or a plan, uploaded here' },
+		setFirst: true,
+		load: lazy(() => import('./components/kinds/PictureKind.svelte'))
+	},
+	link: {
+		...one,
+		name: () => 'Link',
+		star: false,
+		options: () => linkDescriptor(linkChoices()),
+		defaults: LINK_BUILT_IN,
+		addable: anywhere,
+		offer: { name: 'Link to a page', sub: 'A button that opens a room or another page' },
+		setFirst: true,
+		load: lazy(() => import('./components/kinds/LinkKind.svelte'))
+	},
+	clock: {
+		...one,
+		name: () => 'Clock',
+		star: false,
+		options: () => clockDescriptor(),
+		defaults: CLOCK_BUILT_IN,
+		addable: anywhere,
+		offer: { name: 'Clock', sub: 'The time and date, growing with its size' },
+		load: lazy(() => import('./components/kinds/ClockKind.svelte'))
 	},
 	// A look's frame pieces and groups (13 §6, §7): drawn only by a look that has
 	// them, so they load only then.

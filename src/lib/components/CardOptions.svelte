@@ -38,7 +38,7 @@
 	const who = $derived(
 		view.mode(page) === 'edit'
 			? 'For everyone — unless they changed their own.'
-			: 'Only you see this, on top of the house’s Home.'
+			: `Only you see this, on top of the house’s ${page === 'home' ? 'Home' : 'page'}.`
 	);
 
 	// A device: its own sheet, or — "Same for every … card" — its type's.

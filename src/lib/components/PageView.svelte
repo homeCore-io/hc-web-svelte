@@ -375,7 +375,12 @@
 	/** A card's size in cells (14 §7): across the page, a stack's own, a button's, by its form. */
 	function cellsOf(card: Card, g: Layered<Card>, layout: Layout, as?: Form) {
 		const k = kindOf(card);
+		if (card.kind === 'divider') return { w: COLS, h: 1 };
 		if (k.wide) return { w: COLS, h: card.kind === 'heading' ? 1 : 2 };
+		// Widgets (14 §6): their usual sizes.
+		if (card.kind === 'picture') return { w: 4, h: 4 };
+		if (card.kind === 'clock') return { w: 3, h: 2 };
+		if (card.kind === 'link' || card.kind === 'space') return { w: 2, h: 1 };
 		const form = as ?? k.form(card, g.form(card.ref));
 		if (card.kind === 'stack') {
 			const large = form === 'large';

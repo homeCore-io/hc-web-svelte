@@ -61,6 +61,13 @@ export type Card = Base &
 		| { kind: 'playing' }
 		| { kind: 'weather' }
 		| { kind: 'chart' }
+		/** Widgets for laying out a page (14 §6): words, lines, room, a picture, a way elsewhere, the time. */
+		| { kind: 'title' }
+		| { kind: 'divider' }
+		| { kind: 'space' }
+		| { kind: 'picture' }
+		| { kind: 'link' }
+		| { kind: 'clock' }
 		/** Several things in one tall card (13 §13.2): what's in it is its settings. */
 		/** `things`: what a look's grouping put in it, until its settings choose. */
 		| {
@@ -88,7 +95,13 @@ export const APP_KINDS = [
 	'playing',
 	'weather',
 	'chart',
-	'stack'
+	'stack',
+	'title',
+	'divider',
+	'space',
+	'picture',
+	'link',
+	'clock'
 ] as const;
 export type AppKind = (typeof APP_KINDS)[number];
 const isAppKind = (k: string): k is AppKind => (APP_KINDS as readonly string[]).includes(k);

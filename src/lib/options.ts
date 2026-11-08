@@ -442,3 +442,102 @@ export function chartSource(o: Options): { attr: 'temperature' | 'humidity'; id?
 	const s = sourceOf(o[attr]);
 	return { attr, id: Array.isArray(s) ? s[0] : undefined };
 }
+
+// ---- widgets for laying out a page (14 §6, P8) ----
+
+export const TITLE_BUILT_IN: Options = { text: 'Title', sub: '' };
+export const titleDescriptor = (): Descriptor => ({
+	title: 'Title',
+	sections: [
+		{
+			id: 'title',
+			title: 'Title',
+			fields: [
+				{ kind: 'text', key: 'text', label: 'Words', default: 'Title' },
+				{ kind: 'text', key: 'sub', label: 'A line under it', default: '' }
+			]
+		}
+	]
+});
+
+export const DIVIDER_BUILT_IN: Options = { text: '' };
+export const dividerDescriptor = (): Descriptor => ({
+	title: 'Divider',
+	sections: [
+		{
+			id: 'divider',
+			title: 'Divider',
+			fields: [
+				{
+					kind: 'text',
+					key: 'text',
+					label: 'Words in the line',
+					placeholder: 'None: just a line',
+					default: ''
+				}
+			]
+		}
+	]
+});
+
+export const PICTURE_BUILT_IN: Options = { src: '', fit: 'cover', caption: '' };
+export const pictureDescriptor = (): Descriptor => ({
+	title: 'Picture',
+	sections: [
+		{
+			id: 'picture',
+			title: 'Picture',
+			fields: [
+				{ kind: 'text', key: 'src', label: 'What it shows', render: 'picture', default: '' },
+				{
+					kind: 'enum',
+					key: 'fit',
+					label: 'In its place',
+					render: 'segmented',
+					options: [
+						{ value: 'cover', label: 'Fill it' },
+						{ value: 'contain', label: 'Show all of it' }
+					],
+					default: 'cover'
+				},
+				{ kind: 'text', key: 'caption', label: 'Caption', default: '' }
+			]
+		}
+	]
+});
+
+export const LINK_BUILT_IN: Options = { to: 'home', text: '' };
+export const linkDescriptor = (choices: { value: string; label: string }[]): Descriptor => ({
+	title: 'Link',
+	sections: [
+		{
+			id: 'link',
+			title: 'Link',
+			fields: [
+				{ kind: 'select', key: 'to', label: 'Opens', options: choices, default: 'home' },
+				{
+					kind: 'text',
+					key: 'text',
+					label: 'Its words',
+					placeholder: 'The page’s name',
+					default: ''
+				}
+			]
+		}
+	]
+});
+
+export const CLOCK_BUILT_IN: Options = { date: true, seconds: false };
+export const clockDescriptor = (): Descriptor => ({
+	title: 'Clock',
+	sections: [
+		{
+			id: 'clock',
+			title: 'Clock',
+			fields: [
+				{ kind: 'toggle', key: 'date', label: 'The date under it', default: true },
+				{ kind: 'toggle', key: 'seconds', label: 'Seconds', default: false }
+			]
+		}
+	]
+});

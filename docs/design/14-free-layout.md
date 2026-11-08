@@ -1,7 +1,7 @@
 # 14 · Free layout: any card anywhere, any size
 
 **Status:** agreed, 2026-11-07 (decisions P1 to P8 in `decisions.md`).
-Building follows §11, room pages and made pages first. Steps 1 to 3 are
+Building follows §11, room pages and made pages first. Steps 1 to 4 are
 built locally (not released): those pages draw and arrange on the free grid. Floor plans are held for research (§12).
 
 **What it builds on.** 11 (one page document, one renderer, changes in
@@ -128,6 +128,15 @@ the first gap that fits and then moved and sized like any card:
 | Link to a page | a button that opens another page or room |
 | Clock | the time and date, growing with its size |
 
+**As built (step 4):** all six are in Add › Cards. A title's words and a
+clock's time grow with their place. A divider can carry words. A space shows
+only while arranging. A link opens Home, Scenes, Alerts, a room or a page,
+and says so if what it opened is gone. A picture is sent to the app's own
+server (`pictures/` in its data directory), up to 8 MB, and only PNG, JPEG,
+WebP or GIF, told by its first bytes; SVG is refused, since it can carry
+script. Any signed-in person may add one, and a picture is drawn only from
+the app's own address, never one typed in.
+
 Plugins and UI extensions can offer widgets too, through the slots they
 already have (13 §12).
 
@@ -230,3 +239,25 @@ with markers inside it at fractions of the picture (37.5% across, 62% down),
 so they stay on their spots at any size; markers a constant size; pinch and
 pan on a phone; floors as tabs. Nothing is decided or built until it's been
 researched further.
+
+## 13. Still to do
+
+Found while building steps 1 to 3, kept here until each is done:
+
+- **Drawings that show more as they grow**, kind by kind: a TV's apps, a
+  reading's graph, a player's controls. Until then a big card is its largest
+  drawing, stretched.
+- **A light at 2 × 1 cuts a long name** ("Ceili…"): the compact drawing
+  needs to wrap or shrink its words at that width.
+- **A plugin's card in a place bigger than its largest form** should draw at
+  its largest, centered; it stretches today.
+- **Dragging from the Add sheet** onto a free page (the Add button works).
+- **Dragging by cells on a narrower screen**; today the keyboard and up and
+  down arrange it there.
+- **Not yet tried:** touch dragging, phones, Edit mode saving for the
+  household, Move to and Add here in the browser, a page someone made.
+- **Pictures are never deleted** from the server when taken off a page; a
+  tidy-up of ones no page uses is still to come.
+- **Widgets on Home and on Lit's rooms** draw in their sections until step 6
+  puts those pages on the grid.
+- **Floor plans**, held for research (§12).

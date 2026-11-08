@@ -64,7 +64,15 @@
 	import type { CellsHost } from '#lib/drag/cells.js';
 	import { lookHere } from '#lib/look.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
-	import { areaFor, narrowArea, sizeOf, type AreaAt, type Family } from '#lib/looks/model.js';
+	import {
+		areaFor,
+		areasOf,
+		narrowArea,
+		sizeOf,
+		type AreaAt,
+		type Family,
+		type Rule
+	} from '#lib/looks/model.js';
 	/** The family a look draws a device as, by its kind (13 §6), for its drawing's range. */
 	const familyOf = (scene: boolean, kind: string): Family | null =>
 		scene
@@ -393,8 +401,8 @@
 				];
 	// ---- free layout (14): a room's page and a made page are one grid ----
 	// A room's page and a made page (14 §3), a look's grouped rooms too (L1).
-	// The look editor's preview of a room too, so it follows the look's areas (N2).
-	const freeHere = $derived(/^(preview\|)?(room|page):/.test(key));
+	// Home and displays too (step 6, P6), and the look editor's previews of them (N2).
+	const freeHere = $derived(/^(preview\|)?(home$|room:|page:)/.test(key));
 	const here = lookHere();
 	/**
 	 * Where a grouped room's section starts (14 §8, A1 to A3): the area of the
@@ -402,8 +410,10 @@
 	 * A page that isn't grouped has the whole width.
 	 */
 	function areaOf(s: ShownSection): AreaAt | null | undefined {
-		if (!page.columns) return undefined;
+		if (!page.columns && !field) return undefined;
 		if (s.column === 'none') return null;
+		// Home's room field (G32): its band, main column and side column are Lit's areas.
+		if (!page.columns) return areaFor({}, { place: s.column } as Rule);
 		const g = here.def.grouping;
 		return areaFor(
 			g,
@@ -418,11 +428,28 @@
 	/** How a grouped room draws a section's cards: one a row in a narrow area, or across the top. */
 	const placeOf = (s: ShownSection): Place | undefined => {
 		const a = areaOf(s);
-		return a && narrowArea(a) ? 'side' : page.columns && s.column === 'band' ? 'band' : undefined;
+		return a && narrowArea(a)
+			? 'side'
+			: (page.columns || field) && s.column === 'band'
+				? 'band'
+				: undefined;
 	};
 	/** A grouped room's sections, a row of areas at a time (A2); in order within each. */
 	const inAreaOrder = (list: ShownSection[]) =>
-		page.columns ? [...list].sort((x, y) => (areaOf(x)?.row ?? 0) - (areaOf(y)?.row ?? 0)) : list;
+		page.columns || field
+			? [...list].sort((x, y) => (areaOf(x)?.row ?? 0) - (areaOf(y)?.row ?? 0))
+			: list;
+	/**
+	 * Home's room field on the grid (step 6): each room its own card, the
+	 * busiest biggest, as the field plans them (G32).
+	 */
+	const roomPlots = $derived.by(() => {
+		const rooms = shown.sections.find((s) => s.section.id === 'rooms');
+		if (!freeHere || rooms?.layout !== 'field') return new Map<string, Plot>();
+		return new Map(planned(rooms.groups.flatMap(listOf)).map((p) => [p.card.ref, p.plot]));
+	});
+	/** A room's box in cells: the busiest three rows tall, the next two, the rest two by two. */
+	const roomCells = (p: Plot) => (p.big ? { w: 4, h: p.rows } : { w: 2, h: 2 });
 	/** A card's size in cells (14 §7): across the page, a stack's own, a button's, by its form. */
 	function cellsOf(card: Card, g: Layered<Card>, layout: Layout, as?: Form) {
 		const k = kindOf(card);
@@ -432,6 +459,8 @@
 		if (card.kind === 'picture') return { w: 4, h: 4 };
 		if (card.kind === 'clock') return { w: 3, h: 2 };
 		if (card.kind === 'link' || card.kind === 'space') return { w: 2, h: 1 };
+		const plot = card.kind === 'room' && layout === 'field' ? roomPlots.get(card.ref) : undefined;
+		if (plot) return roomCells(plot);
 		const form = as ?? k.form(card, g.form(card.ref));
 		if (card.kind === 'stack') {
 			const large = form === 'large';
@@ -449,18 +478,52 @@
 			return form === 'large' ? { w: 6, h: 4 } : { w: 4, h: 4 };
 		return FORM_CELLS[form ?? 'standard'];
 	}
+	/**
+	 * Rows a card's drawing needs beyond its usual size (14 §7), measured on
+	 * the twelve-column grid: where it starts, and where a new one lands, it
+	 * gets them, so a tall drawing (a forecast) doesn't stretch the rows
+	 * beside it. Only ever grows, so it settles.
+	 */
+	let natural = $state<Record<string, number>>({});
+	function fits(node: HTMLElement, ref: string) {
+		const ro = new ResizeObserver(() => {
+			const cells = node.parentElement;
+			if (!cells || node.classList.contains('held')) return;
+			const css = getComputedStyle(cells);
+			if (css.gridTemplateColumns.split(' ').length !== COLS) return;
+			const gap = parseFloat(css.rowGap) || 0;
+			const rows = Math.ceil((node.offsetHeight + gap) / (56 + gap) - 0.05);
+			const h = Number(node.style.getPropertyValue('--h'));
+			if (rows > h && rows > (natural[ref] ?? 0)) natural = { ...natural, [ref]: rows };
+		});
+		ro.observe(node);
+		return { destroy: () => ro.disconnect() };
+	}
 	const freePage = $derived.by(() => {
 		if (!freeHere) return null;
 		const { items, pieces } = piecesOf(
 			inAreaOrder(shown.sections),
 			cellsOf,
-			(s) => drawn(s, arranging),
+			// Rooms in the sidebar (G3) aren't on the page but while arranging.
+			(s) => drawn(s, arranging) && !(s.section.id === 'rooms' && sideRooms && !arranging),
 			arranging,
 			areaHere,
 			(s) => hiddenIn(changes, headingRef(s.section.id))
 		);
+		for (const it of items) it.h = Math.max(it.h, natural[it.ref] ?? 0);
 		const laid = freeLayout(items, changes);
-		return { pieces, laid, eight: narrow(laid, 8), four: narrow(laid, 4) };
+		// A look's areas read one at a time on narrower screens (N6): the area of
+		// its own row whose columns it sits in, else the one it started in.
+		const started = new Map(items.map((i) => [i.ref, i.area]));
+		const rows = page.columns || field ? areasOf(page.columns ? here.def.grouping : {}) : [];
+		const areaAt = (p: Placed) => {
+			const a = started.get(p.ref);
+			const row = a?.row ?? 0;
+			const at = rows.find((r) => r.row === row && r.x <= p.x && p.x < r.x + r.w);
+			return { row, x: at?.x ?? a?.x ?? 0 };
+		};
+		const by = rows.length > 0 ? areaAt : undefined;
+		return { pieces, laid, eight: narrow(laid, 8, by), four: narrow(laid, 4, by) };
 	});
 
 	/** A card's drawings and their usual sizes, smallest first (14 §7). */
@@ -487,6 +550,9 @@
 	/** Which drawing a card shows in its place: the largest that fits (14 §7). Not a stack's. */
 	function formIn(card: Card, g: Layered<Card>, layout: Layout, place: Size): Form | undefined {
 		if (card.kind === 'stack') return undefined;
+		// A room's box in the field: big where there's room for its number and lines.
+		if (card.kind === 'room' && layout === 'field')
+			return place.w >= 4 && place.h >= 2 ? 'large' : 'compact';
 		const forms = formsOf(card, g, layout);
 		return forms.length > 1 ? formFor(place, forms) : undefined;
 	}
@@ -679,10 +745,8 @@
 			addBefore={at.addBefore}
 			addAfter={at.addAfter}
 			axis={layout === 'list' || (place === 'side' && layout !== 'row') ? 'y' : 'x'}
-			cells={freePage && !favourites
-				? (dx, dy, size) => cellKey(card.ref, dx, dy, size)
-				: undefined}
-			step={freePage && !favourites ? (by) => stepCard(card.ref, by) : undefined}
+			cells={freePage ? (dx, dy, size) => cellKey(card.ref, dx, dy, size) : undefined}
+			step={freePage ? (by) => stepCard(card.ref, by) : undefined}
 		>
 			<KindView
 				{card}
@@ -925,6 +989,10 @@
 			</div>
 		</div>
 	{:else if freePage}
+		<!-- What's always first (Needs attention, G6) stays above the grid. -->
+		{#each shown.sections.filter((s) => s.section.fixed && drawn(s, arranging)) as s (s.section.id)}
+			{@render block(s)}
+		{/each}
 		<!-- One grid (14 §3): each card at its place; narrower, in reading order (P4). -->
 		<div class="free">
 			<div class="cells">
@@ -935,6 +1003,7 @@
 					{#if it}
 						<div
 							class="slot"
+							use:fits={p.ref}
 							class:heading={it.kind === 'heading'}
 							class:arranging
 							class:held={it.kind === 'card' && it.card.kind === 'stack'}
@@ -955,7 +1024,7 @@
 								{@render piece(
 									it.card,
 									it.g,
-									false,
+									it.section.section.favourites ?? false,
 									it.section.layout,
 									it.section.section.accepts ? it.section.section.id : undefined,
 									placeOf(it.section),
@@ -1305,9 +1374,13 @@
 		gap: var(--feel-gap, 10px);
 		max-width: 1600px;
 	}
+	/* At least its cells, from the top of them: a drawing taller than its place
+	   grows its own rows, never stretching the cards beside it (14 §7). */
 	.slot {
 		display: flex;
 		flex-direction: column;
+		align-self: start;
+		min-height: calc(var(--h) * 56px + (var(--h) - 1) * var(--feel-gap, 10px));
 		min-width: 0;
 		grid-column: var(--x4) / span var(--w4);
 		grid-row: var(--y4) / span var(--h);

@@ -267,11 +267,24 @@ export function across(w: number, cols: number): number {
 /**
  * The page on a narrower grid (P4): its cards in reading order, each as wide
  * as `across` says, a card across the whole page starting a run of its own,
- * so nothing is pulled up past a heading.
+ * so nothing is pulled up past a heading. With `areaOf` (a look's areas,
+ * N6), a row of areas reads one area at a time, left to right, so what's
+ * beside the main area follows it instead of mixing in.
  */
-export function narrow(placed: Placed[], cols: number): Map<string, Box> {
+export function narrow(
+	placed: Placed[],
+	cols: number,
+	areaOf?: (p: Placed) => { row: number; x: number }
+): Map<string, Box> {
+	const order = areaOf
+		? [...placed].sort((a, b) => {
+				const p = areaOf(a);
+				const q = areaOf(b);
+				return p.row - q.row || p.x - q.x || a.y - b.y || a.x - b.x;
+			})
+		: reading(placed);
 	const out = flow(
-		reading(placed).map((p) => ({
+		order.map((p) => ({
 			ref: p.ref,
 			w: across(p.w, cols),
 			h: p.h,

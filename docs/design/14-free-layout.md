@@ -1,9 +1,9 @@
 # 14 · Free layout: any card anywhere, any size
 
 **Status:** agreed, 2026-11-07 (decisions P1 to P8 in `decisions.md`).
-Building follows §11, room pages and made pages first. Steps 1 to 5 are
-built locally (not released): those pages draw and arrange on the free grid,
-and rooms have no sections (§8, N1). Floor plans are held for research (§12).
+Building follows §11, room pages and made pages first. Steps 1 to 6 are
+built locally (not released): every page, Home and displays included, draws
+and arranges on the free grid, and rooms have no sections (§8, N1). Floor plans are held for research (§12).
 
 **What it builds on.** 11 (one page document, one renderer, changes in
 layers), 13 (looks, each keeping its own arrangements, §8.4; arranging and
@@ -217,7 +217,7 @@ are what this was decided on.
 - **L4. A made drawing says its size:** smallest and largest from 2 × 1 to
   12 × 6 in the drawing editor, which shows it at each size between. A card
   drawn by it is kept within that range. Built.
-- **L5. Home and displays** are step 6.
+- **L5. Home and displays** are step 6 (below).
 
 **No sections (N1 to N6), agreed 2026-11-08** on the board "No sections",
 which replaces A1 to A4. The user asked why a room still had sections once
@@ -240,6 +240,25 @@ starts and where a new thing lands, so that's all it keeps.
 - **N6. Phones read the grid as placed** (A4). Built.
 - **"Needs you" takes no room** when nothing needs someone: the grouping
   leaves it out until something does.
+
+**Home and displays, as built (step 6), 2026-11-08.** Home is on the grid
+like any page, and a display draws the same pages, so it follows.
+
+- **Needs attention stays above the grid** (G6), never placed.
+- **Home's room field** is Lit's areas: the band across the top, the main
+  column, the one beside it. Each room is its own card, sized as the field
+  planned it: the busiest 4 wide and 3 or 2 rows tall, the rest 2 × 2, big
+  ones drawn large. The list and tiles styles stay one box.
+- **Rooms in the sidebar** (G3) take no room on the page but while arranging.
+- **Favorites** are placed like any card, in each person's own layer (Edit
+  has none to place).
+- **A drawing taller than its usual size** (a forecast, a plugin's weather)
+  is measured on the wide grid, and where the page starts or a new card
+  lands it gets the rows it needs. A card is never stretched by a taller one
+  beside it: each keeps at least its own cells, from their top.
+- **Narrower screens read a look's areas one at a time** within each row of
+  areas (refines N6): on a phone, Home reads favorites and the rooms, then
+  what's beside them, as the room field did.
 
 ## 9. What it could break, and how it's handled
 
@@ -317,8 +336,9 @@ Found while building steps 1 to 3, kept here until each is done:
   household, Move to and Add here in the browser, a page someone made.
 - **Pictures are never deleted** from the server when taken off a page; a
   tidy-up of ones no page uses is still to come.
-- **Widgets on Home and on Lit's rooms** draw in their sections until step 6
-  puts those pages on the grid.
+- **Displays** follow Home and the rooms; not yet tried on a display itself.
+- **Usual sizes for tall drawings:** the weather card starts 2 wide and 7
+  rows tall; it reads better 4 wide, so its usual size could be wider.
 - **Floor plans**, held for research (§12).
 - **A heading's layout choice** (list, panel) still turns what's under it
   into one box; with no sections that wants its own name, such as "Group

@@ -285,6 +285,19 @@ describe('pushing down keeps cards under their heading', () => {
 	});
 });
 
+describe('a look’s areas on a narrower screen (N6)', () => {
+	it('reads a row of areas one area at a time', () => {
+		const wide: Placed[] = [
+			{ ref: 'kitchen', x: 0, y: 0, w: 2, h: 2 },
+			{ ref: 'pinned', x: 8, y: 0, w: 4, h: 1 },
+			{ ref: 'hall', x: 0, y: 2, w: 2, h: 2 }
+		];
+		const area = (p: Placed) => ({ row: 0, x: p.x >= 8 ? 8 : 0 });
+		const phone = narrow(wide, 4, area);
+		expect(phone.get('hall')!.y).toBeLessThan(phone.get('pinned')!.y);
+	});
+});
+
 describe('a look’s areas (14 §8)', () => {
 	it('fills the main area and the one beside it side by side, under what’s across the top', () => {
 		const main = { x: 0, w: 8 };

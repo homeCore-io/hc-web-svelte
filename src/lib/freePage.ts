@@ -14,8 +14,8 @@ export const FORM_CELLS: Record<Form, { w: number; h: number }> = {
 	large: { w: 4, h: 3 }
 };
 
-/** Laid out one by one; any other layout is drawn whole. */
-const ONE_BY_ONE: Layout[] = ['grid', 'row'];
+/** Laid out one by one; any other layout is drawn whole. Home's room field too: each room a card. */
+const ONE_BY_ONE: Layout[] = ['grid', 'row', 'field'];
 
 export type Piece =
 	/** `hidden`: its title alone is hidden (N1), shown faded while arranging. */
@@ -94,7 +94,8 @@ export function piecesOf(
 		sections.flatMap((s) => (s.hidden ? [] : s.groups.flatMap((g) => g.shown.map((c) => c.ref))))
 	);
 	for (const s of sections) {
-		if (!drawn(s) || (s.hidden && !arranging)) continue;
+		// Always first (Needs attention) is drawn above the grid, not on it.
+		if (s.section.fixed || !drawn(s) || (s.hidden && !arranging)) continue;
 		const a = areaOf(s);
 		if (a === null) continue;
 		const area = a && { x: a.x, w: a.w, row: a.row };

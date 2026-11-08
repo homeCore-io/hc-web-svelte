@@ -14,6 +14,7 @@ import {
 	changeLibrary,
 	fileResponse,
 	findUses,
+	inFrame,
 	mayChange,
 	parseFile,
 	readLibrary,
@@ -63,8 +64,11 @@ async function named(file: string) {
 /** Whether it's used anywhere everyone sees: the household's pages and rooms, a display. */
 async function usedShared(it: Item): Promise<boolean> {
 	for (const kind of USED_IN.filter((k) => k !== 'person'))
-		for (const id of await docs().ids(kind))
-			if (findUses(await docs().read(kind, id), urlOf(it)).length > 0) return true;
+		for (const id of await docs().ids(kind)) {
+			const doc = await docs().read(kind, id);
+			if (findUses(doc, urlOf(it)).length > 0 || (kind === 'display' && inFrame(doc, it)))
+				return true;
+		}
 	return false;
 }
 

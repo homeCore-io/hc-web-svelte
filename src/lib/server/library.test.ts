@@ -6,6 +6,7 @@ import { docs } from './docs.js';
 import {
 	changeLibrary,
 	findUses,
+	inFrame,
 	keepUpload,
 	mayChange,
 	parseFile,
@@ -83,6 +84,16 @@ describe('the pictures library (design 15)', () => {
 		expect(mayChange(shared, editor)).toBe(true);
 		expect(mayChange(item({ shared: true, owner: null }), sam)).toBe(false);
 		expect(mayChange(shared, { ...display, scopes: ['content:write'] })).toBe(false);
+	});
+
+	it('counts a display whose picture frame plays its album', () => {
+		const it = item({ shared: true, albums: ['Family'] });
+		const frame = (album?: string, after = 5) => ({ rest: { show: 'frame', after, album } });
+		expect(inFrame(frame('Family'), it)).toBe(true);
+		expect(inFrame(frame(), it)).toBe(true);
+		expect(inFrame(frame('Garden'), it)).toBe(false);
+		expect(inFrame(frame('Family', 0), it)).toBe(false);
+		expect(inFrame(frame('Family'), { ...it, shared: false })).toBe(false);
 	});
 
 	it('finds an address wherever a document holds it, and takes it out (P4)', () => {

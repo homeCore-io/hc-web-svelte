@@ -1,6 +1,7 @@
 # 15 · Pictures: your own pictures and videos, and where they go
 
-**Status:** agreed, 2026-11-08. Building in rounds: §5 says what's built.
+**Status:** agreed, 2026-11-08. Rounds 1 to 4 built locally (§5), not
+released.
 
 **Where it came from.** The only way to use a picture of your own was the
 Picture card, which uploaded a fresh copy each time, kept no name or owner,
@@ -86,8 +87,15 @@ own photo in place of its icon, a scene's picture, a page's backdrop.
   behind its header (a video plays there) and its box on Home, field and
   tiles alike; a person's picture, chosen on Me, in the sidebar.
 
+- **Round 4, a display at rest:** Settings › Displays says after how long
+  untouched it rests and what it shows: a picture frame from an album of
+  everyone's (or all of them), a clock, or dark; how long each picture
+  shows; the time over it. A video plays once through, silent. A touch
+  wakes it. A display's own rest comes before its look's (13 §7). A
+  picture in the album a display plays counts as used there, and stays
+  everyone's while it is.
+
 ## 6. Still to do
 
-- A display's picture frame (round 4).
 - The in-app backup to include pictures.
 - Replacing a picture's file while keeping its uses.

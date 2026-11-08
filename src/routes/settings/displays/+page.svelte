@@ -15,7 +15,8 @@
 	import { ask } from '#lib/confirm.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { lookOf, looksOf, nudgeFavourite } from '#lib/layers.js';
-	import { tabsFor, type DisplayDoc } from '#lib/display.js';
+	import { restOf, tabsFor, type DisplayDoc, type Rest } from '#lib/display.js';
+	import { pictures } from '#lib/pictures.svelte.js';
 	import { displayPages } from '#lib/built.js';
 	import { household } from '#lib/household.svelte.js';
 	import { core } from '#lib/core.svelte.js';
@@ -121,6 +122,10 @@
 	]);
 	const chosen = $derived(tabsFor(doc, rooms.list, displayPages(household.doc)));
 	const setPages = (pages: string[]) => save({ ...doc, pages });
+	// At rest (design 15): its picture frame comes from the household's albums.
+	onMount(() => void pictures.load());
+	const r = $derived(restOf(doc));
+	const setRest = (to: Partial<Rest>) => save({ ...doc, rest: { ...doc.rest, ...to } });
 	const setKiosk = (k: Partial<NonNullable<DisplayDoc['kiosk']>>) =>
 		save({ ...doc, kiosk: { ...doc.kiosk, ...k } });
 	// Its own look (13 §10), among the house's; none is the house's.
@@ -296,6 +301,67 @@
 										value={doc.kiosk.reload}
 										onchange={(e) => setKiosk({ reload: e.currentTarget.value || null })}
 									/>
+								{/if}
+								<h3 class="section-label">At rest</h3>
+								<label class="add">
+									<span>When nobody’s touched it for</span>
+									<select
+										value={String(r.after)}
+										onchange={(e) => setRest({ after: Number(e.currentTarget.value) })}
+									>
+										<option value="0">Never: it stays on its page</option>
+										{#each [2, 5, 15, 30] as m (m)}<option value={String(m)}>{m} minutes</option
+											>{/each}
+									</select>
+								</label>
+								{#if r.after > 0}
+									<label class="add">
+										<span>It shows</span>
+										<select
+											value={r.show}
+											onchange={(e) => setRest({ show: e.currentTarget.value as Rest['show'] })}
+										>
+											<option value="frame">A picture frame</option>
+											<option value="clock">A clock</option>
+											<option value="dark">Nothing: dark</option>
+										</select>
+									</label>
+									{#if r.show === 'frame'}
+										<label class="add">
+											<span>Pictures from</span>
+											<select
+												value={r.album}
+												onchange={(e) => setRest({ album: e.currentTarget.value })}
+											>
+												<option value="">All the household’s</option>
+												{#each [...new Set( [...pictures.albums, ...(r.album ? [r.album] : [])] )] as a (a)}
+													<option value={a}>The {a} album</option>
+												{/each}
+											</select>
+										</label>
+										<label class="add">
+											<span>Each picture for</span>
+											<select
+												value={String(r.every)}
+												onchange={(e) => setRest({ every: Number(e.currentTarget.value) })}
+											>
+												{#each [[10, '10 seconds'], [30, '30 seconds'], [60, 'a minute'], [300, '5 minutes']] as [s, l] (s)}
+													<option value={String(s)}>{l}</option>
+												{/each}
+											</select>
+										</label>
+										<label class="check"
+											><input
+												type="checkbox"
+												checked={r.time}
+												onchange={(e) => setRest({ time: e.currentTarget.checked })}
+											/> The time over it</label
+										>
+										<p class="quiet">
+											Only everyone’s pictures: anyone walking by sees it. A video plays once,
+											silent, then it moves on. Settings › Pictures puts pictures in albums.
+										</p>
+									{/if}
 								{/if}
 							</div>
 						{/if}

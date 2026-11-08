@@ -324,6 +324,8 @@ export async function usesOf(
 			if (!doc) continue;
 			for (const it of items) {
 				const found = findUses(doc, urlOf(it));
+				// A display's picture frame plays an album of everyone's, not addresses.
+				if (kind === 'display' && inFrame(doc, it)) found.push(['rest', 'album']);
 				if (found.length === 0) continue;
 				const o = out.get(it.id)!;
 				if (kind === 'person' && id !== mine) o.elsewhere += found.length;
@@ -331,6 +333,18 @@ export async function usesOf(
 			}
 		}
 	return out;
+}
+
+/** Whether a display's picture frame plays it: one of everyone's, in the album it plays (or any). */
+export function inFrame(doc: unknown, it: Item): boolean {
+	const r = (doc as { rest?: { show?: string; after?: number; album?: string } } | undefined)?.rest;
+	return (
+		!!r &&
+		(r.after ?? 0) > 0 &&
+		(r.show ?? 'frame') === 'frame' &&
+		it.shared &&
+		(!r.album || it.albums.includes(r.album))
+	);
 }
 
 /** Take a picture off every document that uses it. How many documents changed. */

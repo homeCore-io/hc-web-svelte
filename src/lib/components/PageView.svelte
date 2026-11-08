@@ -62,7 +62,15 @@
 		type Placed
 	} from '#lib/free.js';
 	import type { CellsHost } from '#lib/drag/cells.js';
-	import { FORM_CELLS, piecesOf } from '#lib/freePage.js';
+	import {
+		FORM_CELLS,
+		formFor,
+		piecesOf,
+		rangeOf,
+		within,
+		type Range,
+		type Size
+	} from '#lib/freePage.js';
 
 	let {
 		page,
@@ -365,10 +373,10 @@
 	// ---- free layout (14): a room's page and a made page are one grid ----
 	const freeHere = $derived(!field && (key.startsWith('room:') || key.startsWith('page:')));
 	/** A card's size in cells (14 §7): across the page, a stack's own, a button's, by its form. */
-	function cellsOf(card: Card, g: Layered<Card>, layout: Layout) {
+	function cellsOf(card: Card, g: Layered<Card>, layout: Layout, as?: Form) {
 		const k = kindOf(card);
 		if (k.wide) return { w: COLS, h: card.kind === 'heading' ? 1 : 2 };
-		const form = k.form(card, g.form(card.ref));
+		const form = as ?? k.form(card, g.form(card.ref));
 		if (card.kind === 'stack') {
 			const large = form === 'large';
 			return {
@@ -397,6 +405,28 @@
 		return { pieces, laid, eight: narrow(laid, 8), four: narrow(laid, 4) };
 	});
 
+	/** A card's drawings and their usual sizes, smallest first (14 §7). */
+	function formsOf(card: Card, g: Layered<Card>, layout: Layout) {
+		return kindOf(card)
+			.forms(card)
+			.map((form) => ({ form, size: cellsOf(card, g, layout, form) as Size }));
+	}
+	/** How small and large a card on this page can be (14 §7). */
+	function rangeHere(ref: string): Range | undefined {
+		const it = freePage?.pieces.get(ref);
+		if (!it) return undefined;
+		if (it.kind !== 'card') return rangeOf({ ref, kind: 'heading' }, undefined, []);
+		const usual = formsOf(it.card, it.g, it.section.layout).map((f) => f.size);
+		const device = it.card.kind === 'device' ? cardFor(it.card.device, clock.now).kind : undefined;
+		return rangeOf(it.card, device, usual);
+	}
+	/** Which drawing a card shows in its place: the largest that fits (14 §7). Not a stack's. */
+	function formIn(card: Card, g: Layered<Card>, layout: Layout, place: Size): Form | undefined {
+		if (card.kind === 'stack') return undefined;
+		const forms = formsOf(card, g, layout);
+		return forms.length > 1 ? formFor(place, forms) : undefined;
+	}
+
 	// ---- arranging a free page (14 §5) ----
 	/** What a drag would make of the page, as it goes, and where the card would land. */
 	let preview = $state<{ laid: Placed[] | null; foot: (Box & { label?: string }) | null }>({
@@ -412,15 +442,17 @@
 	const pieceName = (ref: string) => {
 		const it = freePage?.pieces.get(ref);
 		if (!it) return cardName(ref);
-		return it.kind === 'card'
-			? (it.g.name(ref) ?? kindOf(it.card).name(it.card))
-			: it.section.title;
+		if (it.kind !== 'card') return it.section.title;
+		const named = it.g.name(ref) ?? stacksHere.find((x) => x.ref === ref)?.name;
+		return named ?? kindOf(it.card).name(it.card);
 	};
 	/** Moved a cell, or sized a cell, from the keyboard; where it is now, said. */
 	function cellKey(ref: string, dx: number, dy: number, size: boolean): string | undefined {
 		const b = boxOf(ref);
 		if (!b || !freePage) return;
-		const to = fit(size ? { ...b, w: b.w + dx, h: b.h + dy } : { ...b, x: b.x + dx, y: b.y + dy });
+		const r = rangeHere(ref);
+		let to = fit(size ? { ...b, w: b.w + dx, h: b.h + dy } : { ...b, x: b.x + dx, y: b.y + dy });
+		if (size && r) to = { ...to, ...within(r, to) };
 		if (size) to.w = Math.min(to.w, COLS - b.x);
 		const next = land(freePage.laid, ref, to, dx);
 		placeAll(next);
@@ -445,6 +477,7 @@
 			return key;
 		},
 		laid: () => freePage?.laid ?? [],
+		range: rangeHere,
 		preview(next, foot) {
 			preview = { laid: next, foot };
 		},
@@ -518,7 +551,8 @@
 	layout: Layout = 'grid',
 	from?: string,
 	place?: Place,
-	sized?: Form
+	sized?: Form,
+	cells?: Size
 )}
 	{@const kind = kindOf(card)}
 	{@const label = g?.name(card.ref)}
@@ -572,6 +606,7 @@
 				config={g.config(card.ref)}
 				{layout}
 				{place}
+				{cells}
 			/>
 		</Arrange>
 	{/if}
@@ -812,6 +847,7 @@
 							class="slot"
 							class:heading={it.kind === 'heading'}
 							class:arranging
+							class:held={it.kind === 'card' && it.card.kind === 'stack'}
 							data-ref={arranging ? p.ref : undefined}
 							data-stack={arranging && it.kind === 'card' && it.card.kind === 'stack'
 								? ''
@@ -830,7 +866,10 @@
 									it.g,
 									false,
 									it.section.layout,
-									it.section.section.accepts ? it.section.section.id : undefined
+									it.section.section.accepts ? it.section.section.id : undefined,
+									undefined,
+									formIn(it.card, it.g, it.section.layout, p),
+									{ w: p.w, h: p.h }
 								)}
 							{/if}
 						</div>
@@ -1161,6 +1200,18 @@
 	}
 	.slot > :global(*) {
 		flex: 1 1 auto;
+	}
+	/* A stack keeps to its place's height and scrolls what doesn't fit (14 §7). */
+	.slot.held {
+		height: calc(var(--h) * 56px + (var(--h) - 1) * var(--feel-gap, 10px));
+	}
+	/* A card fills its place (14 §7), arranging as well. */
+	.slot > :global(.arrange > .card) {
+		flex: 1 1 auto;
+	}
+	.slot > :global(*),
+	.slot > :global(.arrange > .card > .quiet) {
+		min-height: 0;
 	}
 	.slot.heading {
 		justify-content: flex-end;

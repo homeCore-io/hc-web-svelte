@@ -1,7 +1,7 @@
 # 14 · Free layout: any card anywhere, any size
 
 **Status:** agreed, 2026-11-07 (decisions P1 to P8 in `decisions.md`).
-Building follows §11, room pages and made pages first. Steps 1 and 2 are
+Building follows §11, room pages and made pages first. Steps 1 to 3 are
 built locally (not released): those pages draw and arrange on the free grid. Floor plans are held for research (§12).
 
 **What it builds on.** 11 (one page document, one renderer, changes in
@@ -152,6 +152,15 @@ and in a larger place it draws at its largest, centered.
 | a player, a TV | 3 × 2 | 4 × 3, 6 × 3 | 12 × 6 |
 | a chart, a reading | 2 × 2 | 3 × 2 | 12 × 6 |
 | heading, title, divider | 2 × 1 | 12 × 1 | 12 × 2 |
+
+**As built (step 3):** the corner and the keyboard keep a card within its
+range. A card with several drawings shows the largest whose usual size fits
+its place, so a lamp sized 2 × 1 draws compact and 4 × 3 large. A stack
+fills its place, scrolling what doesn't fit, with two columns of things from
+8 cells wide (or from 4, where its settings ask for two). A thermostat is
+4 × 4 to 8 × 6; players and readings grow to 12 × 6, other devices to 6 × 4.
+Drawings that show more as they grow (a TV's apps, a reading's graph) come
+kind by kind; until then they draw their largest form, stretched.
 
 ## 8. Looks and the look editor
 

@@ -81,3 +81,76 @@ export function piecesOf(
 	}
 	return { items, pieces };
 }
+
+export interface Size {
+	w: number;
+	h: number;
+}
+
+/** How small and large a card can be (14 §7); `snap`, only its usual sizes. */
+export interface Range {
+	min: Size;
+	max: Size;
+	/** Its usual sizes, smallest first: a click on its corner steps through them. */
+	usual: Size[];
+	/** A drawing that knows only its three sizes (a plugin's card): its corner snaps between them. */
+	snap: boolean;
+}
+
+const sz = (w: number, h: number): Size => ({ w, h });
+
+/** Players and readings can grow wide, to show more (14 §7). */
+const GROWS = new Set(['media_player', 'tv', 'speaker', 'temperature_sensor', 'weather_station']);
+
+/**
+ * A card's sizes in cells (14 §7). `device` is a device card's kind of
+ * device; `usual` its forms' sizes, smallest first.
+ */
+export function rangeOf(card: Card, device: string | undefined, usual: Size[]): Range {
+	const r = (min: Size, max: Size, snap = false): Range => ({ min, max, usual, snap });
+	switch (card.kind) {
+		case 'heading':
+			return r(sz(2, 1), sz(COLS, 2));
+		case 'stack':
+			return r(sz(2, 3), sz(COLS, 10));
+		case 'scene':
+			return r(sz(2, 1), sz(4, 2));
+		case 'plugin':
+			// Its element says only its forms: those sizes and no others.
+			return usual.length > 0 ? r(usual[0]!, usual.at(-1)!, true) : r(sz(2, 1), sz(COLS, 6));
+		case 'roomhead':
+		case 'needs':
+		case 'batteries':
+			return r(sz(6, 1), sz(COLS, 4));
+		case 'device':
+			if (card.scene) return r(sz(2, 1), sz(4, 2));
+			if (device === 'thermostat') return r(sz(4, 4), sz(8, 6));
+			return r(sz(2, 1), GROWS.has(device ?? '') ? sz(COLS, 6) : sz(6, 4));
+		default:
+			return r(sz(2, 1), sz(COLS, 6));
+	}
+}
+
+/** A size kept within its range: the nearest usual one, if it snaps. */
+export function within(range: Range, s: Size): Size {
+	if (range.snap && range.usual.length > 0)
+		return range.usual.reduce((best, u) =>
+			Math.abs(u.w - s.w) + Math.abs(u.h - s.h) < Math.abs(best.w - s.w) + Math.abs(best.h - s.h)
+				? u
+				: best
+		);
+	return {
+		w: Math.max(range.min.w, Math.min(range.max.w, s.w)),
+		h: Math.max(range.min.h, Math.min(range.max.h, s.h))
+	};
+}
+
+/**
+ * Which of its drawings a card shows in its place (14 §7): the largest whose
+ * usual size fits, else its smallest.
+ */
+export function formFor(place: Size, forms: { form: Form; size: Size }[]): Form | undefined {
+	let out = forms[0]?.form;
+	for (const f of forms) if (f.size.w <= place.w && f.size.h <= place.h) out = f.form;
+	return out;
+}

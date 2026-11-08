@@ -26,7 +26,7 @@
 	import { scenes } from '#lib/scenes.svelte.js';
 	import { across, readStack, stackBase, stackHeight, stackRows } from '#lib/stack.js';
 
-	let { card, page, label, form, options }: KindProps<'stack'> = $props();
+	let { card, page, label, form, options, cells }: KindProps<'stack'> = $props();
 	const s = $derived(
 		readStack(options ?? kindOptions.of(page, 'stack', card.ref, stackBase(card)), form === 'large')
 	);
@@ -54,8 +54,12 @@
 		alert: boolean;
 	}
 
+	// On a free page (14 §7) its place sizes it: two columns of things where
+	// it's asked for them and each has two cards' room, or on its own from
+	// eight cells wide; it fills its height, scrolling what doesn't fit.
+	const columns = $derived(!cells ? s.columns : cells.w < 4 ? 1 : cells.w >= 8 ? 2 : s.columns);
 	// Two cards or more to each column of things: room for a whole state.
-	const roomy = $derived(s.width / s.columns >= 2);
+	const roomy = $derived(cells ? cells.w / columns >= 4 : s.width / s.columns >= 2);
 	const rows = $derived.by(() => {
 		const out: Row[] = [];
 		// What the page gave it to draw (none two stacks share), else all it names.
@@ -225,10 +229,10 @@
 
 <article
 	class="stack {s.style}"
-	data-span={s.width > 1 ? s.width : undefined}
+	data-span={!cells && s.width > 1 ? s.width : undefined}
 	class:lit
-	style:grid-row={`span ${span}`}
-	style:height={fixed ? `${fixed}px` : undefined}
+	style:grid-row={cells ? undefined : `span ${span}`}
+	style:height={cells ? undefined : fixed ? `${fixed}px` : undefined}
 	aria-label={label ?? (s.name || 'Stack')}
 >
 	<header>
@@ -243,7 +247,7 @@
 	{#if rows.length === 0}
 		<p class="empty">Nothing in it yet. Choose things in its settings.</p>
 	{:else}
-		<div class="body" style:--across={across(s.style, s.columns)}>
+		<div class="body" style:--across={across(s.style, columns)}>
 			{#each shown as r (r.ref)}
 				{@const busy = r.busy || ran[r.ref]}
 				{#if s.style === 'list' || s.style === 'folded'}

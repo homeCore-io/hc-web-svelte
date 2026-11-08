@@ -8,11 +8,14 @@
  * down arrange it. Loaded while arranging, as the section dragging is.
  */
 import { COLS, fit, land, type Box, type Placed } from '#lib/free.js';
+import { within, type Range } from '#lib/freePage.js';
 
 export interface CellsHost {
 	readonly page: string;
 	/** The page as laid out now, on twelve columns. */
 	laid(): Placed[];
+	/** How small and large a card can be (14 §7). */
+	range(ref: string): Range | undefined;
 	/** What it would be if let go here, and the footprint with its size; null when nothing is. */
 	preview(next: Placed[] | null, foot: (Box & { label?: string }) | null): void;
 	/** Let go: every card's place. `moved` is the card that moved, `sized` whether it was sized. */
@@ -186,6 +189,8 @@ export function start(root: HTMLElement, host: CellsHost): () => void {
 				w: held.box.w + Math.round((e.clientX - x0) / stepX),
 				h: held.box.h + Math.round((e.clientY - y0) / stepY)
 			});
+			const r = host.range(held.ref);
+			if (r) Object.assign(to, within(r, to));
 			to.w = Math.min(to.w, COLS - held.box.x);
 			to.x = held.box.x;
 			next = land(laid, held.ref, to, 1);

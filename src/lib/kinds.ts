@@ -61,6 +61,8 @@ export interface KindProps<K extends Card['kind'] = Card['kind']> {
 	 * the phone's one-line summary of the alerts, or as the band of numbers.
 	 */
 	place?: Place;
+	/** Its place on a free page, in cells (14 §7): a drawing that grows fills it. */
+	cells?: { w: number; h: number };
 }
 
 export type Place = 'side' | 'brief' | 'band';

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { piecesOf } from './freePage.js';
+import { formFor, piecesOf, rangeOf, within } from './freePage.js';
 import { apply } from './layers.js';
 import type { Card, ShownSection } from './page.js';
 
@@ -47,5 +47,44 @@ describe('a page’s sections as pieces (14 §4)', () => {
 			() => true
 		);
 		expect(normally.map((i) => i.ref)).toEqual(['section:controls', 'lamp']);
+	});
+});
+
+describe('a card’s sizes (14 §7)', () => {
+	const lamp: Card = {
+		ref: 'device:l',
+		kind: 'device',
+		scene: false,
+		device: {} as never
+	};
+	const usual = [
+		{ w: 2, h: 1 },
+		{ w: 2, h: 2 },
+		{ w: 4, h: 3 }
+	];
+
+	it('keeps a size within the kind’s smallest and largest', () => {
+		const r = rangeOf(lamp, 'light', usual);
+		expect(within(r, { w: 1, h: 9 })).toEqual({ w: 2, h: 4 });
+		expect(within(rangeOf(lamp, 'tv', usual), { w: 12, h: 5 })).toEqual({ w: 12, h: 5 });
+	});
+
+	it('snaps a card that knows only its forms to the nearest', () => {
+		const plugin: Card = { ref: 'card:p/e/1', kind: 'plugin', label: 'P' };
+		const r = rangeOf(plugin, undefined, usual);
+		expect(within(r, { w: 4, h: 2 })).toEqual({ w: 4, h: 3 });
+		expect(within(r, { w: 3, h: 1 })).toEqual({ w: 2, h: 1 });
+	});
+
+	it('draws the largest form that fits its place', () => {
+		const forms = [
+			{ form: 'compact' as const, size: usual[0]! },
+			{ form: 'standard' as const, size: usual[1]! },
+			{ form: 'large' as const, size: usual[2]! }
+		];
+		expect(formFor({ w: 2, h: 1 }, forms)).toBe('compact');
+		expect(formFor({ w: 3, h: 2 }, forms)).toBe('standard');
+		expect(formFor({ w: 6, h: 4 }, forms)).toBe('large');
+		expect(formFor({ w: 1, h: 1 }, forms)).toBe('compact');
 	});
 });

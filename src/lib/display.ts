@@ -24,6 +24,36 @@ export interface DisplayDoc {
 	kiosk?: Kiosk;
 	/** Its own look (13 §10); absent, the house's. */
 	look?: string;
+	/** What it shows when nobody's touched it for a while (design 15). */
+	rest?: Rest;
+}
+
+/**
+ * A display at rest (design 15): after `after` minutes untouched, a picture
+ * frame from an album of the household’s (`album`, none for all of them), a
+ * clock, or dark. A touch wakes it to its page.
+ */
+export interface Rest {
+	show?: 'frame' | 'clock' | 'dark';
+	/** Minutes untouched before it rests; 0 or absent, never. */
+	after?: number;
+	album?: string;
+	/** Seconds each picture shows. */
+	every?: number;
+	/** The time over the frame. */
+	time?: boolean;
+}
+
+/** Its rest with what's unsaid filled in. */
+export function restOf(doc: DisplayDoc | undefined): Required<Rest> {
+	const r = doc?.rest ?? {};
+	return {
+		show: r.show ?? 'frame',
+		after: r.after ?? 0,
+		album: r.album ?? '',
+		every: r.every ?? 30,
+		time: r.time ?? true
+	};
 }
 
 export interface Tab {

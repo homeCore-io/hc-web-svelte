@@ -72,12 +72,24 @@
 	const homeDoc = $derived({ ...homeDocument(), id: 'preview|home' });
 	const base = $derived(homeChanges(draft.grouping.home));
 	const name = $derived(rooms.list.find((r) => r.id === room)?.name ?? '');
+	// A grouped room as a wide screen draws it, made smaller to fit (N2): its
+	// areas side by side, as the author draws them, not a narrower screen's order.
+	const WIDE = 1120;
+	let across = $state(WIDE);
+	const zoom = $derived(Math.min(1, across / WIDE));
 </script>
 
 <div class="preview" {style} data-motion={draft.feel.motion} inert aria-label="Preview">
 	{#if show === 'room'}
 		{#if !draft.grouping.room}<h2 class="title">{name}</h2>{/if}
-		{#if !draft.grouping.room || grouping}<PageView page={roomDoc} />{/if}
+		{#if !draft.grouping.room}<PageView page={roomDoc} />
+		{:else if grouping}
+			<div class="fit" bind:clientWidth={across}>
+				<div class="wide" style={`width: ${WIDE}px; zoom: ${zoom}`}>
+					<PageView page={roomDoc} />
+				</div>
+			</div>
+		{/if}
 	{:else if show === 'home'}
 		<h2 class="title">Home</h2>
 		<PageView page={homeDoc} {base} />
@@ -110,6 +122,10 @@
 		background: var(--bg);
 		font-size: calc(16px * var(--feel-type, 1));
 		min-width: 0;
+	}
+	.fit {
+		min-width: 0;
+		overflow: hidden;
 	}
 	.title {
 		margin: 0 0 12px;

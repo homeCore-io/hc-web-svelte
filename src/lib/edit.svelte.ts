@@ -39,12 +39,15 @@ class Editing {
 		return pageChanges(this.draft.pages, page);
 	}
 
-	changePage(page: string, change: Change): void {
+	changePage(page: string, ...changes: Change[]): void {
 		this.#edits = [
 			...this.#edits,
 			(d) => ({
 				...d,
-				pages: { ...d.pages, [lookKey(page)]: addChange(pageChanges(d.pages, page), change) }
+				pages: {
+					...d.pages,
+					[lookKey(page)]: changes.reduce(addChange, pageChanges(d.pages, page))
+				}
 			})
 		];
 	}
@@ -64,6 +67,17 @@ class Editing {
 					...d.pages,
 					[lookKey(page)]: pageChanges(d.pages, page).filter((c) => !stale.includes(c))
 				}
+			})
+		];
+	}
+
+	/** This page's household changes, made over by `edit` (14 §8, L3). */
+	editPage(page: string, edit: (changes: Change[]) => Change[]): void {
+		this.#edits = [
+			...this.#edits,
+			(d) => ({
+				...d,
+				pages: { ...d.pages, [lookKey(page)]: edit(pageChanges(d.pages, page)) }
 			})
 		];
 	}

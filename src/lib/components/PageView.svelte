@@ -32,14 +32,14 @@
 	import { devices } from '#lib/devices.svelte.js';
 	import { ROOM_BUILT_IN } from '#lib/options.js';
 	import { readStack, stackable, stackBase, stackRows } from '#lib/stack.js';
-	import { grouped, putIn, takeOut } from '#lib/stacking.js';
+	import { grouped, putIn, setStack, takeOut } from '#lib/stacking.js';
 	import { fieldPlan, roomBox, type Plot } from '#lib/roomBox.js';
 	import { homeStyle } from '#lib/styles.js';
 	import { view } from '#lib/view.svelte.js';
 	import { personal } from '#lib/personal.svelte.js';
 	import { editing } from '#lib/edit.svelte.js';
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
-	import { added, type Change, type Form, type Layered } from '#lib/layers.js';
+	import { added, newId, ref as refOf, type Change, type Form, type Layered } from '#lib/layers.js';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Arrange from './Arrange.svelte';
 	import { kindOptions } from '#lib/kindOptions.svelte.js';
@@ -48,6 +48,57 @@
 	import { adding } from '#lib/adding.svelte.js';
 	import { drag } from '#lib/drag.svelte.js';
 	import { refusal } from '#lib/drag/rules.js';
+	import {
+		COLS,
+		fit,
+		freeze,
+		land,
+		layout as freeLayout,
+		narrow,
+		step as stepIn,
+		tidy,
+		where,
+		type Box,
+		type Placed
+	} from '#lib/free.js';
+	import type { CellsHost } from '#lib/drag/cells.js';
+	import { lookHere } from '#lib/look.svelte.js';
+	import { rooms } from '#lib/rooms.svelte.js';
+	import {
+		areaFor,
+		areasOf,
+		narrowArea,
+		sizeOf,
+		type AreaAt,
+		type Family,
+		type Rule
+	} from '#lib/looks/model.js';
+	/** The family a look draws a device as, by its kind (13 §6), for its drawing's range. */
+	const familyOf = (scene: boolean, kind: string): Family | null =>
+		scene
+			? 'scenes'
+			: kind === 'light'
+				? 'lights'
+				: ['switch', 'outlet', 'fan'].includes(kind)
+					? 'switches'
+					: ['door', 'window', 'garage', 'gate', 'contact_sensor', 'lock'].includes(kind)
+						? 'doors'
+						: ['temperature_sensor', 'weather_station'].includes(kind)
+							? 'readings'
+							: ['media_player', 'tv', 'speaker'].includes(kind)
+								? 'media'
+								: null;
+	import {
+		FORM_CELLS,
+		formFor,
+		headingRef,
+		hiddenIn,
+		piecesOf,
+		rangeOf,
+		within,
+		type Range,
+		type Size
+	} from '#lib/freePage.js';
 
 	let {
 		page,
@@ -216,9 +267,14 @@
 		const el = root;
 		let stop: (() => void) | undefined;
 		let gone = false;
-		void import('#lib/drag/controller.js').then((m) => {
-			if (!gone) stop = m.start(el, host);
-		});
+		if (freeHere)
+			void import('#lib/drag/cells.js').then((m) => {
+				if (!gone) stop = m.start(el, cellsHost);
+			});
+		else
+			void import('#lib/drag/controller.js').then((m) => {
+				if (!gone) stop = m.start(el, host);
+			});
 		return () => {
 			gone = true;
 			stop?.();
@@ -333,15 +389,308 @@
 			.map((s) => ({ id: s.section.id, title: s.title }))
 	);
 	// A device or a scene can go into a stack on the page too (13 §13.2).
+	// A free page has no sections to move a card to (N1): only its stacks.
 	const moveTargets = (card: Card, from: string) =>
 		card.kind === 'room'
 			? []
 			: [
-					...targets.filter((t) => t.id !== from),
+					...(freeHere ? [] : targets.filter((t) => t.id !== from)),
 					...(stackable(card.ref)
 						? stacksHere.map((s) => ({ id: `stack:${s.ref}`, title: `Into stack: ${s.name}` }))
 						: [])
 				];
+	// ---- free layout (14): a room's page and a made page are one grid ----
+	// A room's page and a made page (14 §3), a look's grouped rooms too (L1).
+	// Home and displays too (step 6, P6), and the look editor's previews of them (N2).
+	const freeHere = $derived(/^(preview\|)?(home$|room:|page:)/.test(key));
+	const here = lookHere();
+	/**
+	 * Where a grouped room's section starts (14 §8, A1 to A3): the area of the
+	 * look its rule names; what no rule took, the last. Null: not drawn here.
+	 * A page that isn't grouped has the whole width.
+	 */
+	function areaOf(s: ShownSection): AreaAt | null | undefined {
+		if (!page.columns && !field) return undefined;
+		if (s.column === 'none') return null;
+		// Home's room field (G32): its band, main column and side column are Lit's areas.
+		if (!page.columns) return areaFor({}, { place: s.column } as Rule);
+		const g = here.def.grouping;
+		return areaFor(
+			g,
+			g.room?.find((r) => r.id === s.section.id)
+		);
+	}
+	/** The area a section starts in, with whether its cards are one a row (A3). */
+	const areaHere = (s: ShownSection) => {
+		const a = areaOf(s);
+		return a ? { x: a.x, w: a.w, row: a.row, beside: narrowArea(a) } : a;
+	};
+	/** How a grouped room draws a section's cards: one a row in a narrow area, or across the top. */
+	const placeOf = (s: ShownSection): Place | undefined => {
+		const a = areaOf(s);
+		return a && narrowArea(a)
+			? 'side'
+			: (page.columns || field) && s.column === 'band'
+				? 'band'
+				: undefined;
+	};
+	/** A grouped room's sections, a row of areas at a time (A2); in order within each. */
+	const inAreaOrder = (list: ShownSection[]) =>
+		page.columns || field
+			? [...list].sort((x, y) => (areaOf(x)?.row ?? 0) - (areaOf(y)?.row ?? 0))
+			: list;
+	/**
+	 * Home's room field on the grid (step 6): each room its own card, the
+	 * busiest biggest, as the field plans them (G32).
+	 */
+	const roomPlots = $derived.by(() => {
+		const rooms = shown.sections.find((s) => s.section.id === 'rooms');
+		if (!freeHere || rooms?.layout !== 'field') return new Map<string, Plot>();
+		return new Map(planned(rooms.groups.flatMap(listOf)).map((p) => [p.card.ref, p.plot]));
+	});
+	/** A room's box in cells: the busiest three rows tall, the next two, the rest two by two. */
+	const roomCells = (p: Plot) => (p.big ? { w: 4, h: p.rows } : { w: 2, h: 2 });
+	/** A card's size in cells (14 §7): across the page, a stack's own, a button's, by its form. */
+	function cellsOf(card: Card, g: Layered<Card>, layout: Layout, as?: Form) {
+		const k = kindOf(card);
+		if (card.kind === 'divider') return { w: COLS, h: 1 };
+		if (k.wide) return { w: COLS, h: card.kind === 'heading' ? 1 : 2 };
+		// Widgets (14 §6): their usual sizes.
+		if (card.kind === 'picture') return { w: 4, h: 4 };
+		if (card.kind === 'clock') return { w: 3, h: 2 };
+		// A forecast reads across: four wide, its rows as it needs them.
+		if (card.kind === 'weather') return { w: 4, h: 4 };
+		if (card.kind === 'link' || card.kind === 'space') return { w: 2, h: 1 };
+		const plot = card.kind === 'room' && layout === 'field' ? roomPlots.get(card.ref) : undefined;
+		if (plot) return roomCells(plot);
+		const form = as ?? k.form(card, g.form(card.ref));
+		if (card.kind === 'stack') {
+			const large = form === 'large';
+			return {
+				w: Math.min(COLS, 2 * (stackOf(card, large)?.width ?? 1)),
+				h: 2 * (stackRowsOf(card, large) ?? 2),
+				// Its settings' width and height size it again.
+				sizedBy: ['form', 'config'] as Change['op'][]
+			};
+		}
+		if (card.kind === 'scene' || (card.kind === 'device' && card.scene) || layout === 'row')
+			return form ? FORM_CELLS[form] : { w: 2, h: 1 };
+		// A thermostat's dial needs room, as it has in a section's grid.
+		if (card.kind === 'device' && cardFor(card.device, clock.now).kind === 'thermostat')
+			return form === 'large' ? { w: 6, h: 4 } : { w: 4, h: 4 };
+		return FORM_CELLS[form ?? 'standard'];
+	}
+	/**
+	 * Rows a card's drawing needs beyond its usual size (14 §7), measured on
+	 * the twelve-column grid: where it starts, and where a new one lands, it
+	 * gets them, so a tall drawing (a forecast) doesn't stretch the rows
+	 * beside it. Only ever grows, so it settles.
+	 */
+	let natural = $state<Record<string, number>>({});
+	function fits(node: HTMLElement, ref: string) {
+		const ro = new ResizeObserver(() => {
+			const cells = node.parentElement;
+			if (!cells || node.classList.contains('held')) return;
+			const css = getComputedStyle(cells);
+			if (css.gridTemplateColumns.split(' ').length !== COLS) return;
+			const gap = parseFloat(css.rowGap) || 0;
+			const rows = Math.ceil((node.offsetHeight + gap) / (56 + gap) - 0.05);
+			const h = Number(node.style.getPropertyValue('--h'));
+			if (rows > h && rows > (natural[ref] ?? 0)) natural = { ...natural, [ref]: rows };
+		});
+		ro.observe(node);
+		return { destroy: () => ro.disconnect() };
+	}
+	const freePage = $derived.by(() => {
+		if (!freeHere) return null;
+		const { items, pieces } = piecesOf(
+			inAreaOrder(shown.sections),
+			cellsOf,
+			// Rooms in the sidebar (G3) aren't on the page but while arranging.
+			(s) => drawn(s, arranging) && !(s.section.id === 'rooms' && sideRooms && !arranging),
+			arranging,
+			areaHere,
+			(s) => hiddenIn(changes, headingRef(s.section.id))
+		);
+		for (const it of items) it.h = Math.max(it.h, natural[it.ref] ?? 0);
+		const laid = freeLayout(items, changes);
+		// A look's areas read one at a time on narrower screens (N6): the area of
+		// its own row whose columns it sits in, else the one it started in.
+		const started = new Map(items.map((i) => [i.ref, i.area]));
+		const rows = page.columns || field ? areasOf(page.columns ? here.def.grouping : {}) : [];
+		const areaAt = (p: Placed) => {
+			const a = started.get(p.ref);
+			const row = a?.row ?? 0;
+			const at = rows.find((r) => r.row === row && r.x <= p.x && p.x < r.x + r.w);
+			return { row, x: at?.x ?? a?.x ?? 0 };
+		};
+		const by = rows.length > 0 ? areaAt : undefined;
+		const heads = new Set([...pieces].filter(([, p]) => p.kind !== 'card').map(([ref]) => ref));
+		return { pieces, laid, eight: narrow(laid, 8, by, heads), four: narrow(laid, 4, by, heads) };
+	});
+
+	/** A card's drawings and their usual sizes, smallest first (14 §7). */
+	function formsOf(card: Card, g: Layered<Card>, layout: Layout) {
+		return kindOf(card)
+			.forms(card)
+			.map((form) => ({ form, size: cellsOf(card, g, layout, form) as Size }));
+	}
+	/** How small and large a card on this page can be (14 §7). */
+	function rangeHere(ref: string): Range | undefined {
+		const it = freePage?.pieces.get(ref);
+		if (!it) return undefined;
+		if (it.kind !== 'card') return rangeOf({ ref, kind: 'heading' }, undefined, []);
+		const usual = formsOf(it.card, it.g, it.section.layout).map((f) => f.size);
+		const device = it.card.kind === 'device' ? cardFor(it.card.device, clock.now).kind : undefined;
+		const r = rangeOf(it.card, device, usual);
+		// Drawn by a drawing made in the look editor: the range it says (L4).
+		const fam = it.card.kind === 'device' ? familyOf(it.card.scene, device ?? '') : null;
+		const made = fam && here.def.made.find((m) => m.id === here.draws(fam) && m.family === fam);
+		if (!made) return r;
+		const { min, max } = sizeOf(made);
+		return { ...r, min: { w: min[0], h: min[1] }, max: { w: max[0], h: max[1] }, snap: false };
+	}
+	/** Which drawing a card shows in its place: the largest that fits (14 §7). Not a stack's. */
+	function formIn(card: Card, g: Layered<Card>, layout: Layout, place: Size): Form | undefined {
+		if (card.kind === 'stack') return undefined;
+		// A room's box in the field: big where there's room for its number and lines.
+		if (card.kind === 'room' && layout === 'field')
+			return place.w >= 4 && place.h >= 2 ? 'large' : 'compact';
+		const forms = formsOf(card, g, layout);
+		return forms.length > 1 ? formFor(place, forms) : undefined;
+	}
+
+	// ---- arranging a free page (14 §5) ----
+	/** What a drag would make of the page, as it goes, and where the card would land. */
+	let preview = $state<{ laid: Placed[] | null; foot: (Box & { label?: string }) | null }>({
+		laid: null,
+		foot: null
+	});
+	const drawnLaid = $derived(preview.laid ?? freePage?.laid ?? []);
+	const boxOf = (ref: string) => freePage?.laid.find((p) => p.ref === ref);
+	/** Every card's place, as one save: the first place on a page places them all (14 §4). */
+	function placeAll(next: Placed[]) {
+		view.changeAll(key, freeze(next));
+	}
+	const pieceName = (ref: string) => {
+		const it = freePage?.pieces.get(ref);
+		if (!it) return cardName(ref);
+		if (it.kind !== 'card') return it.section.title;
+		const named = it.g.name(ref) ?? stacksHere.find((x) => x.ref === ref)?.name;
+		return named ?? kindOf(it.card).name(it.card);
+	};
+	/** Moved a cell, or sized a cell, from the keyboard; where it is now, said. */
+	function cellKey(ref: string, dx: number, dy: number, size: boolean): string | undefined {
+		const b = boxOf(ref);
+		if (!b || !freePage) return;
+		const r = rangeHere(ref);
+		let to = fit(size ? { ...b, w: b.w + dx, h: b.h + dy } : { ...b, x: b.x + dx, y: b.y + dy });
+		if (size && r) to = { ...to, ...within(r, to) };
+		if (size) to.w = Math.min(to.w, COLS - b.x);
+		const next = land(freePage.laid, ref, to, dx);
+		placeAll(next);
+		const at = next.find((p) => p.ref === ref)!;
+		return size ? `${at.w} wide, ${at.h} tall` : where(at);
+	}
+	function stepCard(ref: string, by: -1 | 1) {
+		if (!freePage) return;
+		const next = stepIn(freePage.laid, ref, by);
+		placeAll(next);
+		const at = next.find((p) => p.ref === ref);
+		if (at) drag.said = `${pieceName(ref)}: ${where(at)}.`;
+	}
+	/** The other rooms, for a room's Layout menu (L3). */
+	const otherRooms = $derived(
+		rooms.list
+			.filter((r) => `room:${r.id}` !== key)
+			.map((r) => ({ key: `room:${r.id}`, name: r.name }))
+	);
+	/**
+	 * Add a title (N1): a title widget across the bottom of the page, its
+	 * settings open to name it. The first place on a page places them all.
+	 */
+	function addTitle() {
+		if (!freePage) return;
+		const r = refOf.kind('title', newId());
+		const laid = freePage.laid;
+		const y = laid.reduce((n, p) => Math.max(n, p.y + p.h), 0);
+		view.changeAll(key, [
+			...freeze(laid),
+			{ op: 'add', ref: r, into: home },
+			{ op: 'place', ref: r, x: 0, y, w: COLS, h: 1 }
+		]);
+		adding.settle = r;
+		drag.said = 'A title added at the bottom of the page. Name it, then move it where it goes.';
+	}
+	/** Tidy (P5): every card up as far as it goes. */
+	function tidyPage() {
+		if (!freePage) return;
+		placeAll(tidy(freePage.laid));
+		drag.said = 'Tidied: every card moved up as far as it goes.';
+	}
+	const cellsHost: CellsHost = {
+		get page() {
+			return key;
+		},
+		laid: () => freePage?.laid ?? [],
+		range: rangeHere,
+		preview(next, foot) {
+			preview = { laid: next, foot };
+		},
+		commit(next, moved, sized) {
+			placeAll(next);
+			const at = next.find((p) => p.ref === moved);
+			if (at)
+				drag.said = sized
+					? `${pieceName(moved)} is ${at.w} wide and ${at.h} tall.`
+					: `${pieceName(moved)} moved: ${where(at)}.`;
+		},
+		stepSize(ref) {
+			const it = freePage?.pieces.get(ref);
+			if (it?.kind !== 'card') return;
+			const k = kindOf(it.card);
+			// A stack fits its things again; another card takes its next usual size.
+			if (it.card.kind === 'stack') {
+				setStack(key, ref, { height: 'fit' });
+				drag.said = `${pieceName(ref)} fits its things.`;
+				return;
+			}
+			const forms = k.forms(it.card);
+			const form = k.form(it.card, it.g.form(ref));
+			if (forms.length < 2 || !form) return;
+			const next = forms[(forms.indexOf(form) + 1) % forms.length]!;
+			view.change(key, { op: 'form', ref, form: next });
+			drag.said = `${pieceName(ref)} is ${next} now.`;
+		},
+		stackable,
+		taking(stack) {
+			drag.page = stack ? key : drag.page;
+			drag.stack = stack;
+		},
+		dropInStack(ref, stack) {
+			// Named before it goes: in the stack, it has no card of its own.
+			const name = pieceName(ref);
+			host.dropInStack(ref, stack);
+			const into = stacksHere.find((x) => x.ref === stack)?.name ?? 'the stack';
+			drag.said = `${name} put in ${into}.`;
+		},
+		takeOut(thing, stack, next) {
+			const it = freePage?.pieces.get(stack);
+			const into = it?.kind === 'card' ? it.section.section.id : home;
+			takeOut(key, stack, thing);
+			if (presentRefs(full).has(thing))
+				view.change(key, { op: 'move', ref: thing, before: null, into });
+			else view.change(key, { op: 'add', ref: thing, into, before: null });
+			placeAll(next);
+			adding.added = thing;
+			drag.said = `Taken out of the stack.`;
+		},
+		say(words) {
+			drag.said = words;
+		},
+		name: pieceName
+	};
+
 	const hasSettings = (card: Card, layout: Layout) => {
 		const k = kindOf(card);
 		return (
@@ -358,7 +707,8 @@
 	layout: Layout = 'grid',
 	from?: string,
 	place?: Place,
-	sized?: Form
+	sized?: Form,
+	cells?: Size
 )}
 	{@const kind = kindOf(card)}
 	{@const label = g?.name(card.ref)}
@@ -367,7 +717,11 @@
 	{@const drawnAs = sized ?? (place === 'side' && form === 'large' ? 'standard' : form)}
 	{@const name = label ?? kind.name(card)}
 	{@const at =
-		from !== undefined && layout !== 'field' && g !== undefined && !g.hidden.includes(card)
+		from !== undefined &&
+		layout !== 'field' &&
+		g !== undefined &&
+		!g.hidden.includes(card) &&
+		!freePage
 			? spots(from, card, name)
 			: {}}
 	{#if g === undefined}
@@ -394,6 +748,8 @@
 			addBefore={at.addBefore}
 			addAfter={at.addAfter}
 			axis={layout === 'list' || (place === 'side' && layout !== 'row') ? 'y' : 'x'}
+			cells={freePage ? (dx, dy, size) => cellKey(card.ref, dx, dy, size) : undefined}
+			step={freePage ? (by) => stepCard(card.ref, by) : undefined}
 		>
 			<KindView
 				{card}
@@ -404,6 +760,7 @@
 				config={g.config(card.ref)}
 				{layout}
 				{place}
+				{cells}
 			/>
 		</Arrange>
 	{/if}
@@ -424,6 +781,57 @@
 		></div>{/if}
 {/snippet}
 
+{#snippet sectionHead(s: ShownSection, titleOff = false, asTitle = false)}
+	{@const sec = s.section}
+	<!-- On a free page a title alone is hidden (N1); a section hidden before still hides what it held. -->
+	{@const hidden = s.hidden || titleOff}
+	<div class="head" data-sec-handle title="Drag to move this section">
+		<span class="grip" aria-hidden="true">⋮⋮</span>
+		<h2 class="section-label" class:faded={hidden}>
+			{s.title}{#if hidden}<span class="note"> · hidden</span>{/if}
+		</h2>
+		{#if drag.refused?.section === sec.id}<span class="why">{drag.refused.why}</span>{/if}
+		<SectionTools
+			page={key}
+			ref={sectionRef(sec.id)}
+			title={s.title}
+			shown={freePage ? [] : peers(s)}
+			{hidden}
+			hideRef={asTitle && !s.hidden ? headingRef(sec.id) : undefined}
+			renamed={s.renamed}
+			add={sec.accepts && !freePage ? () => adding.open(key, sec.id) : undefined}
+			// On a free page a heading holds nothing (N1): how its cards are grouped is
+			// the look’s to say. Home’s rooms keep their style.
+			layouts={freePage && sec.id !== 'rooms' ? [] : sec.layouts}
+			layout={s.layout}
+			config={s.config}
+			// On a free page a look’s areas say where things start (N2, N3).
+			column={field && !freePage && (sec.field?.movable ?? sec.field === undefined)
+				? s.column
+				: undefined}
+			mine={mineSection(sec.own)}
+			remove={sec.own ? () => removeSection(sec.id) : undefined}
+			settings={sec.id === 'rooms' && (s.layout !== 'list' || sideRooms)
+				? {
+						label: 'Every room’s box',
+						open: () =>
+							(everyRoom = {
+								rooms: s.groups.flatMap((g) => [...g.shown, ...g.hidden]),
+								names: Object.fromEntries(
+									s.groups.flatMap((g) =>
+										[...g.shown, ...g.hidden].map((c) => [
+											c.ref,
+											g.name(c.ref) ?? kindOf(c).name(c)
+										])
+									)
+								)
+							})
+					}
+				: undefined}
+		/>
+	</div>
+{/snippet}
+
 {#snippet block(s: ShownSection, place?: Place)}
 	{@const sec = s.section}
 	<section
@@ -435,45 +843,7 @@
 		data-col={arranging ? s.column : undefined}
 	>
 		{#if arranging && !sec.fixed}
-			<div class="head" data-sec-handle title="Drag to move this section">
-				<span class="grip" aria-hidden="true">⋮⋮</span>
-				<h2 class="section-label" class:faded={s.hidden}>
-					{s.title}{#if s.hidden}<span class="note"> · hidden</span>{/if}
-				</h2>
-				{#if drag.refused?.section === sec.id}<span class="why">{drag.refused.why}</span>{/if}
-				<SectionTools
-					page={key}
-					ref={sectionRef(sec.id)}
-					title={s.title}
-					shown={peers(s)}
-					hidden={s.hidden}
-					renamed={s.renamed}
-					add={sec.accepts ? () => adding.open(key, sec.id) : undefined}
-					layouts={sec.layouts}
-					layout={s.layout}
-					config={s.config}
-					column={field && (sec.field?.movable ?? sec.field === undefined) ? s.column : undefined}
-					mine={mineSection(sec.own)}
-					remove={sec.own ? () => removeSection(sec.id) : undefined}
-					settings={sec.id === 'rooms' && (s.layout !== 'list' || sideRooms)
-						? {
-								label: 'Every room’s box',
-								open: () =>
-									(everyRoom = {
-										rooms: s.groups.flatMap((g) => [...g.shown, ...g.hidden]),
-										names: Object.fromEntries(
-											s.groups.flatMap((g) =>
-												[...g.shown, ...g.hidden].map((c) => [
-													c.ref,
-													g.name(c.ref) ?? kindOf(c).name(c)
-												])
-											)
-										)
-									})
-							}
-						: undefined}
-				/>
-			</div>
+			{@render sectionHead(s)}
 		{:else if field && s.layout === 'field' && !arranging}
 			<!-- The rooms' heading in the field, with what the glow means (mockup A). -->
 			<div class="head">
@@ -598,7 +968,7 @@
 {/snippet}
 
 <div class="drag-root" bind:this={root}>
-	{#if field}
+	{#if field && !freePage}
 		<!-- The room field (mockup A): the band, then the rooms with what's beside them. -->
 		<div class="fieldpage">
 			{#each inColumn('band') as s (s.section.id)}{@render gap(s.section.id)}{@render block(
@@ -626,6 +996,65 @@
 				</div>
 			</div>
 		</div>
+	{:else if freePage}
+		<!-- What's always first (Needs attention, G6) stays above the grid. -->
+		{#each shown.sections.filter((s) => s.section.fixed && drawn(s, arranging)) as s (s.section.id)}
+			{@render block(s)}
+		{/each}
+		<!-- One grid (14 §3): each card at its place; narrower, in reading order (P4). -->
+		<div class="free">
+			<div class="cells">
+				{#each drawnLaid as p (p.ref)}
+					{@const it = freePage.pieces.get(p.ref)}
+					{@const e = freePage.eight.get(p.ref) ?? p}
+					{@const f = freePage.four.get(p.ref) ?? p}
+					{#if it}
+						<div
+							class="slot"
+							use:fits={p.ref}
+							class:heading={it.kind === 'heading'}
+							class:arranging
+							class:held={it.kind === 'card' && it.card.kind === 'stack'}
+							class:side={placeOf(it.section) === 'side'}
+							data-ref={arranging ? p.ref : undefined}
+							data-stack={arranging && it.kind === 'card' && it.card.kind === 'stack'
+								? ''
+								: undefined}
+							style={`--x: ${p.x + 1}; --y: ${p.y + 1}; --w: ${p.w}; --h: ${p.h}; --x8: ${e.x + 1}; --y8: ${e.y + 1}; --w8: ${e.w}; --x4: ${f.x + 1}; --y4: ${f.y + 1}; --w4: ${f.w}`}
+						>
+							{#if it.kind === 'heading' && arranging}
+								{@render sectionHead(it.section, it.hidden, true)}
+							{:else if it.kind === 'heading'}
+								<h2 class="section-label">{it.section.title}</h2>
+							{:else if it.kind === 'whole'}
+								{@render block(it.section, placeOf(it.section))}
+							{:else}
+								{@render piece(
+									it.card,
+									it.g,
+									it.section.section.favourites ?? false,
+									it.section.layout,
+									it.section.section.accepts ? it.section.section.id : undefined,
+									placeOf(it.section),
+									formIn(it.card, it.g, it.section.layout, p),
+									{ w: p.w, h: p.h }
+								)}
+							{/if}
+						</div>
+					{/if}
+				{/each}
+				{#if preview.foot}
+					{@const b = preview.foot}
+					<div
+						class="foot"
+						aria-hidden="true"
+						style={`--x: ${b.x + 1}; --y: ${b.y + 1}; --w: ${b.w}; --h: ${b.h}`}
+					>
+						{b.label ?? ''}
+					</div>
+				{/if}
+			</div>
+		</div>
 	{:else}
 		{#each shown.sections as s (s.section.id)}
 			{#if drawn(s, arranging)}{@render gap(s.section.id)}{@render block(s)}{/if}
@@ -636,9 +1065,32 @@
 {#if arranging && drag.said}<p class="said" role="status">{drag.said}</p>{/if}
 
 {#if arranging}
-	<button class="new-section" onclick={() => (making = true)}
-		><Plus size={16} aria-hidden="true" />New section</button
-	>
+	<div class="page-tools">
+		{#if freePage}
+			<!-- No sections on a free page (N1): a title is a widget like any other. -->
+			<button class="new-section" onclick={addTitle}
+				><Plus size={16} aria-hidden="true" />Add a title</button
+			>
+		{:else}
+			<button class="new-section" onclick={() => (making = true)}
+				><Plus size={16} aria-hidden="true" />New section</button
+			>
+		{/if}
+		{#if freePage}
+			<!-- Gaps stay where they're left (P5); Tidy closes them up. -->
+			<button class="new-section" onclick={tidyPage}>Tidy</button>
+		{/if}
+		{#if freePage && key.startsWith('room:')}
+			{#await import('./LayoutMenu.svelte') then { default: LayoutMenu }}
+				<LayoutMenu
+					page={key}
+					edit={mode === 'edit'}
+					rooms={otherRooms}
+					said={(words) => (drag.said = words)}
+				/>
+			{/await}
+		{/if}
+	</div>
 {/if}
 
 <!-- The sheets load when first opened: they aren't Home's first paint (06 V5). -->
@@ -656,7 +1108,13 @@
 {#if adding.page === key && arranging}
 	{#await import('./AddCard.svelte') then { default: AddCard }}
 		{#if adding.page === key}
-			<AddCard {key} sections={into} {home} close={() => adding.close()} />
+			<AddCard
+				{key}
+				sections={freePage ? into.filter((s) => s.id === home) : into}
+				{home}
+				free={!!freePage}
+				close={() => adding.close()}
+			/>
 		{/if}
 	{/await}
 {/if}
@@ -910,6 +1368,124 @@
 	.list > :global(.span-all),
 	.list > :global(.arrange:has(.span-all)) {
 		grid-column: 1 / -1;
+	}
+	/* Free layout (14 §3): twelve columns of 56px rows from a 1080px page;
+	   narrower, eight and then a phone's four, laid out again in reading order. A card taller
+	   than its rows makes them taller rather than spilling. */
+	.free {
+		container: free / inline-size;
+	}
+	.cells {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		grid-auto-rows: minmax(56px, auto);
+		gap: var(--feel-gap, 10px);
+		max-width: 1600px;
+	}
+	/* At least its cells, from the top of them: a drawing taller than its place
+	   grows its own rows, never stretching the cards beside it (14 §7). */
+	.slot {
+		display: flex;
+		flex-direction: column;
+		align-self: start;
+		min-height: calc(var(--h) * 56px + (var(--h) - 1) * var(--feel-gap, 10px));
+		min-width: 0;
+		/* Its width, for a drawing to fit its words to (a light at 2 × 1). */
+		container: slot / inline-size;
+		grid-column: var(--x4) / span var(--w4);
+		grid-row: var(--y4) / span var(--h);
+	}
+	.slot > :global(*) {
+		flex: 1 1 auto;
+	}
+	/* A stack keeps to its place's height and scrolls what doesn't fit (14 §7). */
+	.slot.held {
+		height: calc(var(--h) * 56px + (var(--h) - 1) * var(--feel-gap, 10px));
+	}
+	/* A card fills its place (14 §7), arranging as well. */
+	.slot > :global(.arrange > .card) {
+		flex: 1 1 auto;
+	}
+	.slot > :global(*),
+	.slot > :global(.arrange > .card > .quiet) {
+		min-height: 0;
+	}
+	.slot.heading {
+		justify-content: flex-end;
+	}
+	.slot.heading.arranging {
+		justify-content: center;
+	}
+	/* Where a dragged card lands (14 §5), with its size as it's sized. */
+	.foot {
+		z-index: 3;
+		display: grid;
+		place-items: center;
+		grid-column: var(--x) / span var(--w);
+		grid-row: var(--y) / span var(--h);
+		border: 2px dashed var(--accent);
+		border-radius: var(--radius);
+		background: color-mix(in srgb, var(--accent) 10%, transparent);
+		color: var(--accent);
+		font-weight: 700;
+		pointer-events: none;
+	}
+	@media (pointer: fine) {
+		.slot.arranging:not(.heading) {
+			cursor: grab;
+		}
+	}
+	/* A card's tools float over its foot while it's pointed at or chosen, so
+	   the page arranges as it will look (14 §5). */
+	.slot.arranging {
+		position: relative;
+	}
+	.slot.arranging :global(.arrange > .tools) {
+		position: absolute;
+		left: 6px;
+		right: 6px;
+		bottom: 6px;
+		z-index: 4;
+		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 0.12s;
+	}
+	.slot.arranging:hover :global(.arrange > .tools),
+	.slot.arranging :global(.arrange:focus-within > .tools) {
+		opacity: 1;
+		pointer-events: auto;
+	}
+	:global(html[data-dragging]) .slot.arranging :global(.arrange > .tools) {
+		opacity: 0;
+		pointer-events: none;
+	}
+	.page-tools {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+	.slot.heading > h2 {
+		flex: none;
+		margin: 0;
+	}
+	@container free (min-width: 600px) {
+		.cells {
+			grid-template-columns: repeat(8, minmax(0, 1fr));
+		}
+		.slot {
+			grid-column: var(--x8) / span var(--w8);
+			grid-row: var(--y8) / span var(--h);
+		}
+	}
+	@container free (min-width: 1080px) {
+		.cells {
+			grid-template-columns: repeat(12, minmax(0, 1fr));
+		}
+		.slot {
+			grid-column: var(--x) / span var(--w);
+			grid-row: var(--y) / span var(--h);
+		}
 	}
 	/* The room field (mockup A): twelve columns of 84px rows, the busiest
 	   rooms biggest; on a phone, four columns of 74px. */

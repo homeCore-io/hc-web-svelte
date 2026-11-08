@@ -41,9 +41,17 @@
 		{box}
 		devices={card.devices}
 		big={form === 'large'}
+		photo={household.photoOf(card.id)}
 	/>
 {:else if box}
-	<RoomBox href={card.href} name={label ?? card.name} {box} devices={card.devices} tiles />
+	<RoomBox
+		href={card.href}
+		name={label ?? card.name}
+		{box}
+		devices={card.devices}
+		tiles
+		photo={household.photoOf(card.id)}
+	/>
 {:else}
 	<RoomRow
 		href={card.href}

@@ -141,7 +141,44 @@ export interface MadeDrawing {
 	css?: string;
 	/** JavaScript, an admin's: the body of `draw(thing, host)`, returning HTML. */
 	code?: string;
+	/**
+	 * How small and large it can be placed (14 §7, L4): one of `DRAWING_SIZES`
+	 * each, in cells. Absent, its family's.
+	 */
+	size?: { min: Cells; max: Cells };
 }
+
+/** A width and height in cells. */
+export type Cells = [number, number];
+
+/** The sizes the drawing editor offers, smallest first (L4). */
+export const DRAWING_SIZES: readonly Cells[] = [
+	[2, 1],
+	[2, 2],
+	[3, 2],
+	[4, 2],
+	[4, 3],
+	[6, 3],
+	[6, 4],
+	[8, 4],
+	[12, 4],
+	[12, 6]
+];
+
+/** Each family's range, for a drawing that doesn't say its own (14 §7). */
+export const FAMILY_SIZE: Record<Family, { min: Cells; max: Cells }> = {
+	lights: { min: [2, 1], max: [6, 4] },
+	switches: { min: [2, 1], max: [6, 4] },
+	scenes: { min: [2, 1], max: [4, 2] },
+	doors: { min: [2, 1], max: [6, 4] },
+	readings: { min: [2, 1], max: [12, 6] },
+	watching: { min: [2, 1], max: [12, 6] },
+	media: { min: [2, 1], max: [12, 6] },
+	climate: { min: [4, 3], max: [12, 6] }
+};
+
+/** A made drawing's range: its own, else its family's. */
+export const sizeOf = (m: MadeDrawing) => m.size ?? FAMILY_SIZE[m.family];
 
 /** The families a drawing can be made for: things with a state to show. */
 export const MAKEABLE: readonly Family[] = [
@@ -200,6 +237,8 @@ export interface Rule {
 	place: Place;
 	/** Drawn without its heading. */
 	headless?: boolean;
+	/** The area it starts in (14 §8, A2); absent, the one its `place` meant. */
+	area?: string;
 	/**
 	 * Its devices and scenes start in one stack (13 §13.2) when it has this many
 	 * or more; each person can change the stack, or take things out of it.
@@ -207,9 +246,74 @@ export interface Rule {
 	stack?: number;
 }
 
+/**
+ * Where a grouped room's sections start (14 §8, A1): a look's own areas, in
+ * rows, each row the room's 12 columns, its areas side by side.
+ */
+export interface Area {
+	/** Stable, so rules keep finding it. */
+	id: string;
+	name: string;
+	/** Columns of the 12. */
+	w: number;
+}
+
+/** An area where it falls: its columns, and its row. */
+export interface AreaAt extends Area {
+	x: number;
+	row: number;
+}
+
+/** Lit's: across the top, then a main area and one beside it. A look that says none has these. */
+export const LIT_AREAS: Area[][] = [
+	[{ id: 'top', name: 'Across the top', w: 12 }],
+	[
+		{ id: 'main', name: 'Main', w: 8 },
+		{ id: 'beside', name: 'Beside', w: 4 }
+	]
+];
+
+/** The area a rule's `place` meant, before looks had areas of their own. */
+const PLACE_AREA: Record<Place, string> = { band: 'top', main: 'main', side: 'beside' };
+
+/** A look's areas where they fall: each row's areas side by side, rows one under another. */
+export function areasOf(g: Grouping): AreaAt[] {
+	return (g.areas ?? LIT_AREAS).flatMap((row, r) => {
+		let x = 0;
+		return row.map((a) => {
+			const at = { ...a, x, row: r };
+			x += a.w;
+			return at;
+		});
+	});
+}
+
+/**
+ * The area a section starts in (A2, N3): its rule's, or the one its place
+ * meant; where the look has no such area, the widest for the main place, the
+ * narrowest for beside it, else the first. What no rule takes goes to the last.
+ */
+export function areaFor(g: Grouping, rule: Rule | undefined): AreaAt | undefined {
+	const all = areasOf(g);
+	if (!rule) return all.at(-1);
+	const named =
+		all.find((a) => a.id === rule.area) ?? all.find((a) => a.id === PLACE_AREA[rule.place]);
+	if (named || all.length === 0) return named;
+	const by = (better: (a: AreaAt, b: AreaAt) => boolean) =>
+		all.reduce((best, a) => (better(a, best) ? a : best));
+	if (rule.place === 'main') return by((a, b) => a.w > b.w);
+	if (rule.place === 'side') return by((a, b) => a.w < b.w);
+	return all[0];
+}
+
+/** An area four columns wide or less lays its cards one a row (A3). */
+export const narrowArea = (a: Area) => a.w <= 4;
+
 export interface Grouping {
 	/** How a room is split into sections; absent, Classic's four. */
 	room?: Rule[];
+	/** Where sections start (A1); absent, Lit's. */
+	areas?: Area[][];
 	/** How Home starts; absent, as Home comes. */
 	home?: HomeGrouping;
 }
@@ -392,6 +496,16 @@ const text = (v: unknown, max: number): string | undefined =>
 	typeof v === 'string' && v.trim() ? v.slice(0, max) : undefined;
 
 /** A made drawing from untrusted data, or nothing if it can't be one. */
+/** A made drawing's range, read: two of the editor's sizes, the smaller first. */
+function readSize(v: unknown): { size?: { min: Cells; max: Cells } } {
+	const o = (v ?? {}) as { min?: unknown; max?: unknown };
+	const at = (c: unknown) =>
+		Array.isArray(c) ? DRAWING_SIZES.findIndex(([w, h]) => w === c[0] && h === c[1]) : -1;
+	const lo = at(o.min);
+	const hi = at(o.max);
+	return lo >= 0 && hi >= lo ? { size: { min: DRAWING_SIZES[lo]!, max: DRAWING_SIZES[hi]! } } : {};
+}
+
 function readMade(raw: unknown): MadeDrawing | null {
 	if (!raw || typeof raw !== 'object') return null;
 	const o = raw as Record<string, unknown>;
@@ -433,6 +547,7 @@ function readMade(raw: unknown): MadeDrawing | null {
 			...(icon ? { icon } : {})
 		},
 		...(css ? { css } : {}),
+		...readSize(o.size),
 		...(code ? { code } : {})
 	};
 }
@@ -459,6 +574,31 @@ export const hasCode = (l: Pick<Look, 'made'>): boolean => l.made.some((d) => !!
  * one. What it leaves out is filled from the look it was made from, else
  * Classic, so every look is complete (§11: there is no blank look).
  */
+/**
+ * A look's areas, read: rows of areas with known ids, none repeated, each at
+ * least a column and each row no wider than 12. Anything else, none: Lit's.
+ */
+export function readAreas(v: unknown): Area[][] | undefined {
+	if (!Array.isArray(v)) return undefined;
+	const seen = new Set<string>();
+	const rows: Area[][] = [];
+	for (const row of v) {
+		if (!Array.isArray(row)) return undefined;
+		const out: Area[] = [];
+		for (const a of row) {
+			const x = (a ?? {}) as Record<string, unknown>;
+			const w = Number(x.w);
+			if (typeof x.id !== 'string' || !ID.test(x.id) || seen.has(x.id)) return undefined;
+			if (!Number.isInteger(w) || w < 1 || w > 12) return undefined;
+			seen.add(x.id);
+			out.push({ id: x.id, name: typeof x.name === 'string' ? x.name.slice(0, 40) : x.id, w });
+		}
+		if (out.length === 0 || out.reduce((n, a) => n + a.w, 0) > 12) return undefined;
+		rows.push(out);
+	}
+	return rows.length ? rows : undefined;
+}
+
 export function readLook(raw: unknown, known: readonly Look[] = BUILT_IN): Look | string {
 	if (!raw || typeof raw !== 'object') return 'This isn’t a look.';
 	const o = raw as Record<string, unknown>;
@@ -513,7 +653,8 @@ export function readLook(raw: unknown, known: readonly Look[] = BUILT_IN): Look 
 	// A plugin's rest view, its own or the one it was made from's; null takes it off.
 	const piece = fr.rest?.piece === undefined ? base.frame.rest.piece : fr.rest.piece;
 	const restWith = isPluginRef(piece) ? { ...rest, piece } : rest;
-	const g = (o.grouping ?? {}) as { room?: unknown; home?: unknown };
+	const g = (o.grouping ?? {}) as { room?: unknown; home?: unknown; areas?: unknown };
+	const areas = g.areas === undefined ? base.grouping.areas : readAreas(g.areas);
 	let home = base.grouping.home;
 	if (g.home === null) home = undefined;
 	else if (g.home && typeof g.home === 'object') {
@@ -542,6 +683,7 @@ export function readLook(raw: unknown, known: readonly Look[] = BUILT_IN): Look 
 					layout: oneOf(x.layout, LAYOUTS, 'grid'),
 					place: oneOf(x.place, PLACES, 'main'),
 					...(x.headless === true ? { headless: true } : {}),
+					...(typeof x.area === 'string' && ID.test(x.area) ? { area: x.area } : {}),
 					...(typeof x.stack === 'number' && x.stack >= 2 && x.stack <= 50
 						? { stack: Math.round(x.stack) }
 						: {})
@@ -578,7 +720,11 @@ export function readLook(raw: unknown, known: readonly Look[] = BUILT_IN): Look 
 			sheet: bool(fr.sheet, base.frame.sheet),
 			rest: restWith
 		},
-		grouping: { ...(room ? { room } : {}), ...(home ? { home } : {}) },
+		grouping: {
+			...(room ? { room } : {}),
+			...(home ? { home } : {}),
+			...(areas ? { areas } : {})
+		},
 		reaches: o.reaches === 'everywhere' ? 'everywhere' : 'household',
 		version: 1
 	};

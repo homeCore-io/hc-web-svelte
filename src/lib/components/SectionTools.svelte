@@ -38,10 +38,13 @@
 		column,
 		mine = false,
 		remove,
-		settings
+		settings,
+		hideRef
 	}: {
 		page: string;
 		ref: string;
+		/** What hiding it hides, if not the section: a free page's title alone (14 §8, N1). */
+		hideRef?: string;
 		/** Its heading as shown. */
 		title: string;
 		/** The movable sections shown, in order — for up and down. */
@@ -122,7 +125,7 @@
 	<div class="tools" class:shared role="group" aria-label={`Arrange the ${title} section`}>
 		<button
 			aria-label={hidden ? `Show ${title}` : `Hide ${title}`}
-			onclick={() => view.change(page, { op: hidden ? 'show' : 'hide', ref })}
+			onclick={() => view.change(page, { op: hidden ? 'show' : 'hide', ref: hideRef ?? ref })}
 		>
 			{#if hidden}<Eye size={18} />{:else}<EyeOff size={18} />{/if}
 		</button>

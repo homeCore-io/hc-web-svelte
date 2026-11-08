@@ -654,6 +654,15 @@
 		-webkit-line-clamp: 1;
 		line-clamp: 1;
 	}
+	/* Two cells wide on a free page (14 §7): its name before its icon, a little smaller. */
+	@container slot (max-width: 220px) {
+		.compact .icon {
+			display: none;
+		}
+		.compact .name {
+			font-size: 14px;
+		}
+	}
 	.state {
 		font-size: 13px;
 		color: var(--ink-muted);

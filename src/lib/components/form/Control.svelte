@@ -12,6 +12,7 @@
 	import Self from './Control.svelte';
 	import SensorField from './SensorField.svelte';
 	import OrderList from './OrderList.svelte';
+	import PictureField from './PictureField.svelte';
 	import {
 		MAP_NAME,
 		entry,
@@ -189,6 +190,8 @@
 	<Toggle on={!!(value ?? field.default)} {label} {disabled} onchange={(on) => onchange(on)} />
 {:else if field.kind === 'sensor'}
 	<SensorField {field} {value} {label} {onchange} />
+{:else if field.kind === 'text' && field.render === 'picture'}
+	<PictureField {value} {id} {disabled} {onchange} />
 {:else if field.kind === 'list' && field.render === 'order'}
 	<OrderList {field} {value} {label} {onchange} />
 {:else if field.kind === 'enum' && field.render === 'choices'}

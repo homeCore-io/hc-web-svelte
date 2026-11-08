@@ -23,6 +23,8 @@
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
 	import PluginSlot from '#lib/pluginUi/PluginSlot.svelte';
 	import { thingOf } from '#lib/looks/thing.js';
+	import { household } from '#lib/household.svelte.js';
+	import Backdrop from '#lib/components/Backdrop.svelte';
 
 	const here = lookHere();
 
@@ -88,6 +90,8 @@
 				}
 			: undefined
 	);
+	// The room's own photo (design 15), behind the words in place of the glow.
+	const photo = $derived(plain ? undefined : household.photoOf(card.id));
 	const glow = $derived(
 		plain || lit.glow.length === 0
 			? 'var(--surface)'
@@ -116,7 +120,8 @@
 		/>
 	</div>
 {:else}
-	<header class="hero span-all" class:plain style:background={glow}>
+	<header class="hero span-all" class:plain class:photo style:background={glow}>
+		{#if photo}<Backdrop {photo} play />{/if}
 		<div class="top-line">
 			<h1>{label ?? card.name}</h1>
 			<div class="numbers">
@@ -158,6 +163,15 @@
 		transition: background var(--feel-slow);
 	}
 	/* A plain title (13 §7): the room's name and numbers, without the box and glow. */
+	/* Over a photo: light words, above it. */
+	.hero.photo {
+		position: relative;
+		overflow: hidden;
+		--ink: #fff;
+		--ink-muted: rgba(255, 255, 255, 0.82);
+		color: #fff;
+		isolation: isolate;
+	}
 	.hero.plain {
 		min-height: 0;
 		padding: 4px 2px 0;

@@ -80,7 +80,10 @@ export function groupRoom(
 	// What each take holds; pieces are cards of their own (§7).
 	const holds: Record<Take, Card[]> = {
 		header: [{ ref: `piece:roomhead/${id}`, kind: 'roomhead', id, name, devices: inRoom }],
-		needs: [{ ref: `piece:needs/${id}`, kind: 'needs', id, devices: inRoom }],
+		// Only while something needs someone: on a grid it would hold its rows empty.
+		needs: sorted.problems.length
+			? [{ ref: `piece:needs/${id}`, kind: 'needs', id, devices: inRoom }]
+			: [],
 		doors: sorted.doors,
 		lights: sorted.lights.flatMap((l): Card[] =>
 			isGroup(l) && !lampGroups

@@ -4,7 +4,8 @@
  * the house's theme and confirmation overrides. Everyone reads it; people who
  * may author the house's content (`content:write`) change it.
  */
-import { migrate, type Change, type HouseDoc } from './layers.js';
+import { migrate, type Change, type HouseDoc, type Photo } from './layers.js';
+import { isLibrary } from './pictures.svelte.js';
 import { pageChanges } from './look.svelte.js';
 import { Synced } from './synced.svelte.js';
 
@@ -19,6 +20,12 @@ class Household extends Synced<HouseDoc> {
 
 	iconOf(room: string): string | undefined {
 		return this.doc.icons?.[room];
+	}
+
+	/** A room's photo (design 15), if it has one from the library. */
+	photoOf(room: string): (Photo & { src: string }) | undefined {
+		const p = this.doc.photos?.[room];
+		return p && isLibrary(p.src) ? { ...p, src: p.src } : undefined;
 	}
 }
 

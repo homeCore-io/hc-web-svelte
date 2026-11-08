@@ -11,19 +11,24 @@
 	import type { CoreDevice } from '#lib/devices.js';
 	import { fieldText, type Box } from '#lib/roomBox.js';
 	import Icon from './Icon.svelte';
+	import Backdrop from './Backdrop.svelte';
+	import type { Photo } from '#lib/layers.js';
 
 	let {
 		href,
 		name,
 		box,
 		devices,
-		big = false
+		big = false,
+		photo
 	}: {
 		href?: string;
 		name: string;
 		box: Box;
 		devices: CoreDevice[];
 		big?: boolean;
+		/** The room's photo (design 15), behind it. */
+		photo?: Photo & { src: string };
 	} = $props();
 
 	const t = $derived(fieldText(box));
@@ -34,7 +39,15 @@
 	);
 </script>
 
-<div class="box" class:big class:alarm={box.alarm} class:wrong style={`--glow: ${glow}%`}>
+<div
+	class="box"
+	class:big
+	class:alarm={box.alarm}
+	class:wrong
+	class:photo
+	style={`--glow: ${glow}%`}
+>
+	{#if photo}<Backdrop {photo} size={big ? 'screen' : 'tile'} shade="all" />{/if}
 	{#if href}<a {href} class="cover" aria-label={`Open ${name}`}></a>{/if}
 	<div class="top">
 		<span class="name">{name}</span>
@@ -73,6 +86,14 @@
 </div>
 
 <style>
+	/* Over the room's photo: light words, above it. */
+	.box.photo {
+		--ink: #fff;
+		--ink-muted: rgba(255, 255, 255, 0.85);
+		color: #fff;
+		overflow: hidden;
+		isolation: isolate;
+	}
 	.box {
 		position: relative;
 		height: 100%;

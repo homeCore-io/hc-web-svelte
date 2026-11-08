@@ -83,8 +83,12 @@ export function changesFrom(l: Look, base: Look): string[] {
 	if (!same(l.grouping.room, base.grouping.room))
 		out.push(
 			l.grouping.room
-				? `A room’s sections: ${l.grouping.room.map((r) => r.title).join(', ')}`
+				? `What starts where in a room: ${l.grouping.room.map((r) => r.title).join(', ')}`
 				: 'Rooms grouped as Classic groups them'
+		);
+	if (!same(l.grouping.areas, base.grouping.areas))
+		out.push(
+			`A room’s areas: ${(l.grouping.areas ?? []).map((row) => row.map((a) => a.name).join(' and ')).join(', then ') || 'Lit’s'}`
 		);
 	if (!same(l.grouping.home, base.grouping.home)) out.push('How Home starts');
 	if (l.reaches !== base.reaches)

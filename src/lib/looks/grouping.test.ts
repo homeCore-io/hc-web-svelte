@@ -24,7 +24,13 @@ describe('Lit’s grouping of a room (13 §8.2)', () => {
 	it('starts with the header and what needs someone, as cards that can be arranged', () => {
 		const p = page('r-den');
 		expect(p.sections[0]?.cards[0]?.kind).toBe('roomhead');
-		expect(p.sections[1]?.cards[0]?.kind).toBe('needs');
+		// What needs someone only while something does: on a grid it would hold its rows empty.
+		const needs = (id: string) => page(id).sections[1]?.cards.map((c) => c.kind) ?? [];
+		const rooms = ['r-den', 'r-garage', 'r-hall'];
+		expect(
+			rooms.map(needs).every((k) => k.length === 0 || (k.length === 1 && k[0] === 'needs'))
+		).toBe(true);
+		expect(rooms.some((id) => needs(id).length === 1)).toBe(true);
 	});
 
 	it('puts each kind of thing in its section', () => {

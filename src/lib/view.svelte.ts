@@ -48,7 +48,13 @@ export const view = {
 	},
 
 	change(page: string, change: Change): void {
-		if (editing.on(page)) editing.changePage(page, change);
-		else void personal.changePage(page, change);
+		this.changeAll(page, [change]);
+	},
+
+	/** Several changes as one save: every card's place, when a page is first arranged (14 §4). */
+	changeAll(page: string, changes: Change[]): void {
+		if (changes.length === 0) return;
+		if (editing.on(page)) editing.changePage(page, ...changes);
+		else void personal.changePage(page, ...changes);
 	}
 };

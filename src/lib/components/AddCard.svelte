@@ -39,6 +39,7 @@
 		key,
 		sections,
 		home,
+		free = false,
 		close
 	}: {
 		key: string;
@@ -46,6 +47,8 @@
 		sections: { id: string; title: string; cards: { ref: string; name: string }[] }[];
 		/** Where added things go when no section is said: Pinned, or "Also here". */
 		home: string;
+		/** A free page (N1): no section to pick; what's added lands after what was added last, or at the bottom. */
+		free?: boolean;
 		close: () => void;
 	} = $props();
 
@@ -189,31 +192,40 @@
 			<h2>Add</h2>
 			<button class="done" onclick={() => dialog?.close()}>Done adding</button>
 		</div>
-		<div class="where">
-			<span class="where-title">Where it goes</span>
-			<div class="pick">
-				<label
-					>Section
-					<select value={into} onchange={(e) => adding.spot(e.currentTarget.value, null)}>
-						{#each sections as s (s.id)}
-							<option value={s.id}>{s.title}</option>
-						{/each}
-					</select>
-				</label>
-				<label
-					>Spot
-					<select value={spot} onchange={(e) => adding.spot(into, e.currentTarget.value || null)}>
-						{#each spotsHere as o (o.before)}
-							<option value={o.before}>{o.label}</option>
-						{/each}
-					</select>
-				</label>
+		{#if free}
+			<div class="where">
+				<span class="where-title">Where it goes</span>
+				<span class="where-note"
+					>After what you added last, or at the bottom of the page. Then move it where you want it.</span
+				>
 			</div>
-			<span class="where-note"
-				>Or tap another + on the page, or drag a thing onto it. Add several and each goes after the
-				last.</span
-			>
-		</div>
+		{:else}
+			<div class="where">
+				<span class="where-title">Where it goes</span>
+				<div class="pick">
+					<label
+						>Section
+						<select value={into} onchange={(e) => adding.spot(e.currentTarget.value, null)}>
+							{#each sections as s (s.id)}
+								<option value={s.id}>{s.title}</option>
+							{/each}
+						</select>
+					</label>
+					<label
+						>Spot
+						<select value={spot} onchange={(e) => adding.spot(into, e.currentTarget.value || null)}>
+							{#each spotsHere as o (o.before)}
+								<option value={o.before}>{o.label}</option>
+							{/each}
+						</select>
+					</label>
+				</div>
+				<span class="where-note"
+					>Or tap another + on the page, or drag a thing onto it. Add several and each goes after
+					the last.</span
+				>
+			</div>
+		{/if}
 		<div class="tabs" role="tablist" aria-label="What to add">
 			<button role="tab" aria-selected={tab === 'things'} onclick={() => (tab = 'things')}
 				>Things in the house</button
@@ -268,7 +280,12 @@
 								<span class="ico"><Plus size={18} aria-hidden="true" /></span>
 								<span class="words">
 									<b>{c.name}</b>
-									<small>{c.sub}</small>
+									<!-- On a free page a heading holds nothing (N1): only a title. -->
+									<small
+										>{free && c.kind === 'heading'
+											? 'A title over what you put under it'
+											: c.sub}</small
+									>
 								</span>
 							</button>
 						{/each}

@@ -13,13 +13,16 @@
 	import type { CoreDevice } from '#lib/devices.js';
 	import type { Box } from '#lib/roomBox.js';
 	import Icon from './Icon.svelte';
+	import Backdrop from './Backdrop.svelte';
+	import type { Photo } from '#lib/layers.js';
 
 	let {
 		href,
 		name,
 		box,
 		devices,
-		tiles = false
+		tiles = false,
+		photo
 	}: {
 		href?: string;
 		name: string;
@@ -27,13 +30,16 @@
 		devices: CoreDevice[];
 		/** The same size as every other room, rather than sized by what's in it. */
 		tiles?: boolean;
+		/** The room's photo (design 15), behind it. */
+		photo?: Photo & { src: string };
 	} = $props();
 
 	const glow = $derived(Math.round(box.glow * 100));
 	const lit = $derived(box.glow > 0);
 </script>
 
-<div class="box" class:alarm={box.alarm} class:tiles style={`--glow: ${glow}%`}>
+<div class="box" class:alarm={box.alarm} class:tiles class:photo style={`--glow: ${glow}%`}>
+	{#if photo}<Backdrop {photo} size="tile" shade="all" />{/if}
 	{#if href}<a {href} class="cover" aria-label={`Open ${name}`}></a>{/if}
 	<div class="frame">
 		<div class="top">
@@ -74,6 +80,14 @@
 </div>
 
 <style>
+	/* Over the room's photo: light words, above it. */
+	.box.photo {
+		--ink: #fff;
+		--ink-muted: rgba(255, 255, 255, 0.85);
+		color: #fff;
+		overflow: hidden;
+		isolation: isolate;
+	}
 	.box {
 		position: relative;
 		height: 100%;

@@ -11,7 +11,8 @@
 	import { page } from '$app/state';
 	import Lock from '@lucide/svelte/icons/lock-keyhole';
 	import Bell from '@lucide/svelte/icons/bell';
-	import { allowedOn, nextTab, reloadDue, tabsFor, type DisplayDoc } from '#lib/display.js';
+	import { allowedOn, nextTab, reloadDue, restOf, tabsFor, type DisplayDoc } from '#lib/display.js';
+	import DisplayRest from './DisplayRest.svelte';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { household } from '#lib/household.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
@@ -120,11 +121,15 @@
 
 	// ---- at rest (13 §7): where the look has a rest view, a while untouched settles into it ----
 	const rest = $derived(look.def.frame.rest);
+	// Its own, as the admin set it (design 15): a picture frame, a clock or dark.
+	const own = $derived(restOf(doc));
+	const ownOn = $derived(own.after > 0);
+	const restOn = $derived(ownOn || rest.on);
 	let touched = Date.now();
 	let resting = $state(false);
 	$effect(() => {
-		if (!rest.on) return;
-		const after = rest.after * 1000;
+		if (!restOn) return;
+		const after = ownOn ? own.after * 60_000 : rest.after * 1000;
 		const seen = () => (touched = Date.now());
 		const t = setInterval(() => {
 			if (!resting && !unlocking && Date.now() - touched >= after) resting = true;
@@ -177,7 +182,9 @@
 		<DetailsHost />
 	</div>
 	{#if unlocking}<PinPad close={() => (unlocking = false)} />{/if}
-	{#if resting && rest.on}
+	{#if resting && ownOn}
+		<DisplayRest rest={own} {wake} />
+	{:else if resting && rest.on}
 		{#snippet lit()}
 			{#await import('#lib/lit/LitRest.svelte') then { default: LitRest }}
 				<LitRest {now} {wake} />

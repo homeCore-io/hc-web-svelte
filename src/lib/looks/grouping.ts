@@ -70,7 +70,8 @@ export function groupRoom(
 		scene:
 			cardFor(d, h.now).kind === 'scene' &&
 			(d.schema?.actions?.some((a) => a.id === 'activate') ?? false),
-		form: cardFor(d, h.now).kind === 'media_player' ? 'large' : undefined
+		form:
+			cardFor(d, h.now).kind === 'media_player' || d.device_type === 'camera' ? 'large' : undefined
 	}));
 	const views: Record<string, CardView> = Object.fromEntries(
 		cards.map((c) => [c.ref, cardFor(c.device, h.now)])

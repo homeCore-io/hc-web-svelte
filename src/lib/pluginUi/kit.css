@@ -46,12 +46,16 @@ a {
 	text-transform: uppercase;
 	color: var(--ink-muted);
 }
-:host {
-	display: block;
-	color: var(--ink);
-	font-family: var(--font, inherit);
-	font-size: 15px;
-	line-height: 1.45;
+/* A default a plugin's own `:host` rule can change: this sheet is adopted after
+   the plugin's <style>, so unlayered it would always win. */
+@layer hc-kit-host {
+	:host {
+		display: block;
+		color: var(--ink);
+		font-family: var(--font, inherit);
+		font-size: 15px;
+		line-height: 1.45;
+	}
 }
 .hc-card {
 	display: flex;

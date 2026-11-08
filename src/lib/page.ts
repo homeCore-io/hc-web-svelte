@@ -407,7 +407,7 @@ export function roomPage(id: string, h: RoomInput): Page {
 		kind: 'device',
 		device: d,
 		scene: scene(d),
-		form: kindOf(d) === 'media_player' ? 'large' : undefined,
+		form: kindOf(d) === 'media_player' || d.device_type === 'camera' ? 'large' : undefined,
 		...extra
 	});
 	const sections: Section[] = roomSections(inRoom.map((d) => cardFor(d, h.now))).map((s) => ({

@@ -10,6 +10,7 @@ import {
 	momentOf,
 	momentsOf,
 	newOf,
+	picturing,
 	problemsOf,
 	rebuild,
 	stateOf,
@@ -560,5 +561,55 @@ describe('alerts and named numbers in rules', () => {
 		expect(checkKindOf('TriggerAlertActive')).toBe('alert');
 		expect(stepKindOf({ ForEachAlert: { filter: {}, actions: [] } })).toBe('alert');
 		expect(newStep('alert')).toEqual({ PressAlert: {} });
+	});
+});
+
+describe('picturing', () => {
+	test('a device with a snapshot can send a picture; a lamp cannot', () => {
+		const cam = { ...DEVICES[0]!, device_id: 'cam', attributes: { snapshot: 'snapshots/a.jpg' } };
+		const fresh = {
+			...DEVICES[0]!,
+			device_id: 'cam2',
+			attributes: {},
+			schema: { attributes: { snapshot: { type: 'string' } } }
+		} as unknown as CoreDevice;
+		expect(picturing(cam)).toBe(true);
+		expect(picturing(fresh)).toBe(true);
+		expect(DEVICES.some(picturing)).toBe(false);
+	});
+});
+
+describe('a camera and a doorbell', () => {
+	const bell = DEVICES.find((d) => d.device_id === 'zz_bell')!;
+	const moments = momentsOf(bell);
+	test('detections read as what the camera sees', () => {
+		const m = moments.find((m) => m.label === 'sees a person')!;
+		expect(m.build(['zz_bell'], {})).toEqual({
+			DeviceStateChanged: { device_id: 'zz_bell', attribute: 'person_detected', to: true }
+		});
+	});
+	test('the doorbell rings, through the button trigger', () => {
+		const m = moments.find((m) => m.key === 'button:Pushed')!;
+		expect(m.label).toBe('doorbell rings');
+		const trigger = m.build(['zz_bell'], {});
+		expect(trigger).toEqual({ ButtonEvent: { device_id: 'zz_bell', event: 'Pushed' } });
+		expect(momentOf(trigger)).toEqual({ key: 'button:Pushed', ids: ['zz_bell'] });
+		expect(moments.some((m) => m.key.includes(':pushed'))).toBe(false);
+	});
+	test('a remote with named buttons keeps a moment per button', () => {
+		const pico = {
+			...bell,
+			schema: {
+				attributes: {
+					pushed: {
+						kind: 'integer',
+						writable: false,
+						display_name: 'Button pushed',
+						options: [{ value: '2', label: 'On' }]
+					}
+				}
+			}
+		} as unknown as CoreDevice;
+		expect(momentsOf(pico).some((m) => m.key.startsWith('button:'))).toBe(false);
 	});
 });

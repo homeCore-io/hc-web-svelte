@@ -9,6 +9,8 @@
 	import type { Rest } from '#lib/display.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { pictures, sized, type Picture } from '#lib/pictures.svelte.js';
+	import { devices } from '#lib/devices.svelte.js';
+	import { degrees, outsideTemperature } from '#lib/roomBox.js';
 
 	let { rest, wake }: { rest: Required<Rest>; wake: () => void } = $props();
 
@@ -40,6 +42,9 @@
 			day: 'numeric'
 		})
 	);
+	// Under the day, when the house can tell: "Sunday, November 8 · 56° outside".
+	const outside = $derived(degrees(outsideTemperature(devices.byId)));
+	const line = $derived(outside ? `${day} · ${outside} outside` : day);
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
@@ -75,7 +80,7 @@
 		{#if rest.time}
 			<div class="time">
 				<span class="t">{time}</span>
-				<span class="d">{day}</span>
+				<span class="d">{line}</span>
 			</div>
 		{/if}
 		{#if frame.length > 1}
@@ -86,7 +91,7 @@
 	{:else if rest.show !== 'dark'}
 		<div class="clock">
 			<span class="t">{time}</span>
-			<span class="d">{day}</span>
+			<span class="d">{line}</span>
 		</div>
 	{/if}
 </div>

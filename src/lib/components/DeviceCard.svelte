@@ -90,6 +90,17 @@
 <style>
 	.plugin-card {
 		min-width: 0;
+		display: flex;
+		flex-direction: column;
+	}
+	/* Its element gets the whole place the grid gives it, not just its own height. */
+	.plugin-card > :global(.slot) {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+	}
+	.plugin-card > :global(.slot > *) {
+		flex: 1;
 	}
 	/* Two columns, as a generic Large card takes. */
 	.plugin-card.large,

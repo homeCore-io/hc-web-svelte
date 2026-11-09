@@ -85,6 +85,9 @@
 	// ---- secrets: never shown; replaced, not edited ----
 	let replacing = $state(false);
 	let before = $state<unknown>(undefined);
+	// Typing a first one: the field stays open until it's left, or its first
+	// letter would make it "set" and close it under the cursor.
+	let typing = $state(false);
 	function replace() {
 		before = value;
 		replacing = true;
@@ -293,7 +296,7 @@
 		{/each}
 	</select>
 {:else if isSecret}
-	{#if secretSet && !replacing}
+	{#if secretSet && !replacing && !typing}
 		<div class="secret">
 			<span class="dots">•••••••• set</span>
 			{#if !disabled}<button type="button" class="small" onclick={replace}>Replace</button>{/if}
@@ -308,7 +311,11 @@
 				{disabled}
 				placeholder={secretSet ? 'The new one' : placeholder}
 				value={replacing && same(value, before) ? '' : text}
-				oninput={(e) => typedSecret(e.currentTarget.value)}
+				oninput={(e) => {
+					typing = true;
+					typedSecret(e.currentTarget.value);
+				}}
+				onblur={() => (typing = false)}
 			/>
 			{#if replacing}
 				<button type="button" class="small" onclick={keep}>Keep the old one</button>
@@ -443,7 +450,14 @@
 							`Row ${i + 1}`}</legend
 					>
 					{#each shownColumns as c (c.key)}
-						<label class="cell">
+						<!-- A list, a map or long text takes the row's width: chips need room. -->
+						<label
+							class="cell"
+							class:wide={c.kind === 'list' ||
+								c.kind === 'map' ||
+								c.kind === 'table' ||
+								(c.kind === 'text' && c.render === 'multiline')}
+						>
 							<span
 								>{c.label ?? c.key}{#if wants(row, c)}<em class="ask"> — wants one</em>{/if}</span
 							>
@@ -770,7 +784,7 @@
 	}
 	.row {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 		gap: var(--space-2) var(--space-3);
 		width: 100%;
 		box-sizing: border-box;
@@ -791,9 +805,12 @@
 		font-size: 13px;
 		color: var(--ink-muted);
 	}
-	.remove {
-		justify-self: start;
-		align-self: end;
+	.cell.wide {
+		grid-column: 1 / -1;
+	}
+	.row > .remove {
+		grid-column: 1 / -1;
+		justify-self: end;
 		color: var(--alert);
 	}
 	.group {

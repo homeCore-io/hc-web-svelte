@@ -413,7 +413,8 @@
 		height: 22px;
 		padding: 0;
 		border-radius: 6px;
-		border: 1px solid var(--line);
+		/* Its edge must read as a control (3:1 or more): --line is too faint for that. */
+		border: 1.5px solid var(--ink-muted);
 		background: var(--surface);
 	}
 	.dots button[aria-checked='true'] {

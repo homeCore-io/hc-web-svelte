@@ -44,6 +44,20 @@ export function sourced(
 	return mean(from.flatMap((d) => readingOf(d, attr) ?? []));
 }
 
+/** The house's own weather station, else a weather plugin's place: what reads outside. */
+export function outdoorStation(all: Devices): CoreDevice | undefined {
+	const outdoors = (kind: string) =>
+		Object.values(all).find((d) => kindOf(d) === kind && readingOf(d, 'temperature') !== undefined);
+	return outdoors('weather_station') ?? outdoors('weather');
+}
+
+/** The temperature outside, in the person's units: from `source`, or (`auto`) the station's. */
+export function outsideTemperature(all: Devices, source: Source = 'auto'): number | undefined {
+	if (source !== 'auto') return sourced(source, 'temperature', all, []);
+	const station = outdoorStation(all);
+	return station ? readingOf(station, 'temperature') : undefined;
+}
+
 /** "72°", "48%". */
 export const degrees = (n: number | undefined) =>
 	n === undefined ? undefined : `${Math.round(n)}°`;
@@ -395,11 +409,7 @@ export function bigNumbers(h: HouseIn, o: Options): BigNumber[] {
 	const temps = h.rooms.flatMap((r) => sourced('auto', 'temperature', h.all, r.devices) ?? []);
 	const humids = h.rooms.flatMap((r) => sourced('auto', 'humidity', h.all, r.devices) ?? []);
 	// Outside: the house's own station, measured; else a weather plugin's place.
-	const outdoors = (kind: string) =>
-		Object.values(h.all).find(
-			(d) => kindOf(d) === kind && readingOf(d, 'temperature') !== undefined
-		);
-	const station = outdoors('weather_station') ?? outdoors('weather');
+	const station = outdoorStation(h.all);
 	const inside = sourceOf(o.inside);
 	const outside = sourceOf(o.outside);
 	const humid = sourceOf(o.humid);
@@ -426,7 +436,7 @@ export function bigNumbers(h: HouseIn, o: Options): BigNumber[] {
 			};
 		},
 		outside: () => {
-			const v = of(outside, 'temperature', station ? readingOf(station, 'temperature') : undefined);
+			const v = outsideTemperature(h.all, outside);
 			const hum =
 				outside === 'auto' && station ? percent(readingOf(station, 'humidity')) : undefined;
 			return {

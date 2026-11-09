@@ -218,6 +218,7 @@ export const TAKES = {
 	scenes: 'Scenes',
 	readings: 'Readings: temperature, humidity, air',
 	watching: 'Sensors worth a glance',
+	cameras: 'Cameras',
 	rest: 'Everything else',
 	more: 'Rarely used: remotes, hubs, bridges',
 	batteries: 'Every battery’s level, lowest first'
@@ -431,6 +432,7 @@ export const LIT: Look = {
 				place: 'main'
 			},
 			{ id: 'scenes', title: 'Scenes', takes: ['scenes'], layout: 'swatches', place: 'main' },
+			{ id: 'cameras', title: 'Cameras', takes: ['cameras'], layout: 'grid', place: 'main' },
 			{ id: 'readings', title: 'Readings', takes: ['readings'], layout: 'grid', place: 'side' },
 			{ id: 'watching', title: 'Watching', takes: ['watching'], layout: 'lines', place: 'side' },
 			{ id: 'things', title: 'Everything else', takes: ['rest'], layout: 'grid', place: 'side' },

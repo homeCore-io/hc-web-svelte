@@ -153,6 +153,13 @@ function lower(s: string): string {
 const isNum = (s: AttributeSchema) =>
 	s.kind === 'integer' || s.kind === 'float' || s.kind === 'color_temp';
 const isButton = (name: string) => /^button_?\d+$/.test(name);
+/** homeCore's button readings (a Pico, a doorbell): the button number, for a moment. */
+const PRESS_EVENTS: Record<string, [string, string]> = {
+	pushed: ['Pushed', 'is pressed'],
+	held: ['Held', 'is held'],
+	double_tapped: ['DoubleTapped', 'is double-pressed'],
+	released: ['Released', 'is released']
+};
 const optionsOf = (s: AttributeSchema): Choice[] =>
 	(s.options ?? []).map((o) =>
 		typeof o === 'string'
@@ -256,6 +263,14 @@ export function momentsOf(d: CoreDevice): Moment[] {
 					build: (ids, f) => dsc(ids, a.name, o.value, f.for)
 				});
 			}
+		} else if (isNum(s) && PRESS_EVENTS[a.name] && !named(s).length) {
+			const [event, said] = PRESS_EVENTS[a.name]!;
+			out.push({
+				key: `button:${event}`,
+				label: s.display_name ? a.label : `a button ${said}`,
+				build: (ids) => ({ ButtonEvent: { device_id: ids[0] ?? '', event } })
+			});
+			continue;
 		} else if (s.kind === 'string' && isButton(a.name)) {
 			for (const [v, said] of PRESSES)
 				out.push({
@@ -351,6 +366,8 @@ export function momentOf(
 			for: f.for_duration_secs,
 			value: f.value
 		};
+	if (kind === 'ButtonEvent' && f.button_number == null)
+		return { key: `button:${f.event}`, ids: [f.device_id] };
 	if (kind === 'DeviceAvailabilityChanged' && typeof f.to === 'boolean')
 		return { key: f.to ? 'online' : 'offline', ids: [f.device_id], for: f.for_duration_secs };
 	return undefined;
@@ -802,6 +819,9 @@ export const commandable = (d: CoreDevice) => commandsOf(d).length > 0;
 /** Devices that report something a rule can wait for. */
 export const momentful = (d: CoreDevice) =>
 	d.device_type !== 'scene' || d.schema?.attributes?.on !== undefined;
+/** Devices that take pictures: a `snapshot` a notification can carry. */
+export const picturing = (d: CoreDevice) =>
+	d.schema?.attributes?.snapshot !== undefined || 'snapshot' in (d.attributes ?? {});
 
 // ---- the kinds offered by name ----
 

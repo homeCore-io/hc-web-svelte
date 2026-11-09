@@ -466,6 +466,12 @@ const BUTTON: Record<string, string> = {
 	DoubleTapped: 'is double-pressed',
 	Released: 'is released'
 };
+const PRESS_ATTR: Record<string, string> = {
+	Pushed: 'pushed',
+	Held: 'held',
+	DoubleTapped: 'double_tapped',
+	Released: 'released'
+};
 const THRESHOLD: Record<string, string> = {
 	Above: 'is above',
 	Below: 'is below',
@@ -562,13 +568,18 @@ export function whenPhrase(h: House, trigger: Json): Phrase {
 			const ids = [...new Set([f.device_id, ...(f.device_ids ?? [])].filter(Boolean) as string[])];
 			return becomes(h, ids, f);
 		}
-		case 'ButtonEvent':
+		case 'ButtonEvent': {
+			// A device with one button that names it ("Doorbell rings") says so.
+			const one = specOf(h, f.device_id, PRESS_ATTR[f.event] ?? '');
+			if (!f.button_number && one?.display_name && !one.options?.length)
+				return [deviceBit(h, f.device_id), t(` ${attrName(one, '')}`)];
 			return [
 				deviceBit(h, f.device_id),
 				t(
 					`${f.button_number ? ` button ${f.button_number}` : ' a button'} ${BUTTON[f.event] ?? words(String(f.event))}`
 				)
 			];
+		}
 		case 'NumericThreshold': {
 			const spec = specOf(h, f.device_id, f.attribute);
 			const out: Phrase = [
@@ -824,6 +835,7 @@ export function stepOf(h: House, a: Json): Step {
 				t(`“${f.title ? `${f.title}: ` : ''}${f.message}”`),
 				t(` to ${f.channel === 'all' ? 'every channel' : f.channel}`)
 			];
+			if (f.picture_from) out.push(t(', with a picture from '), deviceBit(h, f.picture_from));
 			return s(out);
 		}
 		case 'Delay':

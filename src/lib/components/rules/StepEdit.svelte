@@ -12,6 +12,7 @@
 		offered,
 		commandOf,
 		commandable,
+		picturing,
 		commandsOf,
 		ifChecks,
 		ifCondition,
@@ -132,6 +133,12 @@
 	}
 	const branches = $derived<Json[]>(f.else_if ?? []);
 	const channels = $derived([...new Set(['all', ...ctx.channels])]);
+	const cameras = $derived(
+		ctx.devices
+			.filter(picturing)
+			.map((d) => ({ value: d.device_id, label: displayName(d) }))
+			.sort((a, b) => a.label.localeCompare(b.label))
+	);
 </script>
 
 {#snippet checks(
@@ -276,6 +283,20 @@
 			value={f.title ?? undefined}
 			onchange={(v) => set('title', v ?? null)}
 		/>
+		{#if cameras.length || f.picture_from}
+			<FieldInput
+				field={{
+					kind: 'choice',
+					name: 'picture_from',
+					label: 'With a picture from',
+					optional: true,
+					blank: 'No picture',
+					options: cameras
+				}}
+				value={f.picture_from ?? undefined}
+				onchange={(v) => set('picture_from', v || undefined)}
+			/>
+		{/if}
 		<FieldInput
 			field={{ kind: 'text', name: 'message', label: 'Message', long: true }}
 			value={f.message}

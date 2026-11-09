@@ -1,5 +1,6 @@
 import type { Handle } from '@sveltejs/kit/hooks';
 import { originAllowed } from '#server/proxy.js';
+import { bodyRefused } from '#lib/server/bodyLimit.js';
 
 /**
  * The UI server's own routes take the same cross-site rule as the pass-through
@@ -16,5 +17,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 			});
 		}
 	}
+	const refused = bodyRefused(event.request.method, event.url.pathname, event.request.headers);
+	if (refused)
+		return new Response(JSON.stringify({ error: refused.error }), {
+			status: refused.status,
+			headers: { 'content-type': 'application/json' }
+		});
 	return resolve(event);
 };

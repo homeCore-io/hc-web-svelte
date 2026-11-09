@@ -160,6 +160,25 @@ export const DEVICES: CoreDevice[] = [
 			},
 			primary: ['temperature']
 		}
+	}),
+	dev({
+		device_id: 'zz_bell',
+		name: 'Front Door Bell',
+		device_type: 'camera',
+		schema: {
+			attributes: {
+				person_detected: {
+					kind: 'bool',
+					writable: false,
+					display_name: 'Person',
+					states: {
+						when_true: { label: 'sees a person', verb: 'sees a person' },
+						when_false: { label: 'clear', verb: 'stops seeing a person' }
+					}
+				},
+				pushed: { kind: 'integer', writable: false, display_name: 'Doorbell rings' }
+			}
+		}
 	})
 ];
 

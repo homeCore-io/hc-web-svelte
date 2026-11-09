@@ -51,6 +51,16 @@ or the host's address (`http://192.168.1.50:8080`). `/data` holds the UI
 server's documents (pages, themes, displays): keep it on a volume, and back it
 up with the house. `GET /ui/health` answers `{"ok":true}`.
 
+### Live video
+
+Cameras (hc-reolink) add their streams to [go2rtc](https://github.com/AlexxIT/go2rtc),
+which turns them into what a browser plays. Set `HC_GO2RTC_URL` to go2rtc's
+address as this server reaches it (`http://127.0.0.1:1984` on host networking) and
+the app plays cameras from its own address, `/video/…`: over HTTPS and away from
+home as the app is, and only for someone homeCore says is signed in. Only
+go2rtc's addresses for watching are passed on, and only streams by name: its
+own API, whose streams hold the cameras' passwords, stays out of reach.
+
 ### UI extensions
 
 Extensions (drawings and cards the looks can choose, from

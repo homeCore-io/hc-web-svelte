@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import { timeOf } from '#lib/when.js';
+	import { fieldsOf } from '#lib/system.js';
 	import { onMount, untrack } from 'svelte';
 	import { core } from '#lib/core.svelte.js';
 	import { page } from '$app/state';
@@ -425,7 +426,7 @@
 							<li class={l.level.toLowerCase()}>
 								<span class="t">{time(l.timestamp)}</span><span class="lv"
 									>{l.level.toLowerCase()}</span
-								>{l.message}
+								>{l.message}{#each fieldsOf(l) as f (f)}<span class="field">{f}</span>{/each}
 							</li>
 						{/each}
 					</ol>
@@ -861,6 +862,10 @@
 	.lv {
 		display: inline-block;
 		width: 48px;
+		color: var(--ink-muted);
+	}
+	.field {
+		margin-left: 10px;
 		color: var(--ink-muted);
 	}
 	.log .error {

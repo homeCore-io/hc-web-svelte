@@ -131,10 +131,14 @@ export function sourceOf(l: LogLine): string {
 
 /** A line's detail: where in the code, and its fields. */
 export function detailOf(l: LogLine): string {
-	const fields = Object.entries(l.fields ?? {})
+	return [...fieldsOf(l), l.target].join(' · ');
+}
+
+/** A line's fields as `name: value`, which say what its message is about. */
+export function fieldsOf(l: Pick<LogLine, 'fields'>): string[] {
+	return Object.entries(l.fields ?? {})
 		.filter(([k]) => k !== 'plugin_id' && k !== 'message')
 		.map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`);
-	return [...fields, l.target].join(' · ');
 }
 
 /** Whether a line is at `min` or worse. */

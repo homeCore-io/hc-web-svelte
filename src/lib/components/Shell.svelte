@@ -628,7 +628,7 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
-		height: 40px;
+		height: 34px;
 		padding: 0 10px;
 		border-radius: 10px;
 		text-decoration: none;
@@ -640,18 +640,18 @@
 		color: var(--ink);
 	}
 	.rooms {
-		margin-top: var(--space-4);
+		margin-top: var(--space-3);
 		gap: 1px;
 	}
 	.rooms .section-label {
-		margin: 0 10px 6px;
+		margin: 0 10px 4px;
 		font-size: 11px;
 	}
 	.room {
 		display: flex;
 		align-items: center;
 		gap: 10px;
-		height: 34px;
+		height: 30px;
 		padding: 0 10px;
 		border-radius: 8px;
 		text-decoration: none;

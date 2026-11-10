@@ -55,6 +55,7 @@
 		land,
 		layout as freeLayout,
 		narrow,
+		settle,
 		step as stepIn,
 		tidy,
 		where,
@@ -487,14 +488,22 @@
 	 * beside it. Only ever grows, so it settles.
 	 */
 	let natural = $state<Record<string, number>>({});
+	/** A card's own height, not the height it's drawn at beside a taller one. */
+	function ownHeight(node: HTMLElement): number {
+		const was = node.style.minHeight;
+		node.style.minHeight = '0px';
+		const h = node.offsetHeight;
+		node.style.minHeight = was;
+		return h;
+	}
 	function fits(node: HTMLElement, ref: string) {
 		const ro = new ResizeObserver(() => {
 			const cells = node.parentElement;
 			if (!cells || node.classList.contains('held')) return;
 			const css = getComputedStyle(cells);
 			if (css.gridTemplateColumns.split(' ').length !== COLS) return;
-			const gap = parseFloat(css.rowGap) || 0;
-			const rows = Math.ceil((node.offsetHeight + gap) / (56 + gap) - 0.05);
+			const gap = parseFloat(css.columnGap) || 0;
+			const rows = Math.ceil((ownHeight(node) + gap) / (56 + gap) - 0.05);
 			const h = Number(node.style.getPropertyValue('--h'));
 			if (rows > h && rows > (natural[ref] ?? 0)) natural = { ...natural, [ref]: rows };
 		});
@@ -526,8 +535,58 @@
 		};
 		const by = rows.length > 0 ? areaAt : undefined;
 		const heads = new Set([...pieces].filter(([, p]) => p.kind !== 'card').map(([ref]) => ref));
-		return { pieces, laid, eight: narrow(laid, 8, by, heads), four: narrow(laid, 4, by, heads) };
+		const kin = new Map(items.map((i) => [i.ref, i.kin]));
+		return {
+			pieces,
+			laid,
+			kin,
+			eight: narrow(laid, 8, by, heads),
+			four: narrow(laid, 4, by, heads)
+		};
 	});
+	/**
+	 * Each card's height as drawn, and the grid's gap, measured: a page looked
+	 * at (not arranged) sets each card right under what's above it by these,
+	 * so nothing holds rows of nothing.
+	 */
+	let drawnH = $state<Record<string, number>>({});
+	let cellGap = $state(10);
+	function measured(node: HTMLElement, ref: string) {
+		const ro = new ResizeObserver(() => {
+			if (node.classList.contains('arranging')) return;
+			const h = ownHeight(node);
+			const gap = parseFloat(getComputedStyle(node.parentElement!).columnGap);
+			if (gap >= 0 && gap !== cellGap) cellGap = gap;
+			if (drawnH[ref] !== h) drawnH = { ...drawnH, [ref]: h };
+		});
+		ro.observe(node);
+		return { destroy: () => ro.disconnect() };
+	}
+	const settled = $derived.by(() => {
+		if (!freePage || arranging) return null;
+		const { laid, eight, four, kin } = freePage;
+		const at = (m: Map<string, Box>) => laid.map((p) => ({ ...p, ...(m.get(p.ref) ?? p) }));
+		const by = (placed: Placed[]) =>
+			settle(
+				placed,
+				(r) => drawnH[r],
+				(r) => kin.get(r),
+				cellGap,
+				Math.round(cellGap * 0.8)
+			);
+		return { 12: by(laid), 8: by(at(eight)), 4: by(at(four)) };
+	});
+	/** A card's top and drawn height on each grid, for its style. */
+	function settledAt(ref: string): string {
+		if (!settled) return '';
+		return ([12, 8, 4] as const)
+			.map((n) => {
+				const s = settled[n];
+				const k = n === 12 ? '' : n;
+				return `; --t${k}: ${s.top.get(ref) ?? 0}px; --eq${k}: ${s.eq.get(ref) ?? 0}px`;
+			})
+			.join('');
+	}
 
 	/** A card's drawings and their usual sizes, smallest first (14 §7). */
 	function formsOf(card: Card, g: Layered<Card>, layout: Layout) {
@@ -1003,7 +1062,7 @@
 		{/each}
 		<!-- One grid (14 §3): each card at its place; narrower, in reading order (P4). -->
 		<div class="free">
-			<div class="cells">
+			<div class="cells" class:settled={settled !== null}>
 				{#each drawnLaid as p (p.ref)}
 					{@const it = freePage.pieces.get(p.ref)}
 					{@const e = freePage.eight.get(p.ref) ?? p}
@@ -1012,6 +1071,7 @@
 						<div
 							class="slot"
 							use:fits={p.ref}
+							use:measured={p.ref}
 							class:heading={it.kind === 'heading'}
 							class:arranging
 							class:held={it.kind === 'card' && it.card.kind === 'stack'}
@@ -1020,7 +1080,7 @@
 							data-stack={arranging && it.kind === 'card' && it.card.kind === 'stack'
 								? ''
 								: undefined}
-							style={`--x: ${p.x + 1}; --y: ${p.y + 1}; --w: ${p.w}; --h: ${p.h}; --x8: ${e.x + 1}; --y8: ${e.y + 1}; --w8: ${e.w}; --x4: ${f.x + 1}; --y4: ${f.y + 1}; --w4: ${f.w}`}
+							style={`--x: ${p.x + 1}; --y: ${p.y + 1}; --w: ${p.w}; --h: ${p.h}; --x8: ${e.x + 1}; --y8: ${e.y + 1}; --w8: ${e.w}; --x4: ${f.x + 1}; --y4: ${f.y + 1}; --w4: ${f.w}${settledAt(p.ref)}`}
 						>
 							{#if it.kind === 'heading' && arranging}
 								{@render sectionHead(it.section, it.hidden, true)}
@@ -1219,15 +1279,12 @@
 		flex-direction: column;
 		gap: 8px;
 	}
-	/* Switches packed into a panel, as many to a row as fit (13 §8). */
+	/* Switches packed as many to a row as fit (13 §8), on the page like any
+	   other cards, with no box of their own around them. */
 	.panel {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
 		gap: var(--feel-gap);
-		padding: 12px;
-		border: 1px solid var(--line);
-		border-radius: var(--feel-box-radius);
-		background: color-mix(in srgb, var(--bg) 60%, var(--surface));
 	}
 	/* A look's layouts (13 §8): scenes as a row of swatches; one box of short
 	   lines (Watching); folded away (More), a box of lines once opened. */
@@ -1398,6 +1455,21 @@
 	.slot > :global(*) {
 		flex: 1 1 auto;
 	}
+	/* Looked at, not arranged: one row, each card at its top as measured
+	   (settle), so a short heading or an empty card holds no rows of nothing. */
+	.cells.settled {
+		grid-auto-rows: auto;
+	}
+	.cells.settled > .slot {
+		grid-row: 1;
+		margin-top: var(--t4);
+		min-height: var(--eq4);
+	}
+	/* A stack no taller than what it holds, up to its place. */
+	.cells.settled > .slot.held {
+		height: auto;
+		max-height: calc(var(--h) * 56px + (var(--h) - 1) * var(--feel-gap, 10px));
+	}
 	/* A stack keeps to its place's height and scrolls what doesn't fit (14 §7). */
 	.slot.held {
 		height: calc(var(--h) * 56px + (var(--h) - 1) * var(--feel-gap, 10px));
@@ -1477,6 +1549,11 @@
 			grid-column: var(--x8) / span var(--w8);
 			grid-row: var(--y8) / span var(--h);
 		}
+		.cells.settled > .slot {
+			grid-row: 1;
+			margin-top: var(--t8);
+			min-height: var(--eq8);
+		}
 	}
 	@container free (min-width: 1080px) {
 		.cells {
@@ -1485,6 +1562,11 @@
 		.slot {
 			grid-column: var(--x) / span var(--w);
 			grid-row: var(--y) / span var(--h);
+		}
+		.cells.settled > .slot {
+			grid-row: 1;
+			margin-top: var(--t);
+			min-height: var(--eq);
 		}
 	}
 	/* The room field (mockup A): twelve columns of 84px rows, the busiest

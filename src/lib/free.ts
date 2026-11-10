@@ -363,3 +363,61 @@ export function narrow(
 	);
 	return new Map(out.map(({ ref, ...b }) => [ref, b]));
 }
+
+/**
+ * Where each card's top is in pixels on a page being looked at, not arranged:
+ * right under what is above it in its columns, by the height it's drawn at,
+ * so a short heading or an empty card holds no rows of nothing. Cards of a
+ * section side by side in a row (`kinOf`) start together, and those near
+ * the tallest's height are drawn as tall as it (`eq`), so a row of doors
+ * ends level; a chip beside a long list keeps its own height. A card not yet
+ * measured takes its cells.
+ */
+export function settle(
+	placed: Placed[],
+	heightOf: (ref: string) => number | undefined,
+	kinOf: (ref: string) => string | undefined,
+	gap: number,
+	/** More room above a title, so it reads with what's under it. */
+	headGap = 0
+): { top: Map<string, number>; eq: Map<string, number> } {
+	const order = reading(placed);
+	const rowKey = (p: Placed) => {
+		const kin = kinOf(p.ref);
+		return kin === undefined ? undefined : `${p.y}:${kin}`;
+	};
+	const rows = new Map<string, Placed[]>();
+	for (const p of order) {
+		const k = rowKey(p);
+		if (k !== undefined) rows.set(k, [...(rows.get(k) ?? []), p]);
+	}
+	const cellsOf = (p: Placed) => p.h * 56 + (p.h - 1) * gap;
+	const eq = new Map<string, number>();
+	for (const row of rows.values()) {
+		if (row.length < 2) continue;
+		const hs = row.map((p) => heightOf(p.ref));
+		if (hs.some((h) => h === undefined)) continue;
+		const most = Math.max(...(hs as number[]));
+		const near = row.filter((_, i) => hs[i]! >= most * 0.6);
+		if (near.length > 1) for (const p of near) eq.set(p.ref, most);
+	}
+	const top = new Map<string, number>();
+	const drawn: { p: Placed; bottom: number }[] = [];
+	const topOf = (p: Placed) => {
+		let y = 0;
+		for (const d of drawn) if (d.p.x < p.x + p.w && p.x < d.p.x + d.p.w) y = Math.max(y, d.bottom);
+		return y > 0 && p.ref.startsWith('section:') && kinOf(p.ref) === undefined ? y + headGap : y;
+	};
+	for (const p of order) {
+		if (top.has(p.ref)) continue;
+		const k = rowKey(p);
+		const row = k === undefined ? [p] : rows.get(k)!;
+		const t = Math.max(...row.map(topOf));
+		for (const q of row) {
+			top.set(q.ref, t);
+			const h = eq.get(q.ref) ?? heightOf(q.ref) ?? cellsOf(q);
+			drawn.push({ p: q, bottom: h > 0 ? t + h + gap : t });
+		}
+	}
+	return { top, eq };
+}

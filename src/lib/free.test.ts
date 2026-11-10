@@ -7,6 +7,7 @@ import {
 	land,
 	layout,
 	narrow,
+	settle,
 	step,
 	tidy,
 	where,
@@ -434,5 +435,86 @@ describe('a look’s areas (14 §8)', () => {
 		// Main is under the stack; beside it starts under the doors, by the stack.
 		expect(at(out, 'section:lights')).toEqual([0, 7, 8, 1]);
 		expect(at(out, 'section:climate')).toEqual([8, 3, 4, 1]);
+	});
+});
+
+describe('a page looked at, in pixels', () => {
+	// A room's head across the top, then doors on the left and readings beside them.
+	const placed: Placed[] = [
+		{ ref: 'head', x: 0, y: 0, w: 12, h: 3 },
+		{ ref: 'needs', x: 0, y: 3, w: 12, h: 2 },
+		{ ref: 'section:doors', x: 0, y: 5, w: 8, h: 1 },
+		{ ref: 'section:readings', x: 8, y: 5, w: 4, h: 1 },
+		{ ref: 'a', x: 0, y: 6, w: 2, h: 2 },
+		{ ref: 'b', x: 2, y: 6, w: 2, h: 2 },
+		{ ref: 'r', x: 8, y: 6, w: 4, h: 2 },
+		{ ref: 'section:lights', x: 0, y: 8, w: 8, h: 1 },
+		{ ref: 'section:watch', x: 8, y: 8, w: 4, h: 1 }
+	];
+	const heights: Record<string, number> = {
+		head: 130,
+		needs: 0,
+		'section:doors': 20,
+		'section:readings': 20,
+		a: 150,
+		b: 170,
+		r: 100,
+		'section:lights': 20,
+		'section:watch': 20
+	};
+	const kin: Record<string, string> = { a: 'doors', b: 'doors', r: 'readings' };
+	const { top, eq } = settle(
+		placed,
+		(r) => heights[r],
+		(r) => kin[r],
+		10,
+		8
+	);
+
+	it('puts each card right under what is above it, an empty one taking no room', () => {
+		expect(top.get('needs')).toBe(140);
+		expect(top.get('section:doors')).toBe(148);
+		expect(top.get('a')).toBe(178);
+	});
+
+	it('starts cards side by side together and draws them as tall as the tallest', () => {
+		expect(top.get('b')).toBe(178);
+		expect(eq.get('a')).toBe(170);
+		expect(eq.get('b')).toBe(170);
+		expect(eq.has('r')).toBe(false);
+	});
+
+	it("doesn't push a column down for the one beside it", () => {
+		expect(top.get('section:lights')).toBe(178 + 170 + 10 + 8);
+		expect(top.get('section:watch')).toBe(178 + 100 + 10 + 8);
+	});
+
+	it('takes its cells until a card is measured', () => {
+		const t = settle(
+			placed.slice(0, 2),
+			() => undefined,
+			() => undefined,
+			10
+		).top;
+		expect(t.get('needs')).toBe(3 * 56 + 2 * 10 + 10);
+	});
+});
+
+describe('a row of a section, looked at', () => {
+	it('ends level, but a chip beside a long list keeps its own height', () => {
+		const placed: Placed[] = [
+			{ ref: 'door', x: 0, y: 0, w: 2, h: 2 },
+			{ ref: 'lock', x: 2, y: 0, w: 2, h: 3 },
+			{ ref: 'chip', x: 4, y: 0, w: 2, h: 1 },
+			{ ref: 'list', x: 6, y: 0, w: 4, h: 6 }
+		];
+		const h: Record<string, number> = { door: 150, lock: 166, chip: 56, list: 380 };
+		const kin = () => 'doors';
+		expect(settle(placed, (r) => h[r], kin, 10).eq.size).toBe(0);
+		const { eq, top } = settle(placed.slice(0, 3), (r) => h[r], kin, 10);
+		expect(eq.get('door')).toBe(166);
+		expect(eq.get('lock')).toBe(166);
+		expect(eq.has('chip')).toBe(false);
+		expect(top.get('chip')).toBe(0);
 	});
 });

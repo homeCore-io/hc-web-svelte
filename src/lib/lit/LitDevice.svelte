@@ -8,7 +8,7 @@
 -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { cardFor } from '#lib/card.js';
+	import { cardFor, kindOf } from '#lib/card.js';
 	import { withPending } from '#lib/pending.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { commands } from '#lib/commands.svelte.js';
@@ -60,6 +60,10 @@
 	const d = $derived(card.device);
 	const view = $derived(withPending(cardFor(d, clock.now, options), commands.pending[d.device_id]));
 	const name = $derived(label ?? view.name);
+	// A running timer counts down in seconds: keep the clock that fine while it shows.
+	$effect(() => {
+		if (d.attributes?.state === 'running' && kindOf(d) === 'timer') return clock.hold();
+	});
 	const lamp = $derived(card.scene ? null : lampOf(card, view, name));
 	const reading = $derived(card.scene ? null : readingOf(card, view, name));
 	// Which family it is, and how the look draws that family (13 §6): Lit's

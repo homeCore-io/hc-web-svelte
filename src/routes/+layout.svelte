@@ -38,6 +38,23 @@
 	$effect(() => {
 		if (session.known && session.me === null && !onLogin) void goto('/login');
 	});
+	// A tab left open across an upgrade still runs the old app, whose code-split
+	// pieces (the Style picker, Add's sheet) are gone from the new server: the
+	// buttons would do nothing. Load the new app instead, once a minute at most.
+	$effect(() => {
+		const stale = (e: Event) => {
+			try {
+				if (Date.now() - Number(sessionStorage.getItem('hc-reloaded') ?? 0) < 60_000) return;
+				sessionStorage.setItem('hc-reloaded', String(Date.now()));
+			} catch {
+				/* no storage: reload anyway */
+			}
+			e.preventDefault();
+			location.reload();
+		};
+		addEventListener('vite:preloadError', stale);
+		return () => removeEventListener('vite:preloadError', stale);
+	});
 	// Signed in: connect to the house.
 	$effect(() => {
 		if (session.me === null) return;

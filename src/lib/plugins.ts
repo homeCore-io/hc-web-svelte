@@ -470,6 +470,7 @@ export interface LogLine {
 	target?: string;
 	message: string;
 	plugin_id?: string;
+	fields?: Record<string, unknown>;
 }
 
 export const LEVELS = ['error', 'warn', 'info', 'debug', 'trace'] as const;

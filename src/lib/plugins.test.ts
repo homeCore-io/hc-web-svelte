@@ -100,6 +100,11 @@ describe('how it is, in words', () => {
 			detail: 'last heard 3 h ago',
 			tone: 'bad'
 		});
+		expect(stateOf(rec({ status: 'not_responding' }), NOW)).toEqual({
+			word: 'Not responding',
+			detail: 'restarting it',
+			tone: 'bad'
+		});
 	});
 
 	test('the list: names from the registry, worst notice, updates', () => {

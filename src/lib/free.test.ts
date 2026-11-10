@@ -135,13 +135,14 @@ describe('a page laid out', () => {
 		expect(at(layout(items), 'two')).toEqual([2, 1, 2, 2]);
 	});
 
-	it('holds still once frozen: a new thing of no kind goes at the bottom', () => {
+	it('holds still once frozen: a new thing of no kind goes under what is in its columns', () => {
 		let changes: Change[] = freeze(layout(items));
 		changes = addChange(changes, { op: 'place', ref: 'one', x: 8, y: 1, w: 4, h: 3 });
 		const out = layout([...items, { ref: 'new', w: 2, h: 2 }], changes);
 		expect(at(out, 'one')).toEqual([8, 1, 4, 3]);
 		expect(at(out, 'two')).toEqual([2, 1, 2, 2]);
-		expect(at(out, 'new')).toEqual([0, 4, 2, 2]);
+		// Where 'one' was: the column is packed, so it never waits below a gap.
+		expect(at(out, 'new')).toEqual([0, 1, 2, 2]);
 	});
 
 	it('leaves the hole of something gone', () => {
@@ -283,7 +284,58 @@ describe('moved among others on a placed page', () => {
 			{ op: 'move', ref: 'one', before: null, into: 'b' }
 		];
 		const moved = items.map((i) => (i.ref === 'one' ? { ...i, kin: 'b' } : i));
-		expect(at(layout(moved, changes), 'one')).toEqual([2, 4, 2, 2]);
+		// Beside 'two', under b, which moved up into the room 'one' left.
+		const out = layout(moved, changes);
+		expect(at(out, 'section:b')).toEqual([0, 1, 12, 1]);
+		expect(at(out, 'one')).toEqual([2, 2, 2, 2]);
+	});
+});
+
+describe('a placed page is packed', () => {
+	// The house's Garage, as saved: a band left by "Needs attention" (drawn
+	// above the grid now), and the readings beside the doors, above their title.
+	const items = [
+		{ ref: 'section:head', w: 12, h: 4, breaks: true },
+		{ ref: 'section:doors', w: 12, h: 1, breaks: true },
+		...[0, 1, 2, 3].map((n) => ({ ref: `door${n}`, w: 2, h: 3, kin: 'doors' })),
+		{ ref: 'section:switches', w: 8, h: 4, breaks: true },
+		{ ref: 'section:readings', w: 4, h: 1, breaks: true },
+		{ ref: 'freezer', w: 4, h: 2, kin: 'readings' },
+		{ ref: 'temp', w: 4, h: 2, kin: 'readings' },
+		{ ref: 'section:watching', w: 4, h: 3, breaks: true }
+	];
+	const saved: Change[] = [
+		{ op: 'place', ref: 'section:needs', x: 0, y: 4, w: 12, h: 2 },
+		{ op: 'place', ref: 'section:head', x: 0, y: 0, w: 12, h: 4 },
+		{ op: 'place', ref: 'section:doors', x: 0, y: 6, w: 12, h: 1 },
+		...[0, 1, 2, 3].map((n) => ({
+			op: 'place' as const,
+			ref: `door${n}`,
+			x: n * 2,
+			y: 7,
+			w: 2,
+			h: 3
+		})),
+		{ op: 'place', ref: 'freezer', x: 8, y: 7, w: 4, h: 2 },
+		{ op: 'place', ref: 'temp', x: 8, y: 9, w: 4, h: 2 },
+		{ op: 'place', ref: 'section:switches', x: 0, y: 10, w: 8, h: 4 },
+		{ op: 'place', ref: 'section:readings', x: 8, y: 11, w: 4, h: 1 },
+		{ op: 'place', ref: 'section:watching', x: 8, y: 12, w: 4, h: 3 }
+	];
+	const out = layout(items, saved);
+
+	it('closes the band something no longer on the grid left', () => {
+		expect(at(out, 'section:doors')).toEqual([0, 4, 12, 1]);
+		expect(at(out, 'door0')).toEqual([0, 5, 2, 3]);
+	});
+
+	it('puts a column’s title back above its cards, up beside the main area', () => {
+		expect(at(out, 'section:readings')).toEqual([8, 5, 4, 1]);
+		expect(at(out, 'freezer')).toEqual([8, 6, 4, 2]);
+		expect(at(out, 'temp')).toEqual([8, 8, 4, 2]);
+		expect(at(out, 'section:watching')).toEqual([8, 10, 4, 3]);
+		expect(at(out, 'section:switches')).toEqual([0, 8, 8, 4]);
+		expect(overlapping(out)).toBe(false);
 	});
 });
 

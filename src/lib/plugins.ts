@@ -208,6 +208,9 @@ export function stateOf(
 				detail: p.last_heartbeat ? `last heard ${ago(now - Date.parse(p.last_heartbeat))} ago` : '',
 				tone: 'bad'
 			};
+		// Running, but never heard from (or no longer): homeCore restarts it (0.1.101).
+		case 'not_responding':
+			return { word: 'Not responding', detail: 'restarting it', tone: 'bad' };
 		default:
 			return { word: cap(words(p.status)), detail: '', tone: 'quiet' };
 	}

@@ -28,6 +28,7 @@
 		dangerous,
 		latestOf,
 		sizeOf,
+		startedAgain,
 		stateOf,
 		updateOf,
 		versionOf,
@@ -82,7 +83,9 @@
 		const running = plugin.enabled && plugin.status === 'active';
 		const again =
 			running &&
-			(until.version ? versionOf(plugin) === until.version : plugin.uptime_started !== until.since);
+			(until.version
+				? versionOf(plugin) === until.version
+				: startedAgain(until.since, plugin.uptime_started));
 		if (until.want === 'running' ? again : !running) {
 			note = null;
 			until = null;
@@ -94,6 +97,15 @@
 		for (const ms of [1500, 4000, 8000, 15000]) setTimeout(load, ms);
 	};
 	let busy = $state(false);
+	// When it last started, moved only by a real restart: the settings form is
+	// made again then (a new version can bring a new form), and not otherwise,
+	// or it would drop what's being typed.
+	let started = $state<string | undefined>(undefined);
+	$effect(() => {
+		const now = plugin?.uptime_started;
+		const before = untrack(() => started);
+		if (startedAgain(before, now)) started = now;
+	});
 
 	async function load() {
 		const res = await loadPlugin(id);
@@ -393,7 +405,7 @@
 
 		{#if tab === 'settings' && canWrite}
 			<!-- Read again when it restarts: a new version can bring a new form. -->
-			{#key plugin.uptime_started}
+			{#key started}
 				<PluginSettings pluginId={id} {name} running={plugin.enabled} />
 			{/key}
 		{:else if tab === 'logs' && session.isAdmin}

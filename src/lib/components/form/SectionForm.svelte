@@ -82,6 +82,7 @@
 						invalid={problem !== undefined}
 						onchange={(v) => form.set(key, v)}
 						onfail={(p) => form.fail(key, p)}
+						get={form.get}
 					/>
 					{#if problem}<span class="problem" role="alert">{problem}</span>{/if}
 				</div>

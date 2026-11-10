@@ -473,3 +473,14 @@ export interface LogLine {
 }
 
 export const LEVELS = ['error', 'warn', 'info', 'debug', 'trace'] as const;
+
+/**
+ * Whether a plugin started again between two readings of `uptime_started`.
+ * homeCore works it out from each heartbeat (its time less whole seconds of
+ * uptime), so it wanders by a second or so with nothing restarting.
+ */
+export function startedAgain(before: string | undefined, now: string | undefined): boolean {
+	if (before === now) return false;
+	if (!before || !now) return true;
+	return Math.abs(Date.parse(now) - Date.parse(before)) > 5000;
+}

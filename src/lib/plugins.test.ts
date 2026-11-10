@@ -1,6 +1,7 @@
 import { describe, expect, it, test } from 'vitest';
 import {
 	resultLines,
+	startedAgain,
 	buttonOf,
 	dangerous,
 	isRunning,
@@ -266,5 +267,16 @@ describe('what a plugin says about its fields', () => {
 		});
 		expect(server).toMatchObject({ help: 'Leave blank to auto-detect (recommended)' });
 		expect(password).toMatchObject({ kind: 'text', secret: true });
+	});
+});
+
+describe('startedAgain', () => {
+	it('ignores the second or so a heartbeat moves it, and sees a restart', () => {
+		const t = '2026-11-09T15:01:00.400Z';
+		expect(startedAgain(t, t)).toBe(false);
+		expect(startedAgain(t, '2026-11-09T15:00:59.700Z')).toBe(false);
+		expect(startedAgain(t, '2026-11-09T15:01:01.300Z')).toBe(false);
+		expect(startedAgain(t, '2026-11-09T15:07:12.000Z')).toBe(true);
+		expect(startedAgain(undefined, t)).toBe(true);
 	});
 });

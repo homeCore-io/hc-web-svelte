@@ -15,7 +15,9 @@
 	import PictureField from './PictureField.svelte';
 	import {
 		MAP_NAME,
+		effective,
 		entry,
+		holds,
 		numeric,
 		parse,
 		problem,
@@ -34,7 +36,8 @@
 		label = field.label ?? field.key ?? '',
 		invalid = false,
 		onchange,
-		onfail = () => {}
+		onfail = () => {},
+		get = () => undefined
 	}: {
 		field: Field;
 		value: unknown;
@@ -43,6 +46,8 @@
 		invalid?: boolean;
 		onchange: (value: unknown) => void;
 		onfail?: (problem: string | null) => void;
+		/** The rest of the form's values, for a table column's `visible_when`. */
+		get?: (key: string) => unknown;
 	} = $props();
 
 	const disabled = $derived(!!field.read_only);
@@ -152,6 +157,12 @@
 	const columns = $derived(Array.isArray(field.item) ? field.item : []);
 	// A generated column is made when its row is, and never shown.
 	const shownColumns = $derived(columns.filter((c) => c.key !== undefined && !c.generated));
+	/** A column's condition reads its own row first, then the rest of the form. */
+	const cellShown = (row: Record<string, unknown>, c: Field) =>
+		holds(c.visible_when, (k) => {
+			const col = columns.find((x) => x.key === k);
+			return col ? effective(col, row[k]) : get(k);
+		});
 	const newRow = () => {
 		const row: Record<string, unknown> = {};
 		for (const c of columns)
@@ -449,7 +460,7 @@
 						>{entry(row[field.key_by ?? shownColumns[0]?.key ?? ''] ?? '') ||
 							`Row ${i + 1}`}</legend
 					>
-					{#each shownColumns as c (c.key)}
+					{#each shownColumns.filter((c) => cellShown(row, c)) as c (c.key)}
 						<!-- A list, a map or long text takes the row's width: chips need room. -->
 						<label
 							class="cell"
@@ -468,6 +479,7 @@
 								label={c.label ?? c.key}
 								onchange={(v) => setCell(i, c.key!, v)}
 							/>
+							{#if c.help}<small class="cell-help">{c.help}</small>{/if}
 						</label>
 					{/each}
 					{#if !disabled}
@@ -807,6 +819,11 @@
 	}
 	.cell.wide {
 		grid-column: 1 / -1;
+	}
+	.cell-help {
+		font-size: 12px;
+		line-height: 1.4;
+		color: var(--ink-muted);
 	}
 	.row > .remove {
 		grid-column: 1 / -1;

@@ -198,7 +198,8 @@ export function placesOf(changes: Change[]): Placed[] {
  */
 export function layout(items: Item[], changes: Change[] = [], cols = COLS): Placed[] {
 	const places = placesOf(changes);
-	if (places.length === 0) return flow(items, cols);
+	const kinOf = new Map(items.map((i) => [i.ref, i.kin]));
+	if (places.length === 0) return pack(flow(items, cols), kinOf);
 	const here = new Map(items.map((i) => [i.ref, i]));
 	let out: Placed[] = [];
 	changes.forEach((c, i) => {
@@ -212,7 +213,6 @@ export function layout(items: Item[], changes: Change[] = [], cols = COLS): Plac
 		const sized = later.some((d) => by.includes(d.op));
 		out = land(out, c.ref, sized ? { ...c, w: it.w, h: it.h } : c, 0, cols);
 	});
-	const kinOf = new Map(items.map((i) => [i.ref, i.kin]));
 	for (const it of items) {
 		if (out.some((p) => p.ref === it.ref)) continue;
 		const a = it.area ?? { x: 0, w: cols };
@@ -250,6 +250,47 @@ export function layout(items: Item[], changes: Change[] = [], cols = COLS): Plac
 			a.w
 		);
 		out.push({ ref: it.ref, ...at });
+	}
+	return pack(out, kinOf);
+}
+
+/**
+ * Every card up against what is above it in its columns, in reading order,
+ * a section's cards after its title. Saved places go stale (a section drawn
+ * elsewhere now, a card grown or gone) and left bands of nothing and a
+ * column pushed down by the one beside it; packed, nothing waits on a gap.
+ * Columns and order are kept.
+ */
+export function pack(placed: Placed[], kinOf: Map<string, string | undefined>): Placed[] {
+	const order = reading(placed);
+	// Under a title in a column of its own (beside the main area), its cards
+	// read after it: one left above it moves to just after it. A title across
+	// the page is left alone, a card a person put above it with it.
+	const under = (title: Placed, p: Placed) =>
+		title.w < COLS &&
+		title.x <= p.x &&
+		p.x + p.w <= title.x + title.w &&
+		kinOf.get(p.ref) === title.ref.slice('section:'.length);
+	for (const title of [...order]) {
+		if (!title.ref.startsWith('section:')) continue;
+		const at = order.indexOf(title);
+		const early = order.slice(0, at).filter((p) => under(title, p));
+		if (early.length === 0) continue;
+		const rest = order.filter((p) => !early.includes(p));
+		rest.splice(rest.indexOf(title) + 1, 0, ...early);
+		order.splice(0, order.length, ...rest);
+	}
+	const out: Placed[] = [];
+	const titles = new Map<string, Placed>();
+	for (const p of order) {
+		let y = 0;
+		for (const q of out) if (q.x < p.x + p.w && p.x < q.x + q.w) y = Math.max(y, q.y + q.h);
+		const kin = kinOf.get(p.ref);
+		const title = kin === undefined ? undefined : titles.get(`section:${kin}`);
+		if (title && under(title, p)) y = Math.max(y, title.y + title.h);
+		const q = { ...p, y };
+		out.push(q);
+		if (p.ref.startsWith('section:')) titles.set(p.ref, q);
 	}
 	return reading(out);
 }

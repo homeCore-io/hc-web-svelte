@@ -24,7 +24,7 @@
 	import Pause from '@lucide/svelte/icons/pause';
 	import SkipBack from '@lucide/svelte/icons/skip-back';
 	import SkipForward from '@lucide/svelte/icons/skip-forward';
-	import { cardFor, type Control, type Extra } from '#lib/card.js';
+	import { cardFor, kindOf, type Control, type Extra } from '#lib/card.js';
 	import { withPending } from '#lib/pending.js';
 	import { fromShown } from '#lib/units.js';
 	import { commands } from '#lib/commands.svelte.js';
@@ -85,6 +85,10 @@
 		withPending(cardFor(device, clock.now, options), commands.pending[device.device_id])
 	);
 	const name = $derived(label ?? card.name);
+	// A running timer counts down in seconds: keep the clock that fine while it shows.
+	$effect(() => {
+		if (device.attributes?.state === 'running' && kindOf(device) === 'timer') return clock.hold();
+	});
 	// An alert homeCore raised for this device (H4) — a time rule's says why.
 	const raised = $derived(alerts.byDevice.get(device.device_id));
 	const note = $derived(

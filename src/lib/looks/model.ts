@@ -788,6 +788,13 @@ export const householdPage = (path: string): boolean =>
 export const reachesHere = (l: Look, path: string): boolean =>
 	l.reaches === 'everywhere' || householdPage(path);
 
+/**
+ * Whether this screen is drawn in the console's frame: the look puts the app
+ * in it, and reaches here. Elsewhere (settings, Me), the standard frame.
+ */
+export const consoleHere = (l: Look, path: string): boolean =>
+	shellOf(l) === 'console' && reachesHere(l, path);
+
 /** Every look someone may choose: the built-in ones, then the house's, then their own. */
 export function allLooks(house?: unknown[], mine?: unknown[]): Look[] {
 	const out: Look[] = [...BUILT_IN];

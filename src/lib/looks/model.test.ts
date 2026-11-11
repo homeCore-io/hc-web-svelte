@@ -18,6 +18,7 @@ import {
 	fromFile,
 	lookFile,
 	reachesHere,
+	consoleHere,
 	readLook,
 	type Look
 } from './model.js';
@@ -155,6 +156,16 @@ describe('the console’s frame', () => {
 		const odd = readLook({ id: 'odd', name: 'Odd', version: 1, frame: { shell: 'tv' } }) as Look;
 		expect(shellOf(odd)).toBe('standard');
 		expect(odd.frame).toEqual(CLASSIC.frame);
+	});
+
+	it('draws the household’s pages in the console, and settings and Me in the standard frame', () => {
+		for (const p of ['/', '/rooms/office', '/pages/x', '/scenes', '/alerts'])
+			expect(consoleHere(CONSOLE, p), p).toBe(true);
+		for (const p of ['/settings', '/settings/system', '/me', '/more'])
+			expect(consoleHere(CONSOLE, p), p).toBe(false);
+		expect(consoleHere({ ...CONSOLE, reaches: 'everywhere' }, '/settings')).toBe(true);
+		expect(consoleHere(LIT, '/')).toBe(false);
+		expect(consoleHere(CLASSIC, '/rooms/office')).toBe(false);
 	});
 
 	it('refuses a look kept under the console’s name', () => {

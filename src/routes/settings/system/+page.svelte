@@ -377,7 +377,7 @@
 			{/if}
 		</section>
 
-		<section class="card">
+		<section class="card" id="units">
 			<h2>Units and region</h2>
 			<div class="seg" role="radiogroup" aria-label="The household's temperature unit">
 				{#each houseChoices as c (c.label)}

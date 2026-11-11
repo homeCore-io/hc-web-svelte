@@ -281,7 +281,12 @@
 	{/each}
 
 	{#if speakers.length > 0}
-		<section class="speakers" class:alone={screens.length === 0} aria-label="Speakers">
+		<section
+			class="speakers"
+			class:alone={screens.length === 0}
+			aria-label="Speakers"
+			style:--across={Math.min(speakers.length, 3)}
+		>
 			<div class="ch wide">
 				<span class="tag" data-brand={brandOf(speakers[0]!.plugin_id).toLowerCase()}
 					>{brandOf(speakers[0]!.plugin_id)}</span
@@ -689,10 +694,11 @@
 	}
 
 	/* ---- speakers ---- */
+	/* Speakers side by side, up to three across. */
 	.speakers {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 12px 18px;
+		display: grid;
+		grid-template-columns: repeat(var(--across), minmax(0, 1fr));
+		gap: 12px 28px;
 		padding: 14px 20px 0;
 		border-top: 1px solid var(--con-edge-strong);
 	}
@@ -701,10 +707,9 @@
 		border-top: 0;
 	}
 	.wide {
-		width: 100%;
+		grid-column: 1 / -1;
 	}
 	.player {
-		flex: 1 1 360px;
 		max-width: 560px;
 		display: flex;
 		align-items: center;

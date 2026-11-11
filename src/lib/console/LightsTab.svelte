@@ -34,7 +34,8 @@
 		room,
 		fader,
 		sw,
-		may
+		may,
+		dock = false
 	}: {
 		tab: LightsTab;
 		/** The room's name, left off the front of its lights'. */
@@ -42,6 +43,8 @@
 		fader: FaderStyle;
 		sw: SwitchStyle;
 		may: boolean;
+		/** Whether the room's audio bar sits under the tab. */
+		dock?: boolean;
 	} = $props();
 
 	const nameOf = (d: CoreDevice) => shortName(d.name_override ?? d.name, room);
@@ -52,9 +55,52 @@
 	const open = (d: CoreDevice) => openDevice(d.device_id, page.url);
 	const colour = (d: CoreDevice) => (isOn(d) ? `rgb(${colourOf(d)})` : undefined);
 
-	// A crowded room: narrower pills and shorter faders, so the columns fit across.
+	// A crowded room: narrower pills, so the columns fit across.
 	const tight = $derived(tab.tight);
-	const height = $derived(tight ? 180 : 200);
+
+	// ---- the faders' height: what the window leaves them, from 200 down to 110 ----
+	const TALLEST = 200;
+	const SHORTEST = 110;
+	let viewH = $state(900);
+	let desk = $state<HTMLElement>();
+	let height = $state(TALLEST);
+	/** Below the desk: the panel's edge, and the room's audio bar when it has one. */
+	const below = $derived((viewH <= 820 ? 30 : 36) + (dock ? 78 : 0));
+	$effect(() => {
+		void [viewH, tab, allScenes, picked, height];
+		if (!desk) return;
+		const top = desk.getBoundingClientRect().top + window.scrollY;
+		const cols = [...desk.children] as HTMLElement[];
+		// Each row of columns, and what its tallest column needs besides its faders.
+		const rows = new Map<number, number>();
+		const faderRows = new Set<number>();
+		for (const c of cols) {
+			const faders = c.querySelector('.faders') !== null;
+			if (faders) faderRows.add(c.offsetTop);
+			const need = c.offsetHeight - (faders ? height : 0);
+			rows.set(c.offsetTop, Math.max(rows.get(c.offsetTop) ?? 0, need));
+		}
+		if (faderRows.size === 0) return;
+		const gaps = (rows.size - 1) * 22;
+		const fixed = [...rows.values()].reduce((n, v) => n + v, 0);
+		const left = viewH - top - below - gaps - fixed;
+		const next = Math.max(SHORTEST, Math.min(TALLEST, Math.floor(left / faderRows.size)));
+		if (next !== height) height = next;
+	});
+
+	// ---- a group's scenes: two lines of chips, and the rest behind "All" ----
+	let allScenes = $state<Record<string, boolean>>({});
+	let clipped = $state<Record<string, boolean>>({});
+	function clips(node: HTMLElement, key: string) {
+		const check = () => {
+			const over = node.scrollHeight > node.clientHeight + 1;
+			if (over !== !!clipped[key]) clipped = { ...clipped, [key]: over };
+		};
+		const seen = new ResizeObserver(check);
+		seen.observe(node);
+		check();
+		return { destroy: () => seen.disconnect() };
+	}
 
 	function setLevel(d: CoreDevice, v: number) {
 		void commands.set(d.device_id, 'light', levelWant(v), d.attributes);
@@ -91,7 +137,9 @@
 		[c.group, ...c.lights].map((d) => d && commands.notes[d.device_id]).find((n) => !!n);
 </script>
 
-<div class="desk">
+<svelte:window bind:innerHeight={viewH} />
+
+<div class="desk" bind:this={desk}>
 	{#each tab.columns as c (c.key)}
 		{@const chosen = pickedIn(c)}
 		{@const scenic = c.scenes.length > 0}
@@ -169,20 +217,31 @@
 								? `${nameOf(active)} is on`
 								: 'none on'}
 						{/if}
+						{#if clipped[c.key] || allScenes[c.key]}
+							<button
+								type="button"
+								class="more all"
+								aria-expanded={!!allScenes[c.key]}
+								onclick={() => (allScenes = { ...allScenes, [c.key]: !allScenes[c.key] })}
+								>{allScenes[c.key] ? 'Fewer' : `All ${c.scenes.length}`}</button
+							>
+						{/if}
 					</p>
-					{#each c.scenes as s (s.device_id)}
-						<button
-							type="button"
-							class="chip"
-							class:on={!chosen && s.attributes.active === true}
-							disabled={!may || !!chosen || !s.available}
-							title={chosen
-								? `Scenes for one light aren’t available yet. Pick All to show ${nameOf(s)} in ${c.title}.`
-								: `Show ${nameOf(s)} in ${c.title}`}
-							onclick={() => show(s)}
-							><i style:background={paletteOf(s)} aria-hidden="true"></i>{nameOf(s)}</button
-						>
-					{/each}
+					<div class="chips" class:open={allScenes[c.key]} use:clips={c.key}>
+						{#each c.scenes as s (s.device_id)}
+							<button
+								type="button"
+								class="chip"
+								class:on={!chosen && s.attributes.active === true}
+								disabled={!may || !!chosen || !s.available}
+								title={chosen
+									? `Scenes for one light aren’t available yet. Pick All to show ${nameOf(s)} in ${c.title}.`
+									: `Show ${nameOf(s)} in ${c.title}`}
+								onclick={() => show(s)}
+								><i style:background={paletteOf(s)} aria-hidden="true"></i>{nameOf(s)}</button
+							>
+						{/each}
+					</div>
 				</div>
 			{/if}
 		</section>
@@ -382,7 +441,20 @@
 		gap: 5px;
 		max-width: 360px;
 	}
+	/* Two lines of chips (26 high, 5 apart) until "All" opens the rest. */
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 5px;
+		max-height: 57px;
+		overflow: hidden;
+	}
+	.chips.open {
+		max-height: none;
+	}
 	.cap {
+		display: flex;
+		gap: 10px;
 		width: 100%;
 		margin: 0 0 2px;
 		font-size: 11.5px;
@@ -390,6 +462,10 @@
 	}
 	.more {
 		color: var(--ink);
+	}
+	.more.all {
+		margin-left: auto;
+		font-weight: 600;
 	}
 	.chip {
 		display: flex;

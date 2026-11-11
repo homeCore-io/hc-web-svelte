@@ -396,7 +396,14 @@
 				aria-labelledby={`tab-${tab}`}
 			>
 				{#if tab === 'lights'}
-					<LightsTab tab={model.lights} room={room.name} {fader} {sw} {may} />
+					<LightsTab
+						tab={model.lights}
+						room={room.name}
+						{fader}
+						{sw}
+						{may}
+						dock={model.byTab.media.length > 0}
+					/>
 				{:else if tab === 'media'}
 					<MediaTab
 						screens={players.screens}

@@ -127,6 +127,38 @@ export const unignore = (id: string) =>
 	send('DELETE', `/alert-ignores/${encodeURIComponent(id)}`, {});
 
 /** Delete a room; its devices are left in no room. */
+/**
+ * Room on or Room off (homeCore v0.1.103 and on): every light in the room at
+ * once. Room off keeps how they were, and Room on puts that back. Answers the
+ * lights homeCore sent a command to, or what went wrong.
+ */
+export async function roomPower(
+	id: string,
+	on: boolean
+): Promise<{ error: string | null; lights: string[] }> {
+	let res: Response;
+	try {
+		res = await fetch(`/api/v1${room(id)}/${on ? 'on' : 'off'}`, { method: 'POST' });
+	} catch {
+		return { error: 'homeCore is not answering.', lights: [] };
+	}
+	const said = (await res.json().catch(() => ({}))) as { error?: unknown; lights?: unknown };
+	if (res.ok) {
+		const lights = Array.isArray(said.lights)
+			? said.lights.filter((l): l is string => typeof l === 'string')
+			: [];
+		return { error: null, lights };
+	}
+	if (res.status === 401 || res.status === 403)
+		return { error: "You aren't allowed to do that here.", lights: [] };
+	if ((res.status === 404 || res.status === 405) && typeof said.error !== 'string')
+		return { error: "This homeCore can't switch a whole room yet.", lights: [] };
+	return {
+		error: typeof said.error === 'string' ? said.error : `homeCore said no (${res.status}).`,
+		lights: []
+	};
+}
+
 export const deleteRoom = (id: string) => send('DELETE', room(id), {});
 
 /**

@@ -13,7 +13,14 @@
 	import Pause from '@lucide/svelte/icons/pause';
 	import SkipBack from '@lucide/svelte/icons/skip-back';
 	import SkipForward from '@lucide/svelte/icons/skip-forward';
-	import { rgbValue, actionBody, detailsFor, ready, type ActionView } from '#lib/details.js';
+	import {
+		rgbValue,
+		actionBody,
+		detailsFor,
+		ready,
+		withoutAction,
+		type ActionView
+	} from '#lib/details.js';
 	import { activityOf, type StateEvent } from '#lib/activity.js';
 	import { withPending } from '#lib/pending.js';
 	import { fromShown, toShown } from '#lib/units.js';
@@ -107,10 +114,6 @@
 			}, 1500);
 		}
 	}
-	const withoutAction = (body: Record<string, unknown>) => {
-		const { action: _drop, ...rest } = body;
-		return rest;
-	};
 	const field = (a: string, name: string, v: unknown) =>
 		(values = { ...values, [a]: { ...(values[a] ?? {}), [name]: v } });
 

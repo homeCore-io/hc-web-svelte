@@ -93,6 +93,12 @@ export interface PersonDoc {
 	units?: UnitsChoice;
 	/** The console look's own choices: its sidebar, its faders' and switches' style. */
 	console?: ConsolePrefs;
+	/**
+	 * The device a room plays through, by room id, over the household's: a
+	 * device id, or `''` for none (console/media.ts). For a person who may not
+	 * change the household's.
+	 */
+	roomAudio?: Record<string, string>;
 }
 
 /** Whether to ask before a command: always, never, or as the device declares (D2). */
@@ -127,6 +133,11 @@ export interface HouseDoc {
 	confirm?: { devices?: Record<string, Ask>; kinds?: Record<string, Ask> };
 	/** The console look's faders and switches for anyone who hasn't chosen their own. */
 	console?: ConsoleHouse;
+	/**
+	 * The one device each room plays through, by room id: a device id, or `''`
+	 * for none. Unset, the room's first screen, else its first speaker (console/media.ts).
+	 */
+	roomAudio?: Record<string, string>;
 }
 
 export const ref = {

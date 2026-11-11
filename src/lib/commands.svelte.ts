@@ -57,6 +57,25 @@ class Commands {
 		return this.#send(id, { action, ...params });
 	}
 
+	/**
+	 * Run an action that stands for a reading (a Sonos's `set_volume`), shown
+	 * as waiting, as `set` is, until the device reports `want`.
+	 */
+	async actFor(
+		id: string,
+		kind: string,
+		action: string,
+		params: Record<string, unknown>,
+		want: Record<string, unknown>,
+		current: Record<string, unknown>
+	): Promise<boolean> {
+		this.expect(id, kind, want, current);
+		this.#clearNote(id);
+		const sent = await this.#send(id, { action, ...params });
+		if (!sent) this.#drop(id);
+		return sent;
+	}
+
 	/** A command in the device's own words, sent as it is (a WLED look). */
 	async send(id: string, body: Record<string, unknown>): Promise<boolean> {
 		this.#clearNote(id);

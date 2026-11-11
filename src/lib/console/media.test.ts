@@ -2,13 +2,17 @@ import { describe, expect, it } from 'vitest';
 import type { CoreDevice, DeviceAction, Schema } from '../devices.js';
 import {
 	appTiles,
+	asMixer,
 	audioChoices,
 	currentApp,
 	defaultAudio,
 	groupOf,
+	hueOf,
 	isCurrent,
 	isOn,
 	launchCmd,
+	mixerFit,
+	mixerPick,
 	muteCmd,
 	orderPlayers,
 	playerKind,
@@ -411,5 +415,71 @@ describe('names', () => {
 		expect(playerName(dev('d', { name: 'x', name_override: 'Den - Speaker' }))).toBe(
 			'Den - Speaker'
 		);
+	});
+});
+
+describe('a room of many speakers', () => {
+	it('is a mixer from four speakers, and cards below that', () => {
+		expect([1, 2, 3, 4, 9].map(asMixer)).toEqual([false, false, false, true, true]);
+	});
+
+	it('shows the speaker chosen, else the first playing, else the first', () => {
+		const a = sonos('a');
+		const b = sonos('b', { state: 'playing' });
+		const c = sonos('c', { state: 'playing' });
+		expect(mixerPick([a, b, c])?.device_id).toBe('b');
+		expect(mixerPick([a, b, c], 'c')?.device_id).toBe('c');
+		expect(mixerPick([a, sonos('d')])?.device_id).toBe('a');
+		expect(mixerPick([])).toBeUndefined();
+	});
+
+	it('forgets a choice the room no longer has, and reads what is on its way', () => {
+		const a = sonos('a');
+		const b = sonos('b');
+		expect(mixerPick([a, b], 'gone')?.device_id).toBe('a');
+		expect(
+			mixerPick([a, b], undefined, (d) => (d.device_id === 'b' ? { state: 'playing' } : undefined))
+				?.device_id
+		).toBe('b');
+	});
+
+	it('passes over a speaker that is offline, though it last said it was playing', () => {
+		const a = sonos('a');
+		const b = { ...sonos('b', { state: 'playing' }), available: false };
+		expect(mixerPick([a, b])?.device_id).toBe('a');
+	});
+
+	it('keeps the artwork as tall as the space, and the channels across with wide pills while they fit', () => {
+		expect(mixerFit(4, 1100, 230)).toEqual({
+			hero: 580,
+			art: 202,
+			rows: 1,
+			perRow: 4,
+			tight: false,
+			fader: 146
+		});
+	});
+
+	it('goes to tight pills, then narrows the stage, then takes a second row, never scrolling across', () => {
+		expect(mixerFit(4, 1010, 230)).toMatchObject({ hero: 580, tight: true, rows: 1 });
+		expect(mixerFit(5, 1100, 230)).toMatchObject({ hero: 570, art: 202, tight: true, rows: 1 });
+		const two = mixerFit(8, 900, 400);
+		expect(two).toMatchObject({ hero: 388, art: 120, rows: 2, perRow: 4, tight: true });
+		expect(two.fader).toBe(Math.floor((400 - 14) / 2 - 84));
+	});
+
+	it('keeps its faders between 64 and 200 high, a Glass pill 22 shorter', () => {
+		expect(mixerFit(4, 1100, 120).fader).toBe(64);
+		expect(mixerFit(4, 1100, 900).fader).toBe(200);
+		expect(mixerFit(4, 1100, 230, 'glass').fader).toBe(124);
+	});
+
+	it('gives each speaker its own color, the same each time', () => {
+		expect(hueOf('speaker.office-1')).toBe(hueOf('speaker.office-1'));
+		expect(hueOf('speaker.office-1')).not.toBe(hueOf('speaker.office-2'));
+		const hues = ['a', 'b', 'c', 'd', 'e', 'f'].map(hueOf);
+		expect(new Set(hues).size).toBeGreaterThan(3);
+		for (const h of hues) expect(h).toBeGreaterThanOrEqual(0);
+		for (const h of hues) expect(h).toBeLessThan(360);
 	});
 });

@@ -4,7 +4,8 @@
  *
  * The Media tab lists the room's screens first (Rokus and TVs), each with
  * what it's showing, its power, a remote and its apps; then its speakers
- * (Sonos), each with what's playing, play and skip, and a volume.
+ * (Sonos), each with what's playing, play and skip, and a volume; from four
+ * speakers, as a mixer (`mixerFit`).
  *
  * Each room plays through one audio device, as a whole-house remote would
  * have it: usually the TV or sound bar, or a speaker. The household chooses it
@@ -22,6 +23,7 @@ import { kindOf } from '../card.js';
 import { actionBody, actionView, withoutAction } from '../details.js';
 import type { CoreDevice, Devices } from '../devices.js';
 import { brandOf, shortName } from './room.js';
+import type { FaderStyle } from './style.js';
 
 // ---- which players ----
 
@@ -475,4 +477,108 @@ export function muteCmd(d: CoreDevice, want?: Record<string, unknown>): Cmd | un
 	}
 	// A Roku's mute key flips it, and nothing says which way.
 	return remoteKeys(d).mute?.cmd;
+}
+
+// ---- a room of many speakers ----
+
+/**
+ * From this many speakers, the Media tab draws them as a mixer: a channel for
+ * each, side by side as the Lights tab's faders are, and the chosen one's
+ * artwork beside them. Fewer sit side by side as cards.
+ */
+export const MIXER_FROM = 4;
+
+export const asMixer = (speakers: number): boolean => speakers >= MIXER_FROM;
+
+/**
+ * The speaker the mixer shows: the one chosen, while the room still has it;
+ * else the first one playing; else the first.
+ */
+export function mixerPick(
+	speakers: CoreDevice[],
+	chosen?: string,
+	want: (d: CoreDevice) => Record<string, unknown> | undefined = () => undefined
+): CoreDevice | undefined {
+	return (
+		speakers.find((d) => d.device_id === chosen) ??
+		speakers.find((d) => d.available && isPlaying(d, want(d))) ??
+		speakers[0]
+	);
+}
+
+/** How the mixer is laid out in the space it has. */
+export interface MixerFit {
+	/** The chosen speaker's stage: its width, and its artwork's side. */
+	hero: number;
+	art: number;
+	/** Rows of channels: one, unless they don't fit across even tight. */
+	rows: number;
+	/** Channels in each row. */
+	perRow: number;
+	/** Narrower pills (92 rather than 104). */
+	tight: boolean;
+	/** Each fader's height, for its `height`. */
+	fader: number;
+}
+
+/** A channel's place across, with the gap after it: its pill, wide or tight. */
+const CHANNEL = { wide: 116, tight: 104, gap: 12 };
+/** A channel's height besides its fader: play and level, the pill, and the gaps. */
+const CHANNEL_CHROME = 84;
+const ROW_GAP = 14;
+const FADER = { min: 64, max: 200 };
+/** The stage: its padding and the gap by its artwork; the artwork; the words beside it. */
+const STAGE = { edge: 48, art: { min: 110, max: 232 }, words: { min: 220, max: 330 } };
+/** Between the stage and the channels. */
+const SPLIT = 22;
+
+/**
+ * The mixer laid out in `width` by `height` pixels. The stage keeps its
+ * artwork as large as the height allows, and its full width while the
+ * channels fit beside it: wide pills, else tight ones. Then the stage gives
+ * up width down to its least, and then the channels take more rows, so it
+ * never scrolls across. Faders take the height that's left; a Glass pill
+ * stands 22 taller than its height.
+ */
+export function mixerFit(
+	count: number,
+	width: number,
+	height: number,
+	style: FaderStyle = 'machined'
+): MixerFit {
+	const n = Math.max(1, count);
+	const room = width - SPLIT;
+	const side = Math.max(STAGE.art.min, Math.min(STAGE.art.max, height - 28));
+	const most = side + STAGE.edge + STAGE.words.max;
+	const least = Math.min(side, 120) + STAGE.edge + STAGE.words.min;
+	const need = (step: number) => n * step - CHANNEL.gap;
+	let hero = most;
+	let tight = false;
+	if (room - most < need(CHANNEL.wide)) {
+		tight = true;
+		if (room - most < need(CHANNEL.tight))
+			hero = Math.max(least, Math.min(most, room - need(CHANNEL.tight)));
+	}
+	const across = Math.max(1, Math.floor((room - hero + CHANNEL.gap) / CHANNEL.tight));
+	const rows = tight ? Math.ceil(n / across) : 1;
+	const each = (height - (rows - 1) * ROW_GAP) / rows;
+	const fader = Math.floor(each - CHANNEL_CHROME - (style === 'glass' ? 22 : 0));
+	return {
+		hero,
+		art: Math.min(side, hero - STAGE.edge - STAGE.words.min),
+		rows,
+		perRow: Math.ceil(n / rows),
+		tight,
+		fader: Math.max(FADER.min, Math.min(FADER.max, fader))
+	};
+}
+
+/** Hues that make a good backdrop: blues, violets, pinks, teals and a coral. */
+const HUES = [212, 262, 292, 328, 188, 16, 158, 236, 342, 200];
+
+/** A speaker's own hue where there's no artwork, the same each time (FNV-1a of its id). */
+export function hueOf(id: string): number {
+	let h = 0x811c9dc5;
+	for (const c of id) h = Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0;
+	return HUES[h % HUES.length]!;
 }

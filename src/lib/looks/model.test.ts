@@ -7,11 +7,14 @@ import {
 	narrowArea,
 	readAreas,
 	CLASSIC,
+	CONSOLE,
 	LIT,
+	shellOf,
 	allLooks,
 	copyOf,
 	drawingOf,
 	feelVars,
+	findLook,
 	fromFile,
 	lookFile,
 	reachesHere,
@@ -80,7 +83,7 @@ describe('a look as data (13 §15)', () => {
 			[{ id: 'ours', name: 'Ours', version: 1 }, { nonsense: true }],
 			[{ id: 'mine', name: 'Mine', from: 'ours', version: 1 }]
 		);
-		expect(all.map((l) => l.id)).toEqual(['classic', 'lit', 'ours', 'mine']);
+		expect(all.map((l) => l.id)).toEqual(['classic', 'lit', 'console', 'ours', 'mine']);
 	});
 
 	it('turns a feel into the tokens components read', () => {
@@ -105,6 +108,57 @@ describe('sharing a look (13 §12.3)', () => {
 	it('refuses a file that isn’t a look', () => {
 		expect(fromFile('{', BUILT_IN)).toBe('This file isn’t a look.');
 		expect(fromFile('{"look":{}}', BUILT_IN)).toBe('This file isn’t a look.');
+	});
+});
+
+describe('the console’s frame', () => {
+	it('comes with the app, after Classic and Lit, and isn’t the one a person starts with', () => {
+		expect(BUILT_IN.map((l) => l.id)).toEqual(['classic', 'lit', 'console']);
+		expect(findLook(allLooks(), undefined)).toBe(CLASSIC);
+		expect(findLook(allLooks(), 'console')).toBe(CONSOLE);
+		expect(CONSOLE.name).toBe('Console');
+	});
+
+	it('puts the app in the console frame; the others keep the standard one', () => {
+		expect(shellOf(CONSOLE)).toBe('console');
+		expect(shellOf(CLASSIC)).toBe('standard');
+		expect(shellOf(LIT)).toBe('standard');
+	});
+
+	it('is the frame of a look made from it, unless that look says otherwise', () => {
+		const made = readLook({ id: 'desk', name: 'Desk', from: 'console', version: 1 }) as Look;
+		expect(shellOf(made)).toBe('console');
+		const plain = readLook({
+			id: 'desk-2',
+			name: 'Desk 2',
+			from: 'console',
+			version: 1,
+			frame: { shell: 'standard' }
+		}) as Look;
+		expect(shellOf(plain)).toBe('standard');
+		// Kept when saved, so reading it again doesn't bring the console back.
+		expect(shellOf(readLook(JSON.parse(JSON.stringify(plain))) as Look)).toBe('standard');
+		const copy = copyOf(CONSOLE, 'Evening desk', BUILT_IN);
+		expect(shellOf(copy)).toBe('console');
+		expect(shellOf(fromFile(lookFile(copy), BUILT_IN) as Look)).toBe('console');
+	});
+
+	it('takes a console frame on any look, and ignores a frame it doesn’t know', () => {
+		const lit = readLook({
+			id: 'lit-desk',
+			name: 'Lit desk',
+			from: 'lit',
+			version: 1,
+			frame: { shell: 'console' }
+		}) as Look;
+		expect(shellOf(lit)).toBe('console');
+		const odd = readLook({ id: 'odd', name: 'Odd', version: 1, frame: { shell: 'tv' } }) as Look;
+		expect(shellOf(odd)).toBe('standard');
+		expect(odd.frame).toEqual(CLASSIC.frame);
+	});
+
+	it('refuses a look kept under the console’s name', () => {
+		expect(readLook({ id: 'console', name: 'X', version: 1 })).toMatch(/built-in/);
 	});
 });
 

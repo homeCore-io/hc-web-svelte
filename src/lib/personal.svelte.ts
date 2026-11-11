@@ -7,6 +7,7 @@ import { addChange, migrate, type Change, type PersonDoc } from './layers.js';
 import { lookKey, pageChanges, withoutChanges } from './look.svelte.js';
 import { Synced } from './synced.svelte.js';
 import { followUnits, unitsOf, type UnitsChoice } from './units.js';
+import { houseUnits } from './houseUnits.svelte.js';
 
 class Personal extends Synced<PersonDoc> {
 	constructor() {
@@ -60,4 +61,4 @@ export const personal = new Personal();
 
 // Every reading shown reads the person's units from here — and, read inside
 // a component, changes with their choice.
-followUnits(() => unitsOf(personal.doc.units));
+followUnits(() => unitsOf(personal.doc.units, undefined, houseUnits.temperature));

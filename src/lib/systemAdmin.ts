@@ -67,6 +67,15 @@ export interface Status {
 }
 
 export const loadStatus = () => call<Status>('GET', '/system/status');
+/** The household's temperature unit; `chosen` false while nobody has set it. */
+export interface HouseTemperature {
+	temperature_unit: '°C' | '°F';
+	chosen: boolean;
+}
+export const loadTemperatureUnit = () => call<HouseTemperature>('GET', '/system/temperature-unit');
+/** °C or °F for the household, or `null` back to each browser's. */
+export const setTemperatureUnit = (unit: '°C' | '°F' | null) =>
+	call<HouseTemperature>('PUT', '/system/temperature-unit', { temperature_unit: unit });
 export const loadVersions = () => call<Record<string, unknown>>('GET', '/system/versions');
 /** Newer releases, as the UI server last heard from GitHub. */
 export const loadUpdates = () =>

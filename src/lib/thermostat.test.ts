@@ -98,6 +98,15 @@ function air(attrs: Record<string, unknown> = {}): CoreDevice {
 afterEach(() => followUnits(C));
 
 describe('the thermostat card reads', () => {
+	it('a setpoint with no unit as it came, not as °C', () => {
+		followUnits(F);
+		const d = floor();
+		for (const k of Object.keys(d.schema!.attributes)) delete d.schema!.attributes[k]!.unit;
+		const t = thermostatOf(d);
+		expect(t.unit).toBe('°');
+		expect(t.now).toBe(d.attributes.temperature);
+	});
+
 	it('in the person’s units, whole degrees in °F', () => {
 		followUnits(F);
 		const t = thermostatOf(floor());

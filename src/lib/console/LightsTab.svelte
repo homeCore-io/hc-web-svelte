@@ -71,20 +71,24 @@
 		if (!desk) return;
 		const top = desk.getBoundingClientRect().top + window.scrollY;
 		const cols = [...desk.children] as HTMLElement[];
-		// Each row of columns, and what its tallest column needs besides its faders.
-		const rows = new Map<number, number>();
-		const faderRows = new Set<number>();
+		// Each row of columns: what its fader columns need besides their faders,
+		// and the height of its others (a keypad), which sit beside them.
+		const rows = new Map<number, { around: number; beside: number }>();
 		for (const c of cols) {
-			const faders = c.querySelector('.faders') !== null;
-			if (faders) faderRows.add(c.offsetTop);
-			const need = c.offsetHeight - (faders ? height : 0);
-			rows.set(c.offsetTop, Math.max(rows.get(c.offsetTop) ?? 0, need));
+			const r = rows.get(c.offsetTop) ?? { around: -1, beside: 0 };
+			if (c.querySelector('.faders')) r.around = Math.max(r.around, c.offsetHeight - height);
+			else r.beside = Math.max(r.beside, c.offsetHeight);
+			rows.set(c.offsetTop, r);
 		}
-		if (faderRows.size === 0) return;
-		const gaps = (rows.size - 1) * 22;
-		const fixed = [...rows.values()].reduce((n, v) => n + v, 0);
-		const left = viewH - top - below - gaps - fixed;
-		const next = Math.max(SHORTEST, Math.min(TALLEST, Math.floor(left / faderRows.size)));
+		const left = viewH - top - below - (rows.size - 1) * 22;
+		const total = (h: number) =>
+			[...rows.values()].reduce(
+				(n, r) => n + Math.max(r.around < 0 ? 0 : r.around + h, r.beside),
+				0
+			);
+		// The tallest faders that leave every row on screen.
+		let next = TALLEST;
+		while (next > SHORTEST && total(next) > left) next -= 2;
 		if (next !== height) height = next;
 	});
 

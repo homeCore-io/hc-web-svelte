@@ -9,24 +9,21 @@
 	suits a small laptop and not a big monitor.
 -->
 <script lang="ts">
-	import { untrack, type Snippet } from 'svelte';
+	import type { Snippet } from 'svelte';
 	import { hasSettings } from '#lib/settings.js';
 	import { page } from '$app/state';
-	import { beforeNavigate, goto } from '$app/navigation';
 	import EditMenu from './EditMenu.svelte';
 	import Search from '@lucide/svelte/icons/search';
 	import Bell from '@lucide/svelte/icons/bell';
 	import Settings from '@lucide/svelte/icons/settings';
-	import { SIDEBAR, backFor, barFor, isAt, pageKey, titleFor, withEdit } from '#lib/nav.js';
+	import { SIDEBAR, backFor, barFor, isAt, titleFor } from '#lib/nav.js';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
 	import { barOf, homeRoomOrder, ref } from '#lib/layers.js';
 	import { personal } from '#lib/personal.svelte.js';
 	import { household } from '#lib/household.svelte.js';
-	import { editing, LEAVE } from '#lib/edit.svelte.js';
-	import { ask } from '#lib/confirm.svelte.js';
-	import { customise } from '#lib/customise.svelte.js';
+	import { followEdit } from '#lib/editFrame.svelte.js';
 	import { view } from '#lib/view.svelte.js';
 	import EditBar from './EditBar.svelte';
 	import Mark from './Mark.svelte';
@@ -84,36 +81,9 @@
 	);
 
 	// ---- Edit mode (N6), in the address (N5) ----
-	const key = $derived(pageKey(pathname));
-	// A page of one's own is changed in Customise only (G28).
-	const own = $derived(personal.doc.built?.some((p) => `page:${p.id}` === key) ?? false);
-	const canEdit = $derived(session.can('content:write') && !own);
-	const editingHere = $derived(key !== null && editing.on(key));
-	// Follows the address only: Done and Cancel leave the mode before they
-	// change the address, and must not be started again on the way out.
-	$effect(() => {
-		const want = page.url.searchParams.has('edit') && key !== null && canEdit;
-		untrack(() => {
-			if (want && !editing.on(key!)) {
-				customise.page = null;
-				editing.start(key!);
-			} else if (!want && editing.page !== null) editing.cancel();
-		});
-	});
-	beforeNavigate((nav) => {
-		if (editing.count === 0 || nav.to === null) return;
-		const staying = nav.to.url.pathname === pathname && nav.to.url.searchParams.has('edit');
-		if (staying) return;
-		nav.cancel();
-		// Closing the tab: the browser asks; a page can't.
-		if (nav.type === 'leave') return;
-		const to = nav.to.url;
-		void ask(LEAVE).then((yes) => {
-			if (!yes) return;
-			editing.cancel();
-			void goto(`${to.pathname}${to.search}${to.hash}`);
-		});
-	});
+	const edit = followEdit();
+	const key = $derived(edit.key);
+	const editingHere = $derived(edit.here);
 	let folded = $state(
 		typeof document !== 'undefined' && document.documentElement.dataset.sidebar === 'folded'
 	);

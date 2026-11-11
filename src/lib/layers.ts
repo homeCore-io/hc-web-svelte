@@ -16,6 +16,7 @@
  */
 
 import type { UnitsChoice } from './units.js';
+import type { ConsoleHouse, ConsolePrefs } from './console/style.js';
 import { allLooks, findLook, type Look } from './looks/model.js';
 
 export type Form = 'compact' | 'standard' | 'large';
@@ -90,6 +91,8 @@ export interface PersonDoc {
 	looks?: unknown[];
 	/** °F or °C, US measures or metric; unset, the browser's (`units.ts`). */
 	units?: UnitsChoice;
+	/** The console look's own choices: its sidebar, its faders' and switches' style. */
+	console?: ConsolePrefs;
 }
 
 /** Whether to ask before a command: always, never, or as the device declares (D2). */
@@ -122,6 +125,8 @@ export interface HouseDoc {
 	looks?: unknown[];
 	/** Confirmation overrides (D2): by device id, and by kind. */
 	confirm?: { devices?: Record<string, Ask>; kinds?: Record<string, Ask> };
+	/** The console look's faders and switches for anyone who hasn't chosen their own. */
+	console?: ConsoleHouse;
 }
 
 export const ref = {

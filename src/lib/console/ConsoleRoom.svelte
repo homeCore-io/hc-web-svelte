@@ -37,6 +37,20 @@
 	import Icon from '#lib/components/Icon.svelte';
 	import CardGrid from '#lib/components/CardGrid.svelte';
 	import LightsTab from './LightsTab.svelte';
+	import MediaTab from './MediaTab.svelte';
+	import AudioBar from './AudioBar.svelte';
+	import {
+		audioChoices,
+		muteCmd,
+		orderPlayers,
+		playerName,
+		roomAudioOf,
+		stepCmd,
+		volumeCmd,
+		volumeOf,
+		withRoomAudio
+	} from './media.js';
+	import { send } from './send.js';
 	import { kindOptions } from '#lib/kindOptions.svelte.js';
 	import { ROOM_BUILT_IN } from '#lib/options.js';
 	import { roomBox } from '#lib/roomBox.js';
@@ -46,6 +60,7 @@
 		levelOf,
 		LIGHTS_WIDTH,
 		shortName,
+		brandOf,
 		tabOf,
 		type TabId
 	} from './room.js';
@@ -159,6 +174,66 @@
 			);
 		openDevice(d.device_id, page.url);
 	}
+
+	// ---- the room's audio ----
+	// The one device the room plays through (media.ts): chosen for the house,
+	// or by a person for themselves, else the room's first screen or speaker.
+	const players = $derived(orderPlayers(model.byTab.media));
+	const audio = $derived(
+		roomAudioOf(
+			id,
+			model.byTab.media,
+			devices.byId,
+			household.doc.roomAudio,
+			personal.doc.roomAudio
+		).device
+	);
+	const audioWant = $derived(audio ? commands.pending[audio.device_id]?.want : undefined);
+	const choices = $derived(audioChoices(model.byTab.media, devices.byId));
+	/** Kept for the house by people who may change it; else for the person alone. */
+	function playThrough(choice: string) {
+		const edit = <D extends { roomAudio?: Record<string, string> }>(d: D) =>
+			withRoomAudio(d, id, choice);
+		if (session.can('content:write')) void household.change(edit);
+		else void personal.change(edit);
+	}
+	// A device that reports no level (a Roku) only steps: the bar counts the
+	// presses since the room's audio was last chosen, as its own remote would feel.
+	let pressed = $state<{ id?: string; by: number; muted: boolean }>({ by: 0, muted: false });
+	const presses = $derived(
+		pressed.id === audio?.device_id ? pressed : { id: audio?.device_id, by: 0, muted: false }
+	);
+	function volStep(by: 1 | -1) {
+		if (!audio) return;
+		void send(audio, stepCmd(audio, by, audioWant));
+		if (!volumeOf(audio, audioWant).level)
+			pressed = { id: audio.device_id, by: presses.by + by, muted: false };
+	}
+	function volMute() {
+		if (!audio) return;
+		void send(audio, muteCmd(audio, audioWant));
+		if (volumeOf(audio, audioWant).muted === undefined)
+			pressed = { ...presses, id: audio.device_id, muted: !presses.muted };
+	}
+	const volLevel = (v: number) => {
+		if (audio) void send(audio, volumeCmd(audio, v));
+	};
+	const stepNote = $derived(
+		presses.muted
+			? 'Muted'
+			: presses.by > 0
+				? `Up ${presses.by}`
+				: presses.by < 0
+					? `Down ${-presses.by}`
+					: `No level from the ${brandOf(audio?.plugin_id)}`
+	);
+	const audioNote = $derived(
+		!audio
+			? 'Choose the room’s audio below for the volume keys'
+			: volumeOf(audio, audioWant).level || (presses.by === 0 && !presses.muted)
+				? `Volume keys drive the room’s audio: ${playerName(audio)}`
+				: `${playerName(audio)}: ${stepNote.toLowerCase()}`
+	);
 
 	// ---- the tabs ----
 	function choose(t: TabId) {
@@ -322,11 +397,37 @@
 			>
 				{#if tab === 'lights'}
 					<LightsTab tab={model.lights} room={room.name} {fader} {sw} {may} />
+				{:else if tab === 'media'}
+					<MediaTab
+						screens={players.screens}
+						speakers={players.speakers}
+						room={room.name}
+						{may}
+						{audio}
+						{audioNote}
+						onstep={volStep}
+						onmute={volMute}
+					/>
 				{:else if tab}
 					<!-- These tabs get their own consoles next; until then, the room's cards. -->
 					<CardGrid devices={model.byTab[tab]} large={['media_player', 'thermostat']} />
 				{/if}
 			</div>
+		{/if}
+
+		{#if model.byTab.media.length > 0}
+			<AudioBar
+				room={room.name}
+				{audio}
+				choice={audio?.device_id ?? ''}
+				{choices}
+				{may}
+				{stepNote}
+				onchoose={playThrough}
+				onstep={volStep}
+				onmute={volMute}
+				onlevel={volLevel}
+			/>
 		{/if}
 	</div>
 {/if}

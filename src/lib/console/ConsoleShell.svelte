@@ -284,7 +284,7 @@
 
 		<div class="stage" class:with-sheet={adding.page !== null}>
 			<UnlockedBar />
-			{#if back || heading.kicker || !heading.owned || key !== null}
+			{#if back || heading.kicker || !heading.owned}
 				<div class="head">
 					<div class="titles">
 						{#if back}<a class="back" href={back.href}
@@ -296,7 +296,7 @@
 					{#if key !== null}<EditMenu pageKey={key} />{/if}
 				</div>
 			{/if}
-			<main class:editing={editingHere}>
+			<main class:editing={editingHere} class:bleed={heading.owned && !editingHere}>
 				{#if editingHere}<EditBar key={key!} />{/if}
 				{#if key !== null && !editingHere && household.trouble}<p class="trouble" role="alert">
 						{household.trouble}
@@ -656,6 +656,10 @@
 		margin: 0 0 var(--space-3);
 		font-size: 13px;
 		color: var(--alert);
+	}
+	/* A page that draws its own header (a room) runs edge to edge. */
+	main.bleed {
+		padding: 0;
 	}
 	main.editing {
 		display: flex;

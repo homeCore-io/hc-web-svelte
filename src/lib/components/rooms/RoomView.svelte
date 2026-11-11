@@ -2,7 +2,8 @@
 	A room drawn as its page (N4): the room's devices as cards, or as a look
 	groups them (13 §8), and what the household added from elsewhere. Drawn
 	by the room's page, and over Home as a sheet (13 §7, G1), where it is
-	only looked at and used, not arranged.
+	only looked at and used, not arranged. The console's look draws the
+	room's page its own way (ConsoleRoom), loaded only for it.
 -->
 <script lang="ts">
 	import { devices } from '#lib/devices.svelte.js';
@@ -16,6 +17,8 @@
 	import CustomiseBar from '../CustomiseBar.svelte';
 	import PageView from '../PageView.svelte';
 	import { look } from '#lib/look.svelte.js';
+	import { shellOf } from '#lib/looks/model.js';
+	import type { Component } from 'svelte';
 
 	let { id }: { id: string } = $props();
 	const sheet = inSheet();
@@ -57,9 +60,19 @@
 	);
 	// Such a look draws the room's name in its header; until its grouping has loaded, nothing yet.
 	const waiting = $derived(!!rules && !grouping);
+
+	// The console's look draws a room its own way (ConsoleRoom), loaded only then.
+	const desk = $derived(!sheet && id !== 'none' && shellOf(look.def) === 'console');
+	let ConsoleRoom = $state<Component<{ id: string }> | null>(null);
+	$effect(() => {
+		if (desk && !ConsoleRoom)
+			void import('#lib/console/ConsoleRoom.svelte').then((m) => (ConsoleRoom = m.default));
+	});
 </script>
 
-{#if !devices.loaded}
+{#if desk}
+	{#if ConsoleRoom}<ConsoleRoom {id} />{/if}
+{:else if !devices.loaded}
 	<p class="quiet">Loading the house…</p>
 {:else if name === undefined}
 	<p class="quiet">This room isn't in the house any more.</p>

@@ -21,7 +21,7 @@
 import { kindOf } from '../card.js';
 import { actionBody, actionView, withoutAction } from '../details.js';
 import type { CoreDevice, Devices } from '../devices.js';
-import { brandOf } from './room.js';
+import { brandOf, shortName } from './room.js';
 
 // ---- which players ----
 
@@ -59,6 +59,17 @@ export function orderPlayers(list: CoreDevice[]): {
 		screens: players.filter((d) => playerKind(d) === 'screen'),
 		speakers: players.filter((d) => playerKind(d) === 'speaker')
 	};
+}
+
+/**
+ * A player's name as the console shows it: without the serial number a Roku
+ * puts after its model ("Roku Smart Soundbar - YL0001073725"), and without
+ * the room's name in front, unless all that leaves is a number ("Office-1").
+ */
+export function playerName(d: CoreDevice, room = ''): string {
+	const full = nameOf(d).replace(/\s+-\s+[A-Z0-9]{8,}$/, '');
+	const short = shortName(full, room);
+	return /^\d+$/.test(short) ? full : short;
 }
 
 // ---- the room's audio ----
@@ -123,7 +134,7 @@ export function audioChoices(inRoom: CoreDevice[], all: Devices | CoreDevice[]):
 	const here = new Set(inRoom.map((d) => d.device_id));
 	const mine = orderPlayers(inRoom);
 	const rest = orderPlayers(list.filter((d) => !here.has(d.device_id)));
-	const label = (d: CoreDevice) => `${nameOf(d)} · ${brandOf(d.plugin_id)}`;
+	const label = (d: CoreDevice) => `${playerName(d)} · ${brandOf(d.plugin_id)}`;
 	return [
 		...[...mine.screens, ...mine.speakers].map((d) => ({
 			id: d.device_id,

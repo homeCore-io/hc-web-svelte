@@ -12,6 +12,7 @@ import {
 	muteCmd,
 	orderPlayers,
 	playerKind,
+	playerName,
 	pluginFile,
 	powerCmd,
 	remoteKeys,
@@ -397,5 +398,18 @@ describe('volume', () => {
 		expect(volumeCmd(d, 3)).toBeUndefined();
 		expect(muteCmd(d)).toBeUndefined();
 		expect(stepCmd(d, 1)).toBeUndefined();
+	});
+});
+
+describe('names', () => {
+	it("leaves off a Roku's serial number and the room's name, unless that leaves a number", () => {
+		expect(playerName(dev('a', { name: 'Roku Smart Soundbar - YL0001073725' }))).toBe(
+			'Roku Smart Soundbar'
+		);
+		expect(playerName(dev('b', { name: 'Office TV' }), 'Office')).toBe('TV');
+		expect(playerName(dev('c', { name: 'Office-1' }), 'Office')).toBe('Office-1');
+		expect(playerName(dev('d', { name: 'x', name_override: 'Den - Speaker' }))).toBe(
+			'Den - Speaker'
+		);
 	});
 });

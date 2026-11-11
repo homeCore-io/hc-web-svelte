@@ -7,7 +7,8 @@
 
 	Under it, the label: a pill the same size for every fader (104 by 42, or 92
 	in a tight row), so a row of faders always lines up. Given `onpick`, the
-	pill is a button that selects the fader (a lamp for a scene).
+	pill is a button that selects the fader (a lamp for a scene); given
+	`onopen` instead, it opens the thing's details.
 -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
@@ -29,6 +30,7 @@
 		color,
 		selected = false,
 		onpick,
+		onopen,
 		disabled = false,
 		waiting = false,
 		oncommit
@@ -58,6 +60,8 @@
 		selected?: boolean;
 		/** Makes the pill a button that selects this fader. */
 		onpick?: () => void;
+		/** Without `onpick`, makes the pill a button that opens the thing's details. */
+		onopen?: () => void;
 		disabled?: boolean;
 		/** A command is on its way: shown until the device answers. */
 		waiting?: boolean;
@@ -138,6 +142,11 @@
 			aria-pressed={selected}
 			class:sel={selected}
 			onclick={onpick}
+			>{#if pill}{@render pill()}{:else}<span class="ln">{label}</span>{#if sub}<small>{sub}</small
+					>{/if}{/if}</button
+		>
+	{:else if onopen}
+		<button type="button" class="lab pick" title={`Open ${label}`} onclick={onopen}
 			>{#if pill}{@render pill()}{:else}<span class="ln">{label}</span>{#if sub}<small>{sub}</small
 					>{/if}{/if}</button
 		>

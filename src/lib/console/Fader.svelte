@@ -31,6 +31,7 @@
 		selected = false,
 		onpick,
 		onopen,
+		figure = true,
 		disabled = false,
 		waiting = false,
 		oncommit
@@ -62,6 +63,8 @@
 		onpick?: () => void;
 		/** Without `onpick`, makes the pill a button that opens the thing's details. */
 		onopen?: () => void;
+		/** Writes the value over the channel; off where the page writes it itself. */
+		figure?: boolean;
 		disabled?: boolean;
 		/** A command is on its way: shown until the device answers. */
 		waiting?: boolean;
@@ -90,7 +93,7 @@
 	style:--c={color}
 	aria-busy={waiting || undefined}
 >
-	{#if style !== 'glass'}<span class="val" aria-hidden="true">{text}</span>{/if}
+	{#if figure && style !== 'glass'}<span class="val" aria-hidden="true">{text}</span>{/if}
 	<div class="ctl" class:on class:deep style:--p={p}>
 		{#if style === 'machined'}
 			<span class="tick" style:top="15%"></span><span class="tick" style:top="36%"></span><span

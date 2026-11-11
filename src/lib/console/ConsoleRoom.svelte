@@ -403,6 +403,7 @@
 						speakers={players.speakers}
 						room={room.name}
 						{may}
+						{fader}
 						{audio}
 						{audioNote}
 						onstep={volStep}
@@ -717,6 +718,29 @@
 		}
 		.panel {
 			margin: 0 16px 16px;
+		}
+	}
+	/* A shorter window: a slimmer header, so the tab below keeps its room. */
+	@media (max-height: 820px) {
+		.hero {
+			min-height: 0;
+		}
+		.hc {
+			padding-top: 16px;
+			padding-bottom: 12px;
+		}
+		.title {
+			font-size: 32px;
+		}
+		.chips {
+			margin-top: 8px;
+		}
+		.subs {
+			padding-top: 8px;
+		}
+		.panel {
+			padding-top: 12px;
+			padding-bottom: 12px;
 		}
 	}
 </style>

@@ -2,17 +2,20 @@
  * The look this screen shows (13 §3): the person's own, else a display's or
  * the house's, else Classic, as a whole look (looks/model.ts), not just a
  * name. Its feel is on the page as tokens and `data-motion`, its id as
- * `data-look`, and this browser keeps a copy so the first paint is drawn in
- * it before anything has loaded (`app.html`).
+ * `data-look`, its frame as `data-shell` when it's the console's, and this
+ * browser keeps a copy so the first paint is drawn in it before anything has
+ * loaded (`app.html`).
  */
 import { getContext, setContext } from 'svelte';
 import type { Change } from './layers.js';
 import {
 	BUILT_IN,
 	CLASSIC,
+	CONSOLE,
 	drawingOf,
 	feelVars,
 	findLook,
+	shellOf,
 	type Family,
 	type Look
 } from './looks/model.js';
@@ -24,6 +27,8 @@ interface Kept {
 	id: string;
 	vars: Record<string, string>;
 	motion: string;
+	/** Its frame, when it's the console's. */
+	shell?: 'console';
 }
 
 function read(): Look {
@@ -31,7 +36,9 @@ function read(): Look {
 		const raw = localStorage.getItem(KEY);
 		if (raw === 'lit') return BUILT_IN[1]!;
 		const kept = raw ? (JSON.parse(raw) as Kept) : null;
-		return findLook(BUILT_IN, kept?.id);
+		const l = findLook(BUILT_IN, kept?.id);
+		// A look of someone's own in the console's frame: the console, until it loads.
+		return kept?.shell === 'console' && shellOf(l) !== 'console' ? CONSOLE : l;
 	} catch {
 		return CLASSIC;
 	}
@@ -69,12 +76,20 @@ class LookNow {
 		const vars = feelVars(l.feel);
 		if (l.id === 'classic') delete root.dataset.look;
 		else root.dataset.look = l.id;
+		const desk = shellOf(l) === 'console';
+		if (desk) root.dataset.shell = 'console';
+		else delete root.dataset.shell;
 		try {
 			if (l.id === 'classic') localStorage.removeItem(KEY);
 			else
 				localStorage.setItem(
 					KEY,
-					JSON.stringify({ id: l.id, vars, motion: l.feel.motion } satisfies Kept)
+					JSON.stringify({
+						id: l.id,
+						vars,
+						motion: l.feel.motion,
+						...(desk ? { shell: 'console' } : {})
+					} satisfies Kept)
 				);
 		} catch {
 			// Private browsing: the copy lasts this visit.

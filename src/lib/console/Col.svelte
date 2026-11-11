@@ -64,8 +64,10 @@
 	.col:first-child {
 		border-left: 0;
 	}
+	/* As wide as its rows need, at least: past that, the columns wrap. */
 	.col.grow {
 		flex: 1 1 200px;
+		min-width: 240px;
 	}
 	.ch {
 		display: flex;

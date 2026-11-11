@@ -1,7 +1,8 @@
 /**
  * Sizing a console tab to the window: `use:fit` sets `--k` on the tab, from
  * 1 (everything at its largest) down to 0 (its smallest), to the largest
- * that leaves the page without a scrollbar and the tab's columns in one row.
+ * that leaves the page without a scrollbar and the tab's columns in one row,
+ * inside the tab's width.
  * Where one row can't fit even at the smallest, the columns wrap and only
  * the scrollbar counts. The tab's sizes are written against it
  * (`calc(120px + 90px * var(--k))`), so dials, doors and readings shrink
@@ -17,7 +18,7 @@ export function fit(node: HTMLElement, key?: unknown) {
 	const wraps = () => {
 		const cols = [...node.children] as HTMLElement[];
 		const top = cols[0]?.offsetTop ?? 0;
-		return cols.some((c) => c.offsetTop > top + 4);
+		return cols.some((c) => c.offsetTop > top + 4) || node.scrollWidth > node.clientWidth + 1;
 	};
 	const at = (k: number) => node.style.setProperty('--k', String(k));
 	/** The largest `--k` at which `bad` is false; 0 when there's none. */

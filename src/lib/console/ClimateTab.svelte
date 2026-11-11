@@ -268,7 +268,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: calc(6px + 6px * var(--k, 1));
-		min-width: 200px;
 	}
 	.plain {
 		border: 0;

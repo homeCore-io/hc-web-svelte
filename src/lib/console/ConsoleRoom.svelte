@@ -38,6 +38,10 @@
 	import CardGrid from '#lib/components/CardGrid.svelte';
 	import LightsTab from './LightsTab.svelte';
 	import MediaTab from './MediaTab.svelte';
+	import ClimateTab from './ClimateTab.svelte';
+	import DoorsTab from './DoorsTab.svelte';
+	import WaterTab from './WaterTab.svelte';
+	import SensorsTab from './SensorsTab.svelte';
 	import AudioBar from './AudioBar.svelte';
 	import {
 		audioChoices,
@@ -416,8 +420,16 @@
 						onstep={volStep}
 						onmute={volMute}
 					/>
+				{:else if tab === 'climate'}
+					<ClimateTab list={model.byTab.climate} room={room.name} {fader} {sw} {may} />
+				{:else if tab === 'doors'}
+					<DoorsTab list={model.byTab.doors} room={room.name} {may} />
+				{:else if tab === 'water'}
+					<WaterTab list={model.byTab.water} room={room.name} {may} />
+				{:else if tab === 'sensors'}
+					<SensorsTab list={model.byTab.sensors} all={list} room={room.name} />
 				{:else if tab}
-					<!-- These tabs get their own consoles next; until then, the room's cards. -->
+					<!-- The Switches tab, until it gets a console of its own: the room's cards. -->
 					<CardGrid devices={model.byTab[tab]} large={['media_player', 'thermostat']} />
 				{/if}
 			</div>

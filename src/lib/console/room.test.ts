@@ -190,6 +190,17 @@ describe('a room in tabs', () => {
 		expect(r.tabs.map((t) => t.id)).toEqual(['doors', 'lights', 'climate']);
 	});
 
+	it('puts the switch a thermostat runs with it, in Climate', () => {
+		const r = consoleRoom([
+			...lamps,
+			dev('ac', 'thermostat', { actuator_device_id: 'plug' }),
+			dev('plug', 'switch'),
+			dev('lamp plug', 'switch')
+		]);
+		expect(ids(r.byTab.climate)).toEqual(['ac', 'plug']);
+		expect(ids(r.lights.switches)).toEqual(['lamp plug']);
+	});
+
 	it('keeps a few switches in Lights as a column', () => {
 		const r = consoleRoom([...lamps, dev('s1', 'switch'), dev('s2', 'switch')]);
 		expect(ids(r.lights.switches)).toEqual(['s1', 's2']);
@@ -258,10 +269,12 @@ describe('a light’s level', () => {
 		expect(shortName('Living Room', 'Living Room')).toBe('Living Room');
 		expect(shortName('Officer lamp', 'Office')).toBe('Officer lamp');
 		expect(shortName('Desk Lamp', 'Office')).toBe('Desk Lamp');
+		expect(shortName('Bathroom 2 Leak Sensor', 'Bathroom')).toBe('Bathroom 2 Leak Sensor');
 	});
 
 	it('names a brand from its plugin', () => {
 		expect(brandOf('plugin.hue')).toBe('Hue');
 		expect(brandOf(undefined)).toBe('Other');
+		expect(brandOf('plugin.yolink')).toBe('YoLink');
 	});
 });

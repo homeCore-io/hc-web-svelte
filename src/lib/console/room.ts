@@ -6,9 +6,10 @@
  * contacts, covers and openers (and cameras and sirens, until there is a
  * Security tab); Lights, lights, keypads and lighting scenes; Media, players;
  * Climate, what you set (thermostats, fans, humidifiers); Water, leak
- * sensors and valves; Sensors, every reading. Plain on/off switches sit in
- * Lights as a column of their own, and get a tab of their own only when
- * Lights would be too crowded for them.
+ * sensors and valves; Sensors, every reading. A switch a thermostat in the
+ * room runs goes with it, in Climate. Plain on/off switches sit in Lights as
+ * a column of their own, and get a tab of their own only when Lights would be
+ * too crowded for them.
  *
  * The Lights tab is a row of columns, one per lighting system's group: a Hue
  * room or zone (a group device that lists its `light_ids`, or the lights and
@@ -207,10 +208,19 @@ const nameOf = (d: CoreDevice) => d.name_override ?? d.name;
 const byName = (a: CoreDevice, b: CoreDevice) =>
 	nameOf(a).localeCompare(nameOf(b), undefined, { numeric: true });
 
-/** "plugin.hue" → "Hue"; "sbx.standin" → "Standin". */
+/** Brands spelled their own way. */
+const BRANDS: Record<string, string> = {
+	yolink: 'YoLink',
+	nuheat: 'NuHeat',
+	zwave: 'Z-Wave',
+	glue: 'homeCore'
+};
+
+/** "plugin.hue" → "Hue"; "sbx.standin" → "Standin"; "plugin.yolink" → "YoLink". */
 export function brandOf(plugin: string | undefined): string {
 	const last = (plugin ?? '').split('.').pop() ?? '';
 	if (last === '') return 'Other';
+	if (BRANDS[last]) return BRANDS[last];
 	return last.charAt(0).toUpperCase() + last.slice(1);
 }
 
@@ -355,6 +365,15 @@ export function layOut(
 	return { tight: true, crowd: switches > 0 };
 }
 
+/** The switches the room's thermostats run (`actuator_device_id`). */
+export function runByThermostats(devices: CoreDevice[]): Set<string> {
+	const ids = devices
+		.filter((d) => kindOf(d) === 'thermostat')
+		.map((d) => str(d.attributes?.actuator_device_id))
+		.filter((id): id is string => id !== undefined);
+	return new Set(ids);
+}
+
 /** Sort a room's devices into the console's tabs, for a Lights tab `width` pixels across. */
 export function consoleRoom(devices: CoreDevice[], width = LIGHTS_WIDTH): ConsoleRoom {
 	const byTab: Record<TabId, CoreDevice[]> = {
@@ -371,10 +390,12 @@ export function consoleRoom(devices: CoreDevice[], width = LIGHTS_WIDTH): Consol
 	const scenes: CoreDevice[] = [];
 	const keypads: CoreDevice[] = [];
 	const switches: CoreDevice[] = [];
+	const run = runByThermostats(devices);
 	for (const d of [...devices].sort(byName)) {
 		const p = placeOf(d);
 		if (p === null) continue;
-		if (p.tab === 'switch') switches.push(d);
+		if (p.tab === 'switch' && run.has(d.device_id)) byTab.climate.push(d);
+		else if (p.tab === 'switch') switches.push(d);
 		else if (p.tab === 'lights') {
 			({ light: lights, group: groups, scene: scenes, keypad: keypads })[p.as].push(d);
 		} else byTab[p.tab].push(d);
@@ -443,7 +464,7 @@ export const levelWant = (v: number): Record<string, unknown> =>
 /**
  * A device's name without the room's in front, where the room is plain from
  * the page: "Family Room Floor Lamp" in the Family Room is "Floor Lamp". A
- * name that is only the room's is kept whole.
+ * name that is only the room's, or another room's numbered after it, is kept whole.
  */
 export function shortName(name: string, room: string): string {
 	const r = room.trim().toLowerCase();
@@ -451,5 +472,7 @@ export function shortName(name: string, room: string): string {
 	const rest = name.slice(r.length);
 	if (!/^[\s\-–:]/.test(rest)) return name;
 	const left = rest.replace(/^[\s\-–:]+/, '');
-	return left === '' ? name : left.charAt(0).toUpperCase() + left.slice(1);
+	// "Bathroom 2 Leak Sensor" in the Bathroom is another room's: kept whole.
+	if (left === '' || /^\d/.test(left)) return name;
+	return left.charAt(0).toUpperCase() + left.slice(1);
 }

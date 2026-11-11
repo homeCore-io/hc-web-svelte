@@ -85,8 +85,8 @@
 	const note = (d: CoreDevice) => commands.notes[d.device_id];
 
 	// ---- a screen ----
-	/** Twelve tiles, then the rest on asking. */
-	const FEW = 12;
+	/** Two rows of tiles, so the speakers below stay on screen; the rest on asking. */
+	const FEW = 8;
 	let allApps = $state<Record<string, boolean>>({});
 	/** A tile just pressed, until the screen says it's showing it. */
 	let opening = $state<Record<string, string>>({});
@@ -179,6 +179,15 @@
 						<span class="cn"
 							>{tiles.some((t) => (t.launches ?? 0) > 0) ? 'Most used first' : ''}</span
 						>
+						{#if tiles.length > FEW}
+							<button
+								type="button"
+								class="btn ghost more"
+								aria-expanded={!!allApps[d.device_id]}
+								onclick={() => (allApps = { ...allApps, [d.device_id]: !allApps[d.device_id] })}
+								>{allApps[d.device_id] ? 'Fewer' : `All ${tiles.length}`}</button
+							>
+						{/if}
 					</div>
 					<div class="apps">
 						{#each shown as a (a.id)}
@@ -202,15 +211,6 @@
 							</button>
 						{/each}
 					</div>
-					{#if tiles.length > FEW}
-						<button
-							type="button"
-							class="btn ghost more"
-							aria-expanded={!!allApps[d.device_id]}
-							onclick={() => (allApps = { ...allApps, [d.device_id]: !allApps[d.device_id] })}
-							>{allApps[d.device_id] ? 'Fewer' : `All ${tiles.length}`}</button
-						>
-					{/if}
 				</section>
 			{/if}
 
@@ -520,7 +520,7 @@
 		opacity: 0.6;
 	}
 	.more {
-		align-self: flex-start;
+		margin-left: auto;
 		height: 28px;
 	}
 

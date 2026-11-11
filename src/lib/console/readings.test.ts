@@ -85,11 +85,12 @@ describe('the Water tab', () => {
 		expect(wet(dev('l', 'water_sensor', { water_detected: false }))).toBe(false);
 	});
 
-	it('reads a valve by its own open, else a switch’s on, and a command on its way', () => {
-		const sw = dev('v', 'switch', { on: true });
+	it('reads a valve by its own open, else a relay that is on to shut it, and a command on its way', () => {
+		const sw = dev('v', 'switch', { on: false });
 		expect(valveOpen(sw)).toBe(true);
-		expect(valveOpen(sw, { on: false })).toBe(false);
-		expect(valveWant(sw, false)).toEqual({ on: false });
+		expect(valveOpen(sw, { on: true })).toBe(false);
+		expect(valveWant(sw, false)).toEqual({ on: true });
+		expect(valveWant(sw, true)).toEqual({ on: false });
 		const valve = dev('v', 'valve', { open: false });
 		expect(valveOpen(valve)).toBe(false);
 		expect(valveWant(valve, true)).toEqual({ open: true });

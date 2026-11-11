@@ -30,13 +30,16 @@ export const wet = (d: CoreDevice): boolean =>
 export const valveAttr = (d: CoreDevice): 'open' | 'on' =>
 	typeof d.attributes.open === 'boolean' || d.schema?.attributes.open ? 'open' : 'on';
 
-/** Whether a valve lets water through. `want` is a command on its way. */
+/**
+ * Whether a valve lets water through. `want` is a command on its way. A
+ * switch for a valve is a relay that powers the valve shut, like the
+ * YoLink one: off lets water through, on shuts it off.
+ */
 export function valveOpen(d: CoreDevice, want?: Record<string, unknown>): boolean {
 	const a = { ...d.attributes, ...want };
-	return a[valveAttr(d)] === true;
+	return valveAttr(d) === 'open' ? a.open === true : a.on === false;
 }
 
 /** What opening or shutting a valve sends. */
-export const valveWant = (d: CoreDevice, open: boolean): Record<string, unknown> => ({
-	[valveAttr(d)]: open
-});
+export const valveWant = (d: CoreDevice, open: boolean): Record<string, unknown> =>
+	valveAttr(d) === 'open' ? { open } : { on: !open };

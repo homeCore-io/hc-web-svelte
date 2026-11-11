@@ -56,11 +56,18 @@ export function localeUnits(locale?: string): Units {
 		: { temperature: 'C', measures: 'metric' };
 }
 
-/** The units a person reads in: what they chose, the browser's for the rest. */
-export function unitsOf(chosen: UnitsChoice | undefined, locale?: string): Units {
+/**
+ * The units a person reads in: what they chose, else the household's
+ * temperature unit if it set one, else the browser's.
+ */
+export function unitsOf(
+	chosen: UnitsChoice | undefined,
+	locale?: string,
+	house?: TemperatureUnit
+): Units {
 	const usual = localeUnits(locale);
 	return {
-		temperature: chosen?.temperature ?? usual.temperature,
+		temperature: chosen?.temperature ?? house ?? usual.temperature,
 		measures: chosen?.measures ?? usual.measures
 	};
 }

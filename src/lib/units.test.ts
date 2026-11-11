@@ -32,6 +32,12 @@ describe('the units a person reads in', () => {
 		expect(unitsOf({ measures: 'us' }, 'en-GB')).toEqual({ temperature: 'C', measures: 'us' });
 		expect(unitsOf(undefined, 'en-GB')).toEqual(METRIC);
 	});
+
+	it('the household’s temperature before the browser’s, theirs before both', () => {
+		expect(unitsOf(undefined, 'en-GB', 'F')).toEqual({ temperature: 'F', measures: 'metric' });
+		expect(unitsOf({ temperature: 'C' }, 'en-US', 'F').temperature).toBe('C');
+		expect(unitsOf(undefined, 'en-US', undefined).temperature).toBe('F');
+	});
 });
 
 describe('a reading in the person’s units', () => {

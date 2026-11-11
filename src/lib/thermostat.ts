@@ -14,7 +14,7 @@
  *
  * Temperatures here are in the person's units, as the card shows them.
  */
-import type { CoreDevice, DeviceAction, Schema } from './devices.js';
+import { unitOf, type CoreDevice, type DeviceAction, type Schema } from './devices.js';
 import { fromShown, shownRange, shownUnit, toShown } from './units.js';
 
 export type Doing = 'heating' | 'cooling' | 'idle' | 'off';
@@ -57,10 +57,10 @@ const params = (a: DeviceAction) => (a.params ?? []).map((p) => p.name);
 export function thermostatOf(d: CoreDevice): Thermostat {
 	const a = d.attributes;
 	const s: Schema = d.schema ?? { attributes: {} };
-	const unitOf = (name: string) => s.attributes[name]?.unit ?? '°C';
+	// Each reading in its own unit; one with none is shown as it came.
 	const shown = (name: string) => {
 		const v = num(a[name]);
-		return v === undefined ? undefined : toShown(v, unitOf(name));
+		return v === undefined ? undefined : toShown(v, unitOf(d, name));
 	};
 	const mode = str(a.hvac_mode);
 	const modeSpec = s.attributes.hvac_mode;
@@ -81,11 +81,10 @@ export function thermostatOf(d: CoreDevice): Thermostat {
 			? 'cool_setpoint'
 			: 'heat_setpoint';
 	const spec = s.attributes[attr];
-	const r = shownRange(
-		{ min: spec?.min ?? 5, max: spec?.max ?? 35, step: spec?.step ?? 0.5 },
-		spec?.unit ?? '°C'
-	);
-	const unit = shownUnit(spec?.unit ?? '°C') ?? '°C';
+	const own = unitOf(d, attr);
+	const r = shownRange({ min: spec?.min ?? 5, max: spec?.max ?? 35, step: spec?.step ?? 0.5 }, own);
+	// A setpoint with no unit says only "°": its number is whatever the device sent.
+	const unit = shownUnit(own) ?? '°';
 	const action = str(a.hvac_action);
 	const doing: Doing =
 		mode === 'off' || action === 'off'
@@ -147,8 +146,7 @@ export function sendFor(
 	shownTarget: number,
 	length: HoldLength
 ): Send {
-	const unit = d.schema?.attributes[t.attr]?.unit ?? '°C';
-	const value = Math.round(fromShown(shownTarget, unit) * 100) / 100;
+	const value = Math.round(fromShown(shownTarget, unitOf(d, t.attr)) * 100) / 100;
 	// On a schedule it holds: a permanent hold stays one; otherwise as the card says.
 	if (t.schedule !== undefined && (t.hold || t.permanent)) {
 		const permanent = t.permanent && (length === 'perm' || t.schedule === 'permanent_hold');

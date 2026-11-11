@@ -21,6 +21,7 @@
 	import { core } from '#lib/core.svelte.js';
 	import { browserOf } from '#lib/systemAdmin.js';
 	import { units, type Measures, type TemperatureUnit } from '#lib/units.js';
+	import { houseUnits } from '#lib/houseUnits.svelte.js';
 
 	// ---- where you're signed in (homeCore 0.1.83) ----
 	interface SignedIn {
@@ -110,7 +111,7 @@
 		});
 	}
 
-	// ---- units: theirs, else this browser's language says ----
+	// ---- units: theirs, else the household's temperature, else this browser's language ----
 	const myUnits = $derived(units());
 	const temperatures: { value: TemperatureUnit; label: string }[] = [
 		{ value: 'F', label: '°F' },
@@ -269,7 +270,10 @@
 	<section>
 		<h2 class="section-label" id="units">Units</h2>
 		<p class="note">
-			How readings are shown to you. Only yours — homeCore keeps them in °C and metric.
+			How readings are shown to you. Only yours; homeCore keeps them in °C and metric.
+			{#if personal.doc.units?.temperature === undefined && houseUnits.temperature}
+				Temperatures follow the household's °{houseUnits.temperature} until you pick one.
+			{/if}
 		</p>
 		<!-- Each row says what it sets (#98). -->
 		<span class="unit-label">Temperature</span>
@@ -296,7 +300,9 @@
 			<button
 				class="link"
 				onclick={() => void personal.setUnits({ temperature: undefined, measures: undefined })}
-				>Back to this device's language</button
+				>{houseUnits.temperature
+					? 'Back to the defaults'
+					: "Back to this device's language"}</button
 			>
 		{/if}
 	</section>

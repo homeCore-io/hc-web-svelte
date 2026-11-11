@@ -13,6 +13,8 @@
 	import type { AlertIgnore } from '#lib/alerts.js';
 	import { onMount } from 'svelte';
 	import { session } from '#lib/me.svelte.js';
+	import { houseUnits } from '#lib/houseUnits.svelte.js';
+	import type { TemperatureUnit } from '#lib/units.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
 	import { alerts } from '#lib/alerts.svelte.js';
@@ -47,6 +49,18 @@
 	let plugins = $state<{ running: number; all: number; off: number } | null>(null);
 
 	let connections = $state<Connection[] | null>(null);
+
+	// The household's temperature unit: what everyone reads until they pick their own.
+	const houseChoices: { value: TemperatureUnit | undefined; label: string }[] = [
+		{ value: undefined, label: 'Each browser’s' },
+		{ value: 'F', label: '°F' },
+		{ value: 'C', label: '°C' }
+	];
+	let unitNote = $state<string | null>(null);
+	async function pickHouseUnit(u: TemperatureUnit | undefined) {
+		const a = await houseUnits.set(u);
+		unitNote = a.ok ? null : a.error;
+	}
 	async function load() {
 		const [st, v, l, p, c] = await Promise.all([
 			loadStatus(),
@@ -361,6 +375,28 @@
 				{/if}
 				{#if levelNote}<p class="sub" role="status">{levelNote}</p>{/if}
 			{/if}
+		</section>
+
+		<section class="card">
+			<h2>Units and region</h2>
+			<div class="seg" role="radiogroup" aria-label="The household's temperature unit">
+				{#each houseChoices as c (c.label)}
+					<button
+						role="radio"
+						aria-checked={houseUnits.temperature === c.value}
+						disabled={!session.isAdmin}
+						onclick={() => void pickHouseUnit(c.value)}>{c.label}</button
+					>
+				{/each}
+			</div>
+			<p class="sub">
+				Temperatures for everyone who hasn't picked their own, and in notifications and alert
+				messages. Each browser's goes by the language that browser is set to, so English (US) reads
+				°F, and notifications then use °C. homeCore keeps every reading in °C either way. Time zone <strong
+					>{status.timezone}</strong
+				>.
+			</p>
+			{#if unitNote}<p class="sub" role="status">{unitNote}</p>{/if}
 		</section>
 
 		{#if connections}

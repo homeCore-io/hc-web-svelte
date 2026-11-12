@@ -35,13 +35,13 @@
 	import type { CoreDevice } from '#lib/devices.js';
 	import { openDevice } from '#lib/popup.js';
 	import Icon from '#lib/components/Icon.svelte';
-	import CardGrid from '#lib/components/CardGrid.svelte';
 	import LightsTab from './LightsTab.svelte';
 	import MediaTab from './MediaTab.svelte';
 	import ClimateTab from './ClimateTab.svelte';
 	import DoorsTab from './DoorsTab.svelte';
 	import WaterTab from './WaterTab.svelte';
 	import SensorsTab from './SensorsTab.svelte';
+	import SwitchesTab from './SwitchesTab.svelte';
 	import AudioBar from './AudioBar.svelte';
 	import {
 		audioChoices,
@@ -428,9 +428,8 @@
 					<WaterTab list={model.byTab.water} room={room.name} {may} />
 				{:else if tab === 'sensors'}
 					<SensorsTab list={model.byTab.sensors} all={list} room={room.name} />
-				{:else if tab}
-					<!-- The Switches tab, until it gets a console of its own: the room's cards. -->
-					<CardGrid devices={model.byTab[tab]} large={['media_player', 'thermostat']} />
+				{:else if tab === 'switches'}
+					<SwitchesTab list={model.byTab.switches} room={room.name} {sw} {may} />
 				{/if}
 			</div>
 		{/if}
@@ -718,9 +717,6 @@
 		border-radius: 0 16px 16px 16px;
 		background: color-mix(in srgb, var(--ink) 6%, transparent);
 		flex: 1;
-	}
-	.panel > :global(.grid) {
-		padding: 0 14px 0 18px;
 	}
 
 	@media (max-width: 1100px) {

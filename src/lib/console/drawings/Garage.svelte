@@ -79,7 +79,6 @@
 				stroke="#353a46"
 			/>{/each}
 	{/each}
-	<rect x="420" y="40" width="420" height="30" fill="#0d0f14" />
 	<rect x="870" y="160" width="120" height="8" rx="3" fill="#2a2e38" />
 	<path d="M905 160 v-26" stroke="#3a3f4b" stroke-width="4" /><path
 		d="M890 134 h30 l-5 -14 h-20 z"

@@ -245,8 +245,19 @@ const nameOf = (d: CoreDevice) => d.name_override ?? d.name;
 /** A device's name as the room says it, lower case: "Family Room Floor Lamp" is "floor lamp". */
 const wordsOf = (d: CoreDevice, room: string) => shortName(nameOf(d), room).toLowerCase();
 
-/** A switch that says it's a light, or one a person marked as a light. */
+/** A switch that says it's a light. One a person marked as a light is a light already. */
 const lightNamed = (name: string) => /light|lamp|chandelier|sconce|pendant|bulb/.test(name);
+
+/**
+ * Whether a device is one of a room's lights: a light, or a switch whose name
+ * says it is one ("Deck Flood Light", "Holiday Lights").
+ */
+export function isLamp(d: CoreDevice): boolean {
+	const k = kindOf(d);
+	return (
+		k === 'light' || k === 'dimmer' || (SWITCHES.has(k) && lightNamed(nameOf(d).toLowerCase()))
+	);
+}
 
 /** Whether a device can be shown by a spot of this kind at all. */
 function fits(kind: SpotKind, d: CoreDevice): boolean {
@@ -390,13 +401,21 @@ export const op = (v: number | undefined): number => (v && v > 0 ? 0.3 + 0.7 * M
 /** A lamp's shade or bulb: warm when lit. */
 export const shade = (v: number | undefined): string => (v && v > 0 ? '#fff1d6' : '#4a4f5c');
 
-/** A room's drawing, and how it's lit now. */
+/**
+ * A room's drawing, how it's lit now, and its lights: those `isLamp` takes
+ * and anything else the drawing lights by its name (a "Zone 03" in the Garage).
+ */
 export function roomPicture(
 	room: string,
 	devices: CoreDevice[],
 	now: number,
 	wants?: Wants
-): { picture: PictureId; g: Glow } {
+): { picture: PictureId; g: Glow; lamps: CoreDevice[] } {
 	const picture = pictureOf(room);
-	return { picture, g: glowOf(picture, spotsOf(picture, devices, room), now, wants) };
+	const spots = spotsOf(picture, devices, room);
+	const lit = PICTURES[picture].spots
+		.filter((s) => s.kind === 'light' || s.kind === 'holiday')
+		.flatMap((s) => spots.get(s.id) ?? []);
+	const lamps = devices.filter((d) => isLamp(d) || lit.includes(d));
+	return { picture, g: glowOf(picture, spots, now, wants), lamps };
 }

@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import type { CoreDevice } from '../devices.js';
-import { anyLit, glowOf, op, pictureOf, PICTURES, shade, spotsOf } from './pictures.js';
+import {
+	anyLit,
+	glowOf,
+	isLamp,
+	op,
+	pictureOf,
+	PICTURES,
+	roomPicture,
+	shade,
+	spotsOf
+} from './pictures.js';
 
 const dev = (
 	id: string,
@@ -222,5 +232,30 @@ describe('the drawings’ helpers', () => {
 		expect(op(1)).toBe(1);
 		expect(shade(1)).toBe('#fff1d6');
 		expect(shade(0)).toBe('#4a4f5c');
+	});
+});
+
+describe('isLamp', () => {
+	it('takes lights, and switches named as lights', () => {
+		expect(isLamp(dev('a', 'light', 'Overhead'))).toBe(true);
+		expect(isLamp(dev('b', 'switch', 'Deck Flood Light'))).toBe(true);
+		expect(isLamp(dev('c', 'switch', 'Holiday Lights'))).toBe(true);
+		expect(isLamp(dev('d', 'switch', 'Garage Door'))).toBe(false);
+		expect(isLamp(dev('e', 'switch', 'Zone 03'))).toBe(false);
+		expect(isLamp(dev('f', 'switch', 'Zone 03', {}, { ui_hint: 'light' }))).toBe(true);
+	});
+});
+
+describe('roomPicture', () => {
+	it('picks the drawing, lights it, and counts what it lights by name as lights', () => {
+		const list = [
+			dev('z', 'switch', 'Zone 03', { on: true }),
+			dev('g', 'switch', 'Garage Door', { on: false }),
+			dev('d', 'contact_sensor', 'Garage OH1 Door Sensor', { open: false })
+		];
+		const p = roomPicture('Garage', list, 0);
+		expect(p.picture).toBe('garage');
+		expect(p.g).toEqual({ zone: 1, oh1: 0 });
+		expect(p.lamps.map((x) => x.device_id)).toEqual(['z']);
 	});
 });

@@ -52,7 +52,7 @@
 	import RoomPicture from './RoomPicture.svelte';
 	import HomePills from './HomePills.svelte';
 	import { anyLit, roomPicture } from './pictures.js';
-	import { devicesIn } from './room.js';
+	import { devicesIn, levelOf } from './room.js';
 	import {
 		favoritesOf,
 		greetingOf,
@@ -178,6 +178,11 @@
 			const d = devices.byId[lid];
 			if (d) commands.expect(lid, kindOf(d), { on: false }, d.attributes);
 		}
+		// A switch named as a light that Room off doesn't cover is sent its own.
+		const sent = new Set(done.flatMap((r) => r.lights));
+		for (const d of litRooms.flatMap((t) => t.lamps))
+			if (d.available && !sent.has(d.device_id) && levelOf(d, wants(d.device_id)) > 0)
+				void commands.set(d.device_id, kindOf(d), { on: false }, d.attributes);
 	}
 	async function useDevice(d: CoreDevice) {
 		const c = cardFor(d, clock.now);

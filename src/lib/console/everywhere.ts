@@ -24,6 +24,7 @@ import { units, type Units } from '../units.js';
 import { climateTab } from './climate.js';
 import { isPlaying, orderPlayers } from './media.js';
 import { brandOf, consoleRoom, levelOf, type ConsoleRoom } from './room.js';
+import { roomPicture } from './pictures.js';
 import { readingOf, type Reading } from './sensors.js';
 import { valveOpen, waterTab, wet } from './water.js';
 
@@ -83,11 +84,23 @@ export interface LightRow {
 	lights: CoreDevice[];
 }
 
-/** A row for each room with lights; its camera spotlights stay with its cameras. */
-export const lightRows = (places: Place[]): LightRow[] =>
-	places
-		.map((place) => ({ place, lights: place.model.lights.columns.flatMap((c) => c.lights) }))
+/**
+ * A row for each room with lights: its Lights tab's faders, then whatever else
+ * Home counts as its lights (switches named as lights, a Garage's "Zone 03"),
+ * so both say the same. Its camera spotlights stay with its cameras.
+ */
+export function lightRows(places: Place[]): LightRow[] {
+	return places
+		.map((place) => {
+			const faders = place.model.lights.columns.flatMap((c) => c.lights);
+			const { cameras, ...tabs } = place.model.byTab;
+			const others = roomPicture(place.name, Object.values(tabs).flat(), 0).lamps.filter(
+				(d) => !faders.includes(d) && !cameras.includes(d)
+			);
+			return { place, lights: [...faders, ...others] };
+		})
 		.filter((r) => r.lights.length > 0);
+}
 
 /** Whether a light is on, as its fader would show it, with a command on its way. */
 export const lit = (d: CoreDevice, wants: Wants = {}): boolean =>

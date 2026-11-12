@@ -100,6 +100,23 @@ describe('Lights', () => {
 		expect(ids(rows[0]!.lights.map((device) => ({ device })))).toEqual(['desk', 'lamp']);
 	});
 
+	it('adds the switches Home counts as lights, after the faders', () => {
+		const rows = lightRows(
+			placesOf(
+				house({
+					garage: [
+						dev('opener', 'switch', { on: false }, { name: 'Garage Door 1' }),
+						dev('overhead', 'switch', { on: true }, { name: 'Garage Overhead Light' }),
+						dev('bulb', 'light', { on: false })
+					]
+				}),
+				[garage]
+			)
+		);
+		expect(rows.map((r) => r.lights.map((d) => d.device_id))).toEqual([['bulb', 'overhead']]);
+		expect(onWord(rows[0]!.lights)).toBe('1 of 2 on');
+	});
+
 	it('counts lights on and the rooms they are in, with commands on their way', () => {
 		const rows = lightRows(places);
 		expect(lightsCount(rows)).toEqual({ on: 1, all: 3, rooms: 1 });

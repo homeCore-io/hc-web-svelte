@@ -54,6 +54,10 @@
 				const d = devices.byId[id];
 				if (d) commands.expect(id, kindOf(d), { on }, d.attributes);
 			}
+			// A switch named as a light that Room off doesn't cover is sent its own.
+			for (const d of r.lights)
+				if (d.available && !said.lights.includes(d.device_id) && lit(d, commands.pending) !== on)
+					void commands.set(d.device_id, kindOf(d), { on }, d.attributes);
 		} else {
 			// Lights in no room have no Room on: each is sent its own.
 			for (const d of r.lights.filter((l) => l.available))

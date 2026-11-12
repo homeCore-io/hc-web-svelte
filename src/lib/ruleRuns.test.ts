@@ -157,4 +157,5 @@ test('a run someone asked for says so, and who', () => {
 		actions: []
 	} as unknown as Record_;
 	expect(plain(runOf(h, rule('r-door'), r).summary)).toMatch(/^run now by sam/);
+	expect(runOf(h, rule('r-door'), r).summary).toContainEqual({ t: 'sam', person: '' });
 });

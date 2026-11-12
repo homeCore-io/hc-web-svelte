@@ -14,6 +14,7 @@ import {
 	valueText,
 	whenPhrase,
 	type House,
+	type Bit,
 	type Phrase,
 	type Rule
 } from './ruleWords.js';
@@ -29,6 +30,8 @@ export interface Record_ {
 		value?: unknown;
 		prev_value?: unknown;
 		change_kind?: string;
+		change_source?: string;
+		change_actor_id?: string;
 		change_actor_name?: string;
 		trigger_label?: string;
 		/** Which of the rule's moments matched, when it has several. */
@@ -70,6 +73,12 @@ export interface Line {
 	tone: Tone;
 }
 
+/** The person a change came from, with their picture. */
+const actor = (c: Record_['trigger_context']): Bit => ({
+	t: c.change_actor_name ?? '',
+	person: c.change_actor_id ?? ''
+});
+
 export interface Run {
 	at: string;
 	ran: boolean;
@@ -107,12 +116,13 @@ export function cause(h: House, rule: Rule, r: Record_): Phrase {
 		];
 		if (c.prev_value !== undefined && c.prev_value !== null)
 			out.push({ t: ` (was ${valueText(spec, c.prev_value)})` });
-		if (c.change_actor_name) out.push({ t: `, by ${c.change_actor_name}` });
+		if (c.change_actor_name)
+			out.push({ t: ', by ' }, c.change_source === 'api' ? actor(c) : { t: c.change_actor_name });
 		return out;
 	}
 	if (c.device_id) return [deviceBit(h, c.device_id)];
 	if (r.trigger_type === 'ManualRun')
-		return [{ t: `run now${c.change_actor_name ? ` by ${c.change_actor_name}` : ''}` }];
+		return c.change_actor_name ? [{ t: 'run now by ' }, actor(c)] : [{ t: 'run now' }];
 	// A moment with no device: the rule's own words for it.
 	const moment = [rule.trigger, ...(rule.triggers ?? [])][c.trigger_index ?? 0] ?? rule.trigger;
 	const when = whenPhrase(h, moment);

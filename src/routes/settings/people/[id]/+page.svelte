@@ -4,6 +4,7 @@
 	The house always keeps an admin.
 -->
 <script lang="ts">
+	import Avatar from '#lib/components/Avatar.svelte';
 	import { fullDateOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { onReturn } from '#lib/refresh.js';
@@ -15,7 +16,6 @@
 	import { ask } from '#lib/confirm.svelte.js';
 	import {
 		ROLE_WORDS,
-		initialOf,
 		keyState,
 		keyWords,
 		lastAdmin,
@@ -164,7 +164,7 @@
 	<p class="quiet">There’s nobody with that account. <a href="/settings/people">Everyone</a></p>
 {:else}
 	<header class="who">
-		<span class="face" aria-hidden="true">{initialOf(person.username)}</span>
+		<Avatar person={person.id} name={person.username} size={48} />
 		<span class="whotext">
 			<strong>{person.username}{isMe ? ' (you)' : ''}</strong>
 			<span class="sub">Since {fullDateOf(person.created_at)}</span>
@@ -287,18 +287,6 @@
 		align-items: center;
 		gap: 14px;
 		margin-bottom: var(--space-4);
-	}
-	.face {
-		width: 48px;
-		height: 48px;
-		border-radius: 24px;
-		flex: none;
-		background: var(--surface-2);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 20px;
-		font-weight: 700;
 	}
 	.whotext {
 		flex: 1;

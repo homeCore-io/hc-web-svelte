@@ -7,6 +7,7 @@
 <script lang="ts">
 	import { momentOf, timeOf } from '#lib/when.js';
 	import X from '@lucide/svelte/icons/x';
+	import Avatar from './Avatar.svelte';
 	import { session } from '#lib/me.svelte.js';
 	import Power from '@lucide/svelte/icons/power';
 	import Play from '@lucide/svelte/icons/play';
@@ -650,7 +651,13 @@
 			{:else}
 				<ul class="activity">
 					{#each lines as l (l.at + l.text)}
-						<li><span class="num when">{time(l.at)}</span><span>{l.text}</span></li>
+						<li>
+							<span class="num when">{time(l.at)}</span>{#if l.person}<Avatar
+									person={l.person.id}
+									name={l.person.name}
+									size={16}
+								/>{/if}<span>{l.text}</span>
+						</li>
 					{/each}
 				</ul>
 			{/if}

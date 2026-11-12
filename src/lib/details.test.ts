@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { actionBody, detailsFor, ready, rgbValue } from './details.js';
-import { activityOf, byWhom } from './activity.js';
+import { activityOf, byWhom, personOf } from './activity.js';
 import { HOUSE, FIXTURE_NOW } from './fixtures/house.js';
 import type { CoreDevice } from './devices.js';
 import { followUnits } from './units.js';
@@ -197,6 +197,13 @@ describe('activity, saying who changed it', () => {
 
 	it('names people, rules, scenes, walls and other apps', () => {
 		expect(byWhom({ kind: 'homecore', source: 'api', actor_name: 'sam' })).toBe('by sam');
+		expect(
+			personOf({ kind: 'homecore', source: 'api', actor_name: 'sam', actor_id: 'u1' })
+		).toEqual({
+			name: 'sam',
+			id: 'u1'
+		});
+		expect(personOf({ kind: 'homecore', source: 'rule', actor_name: 'Evening' })).toBeUndefined();
 		expect(byWhom({ kind: 'homecore', source: 'scene', actor_name: 'Movie time' })).toBe(
 			'by Movie time'
 		);

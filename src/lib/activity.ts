@@ -18,6 +18,8 @@ export interface StateEvent {
 export interface ActivityLine {
 	at: string;
 	text: string;
+	/** The person who changed it, to show with their picture. */
+	person?: { id?: string; name: string };
 }
 
 /** Attributes that move without anyone doing anything. */
@@ -38,10 +40,21 @@ export function activityOf(events: StateEvent[], s: Schema, limit = 8): Activity
 			.filter((x): x is string => x !== undefined);
 		if (what.length === 0) continue;
 		const who = byWhom(e.change);
-		lines.push({ at: e.timestamp, text: [what.join(', '), who].filter(Boolean).join(' · ') });
+		const person = personOf(e.change);
+		lines.push({
+			at: e.timestamp,
+			text: [what.join(', '), who].filter(Boolean).join(' · '),
+			...(person ? { person } : {})
+		});
 		if (lines.length >= limit) break;
 	}
 	return lines;
+}
+
+/** The person a change came from: someone using the app, not a rule or a scene. */
+export function personOf(c: Change | undefined): ActivityLine['person'] {
+	if (!c?.actor_name || c.source !== 'api') return undefined;
+	return { name: c.actor_name, ...(c.actor_id ? { id: c.actor_id } : {}) };
 }
 
 export function byWhom(c: Change | undefined): string {

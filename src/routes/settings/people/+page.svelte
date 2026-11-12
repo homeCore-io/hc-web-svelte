@@ -8,6 +8,7 @@
 	import { onMount } from 'svelte';
 	import { onReturn } from '#lib/refresh.js';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import Avatar from '#lib/components/Avatar.svelte';
 	import { session } from '#lib/me.svelte.js';
 	import { wide } from '#lib/wide.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
@@ -17,7 +18,6 @@
 		ROLE_WORDS,
 		advice,
 		cellsOf,
-		initialOf,
 		keyGroups,
 		ordered,
 		roleName,
@@ -86,7 +86,9 @@
 			<div class="table" role="table" aria-label="People">
 				{#each people as p (p.id)}
 					<a class="row" role="row" href={href(p)}>
-						<span role="cell" class="face" aria-hidden="true">{initialOf(p.username)}</span>
+						<span role="cell" class="face"
+							><Avatar person={p.id} name={p.username} size={36} /></span
+						>
 						<span role="cell" class="who">
 							<strong>{p.username}{me(p) ? ' (you)' : ''}</strong>
 							<span class="sub">since {since(p.created_at)}</span>
@@ -102,7 +104,7 @@
 				{#each people as p (p.id)}
 					<li>
 						<a href={href(p)}>
-							<span class="face" aria-hidden="true">{initialOf(p.username)}</span>
+							<Avatar person={p.id} name={p.username} size={36} />
 							<span class="text">
 								<strong>{p.username}{me(p) ? ' (you)' : ''}</strong>
 								<span class="sub">{[roleName(p.role), pin(p)].filter(Boolean).join(' · ')}</span>
@@ -228,15 +230,7 @@
 		background: color-mix(in srgb, var(--surface-2) 40%, var(--surface));
 	}
 	.face {
-		width: 36px;
-		height: 36px;
-		border-radius: 18px;
-		flex: none;
-		background: var(--surface-2);
 		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-weight: 700;
 	}
 	.who,
 	.text,

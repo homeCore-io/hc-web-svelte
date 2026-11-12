@@ -33,6 +33,7 @@
 	import X from '@lucide/svelte/icons/x';
 	import Plus from '@lucide/svelte/icons/plus';
 	import PicturePicker from '#lib/components/PicturePicker.svelte';
+	import Avatar from '#lib/components/Avatar.svelte';
 	import { sized } from '#lib/pictures.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
@@ -493,7 +494,11 @@
 		<div class="czh">
 			<h1>Customizing the {name}</h1>
 			<p>
-				{forAll
+				{#if !forAll}<Avatar
+						person={session.me?.id}
+						name={session.me?.username ?? ''}
+						size={16}
+					/>{/if}{forAll
 					? 'Everyone in the household sees these changes.'
 					: 'Only you see these changes; the household’s layout stays as it is.'}
 			</p>
@@ -1050,6 +1055,11 @@
 		font-size: 14px;
 		font-weight: 700;
 		color: color-mix(in srgb, var(--cz) 60%, var(--ink));
+	}
+	.czh p :global(.avatar) {
+		display: inline-flex;
+		vertical-align: -3px;
+		margin-right: 6px;
 	}
 	.czh p {
 		margin: 2px 0 0;

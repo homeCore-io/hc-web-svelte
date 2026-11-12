@@ -16,6 +16,8 @@
 	import Col from './Col.svelte';
 	import Fader from './Fader.svelte';
 	import Switch from './Switch.svelte';
+	import Place from './Place.svelte';
+	import Moved from './Moved.svelte';
 	import Thermo from './Thermo.svelte';
 	import { fit } from './fit.js';
 	import { climateTab, fanSpeeds, speedLabel, speedWant, spinOf } from './climate.js';
@@ -95,6 +97,7 @@
 			alert={!!commands.notes[f.device_id] || !f.available}
 			width="calc(190px + 70px * var(--k, 1))"
 			onopen={() => open(f)}
+			place={f}
 		>
 			<svg
 				class="fan"
@@ -158,21 +161,28 @@
 		<Col title={timers.length > 0 && switches.length === 0 ? 'Timers' : 'Switches'} grow>
 			<div class="rows">
 				{#each switches as s (s.device_id)}
-					{#if canSwitch(s)}
-						<Switch
-							label={nameOf(s)}
-							sub={s.available ? undefined : 'Offline'}
-							on={isOn(s)}
-							style={sw}
-							disabled={!may || !s.available}
-							waiting={waiting(s)}
-							onchange={(v) => setOn(s, v)}
-						/>
-					{:else}
-						<button type="button" class="plain" onclick={() => open(s)}
-							>{nameOf(s)}<small>{cardFor(s, clock.now).stateLine}</small></button
-						>
-					{/if}
+					<div class="line">
+						{#if canSwitch(s)}
+							<div class="one">
+								<Switch
+									label={nameOf(s)}
+									sub={s.available ? undefined : 'Offline'}
+									on={isOn(s)}
+									style={sw}
+									disabled={!may || !s.available}
+									waiting={waiting(s)}
+									onchange={(v) => setOn(s, v)}
+								>
+									{#snippet tag()}<Moved d={s} />{/snippet}
+								</Switch>
+							</div>
+						{:else}
+							<button type="button" class="plain one" onclick={() => open(s)}
+								>{nameOf(s)}<small>{cardFor(s, clock.now).stateLine}</small><Moved d={s} /></button
+							>
+						{/if}
+						<Place d={s} tag={false} />
+					</div>
 					{#if commands.notes[s.device_id]}<span class="warn" role="status"
 							>{commands.notes[s.device_id]}</span
 						>{/if}
@@ -274,6 +284,16 @@
 		display: flex;
 		flex-direction: column;
 		gap: calc(6px + 6px * var(--k, 1));
+	}
+	.line {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		min-width: 0;
+	}
+	.one {
+		flex: 1;
+		min-width: 0;
 	}
 	.plain {
 		border: 0;

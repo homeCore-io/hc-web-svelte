@@ -69,6 +69,7 @@
 			alert
 			width="calc(190px + 70px * var(--k, 1))"
 			onopen={() => open(d)}
+			place={d}
 		>
 			<div class="drop">
 				<svg viewBox="0 0 80 100" class:wet={isWet} aria-hidden="true">
@@ -91,6 +92,7 @@
 			alert
 			width="calc(200px + 90px * var(--k, 1))"
 			onopen={() => open(d)}
+			place={d}
 		>
 			<svg class="valve" class:on viewBox="0 0 160 90" aria-hidden="true">
 				<rect class="pipe" x="0" y="34" width="160" height="22" rx="4" />

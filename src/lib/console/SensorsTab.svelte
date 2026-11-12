@@ -17,6 +17,7 @@
 	import { units } from '#lib/units.js';
 	import Col from './Col.svelte';
 	import Row from './Row.svelte';
+	import Place from './Place.svelte';
 	import { fit } from './fit.js';
 	import SwitchSet from './SwitchSet.svelte';
 	import { setsWithSwitches, setTitle } from './switches.js';
@@ -100,12 +101,15 @@
 		<Col title="Readings" flex="1 1 400px">
 			<div class="tiles">
 				{#each tab.readings as r (r.device.device_id)}
-					<button type="button" class="tile" onclick={() => open(r.device)}>
-						<span class="tn"
-							><span class="tag">{brandOf(r.device.plugin_id)}</span>{nameOf(r.device)}</span
-						>
-						{@render reading(r, true)}
-					</button>
+					<div class="tw">
+						<button type="button" class="tile" onclick={() => open(r.device)}>
+							<span class="tn"
+								><span class="tag">{brandOf(r.device.plugin_id)}</span>{nameOf(r.device)}</span
+							>
+							{@render reading(r, true)}
+						</button>
+						<Place d={r.device} corner />
+					</div>
 				{/each}
 			</div>
 		</Col>
@@ -116,6 +120,7 @@
 				plugin={r.device.plugin_id}
 				width="calc(200px + 50px * var(--k, 1))"
 				onopen={() => open(r.device)}
+				place={r.device}
 			>
 				{@render reading(r, false)}
 			</Col>
@@ -132,6 +137,7 @@
 						dot={dotOf(d)}
 						word={card(d).stateLine.split(' · ')[0]}
 						onopen={() => open(d)}
+						place={d}
 					/>
 				{/each}
 			</div>
@@ -239,7 +245,13 @@
 		grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
 		gap: 10px;
 	}
+	.tw {
+		position: relative;
+		display: flex;
+	}
 	.tile {
+		flex: 1;
+		min-width: 0;
 		display: flex;
 		flex-direction: column;
 		gap: calc(4px + 4px * var(--k, 1));
@@ -262,6 +274,8 @@
 		font-size: 12.5px;
 		font-weight: 700;
 		min-width: 0;
+		/* Clear of its "⋯". */
+		padding-right: 22px;
 	}
 	.tag {
 		flex: none;

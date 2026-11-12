@@ -121,6 +121,7 @@
 			alert={isUp || offline || !!commands.notes[o?.device_id ?? '']}
 			width="calc(150px + 80px * var(--k, 1))"
 			onopen={s ? () => open(s) : undefined}
+			place={o ?? s}
 		>
 			<svg class="oh" class:up={isUp} viewBox="0 0 200 150" aria-hidden="true">
 				<rect class="frame" x="6" y="6" width="188" height="140" rx="4" />
@@ -160,6 +161,7 @@
 				alert
 				width="calc(170px + 70px * var(--k, 1))"
 				onopen={() => open(d)}
+				place={d}
 			>
 				<div class="big">
 					<svg class="lockv" viewBox="0 0 100 120" aria-hidden="true">
@@ -189,6 +191,7 @@
 				plugin={d.plugin_id}
 				width="calc(170px + 70px * var(--k, 1))"
 				onopen={() => open(d)}
+				place={d}
 			>
 				<div class="big">
 					<svg class="doorv" viewBox="0 0 160 150" aria-hidden="true">
@@ -221,6 +224,7 @@
 							sub={from(d)}
 							dot={!d.available || !locked(d) ? 'busy' : 'quiet'}
 							onopen={() => open(d)}
+							place={d}
 						>
 							{@render lockButton(d)}
 						</Row>
@@ -231,6 +235,7 @@
 							dot={!d.available ? 'alert' : isOpenNow(d) ? 'busy' : 'quiet'}
 							word={d.available ? (isOpenNow(d) ? 'Open' : 'Closed') : 'Offline'}
 							onopen={() => open(d)}
+							place={d}
 						/>
 					{/if}
 				{/each}
@@ -239,6 +244,7 @@
 						name={o.name_override ?? o.name}
 						sub={`${from(o)} · opens a door`}
 						onopen={() => open(o)}
+						place={o}
 					>
 						<button
 							type="button"
@@ -263,6 +269,7 @@
 						dot={dotOf(d)}
 						word={stateOf(d)}
 						onopen={() => open(d)}
+						place={d}
 					/>
 				{/each}
 			</div>

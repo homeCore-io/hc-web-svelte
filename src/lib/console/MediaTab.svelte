@@ -43,6 +43,7 @@
 	import { openDevice } from '#lib/popup.js';
 	import Level from './Level.svelte';
 	import SwitchSet from './SwitchSet.svelte';
+	import Place from './Place.svelte';
 	import { setTitle } from './switches.js';
 	import Fader from './Fader.svelte';
 	import type { FaderStyle } from './style.js';
@@ -211,6 +212,7 @@
 					>
 					<button type="button" class="ttl" onclick={() => open(d)}>{nameOf(d)}</button>
 					<span class="cn">{d.available ? (on(d) ? 'On' : 'Off') : 'Offline'}</span>
+					<span class="pl"><Place {d} /></span>
 				</div>
 				<div class="tube" class:dark={!on(d) || !d.available}>
 					<span class="big">{s.title}</span>
@@ -404,6 +406,7 @@
 										>{v.level ? (v.muted ? 'mute' : Math.round(v.level.value)) : ''}</span
 									>
 								{/if}
+								<Place {d} />
 							</div>
 							{#if v.level}
 								<Fader
@@ -501,6 +504,7 @@
 				>
 				<button type="button" class="who" onclick={() => open(d)}>{nameOf(d)}</button>
 				{#if n.state}<span class="st" class:on={t.playing}>{n.state}</span>{/if}
+				<span class="pl"><Place {d} /></span>
 			</div>
 			<p class="now" title={n.title}>{n.title}</p>
 			{#if n.artist}<p class="by">{n.artist}</p>{/if}
@@ -1005,6 +1009,11 @@
 		display: flex;
 		flex-direction: column;
 		gap: 3px;
+	}
+	.pl {
+		flex: none;
+		display: flex;
+		margin-left: auto;
 	}
 	.eyebrow {
 		display: flex;

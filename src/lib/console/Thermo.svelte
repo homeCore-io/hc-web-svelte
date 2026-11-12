@@ -137,6 +137,7 @@
 	alert={!!note || !device.available}
 	width="calc(210px + 70px * var(--k, 1))"
 	onopen={() => open(device)}
+	place={device}
 >
 	<div
 		class="dial"
@@ -218,6 +219,7 @@
 		note="the switch it runs"
 		width="calc(190px + 50px * var(--k, 1))"
 		onopen={() => open(runs)}
+		place={runs}
 	>
 		<div class="bar">
 			<span class="dot" class:busy={runsOn} aria-hidden="true"></span>

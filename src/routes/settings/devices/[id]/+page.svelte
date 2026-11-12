@@ -1,5 +1,6 @@
 <!--
-	One device, for an admin (A1): its name and room, its name in rules, what
+	One device, for an admin (A1): its name and room, the console tab it
+	shows on in its room (for the whole household), its name in rules, what
 	it reports and its history, where it is used, and deleting it.
 -->
 <script lang="ts">
@@ -27,6 +28,10 @@
 	import { deleteDevices, patchDevice } from '#lib/deviceAdmin.js';
 	import Chart from '#lib/components/Chart.svelte';
 	import SaveBar from '#lib/components/admin/SaveBar.svelte';
+	import { household } from '#lib/household.svelte.js';
+	import { devicesIn, TABS, tabChoicesOf, type TabId } from '#lib/console/room.js';
+	import { choiceFor, ownTab } from '#lib/console/placing.js';
+	import { setDeviceTab } from '#lib/console/tabChoice.js';
 
 	const id = $derived(page.params.id ?? '');
 	const device = $derived(devices.byId[id]);
@@ -115,6 +120,28 @@
 		if (!trouble) draftName = draftRoom = null;
 	}
 	const discard = () => (draftName = draftRoom = null);
+
+	// ---- the console tab it shows on, as the console's "⋯" sets it ----
+	const choices = $derived(tabChoicesOf(household.doc.console?.tabs));
+	const chosenTab = $derived(choices[id]);
+	// Where it lands by itself, with the console laid out as wide as a laptop's.
+	const own = $derived(room ? ownTab(devicesIn(devices.byId, room), id, choices) : undefined);
+	const sortsTo = $derived(
+		!room ? 'in no room' : (TABS.find((t) => t.id === own)?.name ?? 'not shown')
+	);
+	let tabNote = $state<string | null>(null);
+	async function setTab(v: string) {
+		tabNote = null;
+		const tab = choiceFor((v || undefined) as TabId | undefined, own);
+		try {
+			await setDeviceTab(id, tab);
+			tabNote = tab
+				? `Shows on ${room?.name ?? 'its room'}’s ${TABS.find((t) => t.id === tab)?.name} tab, for everyone.`
+				: 'Shows where it sorts, for everyone.';
+		} catch {
+			tabNote = 'The house didn’t keep that.';
+		}
+	}
 
 	// ---- name in rules ----
 	let renamingRules = $state(false);
@@ -284,6 +311,18 @@
 							{/each}
 						</select>
 					</label>
+					<label class="row">
+						<span class="k">Console tab</span>
+						<select
+							value={chosenTab ?? ''}
+							disabled={!session.can('content:write')}
+							onchange={(e) => setTab(e.currentTarget.value)}
+						>
+							<option value="">As it sorts ({sortsTo})</option>
+							{#each TABS as t (t.id)}<option value={t.id}>{t.name}</option>{/each}
+						</select>
+					</label>
+					{#if tabNote}<p class="hint" role="status">{tabNote}</p>{/if}
 					<div class="row">
 						<span class="k">Name in rules</span>
 						{#if renamingRules}

@@ -27,6 +27,7 @@
 	import CamControls from './CamControls.svelte';
 	import EventShot from './EventShot.svelte';
 	import Row from './Row.svelte';
+	import Place from './Place.svelte';
 	import { fit } from './fit.js';
 	import { camEvents } from './camEvents.svelte.js';
 	import {
@@ -110,6 +111,7 @@
 			sub={brandOf(d.plugin_id)}
 			word={d.available ? cardFor(d, clock.now).stateLine : 'Offline'}
 			onopen={() => openDevice(d.device_id, page.url)}
+			place={d}
 		/>
 	{/each}
 {/snippet}
@@ -140,6 +142,7 @@
 					>{shortName(sel.name, room)}</button
 				>
 				{#if sel.model}<span class="cn">{sel.model}</span>{/if}
+				<span class="pl"><Place d={sel.device} /></span>
 			</div>
 			<CamControls cam={sel} {may} {sw} side />
 			{#if loose.length > 0}
@@ -295,6 +298,11 @@
 	}
 	:global(:root[data-theme='light']) .tag {
 		color: #1f5fae;
+	}
+	.pl {
+		flex: none;
+		display: flex;
+		margin-left: auto;
 	}
 	/* What else is here: as much as leaves the day's events a row. */
 	.extras {

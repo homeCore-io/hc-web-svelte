@@ -18,6 +18,8 @@
 	import Fader from './Fader.svelte';
 	import Switch from './Switch.svelte';
 	import SwitchSet from './SwitchSet.svelte';
+	import Place from './Place.svelte';
+	import Moved from './Moved.svelte';
 	import { flips } from './switches.js';
 	import { isTimer } from './timer.js';
 	import Keypad from './Keypad.svelte';
@@ -166,6 +168,7 @@
 				{:else}<span class="ttl">{c.title}</span>{/if}
 				{#if c.lights.length > 1}<span class="cn">{c.lights.length} lights</span>{/if}
 				{#if noteOf(c)}<span class="warn" role="status">{noteOf(c)}</span>{/if}
+				{#if c.group}<span class="pl"><Place d={c.group} /></span>{/if}
 			</div>
 			<div class="faders">
 				{#if c.group || c.lights.length > 1}
@@ -185,20 +188,23 @@
 				{/if}
 				{#each c.lights as l (l.device_id)}
 					{#if dims(l)}
-						<Fader
-							label={nameOf(l)}
-							value={level(l)}
-							style={fader}
-							{height}
-							{tight}
-							color={colour(l)}
-							disabled={!may || !l.available}
-							waiting={waiting(l)}
-							selected={chosen?.device_id === l.device_id}
-							onpick={scenic ? () => pick(c, l.device_id) : undefined}
-							onopen={scenic ? undefined : () => open(l)}
-							oncommit={(v) => setLevel(l, v)}
-						/>
+						<div class="fw">
+							<Fader
+								label={nameOf(l)}
+								value={level(l)}
+								style={fader}
+								{height}
+								{tight}
+								color={colour(l)}
+								disabled={!may || !l.available}
+								waiting={waiting(l)}
+								selected={chosen?.device_id === l.device_id}
+								onpick={scenic ? () => pick(c, l.device_id) : undefined}
+								onopen={scenic ? undefined : () => open(l)}
+								oncommit={(v) => setLevel(l, v)}
+							/>
+							<Place d={l} corner />
+						</div>
 					{:else}
 						<div class="plain">
 							<Switch
@@ -211,6 +217,7 @@
 								onchange={(v) => setOn(l, v)}
 							/>
 							<button type="button" class="pname" onclick={() => open(l)}>{nameOf(l)}</button>
+							<Place d={l} corner />
 						</div>
 					{/if}
 				{/each}
@@ -263,17 +270,26 @@
 			<div class="rows">
 				{#each flipped as s (s.device_id)}
 					{#if sw === 'keypad'}
-						<Switch
-							label={nameOf(s)}
-							on={isOn(s)}
-							style={sw}
-							disabled={!may || !s.available}
-							waiting={waiting(s)}
-							onchange={(v) => setOn(s, v)}
-						/>
+						<div class="srow">
+							<div class="one">
+								<Switch
+									label={nameOf(s)}
+									on={isOn(s)}
+									style={sw}
+									disabled={!may || !s.available}
+									waiting={waiting(s)}
+									onchange={(v) => setOn(s, v)}
+								>
+									{#snippet tag()}<Moved d={s} />{/snippet}
+								</Switch>
+							</div>
+							<Place d={s} tag={false} />
+						</div>
 					{:else}
 						<div class="srow">
-							<button type="button" class="sname" onclick={() => open(s)}>{nameOf(s)}</button>
+							<button type="button" class="sname" onclick={() => open(s)}
+								>{nameOf(s)}<Moved d={s} /></button
+							>
 							<Switch
 								label={nameOf(s)}
 								on={isOn(s)}
@@ -283,6 +299,7 @@
 								waiting={waiting(s)}
 								onchange={(v) => setOn(s, v)}
 							/>
+							<Place d={s} tag={false} />
 						</div>
 					{/if}
 					{#if commands.notes[s.device_id]}<span class="warn" role="status"
@@ -303,7 +320,11 @@
 				<span class="ttl">{nameOf(k)}</span>
 				<span class="cn">keypad</span>
 			</div>
-			<Keypad device={k} {may} />
+			<!-- Its "⋯" over the keypad, so the column is no wider for it. -->
+			<div class="kw">
+				<Keypad device={k} {may} />
+				<Place d={k} corner />
+			</div>
 		</section>
 	{/each}
 
@@ -384,6 +405,15 @@
 		font-weight: 500;
 		color: var(--ink-muted);
 	}
+	.pl {
+		flex: none;
+		display: flex;
+		margin-left: auto;
+	}
+	.one {
+		flex: 1;
+		min-width: 0;
+	}
 	.warn {
 		font-size: 11.5px;
 		font-weight: 500;
@@ -418,7 +448,15 @@
 		gap: 12px;
 		align-items: flex-end;
 	}
+	.fw {
+		position: relative;
+	}
+	.kw {
+		position: relative;
+		align-self: flex-start;
+	}
 	.plain {
+		position: relative;
 		width: 104px;
 		display: flex;
 		flex-direction: column;
@@ -528,7 +566,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 14px;
+		gap: 8px;
 		padding: 5px 0;
 		border-top: 1px solid var(--con-edge);
 	}

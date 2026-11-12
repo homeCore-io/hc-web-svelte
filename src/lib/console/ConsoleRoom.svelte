@@ -6,7 +6,8 @@
 	Sensors, Cameras, as the room has them (room.ts). What the room's cameras
 	saw in the last half hour shows as pills in the header, as the household
 	chose (cameras.ts); each opens the Cameras tab at that event. The tab shown is kept in the
-	address (`?tab=`), so each room opens where the person left it.
+	address (`?tab=`), so each room opens where the person left it. Each
+	device on a tab has a "⋯" for the tab and room it shows in (Placer).
 
 	Behind the header, the room's drawing (pictures.ts), lit live by its
 	lights. Loaded only by the console's look.
@@ -45,6 +46,8 @@
 	import SensorsTab from './SensorsTab.svelte';
 	import SwitchesTab from './SwitchesTab.svelte';
 	import CamerasTab from './CamerasTab.svelte';
+	import Placer from './Placer.svelte';
+	import { Placer as Placing, providePlacer } from './placer.svelte.js';
 	import { camEvents } from './camEvents.svelte.js';
 	import {
 		KINDS,
@@ -105,6 +108,12 @@
 	const fader = $derived(faderStyle(personal.doc.console, household.doc.console));
 	const sw = $derived(switchStyle(personal.doc.console, household.doc.console));
 	const may = $derived(session.mayUse);
+	// Each device's "⋯": where it shows, for the household (Placer).
+	const placing = providePlacer(new Placing(() => (across > 0 ? across - 4 : LIGHTS_WIDTH)));
+	$effect(() => {
+		void id;
+		return () => placing.close();
+	});
 
 	// The page draws its own title, in the header.
 	$effect(() => heading.ownTitle());
@@ -597,6 +606,7 @@
 			/>
 		{/if}
 	</div>
+	<Placer p={placing} />
 {/if}
 
 <style>

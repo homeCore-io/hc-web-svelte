@@ -4,7 +4,9 @@
 	timers' clocks below them; or as tiles of one size, switches and timers
 	side by side. Anything else is a row that opens its page. The Switches
 	tab draws its columns with it, and any other tab what it was given to show
-	that it has no drawing of its own for.
+	that it has no drawing of its own for. In a room, each has its "⋯"
+	(Place): at a row's end, with "moved here" under its name (Moved); at a
+	tile's top right.
 -->
 <script lang="ts">
 	import { page } from '$app/state';
@@ -16,6 +18,8 @@
 	import { household } from '#lib/household.svelte.js';
 	import { openDevice } from '#lib/popup.js';
 	import Row from './Row.svelte';
+	import Place from './Place.svelte';
+	import Moved from './Moved.svelte';
 	import Switch from './Switch.svelte';
 	import SwitchTile from './SwitchTile.svelte';
 	import TimerTile from './TimerTile.svelte';
@@ -58,34 +62,44 @@
 	{#if as === 'rows' && parts.switches.length > 0}
 		<div class="rows">
 			{#each parts.switches as d (d.device_id)}
-				<Switch
-					label={nameOf(d)}
-					sub={subOf(d)}
-					on={isOn(d)}
-					style={sw}
-					disabled={!may || !d.available}
-					waiting={waiting(d)}
-					onchange={(v) => setOn(d, v)}
-				/>
+				<div class="line">
+					<div class="one">
+						<Switch
+							label={nameOf(d)}
+							sub={subOf(d)}
+							on={isOn(d)}
+							style={sw}
+							disabled={!may || !d.available}
+							waiting={waiting(d)}
+							onchange={(v) => setOn(d, v)}
+						>
+							{#snippet tag()}<Moved {d} />{/snippet}
+						</Switch>
+					</div>
+					<Place {d} tag={false} />
+				</div>
 			{/each}
 		</div>
 	{/if}
 	{#if tiled.length > 0}
 		<div class="tiles">
 			{#each tiled as d (d.device_id)}
-				{#if parts.timers.includes(d)}
-					<TimerTile {d} name={nameOf(d)} {may} />
-				{:else}
-					<SwitchTile
-						name={nameOf(d)}
-						sub={subOf(d)}
-						on={isOn(d)}
-						disabled={!may || !d.available}
-						waiting={waiting(d)}
-						onchange={(v) => setOn(d, v)}
-						onopen={() => open(d)}
-					/>
-				{/if}
+				<div class="tw">
+					{#if parts.timers.includes(d)}
+						<TimerTile {d} name={nameOf(d)} {may} />
+					{:else}
+						<SwitchTile
+							name={nameOf(d)}
+							sub={subOf(d)}
+							on={isOn(d)}
+							disabled={!may || !d.available}
+							waiting={waiting(d)}
+							onchange={(v) => setOn(d, v)}
+							onopen={() => open(d)}
+						/>
+					{/if}
+					<Place {d} corner />
+				</div>
 			{/each}
 		</div>
 	{/if}
@@ -97,6 +111,7 @@
 					sub={d.available ? cardFor(d, clock.now).stateLine : 'Offline'}
 					dot={d.available ? 'quiet' : 'alert'}
 					onopen={() => open(d)}
+					place={d}
 				/>
 			{/each}
 		</div>
@@ -113,6 +128,19 @@
 		display: flex;
 		flex-direction: column;
 		gap: calc(4px + 6px * var(--k, 1));
+	}
+	.line {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		min-width: 0;
+	}
+	.one {
+		flex: 1;
+		min-width: 0;
+	}
+	.tw {
+		position: relative;
 	}
 	.tiles {
 		display: flex;

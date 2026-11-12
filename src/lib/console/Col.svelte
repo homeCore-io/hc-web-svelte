@@ -2,10 +2,15 @@
 	A column of a console tab, as the Lights and Media tabs draw theirs: a
 	heading with the system's tag (Hue, Lutron, YoLink), the thing's name and
 	a short note, then what's in it. Columns sit side by side with a rule
-	between. The Climate, Doors, Water and Sensors tabs share it.
+	between. The Climate, Doors, Water and Sensors tabs share it. A column of
+	one device has its "⋯" (`place`) in the gutter at the heading's end, so
+	its note keeps the room it had, and "moved here" after the note.
 -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import type { CoreDevice } from '#lib/devices.js';
+	import Place from './Place.svelte';
+	import Moved from './Moved.svelte';
 	import { brandOf } from './room.js';
 
 	let {
@@ -17,6 +22,7 @@
 		grow = false,
 		flex,
 		onopen,
+		place,
 		children
 	}: {
 		title: string;
@@ -33,6 +39,8 @@
 		flex?: string;
 		/** Its name opens the thing's page. */
 		onopen?: () => void;
+		/** The one device it shows, for its "⋯". */
+		place?: CoreDevice;
 		children: Snippet;
 	} = $props();
 
@@ -40,13 +48,14 @@
 	const tagOf = $derived((plugin ?? '').split('.').pop());
 </script>
 
-<section class="col" class:grow style:width style:flex aria-label={title}>
+<section class="col" class:grow class:placed={!!place} style:width style:flex aria-label={title}>
 	<div class="ch">
 		{#if brand}<span class="tag" data-brand={tagOf}>{brand}</span>{/if}
 		{#if onopen}
 			<button type="button" class="ttl" onclick={onopen}>{title}</button>
 		{:else}<span class="ttl">{title}</span>{/if}
 		{#if note}<span class="cn" class:alert>{note}</span>{/if}
+		{#if place}<Moved d={place} /><span class="pl"><Place d={place} tag={false} /></span>{/if}
 	</div>
 	{@render children()}
 </section>
@@ -110,6 +119,21 @@
 		font-weight: 500;
 		color: var(--ink-muted);
 		white-space: nowrap;
+	}
+	.col.placed {
+		position: relative;
+	}
+	/* In the column's right padding. */
+	.pl {
+		position: absolute;
+		top: 0;
+		right: 0;
+		width: 20px;
+		display: flex;
+		justify-content: center;
+	}
+	.pl :global(.dots) {
+		width: 20px;
 	}
 	.cn.alert {
 		color: var(--alert);

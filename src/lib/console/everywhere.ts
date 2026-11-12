@@ -11,7 +11,7 @@
  * room. Media: every player, screens before speakers in each room. Climate:
  * every thermostat and fan, and every temperature and humidity reading in
  * the house (motion sensors and weather stations too). Security: what needs
- * attention (unlocked, open) first, then each room's locks and doors. Water:
+ * attention (unlocked, open, offline) first, then each room's locks and doors. Water:
  * the valves, and the leak sensors by room; leaks are only here.
  *
  * Pure: the pages draw what this decides.
@@ -267,11 +267,17 @@ export const secRows = (places: Place[], wants: Wants = {}): SecRow[] =>
 		}))
 		.filter((r) => r.items.length > 0);
 
-/** What needs attention: a lock unlocked, a door open. Offline ones show in their rooms. */
+/** What needs attention: a lock unlocked, a door open, either one offline. */
 export const issuesOf = (rows: SecRow[]): { place: Place; item: SecItem }[] =>
-	rows.flatMap((r) =>
-		r.items.filter((i) => i.device.available && !i.ok).map((item) => ({ place: r.place, item }))
-	);
+	rows.flatMap((r) => r.items.filter((i) => !i.ok).map((item) => ({ place: r.place, item })));
+
+/** The sidebar's word for what needs attention: "2 open", "1 offline", "3 to check". */
+export function issuesWord(issues: { item: SecItem }[]): string {
+	const offline = issues.filter((i) => !i.item.device.available).length;
+	if (offline === 0) return `${issues.length} open`;
+	if (offline === issues.length) return `${offline} offline`;
+	return `${issues.length} to check`;
+}
 
 // ---- Water ----
 
@@ -313,7 +319,7 @@ export function statusOf(places: Place[], wants: Wants = {}): Record<ViewId, Vie
 	const playing = playingNow(playerRows(places), wants).length;
 	const climate = climateView(places);
 	const busy = climate.thermostats.filter((t) => working(t.device)).length;
-	const issues = issuesOf(secRows(places, wants)).length;
+	const issues = issuesOf(secRows(places, wants));
 	const water = waterView(places);
 	return {
 		lights: lights.on
@@ -321,8 +327,8 @@ export function statusOf(places: Place[], wants: Wants = {}): Record<ViewId, Vie
 			: { word: 'all off' },
 		media: playing ? { word: `${playing} playing`, tone: 'media' } : { word: '' },
 		climate: { word: busy ? `${busy} working` : '' },
-		security: issues
-			? { word: `${issues} open`, tone: 'warn' }
+		security: issues.length
+			? { word: issuesWord(issues), tone: 'warn' }
 			: { word: secRows(places).length ? 'secure' : '', tone: 'ok' },
 		water: water.wet.length
 			? { word: `${water.wet.length} leaking`, tone: 'wet' }

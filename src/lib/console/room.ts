@@ -65,7 +65,8 @@ const LIGHT_KINDS = new Set(['light', 'dimmer']);
 const SWITCH_KINDS = new Set(['switch', 'outlet', 'virtual_switch', 'plug']);
 const KEYPAD_KINDS = new Set(['keypad', 'vcrx']);
 const OPENER_KINDS = new Set(['cover', 'garage', 'garage_door', 'gate', 'shade', 'blind']);
-const DOOR_KINDS = new Set(['lock', 'contact_sensor', 'door', 'window', ...OPENER_KINDS]);
+const OPENING_KINDS = new Set(['contact_sensor', 'door', 'window', ...OPENER_KINDS]);
+const DOOR_KINDS = new Set(['lock', ...OPENING_KINDS]);
 const SECURITY_KINDS = new Set(['camera', 'siren', 'doorbell']);
 const MEDIA_KINDS = new Set(['media_player', 'tv', 'speaker', 'receiver']);
 const CLIMATE_KINDS = new Set([
@@ -168,6 +169,15 @@ export function opens(d: CoreDevice): boolean {
 	const k = kindOf(d);
 	if (OPENER_KINDS.has(k)) return true;
 	return (SWITCH_KINDS.has(k) || isScene(d)) && OPENS.test(d.name_override ?? d.name);
+}
+
+/**
+ * Whether a kind of device keeps the house shut, as a header's pills show
+ * it: a lock, or a door, window or cover that opens.
+ */
+export function guards(kind: string): 'lock' | 'door' | undefined {
+	if (kind === 'lock') return 'lock';
+	return OPENING_KINDS.has(kind) ? 'door' : undefined;
 }
 
 // ---- the Lights tab ----
@@ -453,10 +463,7 @@ export function consoleRoom(devices: CoreDevice[], width = LIGHTS_WIDTH): Consol
 		lights: tab,
 		byTab,
 		locks: byTab.doors.filter((d) => kindOf(d) === 'lock'),
-		openings: byTab.doors.filter((d) => {
-			const k = kindOf(d);
-			return k === 'contact_sensor' || k === 'door' || k === 'window' || OPENER_KINDS.has(k);
-		}),
+		openings: byTab.doors.filter((d) => guards(kindOf(d)) === 'door'),
 		first: tabs[0]?.id
 	};
 }

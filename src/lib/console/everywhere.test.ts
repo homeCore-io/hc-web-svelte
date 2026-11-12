@@ -7,6 +7,7 @@ import {
 	everyRoom,
 	fromWord,
 	issuesOf,
+	issuesWord,
 	lightRows,
 	lightsCount,
 	onWord,
@@ -255,16 +256,24 @@ describe('Security', () => {
 		]);
 	});
 
-	it('puts what is unlocked or open first, not what is offline', () => {
-		expect(issuesOf(secRows(places)).map((i) => i.item.device.device_id)).toEqual([
-			'back_lock',
-			'window'
+	it('puts what is unlocked, open or offline first', () => {
+		expect(issuesOf(secRows(places)).map((i) => [i.item.device.device_id, i.item.word])).toEqual([
+			['back_lock', 'Unlocked'],
+			['window', 'Open'],
+			['gone', 'Offline']
 		]);
+	});
+
+	it('names the sidebar’s count by what it is', () => {
+		const issues = issuesOf(secRows(places));
+		expect(issuesWord(issues)).toBe('3 to check');
+		expect(issuesWord(issues.filter((i) => i.item.device.available))).toBe('2 open');
+		expect(issuesWord(issues.filter((i) => !i.item.device.available))).toBe('1 offline');
 	});
 
 	it('counts a lock on its way to locking as locked', () => {
 		const rows = secRows(places, { back_lock: { want: { locked: true } } });
-		expect(issuesOf(rows).map((i) => i.item.device.device_id)).toEqual(['window']);
+		expect(issuesOf(rows).map((i) => i.item.device.device_id)).toEqual(['window', 'gone']);
 	});
 });
 
@@ -320,5 +329,19 @@ describe('the sidebar', () => {
 			word: 'secure',
 			tone: 'ok'
 		});
+	});
+
+	it('counts an offline lock or door in Security, in red', () => {
+		const places = placesOf(
+			house({
+				office: [
+					dev('lock', 'lock', { locked: true }, { available: false }),
+					dev('door', 'contact_sensor', { open: false }, { available: false }),
+					dev('lamp', 'light', { on: false }, { available: false })
+				]
+			}),
+			[office]
+		);
+		expect(statusOf(places).security).toEqual({ word: '2 offline', tone: 'warn' });
 	});
 });

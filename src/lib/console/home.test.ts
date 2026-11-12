@@ -169,6 +169,35 @@ describe('what needs attention', () => {
 		]);
 	});
 
+	it('shows an offline lock or door, and counts its offline alert no more', () => {
+		const gone = dev('k', 'lock', 'Laundry Room Lock', { locked: true }, { available: false });
+		const shut = dev('d', 'contact_sensor', 'Bathroom Door Sensor', {}, { available: false });
+		const bulb = dev('l', 'light', 'Bathroom Light', {}, { available: false });
+		const out = issuesOf(
+			[
+				{ room: laundry, cards: cards([gone]) },
+				{ room: bath, cards: cards([shut, bulb]) }
+			],
+			[alert('offline:k', 'offline', 'k', 'Laundry Room Lock is offline')],
+			[gone, shut, bulb],
+			[laundry, bath]
+		);
+		expect(out).toEqual([
+			{
+				key: 'offline:k',
+				text: 'Laundry Room Lock: Offline',
+				act: 'Show',
+				fix: { href: '/rooms/l?tab=doors' }
+			},
+			{
+				key: 'offline:d',
+				text: 'Bathroom Door: Offline',
+				act: 'Show',
+				fix: { href: '/rooms/b?tab=doors' }
+			}
+		]);
+	});
+
 	it('shows urgent alerts in their room, and counts the rest', () => {
 		const out = issuesOf(
 			[],

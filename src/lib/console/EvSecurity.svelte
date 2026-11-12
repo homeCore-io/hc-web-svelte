@@ -1,10 +1,11 @@
 <!--
 	Everywhere › Security (the Everywhere board): what needs attention first,
-	a lock unlocked or a door open, each as a pill with what to do about it;
-	then every room's locks and doors as its header shows them, green when
-	locked or closed and red when not. A lock's pill locks it at once, or
-	asks before unlocking; a door's opens the room's Doors tab. "Lock
-	everything" asks first. Leak sensors are in Water, not here.
+	a lock unlocked, a door open, or either one offline, each as a pill with
+	what to do about it; then every room's locks and doors as its header
+	shows them, green when locked or closed and red when not. A lock's pill
+	locks it at once, or asks before unlocking; a door's, or an offline
+	one's, opens the room's Doors tab. "Lock everything" asks first. Leak
+	sensors are in Water, not here.
 -->
 <script lang="ts">
 	import { page } from '$app/state';
@@ -60,6 +61,13 @@
 		if (!to && !(await goAhead(d.device_id, kindOf(d), `Unlock ${nameOf(d)}?`))) return;
 		void commands.set(d.device_id, kindOf(d), { locked: to }, d.attributes);
 	}
+	/** "Garage: OH1 Door open"; offline, as its room's pill says it: "Laundry Room Lock: Offline". */
+	const issueWord = (i: SecItem, p: Place) =>
+		i.device.available
+			? `${p.name}: ${short(i.device, p)} ${i.word.toLowerCase()}`
+			: `${p.room ? `${p.name} ` : ''}${short(i.device, p)}: Offline`;
+	/** An offline one's pill above opens its room's Doors tab; the rest act as their room's pills. */
+	const fix = (i: SecItem, p: Place) => (!i.device.available && p.room ? doorsOf(p) : use(i, p));
 	function use(i: SecItem, p: Place) {
 		if (!i.device.available) return openDevice(i.device.device_id, page.url);
 		if (i.kind === 'lock') return lock(i.device, !i.ok);
@@ -105,10 +113,11 @@
 				<button
 					type="button"
 					class="ipill"
-					disabled={item.kind === 'lock' && !may}
-					onclick={() => use(item, place)}
-					><i aria-hidden="true"></i>{place.name}: {short(item.device, place)}
-					{item.word.toLowerCase()}<b>{item.kind === 'lock' ? 'Lock it' : 'Show'}</b></button
+					disabled={item.kind === 'lock' && item.device.available && !may}
+					onclick={() => fix(item, place)}
+					><i aria-hidden="true"></i>{issueWord(item, place)}<b
+						>{item.kind === 'lock' && item.device.available ? 'Lock it' : 'Show'}</b
+					></button
 				>
 			{/each}
 		</div>

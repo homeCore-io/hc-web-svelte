@@ -6,9 +6,10 @@
  * the house, along the bottom.
  *
  * What needs attention is what the house's state says now (a lock left
- * unlocked, a door open) and what homeCore raised as an alert (a leak,
- * smoke, a jammed lock, a rule's). The rest of homeCore's alerts (offline,
- * low batteries) are counted in one pill that opens Alerts.
+ * unlocked, a door open, either one offline) and what homeCore raised as an
+ * alert (a leak, smoke, a jammed lock, a rule's). The rest of homeCore's
+ * alerts (other things offline, low batteries) are counted in one pill that
+ * opens Alerts.
  *
  * Pure: the page draws what this decides.
  */
@@ -29,7 +30,7 @@ import {
 	playerName
 } from './media.js';
 import { roomOf } from './cameras.js';
-import { levelOf, shortName } from './room.js';
+import { guards, levelOf, shortName } from './room.js';
 import { isLamp, type Wants } from './pictures.js';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -157,8 +158,9 @@ const TAB_FOR: Record<string, string> = { wet: 'water', smoke: 'sensors', jammed
 
 /**
  * What needs attention in the house: each room's locks left unlocked (fixed
- * by locking them) and doors open (shown), then homeCore's urgent alerts,
- * then one pill counting the rest of its alerts.
+ * by locking them), doors open, and locks and doors offline (shown), then
+ * homeCore's urgent alerts, then one pill counting the rest of its alerts.
+ * An offline lock or door shown here isn't counted again with them.
  */
 export function issuesOf(
 	rooms: { room: Room; cards: CardView[] }[],
@@ -170,7 +172,16 @@ export function issuesOf(
 	for (const { room, cards } of rooms) {
 		const short = (name: string) => shortName(name.replace(/\s+sensor$/i, ''), room.name);
 		for (const c of cards) {
-			if (!c.available) continue;
+			if (!c.available) {
+				if (guards(c.kind))
+					out.push({
+						key: `offline:${c.id}`,
+						text: `${room.name} ${short(c.name)}: Offline`,
+						act: 'Show',
+						fix: { href: `/rooms/${room.id}?tab=doors` }
+					});
+				continue;
+			}
 			if (c.icon === 'unlock')
 				out.push({
 					key: `unlocked:${c.id}`,
@@ -187,7 +198,11 @@ export function issuesOf(
 				});
 		}
 	}
-	const urgent = alerts.filter((a) => URGENT.has(a.kind) || a.severity === 'critical');
+	const shownOffline = new Set(
+		out.filter((i) => i.key.startsWith('offline:')).map((i) => i.key.slice('offline:'.length))
+	);
+	const left = alerts.filter((a) => !(a.kind === 'offline' && shownOffline.has(a.device_id)));
+	const urgent = left.filter((a) => URGENT.has(a.kind) || a.severity === 'critical');
 	for (const a of urgent) {
 		const d = all.find((x) => x.device_id === a.device_id);
 		const r = d ? roomOf(d, roomList) : undefined;
@@ -199,7 +214,7 @@ export function issuesOf(
 			fix: { href: r ? `/rooms/${r.id}${tab ? `?tab=${tab}` : ''}` : '/alerts' }
 		});
 	}
-	const rest = alerts.length - urgent.length + Math.max(0, out.length - ISSUES_SHOWN);
+	const rest = left.length - urgent.length + Math.max(0, out.length - ISSUES_SHOWN);
 	const shown = out.slice(0, ISSUES_SHOWN);
 	if (rest > 0)
 		shown.push({

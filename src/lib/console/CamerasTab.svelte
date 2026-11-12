@@ -6,7 +6,9 @@
 	(naming the camera where there are several; as many as fit, with ‹ ›
 	for the rest), and the way to every camera
 	on the Cameras page. An event picked here, or from the room's header,
-	shows its still large, with Back to live.
+	shows its still large, with Back to live. Anything else the household
+	put here sits under the controls as it would with the switches
+	(SwitchSet), and the day's events make room for it.
 
 	Sized to the window (`fit`), so it doesn't scroll.
 -->
@@ -100,17 +102,21 @@
 	};
 </script>
 
+{#snippet alsoHere(look?: 'rows')}
+	{#if switched.length > 0}<SwitchSet list={switched} {room} {may} {look} />{/if}
+	{#each loose.filter((d) => !switched.includes(d)) as d (d.device_id)}
+		<Row
+			name={shortName(d.name_override ?? d.name, room)}
+			sub={brandOf(d.plugin_id)}
+			word={d.available ? cardFor(d, clock.now).stateLine : 'Offline'}
+			onopen={() => openDevice(d.device_id, page.url)}
+		/>
+	{/each}
+{/snippet}
+
 {#if layout === 'none'}
 	<div class="desk none">
-		{#if switched.length > 0}<SwitchSet list={switched} {room} {may} />{/if}
-		{#each loose.filter((d) => !switched.includes(d)) as d (d.device_id)}
-			<Row
-				name={shortName(d.name_override ?? d.name, room)}
-				sub={brandOf(d.plugin_id)}
-				word={d.available ? cardFor(d, clock.now).stateLine : 'Offline'}
-				onopen={() => openDevice(d.device_id, page.url)}
-			/>
-		{/each}
+		{@render alsoHere()}
 	</div>
 {:else if sel}
 	<div class="desk" use:fit={`${layout}:${cams.length}`}>
@@ -136,6 +142,11 @@
 				{#if sel.model}<span class="cn">{sel.model}</span>{/if}
 			</div>
 			<CamControls cam={sel} {may} {sw} side />
+			{#if loose.length > 0}
+				<div class="extras" role="group" aria-label="Also here">
+					{@render alsoHere('rows')}
+				</div>
+			{/if}
 
 			<div class="ch">
 				<span class="ttl">Here today</span>
@@ -284,6 +295,14 @@
 	}
 	:global(:root[data-theme='light']) .tag {
 		color: #1f5fae;
+	}
+	/* What else is here: as much as leaves the day's events a row. */
+	.extras {
+		flex: 0 1 auto;
+		min-height: 0;
+		max-height: 45%;
+		overflow-y: auto;
+		padding-right: 2px;
 	}
 	.evs {
 		flex: 1 1 0;

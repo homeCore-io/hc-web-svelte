@@ -4,8 +4,10 @@
 	house's console. Beside it, "moved here" (Moved) when the household chose
 	this tab for it, unless its row shows that under the name (`tag`).
 	`corner` sits them over a tile, fader or keypad instead: the "⋯" at its
-	top right, the tag at its bottom right. Nothing outside a room, where
-	there's no picker.
+	top right, the tag at its bottom right. `chip` sits it over a scene
+	chip's swatch, seen while the chip is hovered or the "⋯" has the
+	keyboard, so the chip is no wider. Nothing outside a room, where there's
+	no picker.
 -->
 <script lang="ts">
 	import type { CoreDevice } from '#lib/devices.js';
@@ -16,10 +18,13 @@
 	let {
 		d,
 		corner = false,
+		chip = false,
 		tag = true
 	}: {
 		d: CoreDevice;
 		corner?: boolean;
+		/** Over a chip's swatch: its parent is positioned, and the swatch at its left. */
+		chip?: boolean;
 		/** Shows "moved here" beside it; false where the row shows it under the name. */
 		tag?: boolean;
 	} = $props();
@@ -31,8 +36,8 @@
 </script>
 
 {#if p}
-	<span class="place" class:corner>
-		{#if tag}<span class="tg"><Moved {d} /></span>{/if}
+	<span class="place" class:corner class:chip>
+		{#if tag && !chip}<span class="tg"><Moved {d} /></span>{/if}
 		{#if may}
 			<button
 				type="button"
@@ -87,6 +92,28 @@
 	}
 	.corner .tg {
 		bottom: 2px;
+	}
+	.place.chip {
+		position: absolute;
+		left: 4px;
+		top: 50%;
+		margin-top: -9px;
+		opacity: 0;
+	}
+	.chip .dots {
+		width: 18px;
+		height: 18px;
+		border-radius: 50%;
+		background: color-mix(in srgb, var(--surface) 92%, transparent);
+		color: var(--ink);
+	}
+	.chip .dots svg {
+		width: 10px;
+	}
+	:global(:hover) > .place.chip,
+	.place.chip:focus-within,
+	.place.chip:has(.open) {
+		opacity: 1;
 	}
 	.dots {
 		display: grid;

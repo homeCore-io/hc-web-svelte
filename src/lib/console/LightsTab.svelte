@@ -246,16 +246,18 @@
 					</p>
 					<div class="chips" class:open={allScenes[c.key]} use:clips={c.key}>
 						{#each c.scenes as s (s.device_id)}
-							<button
-								type="button"
-								class="chip"
-								class:on={!chosen && s.attributes.active === true}
-								disabled={!may || !!chosen || !s.available}
-								title={chosen
-									? `Scenes for one light aren’t available yet. Pick All to show ${nameOf(s)} in ${c.title}.`
-									: `Show ${nameOf(s)} in ${c.title}`}
-								onclick={() => show(s)}
-								><i style:background={paletteOf(s)} aria-hidden="true"></i>{nameOf(s)}</button
+							<span class="cw"
+								><button
+									type="button"
+									class="chip"
+									class:on={!chosen && s.attributes.active === true}
+									disabled={!may || !!chosen || !s.available}
+									title={chosen
+										? `Scenes for one light aren’t available yet. Pick All to show ${nameOf(s)} in ${c.title}.`
+										: `Show ${nameOf(s)} in ${c.title}`}
+									onclick={() => show(s)}
+									><i style:background={paletteOf(s)} aria-hidden="true"></i>{nameOf(s)}</button
+								><Place d={s} chip /></span
 							>
 						{/each}
 					</div>
@@ -333,13 +335,15 @@
 			<div class="ch"><span class="ttl">Scenes</span></div>
 			<div class="scn">
 				{#each tab.scenes as s (s.device_id)}
-					<button
-						type="button"
-						class="chip"
-						disabled={!may || !s.available}
-						title={`Show ${nameOf(s)}`}
-						onclick={() => show(s)}
-						><i style:background={paletteOf(s)} aria-hidden="true"></i>{nameOf(s)}</button
+					<span class="cw"
+						><button
+							type="button"
+							class="chip"
+							disabled={!may || !s.available}
+							title={`Show ${nameOf(s)}`}
+							onclick={() => show(s)}
+							><i style:background={paletteOf(s)} aria-hidden="true"></i>{nameOf(s)}</button
+						><Place d={s} chip /></span
 					>
 				{/each}
 			</div>
@@ -515,6 +519,10 @@
 	.more.all {
 		margin-left: auto;
 		font-weight: 600;
+	}
+	.cw {
+		position: relative;
+		display: flex;
 	}
 	.chip {
 		display: flex;

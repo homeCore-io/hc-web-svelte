@@ -22,6 +22,7 @@
 	import Row from './Row.svelte';
 	import { fit } from './fit.js';
 	import SwitchSet from './SwitchSet.svelte';
+	import Place from './Place.svelte';
 	import { setTitle } from './switches.js';
 	import { doorsTab, pressFor, type BigDoor } from './doors.js';
 	import { brandOf, shortName } from './room.js';
@@ -144,7 +145,10 @@
 				onclick={() => move(door)}>{isUp ? 'Close door' : 'Open door'}</button
 			>
 			<span class="sub"
-				>{s ? `${nameOf(s)} sensor · ${from(s)}` : ''}{#if door.also.length > 0}<br />Also opened by {door.also
+				>{s ? `${nameOf(s)} sensor · ${from(s)}` : ''}{#if s && o}<Place
+						d={s}
+						tag={false}
+					/>{/if}{#if door.also.length > 0}<br />Also opened by {door.also
 						.map((a) => a.name_override ?? a.name)
 						.join(', ')}{/if}</span
 			>

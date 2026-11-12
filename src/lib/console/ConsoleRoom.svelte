@@ -136,8 +136,12 @@
 	const lit = $derived(
 		roomPicture(room?.name ?? '', list, clock.now, (d) => commands.pending[d]?.want)
 	);
-	const lamps = $derived(model.lights.columns.flatMap((c) => c.lights));
-	// Counted as the faders show them, with commands on their way.
+	// The faders, then the switches named as lights, as Home and Everywhere count them.
+	const lamps = $derived.by(() => {
+		const faders = model.lights.columns.flatMap((c) => c.lights);
+		return [...faders, ...lit.lamps.filter((d) => !faders.includes(d))];
+	});
+	// Counted as the faders and switches show them, with commands on their way.
 	const lampsOn = $derived(
 		lamps.filter((d) => d.available && levelOf(d, commands.pending[d.device_id]?.want) > 0).length
 	);

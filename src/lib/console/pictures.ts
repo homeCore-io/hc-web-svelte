@@ -247,7 +247,7 @@ const nameOf = (d: CoreDevice) => d.name_override ?? d.name;
 const wordsOf = (d: CoreDevice, room: string) => shortName(nameOf(d), room).toLowerCase();
 
 /** A switch that says it's a light. One a person marked as a light is a light already. */
-const lightNamed = (name: string) => /light|lamp|chandelier|sconce|pendant|bulb/.test(name);
+const lightNamed = (name: string) => /light|lamp|chandelier|sconce|pendant|bulb|overhead/.test(name);
 /**
  * A switch that may be a light, a heater or the like, by its name or its
  * spot's. homeCore's own virtual switches are only switches, whatever they're called.

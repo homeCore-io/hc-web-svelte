@@ -9,6 +9,8 @@
  * treated as unset.
  */
 
+import type { PillPrefs } from './cameras.js';
+
 export type FaderStyle = 'machined' | 'glass' | 'lightbar';
 export type SwitchStyle = 'precision' | 'keypad' | 'offon';
 export type Sidebar = 'open' | 'folded';
@@ -24,6 +26,8 @@ export interface ConsolePrefs {
 export interface ConsoleHouse {
 	fader?: FaderStyle;
 	switch?: SwitchStyle;
+	/** Camera events as pills in a room's header and on Home (cameras.ts). */
+	pills?: PillPrefs;
 }
 
 export const FADER_STYLES: readonly { id: FaderStyle; name: string }[] = [

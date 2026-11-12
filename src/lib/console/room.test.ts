@@ -78,6 +78,9 @@ describe('which tab a device goes in', () => {
 		expect(placeOf(dev('w', 'water_sensor'))).toEqual({ tab: 'water' });
 		expect(placeOf(dev('h', 'temperature_sensor'))).toEqual({ tab: 'sensors' });
 		expect(placeOf(dev('o', 'occupancy_sensor'))).toEqual({ tab: 'sensors' });
+		expect(placeOf(dev('v', 'camera'))).toEqual({ tab: 'cameras' });
+		expect(placeOf(dev('b', 'doorbell'))).toEqual({ tab: 'cameras' });
+		expect(placeOf(dev('n', 'siren'))).toEqual({ tab: 'cameras' });
 	});
 
 	it('leaves hubs and remotes out', () => {
@@ -183,6 +186,22 @@ describe('a room in tabs', () => {
 		expect(r.tabs.map((t) => t.id)).toEqual(['lights', 'doors', 'media', 'sensors']);
 		expect(r.first).toBe('lights');
 		expect(ids(r.locks)).toEqual(['lock']);
+	});
+
+	it('puts a camera’s spotlight and siren with it, in Cameras, counting the camera', () => {
+		const r = consoleRoom([
+			...lamps,
+			dev('cam', 'camera'),
+			dev('cam_spotlight', 'light', { on: false }),
+			dev('cam_siren', 'siren'),
+			dev('other_spotlight', 'light')
+		]);
+		expect(r.tabs.map((t) => [t.id, t.count])).toEqual([
+			['lights', 4],
+			['cameras', 1]
+		]);
+		expect(ids(r.byTab.cameras)).toEqual(['cam', 'cam_siren', 'cam_spotlight']);
+		expect(ids(r.byTab.lights)).toContain('other_spotlight');
 	});
 
 	it('shows Doors first where something opens', () => {

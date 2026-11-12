@@ -1,12 +1,11 @@
 <!--
 	A room's Doors tab in the console (the Garage and LivingRoom boards):
 	each overhead door drawn big, open or shut as its sensor says, with a
-	button that moves it; then the room's other doors, its locks, and its
-	cameras and sirens (doors.ts). Without an overhead door, doors and locks
-	are drawn big themselves.
+	button that moves it; then the room's other doors and its locks
+	(doors.ts). Cameras and sirens have a tab of their own (CamerasTab).
+	Without an overhead door, doors and locks are drawn big themselves.
 
 	Opening a door and unlocking a lock ask first; shutting and locking don't.
-	A siren and a camera only show here: their page has their controls.
 	Sized to the window (`fit`), so it doesn't scroll.
 -->
 <script lang="ts">

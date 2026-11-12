@@ -3,8 +3,8 @@
  * boards): its devices sorted into tabs, and the Lights tab into columns.
  *
  * Each device goes in one tab only. Doors holds locks, door and window
- * contacts, covers and openers (and cameras and sirens, until there is a
- * Security tab); Lights, lights, keypads and lighting scenes; Media, players;
+ * contacts, covers and openers; Cameras, cameras and doorbells with their
+ * spotlights and sirens; Lights, lights, keypads and lighting scenes; Media, players;
  * Climate, what you set (thermostats, fans, humidifiers); Water, leak
  * sensors and valves; Sensors, every reading. A switch a thermostat in the
  * room runs goes with it, in Climate. Plain on/off switches sit in Lights as
@@ -22,7 +22,8 @@ import type { CoreDevice, Devices } from '../devices.js';
 import type { Room } from '../house.js';
 import { slugOf } from '../summary.js';
 
-export type TabId = 'doors' | 'lights' | 'switches' | 'media' | 'climate' | 'water' | 'sensors';
+export type TabId =
+	'doors' | 'lights' | 'switches' | 'media' | 'climate' | 'water' | 'sensors' | 'cameras';
 
 /** Every tab, in the order shown when something in the room opens; else Lights comes first. */
 export const TABS: readonly { id: TabId; name: string }[] = [
@@ -32,7 +33,8 @@ export const TABS: readonly { id: TabId; name: string }[] = [
 	{ id: 'media', name: 'Media' },
 	{ id: 'climate', name: 'Climate' },
 	{ id: 'water', name: 'Water' },
-	{ id: 'sensors', name: 'Sensors' }
+	{ id: 'sensors', name: 'Sensors' },
+	{ id: 'cameras', name: 'Cameras' }
 ];
 
 // ---- which room ----
@@ -144,7 +146,8 @@ export function placeOf(d: CoreDevice): Place {
 		if (AIR.test(name)) return { tab: 'climate' };
 		return { tab: 'switch' };
 	}
-	if (DOOR_KINDS.has(k) || SECURITY_KINDS.has(k)) return { tab: 'doors' };
+	if (SECURITY_KINDS.has(k)) return { tab: 'cameras' };
+	if (DOOR_KINDS.has(k)) return { tab: 'doors' };
 	if (MEDIA_KINDS.has(k)) return { tab: 'media' };
 	if (CLIMATE_KINDS.has(k)) return { tab: 'climate' };
 	if (WATER_KINDS.has(k)) return { tab: 'water' };
@@ -152,6 +155,12 @@ export function placeOf(d: CoreDevice): Place {
 	// Anything else that does something (a timer, a button) goes with the switches' tab.
 	if (d.schema?.actions?.length || k === 'timer' || k === 'button') return { tab: 'switches' };
 	return { tab: 'sensors' };
+}
+
+/** Whether a light is the spotlight of one of these cameras: `<camera>_spotlight`. */
+function spotlightOf(d: CoreDevice, cameras: Set<string>): boolean {
+	const m = /^(.+)_spotlight$/.exec(d.device_id);
+	return !!m && cameras.has(m[1]!);
 }
 
 /** Whether a device opens and closes something: a cover, a garage door opener, a gate. */
@@ -383,7 +392,8 @@ export function consoleRoom(devices: CoreDevice[], width = LIGHTS_WIDTH): Consol
 		media: [],
 		climate: [],
 		water: [],
-		sensors: []
+		sensors: [],
+		cameras: []
 	};
 	const lights: CoreDevice[] = [];
 	const groups: CoreDevice[] = [];
@@ -391,9 +401,19 @@ export function consoleRoom(devices: CoreDevice[], width = LIGHTS_WIDTH): Consol
 	const keypads: CoreDevice[] = [];
 	const switches: CoreDevice[] = [];
 	const run = runByThermostats(devices);
+	// A camera's spotlight goes with it, in Cameras.
+	const cameras = new Set(
+		devices
+			.filter((d) => kindOf(d) === 'camera' || kindOf(d) === 'doorbell')
+			.map((d) => d.device_id)
+	);
 	for (const d of [...devices].sort(byName)) {
 		const p = placeOf(d);
 		if (p === null) continue;
+		if (p.tab === 'lights' && p.as === 'light' && spotlightOf(d, cameras)) {
+			byTab.cameras.push(d);
+			continue;
+		}
 		if (p.tab === 'switch' && run.has(d.device_id)) byTab.climate.push(d);
 		else if (p.tab === 'switch') switches.push(d);
 		else if (p.tab === 'lights') {
@@ -417,7 +437,9 @@ export function consoleRoom(devices: CoreDevice[], width = LIGHTS_WIDTH): Consol
 			number
 		>),
 		// The Lights tab counts what lights the room, not its scenes or groups.
-		lights: columns.reduce((n, c) => n + c.lights.length, 0) + tab.switches.length
+		lights: columns.reduce((n, c) => n + c.lights.length, 0) + tab.switches.length,
+		// The Cameras tab counts its cameras, not their spotlights and sirens.
+		cameras: byTab.cameras.filter((d) => cameras.has(d.device_id)).length || byTab.cameras.length
 	};
 	const doorsFirst = byTab.doors.some(opens);
 	const present = TABS.filter((t) => byTab[t.id].length > 0);

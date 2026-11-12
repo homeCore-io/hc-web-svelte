@@ -3,7 +3,9 @@
 	boards): a header with the room's name, what it's like now, its locks and
 	doors, and Room on and Room off; the person's favorites from the room; then
 	tabs, each one screen: Doors, Lights, Switches, Media, Climate, Water,
-	Sensors, as the room has them (room.ts). The tab shown is kept in the
+	Sensors, Cameras, as the room has them (room.ts). What the room's cameras
+	saw in the last half hour shows as pills in the header, as the household
+	chose (cameras.ts); each opens the Cameras tab at that event. The tab shown is kept in the
 	address (`?tab=`), so each room opens where the person left it.
 
 	The header is a dark band for now; a picture of the room goes behind it
@@ -42,6 +44,18 @@
 	import WaterTab from './WaterTab.svelte';
 	import SensorsTab from './SensorsTab.svelte';
 	import SwitchesTab from './SwitchesTab.svelte';
+	import CamerasTab from './CamerasTab.svelte';
+	import { camEvents } from './camEvents.svelte.js';
+	import {
+		KINDS,
+		allEvents,
+		camerasOf,
+		pillPrefsOf,
+		pillsOf,
+		pillWord,
+		withHousePills,
+		type EventKind
+	} from './cameras.js';
 	import AudioBar from './AudioBar.svelte';
 	import {
 		audioChoices,
@@ -239,10 +253,63 @@
 				: `${playerName(audio)}: ${stepNote.toLowerCase()}`
 	);
 
+	// ---- what the room's cameras saw lately, as pills ----
+	const roomCams = $derived(camerasOf(model.byTab.cameras, devices.byId));
+	$effect(() => camEvents.follow(roomCams));
+	const pillPrefs = $derived(pillPrefsOf(household.doc.console?.pills));
+	const pillsHere = $derived(!pillPrefs.off.includes(id));
+	const camPills = $derived(
+		pillsHere
+			? pillsOf(
+					allEvents(
+						camEvents.byCam,
+						roomCams.map((c) => c.id)
+					),
+					clock.now,
+					pillPrefs.kinds
+				)
+			: []
+	);
+	const camName = (cam: string) =>
+		roomCams.length > 1
+			? shortName(roomCams.find((c) => c.id === cam)?.name ?? '', room?.name ?? '')
+			: undefined;
+	function showEvent(key: string) {
+		const url = new URL(page.url.href);
+		url.searchParams.set('tab', 'cameras');
+		url.searchParams.set('event', key);
+		void goto(url.pathname + url.search, { replace: true, reset: false });
+	}
+	// The household's choice of pills, for those who may change the house's.
+	let choosing = $state(false);
+	let pickBox = $state<HTMLElement>();
+	const mayArrange = $derived(session.can('content:write'));
+	function setPills(patch: Partial<{ kinds: EventKind[]; home: boolean; off: string[] }>) {
+		void household.change((d) => {
+			const { console: was, ...rest } = d;
+			const next = withHousePills(was, patch);
+			return next ? { ...rest, console: next } : rest;
+		});
+	}
+	const flipKind = (k: EventKind) =>
+		setPills({
+			kinds: pillPrefs.kinds.includes(k)
+				? pillPrefs.kinds.filter((x) => x !== k)
+				: [...pillPrefs.kinds, k]
+		});
+	const flipHere = () =>
+		setPills({
+			off: pillsHere ? [...pillPrefs.off, id] : pillPrefs.off.filter((x) => x !== id)
+		});
+	function away(e: PointerEvent) {
+		if (choosing && pickBox && !pickBox.contains(e.target as Node)) choosing = false;
+	}
+
 	// ---- the tabs ----
 	function choose(t: TabId) {
 		const url = new URL(page.url.href);
 		url.searchParams.set('tab', t);
+		url.searchParams.delete('event');
 		void goto(url.pathname + url.search, { replace: true, reset: false });
 	}
 	let tabBox = $state<HTMLElement>();
@@ -256,6 +323,13 @@
 		queueMicrotask(() => tabBox?.querySelector<HTMLElement>(`[data-tab="${nextTab.id}"]`)?.focus());
 	}
 </script>
+
+<svelte:window
+	onpointerdown={away}
+	onkeydown={(e) => {
+		if (e.key === 'Escape' && choosing) choosing = false;
+	}}
+/>
 
 {#if !devices.loaded}
 	<p class="quiet pad">Loading the house…</p>
@@ -331,23 +405,75 @@
 								{short(nameOf(d))}: {d.available ? (open ? 'Open' : 'Closed') : 'Offline'}
 							</button>
 						{/each}
+						{#each camPills as e (e.key)}
+							<button
+								type="button"
+								class="pill cam"
+								class:old={clock.now - e.at > 10 * 60_000}
+								title="See it on the Cameras tab"
+								onclick={() => showEvent(e.key)}
+								><i aria-hidden="true"></i>{pillWord(e, clock.now, camName(e.cam))}</button
+							>
+						{/each}
 					</div>
 				</div>
 				<div class="side">
 					{#if trouble}<p class="trouble" role="alert">{trouble}</p>{/if}
-					<div class="pair" role="group" aria-label={`${room.name} lights`}>
-						<button
-							type="button"
-							disabled={!may || busy !== null}
-							aria-busy={busy === 'on' || undefined}
-							onclick={() => power(true)}>{busy === 'on' ? 'Turning on…' : 'Room on'}</button
-						>
-						<button
-							type="button"
-							disabled={!may || busy !== null}
-							aria-busy={busy === 'off' || undefined}
-							onclick={() => power(false)}>{busy === 'off' ? 'Turning off…' : 'Room off'}</button
-						>
+					<div class="acts">
+						{#if roomCams.length > 0 && mayArrange}
+							<div class="pp" bind:this={pickBox}>
+								<button
+									type="button"
+									class="ghost"
+									aria-expanded={choosing}
+									aria-haspopup="dialog"
+									onclick={() => (choosing = !choosing)}>Header pills</button
+								>
+								{#if choosing}
+									<div class="pillpop" role="dialog" aria-label="Header pills">
+										<p class="ph">Camera events as pills</p>
+										{#each KINDS as k (k.id)}
+											<label
+												><input
+													type="checkbox"
+													checked={pillPrefs.kinds.includes(k.id)}
+													onchange={() => flipKind(k.id)}
+												/>{k.name}</label
+											>
+										{/each}
+										<p class="ph">Show them</p>
+										<label
+											><input type="checkbox" checked={pillsHere} onchange={flipHere} />In the {room.name}
+											header</label
+										>
+										<label
+											><input
+												type="checkbox"
+												checked={pillPrefs.home}
+												onchange={() => setPills({ home: !pillPrefs.home })}
+											/>On Home, for the whole house</label
+										>
+										<p class="pn">
+											A pill shows for 30 minutes after the event. For everyone in the house.
+										</p>
+									</div>
+								{/if}
+							</div>
+						{/if}
+						<div class="pair" role="group" aria-label={`${room.name} lights`}>
+							<button
+								type="button"
+								disabled={!may || busy !== null}
+								aria-busy={busy === 'on' || undefined}
+								onclick={() => power(true)}>{busy === 'on' ? 'Turning on…' : 'Room on'}</button
+							>
+							<button
+								type="button"
+								disabled={!may || busy !== null}
+								aria-busy={busy === 'off' || undefined}
+								onclick={() => power(false)}>{busy === 'off' ? 'Turning off…' : 'Room off'}</button
+							>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -430,6 +556,8 @@
 					<SensorsTab list={model.byTab.sensors} all={list} room={room.name} />
 				{:else if tab === 'switches'}
 					<SwitchesTab list={model.byTab.switches} room={room.name} {sw} {may} />
+				{:else if tab === 'cameras'}
+					<CamerasTab list={model.byTab.cameras} room={room.name} {may} {sw} />
 				{/if}
 			</div>
 		{/if}
@@ -471,7 +599,6 @@
 		min-height: 190px;
 		display: flex;
 		align-items: flex-end;
-		overflow: hidden;
 		background: #0c0d12;
 	}
 	.band {
@@ -578,6 +705,98 @@
 	}
 	.pill:hover {
 		filter: brightness(1.15);
+	}
+	.pill.cam {
+		background: rgba(255, 196, 107, 0.16);
+		color: #ffd9a0;
+	}
+	:global(:root[data-theme='light']) .pill.cam {
+		color: #8a5a10;
+	}
+	.pill.cam i {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: #ffc46b;
+		box-shadow: 0 0 8px #ffc46b;
+	}
+	.pill.cam.old {
+		background: color-mix(in srgb, var(--ink) 10%, transparent);
+		color: color-mix(in srgb, var(--ink) 80%, transparent);
+	}
+	.pill.cam.old i {
+		background: var(--ink-muted);
+		box-shadow: none;
+	}
+	.acts {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.pp {
+		position: relative;
+	}
+	.ghost {
+		height: 32px;
+		padding: 0 12px;
+		border: 0;
+		border-radius: 10px;
+		background: rgba(12, 13, 18, 0.62);
+		backdrop-filter: blur(18px);
+		color: var(--ink-muted);
+		font-size: 12.5px;
+		font-weight: 600;
+		cursor: pointer;
+	}
+	:global(:root[data-theme='light']) .ghost {
+		background: rgba(255, 255, 255, 0.7);
+	}
+	.ghost:hover,
+	.ghost[aria-expanded='true'] {
+		color: var(--ink);
+	}
+	.pillpop {
+		position: absolute;
+		right: 0;
+		top: 40px;
+		z-index: 15;
+		width: 280px;
+		padding: 14px;
+		border-radius: 14px;
+		background: color-mix(in srgb, var(--surface) 97%, transparent);
+		box-shadow:
+			0 30px 60px -20px rgba(0, 0, 0, 0.9),
+			0 0 0 1px var(--con-edge);
+	}
+	.pillpop label {
+		display: flex;
+		align-items: center;
+		gap: 9px;
+		padding: 5px 0;
+		font-size: 12.5px;
+		cursor: pointer;
+	}
+	.pillpop input {
+		width: 16px;
+		height: 16px;
+		accent-color: #ffc46b;
+	}
+	.ph {
+		margin: 6px 0 2px;
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--ink-muted);
+	}
+	.ph:first-child {
+		margin-top: 0;
+	}
+	.pn {
+		margin: 8px 0 0;
+		font-size: 11.5px;
+		line-height: 1.4;
+		color: var(--ink-muted);
 	}
 	.pill[aria-busy='true'] {
 		opacity: 0.6;

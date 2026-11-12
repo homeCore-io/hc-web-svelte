@@ -54,6 +54,7 @@
 	import YouMenu from './YouMenu.svelte';
 	import HouseMenu, { houseItems } from './HouseMenu.svelte';
 	import { sidebarOf, withConsole } from './style.js';
+	import HomePills from './HomePills.svelte';
 	import { camOf, isCamera, seesNow } from './cameras.js';
 
 	let { children }: { children: Snippet } = $props();
@@ -312,6 +313,7 @@
 							>{/if}
 						{#if heading.kicker}<span class="kicker">{heading.kicker.long}</span>{/if}
 						{#if !heading.owned}<h1>{title}</h1>{/if}
+						{#if pathname === '/' && !editingHere}<HomePills />{/if}
 					</div>
 					{#if key !== null}<EditMenu pageKey={key} />{/if}
 				</div>

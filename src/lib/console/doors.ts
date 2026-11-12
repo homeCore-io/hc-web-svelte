@@ -1,8 +1,8 @@
 /**
  * A room's Doors tab in the console (the Garage and LivingRoom boards):
  * overhead doors drawn big, each with the opener that moves it; then the
- * other doors and windows, the locks, and the cameras and sirens (until
- * there is a Security tab).
+ * other doors and windows, and the locks. Cameras and sirens have a tab of
+ * their own (cameras.ts); one that reaches here anyway is listed under Security.
  *
  * An opener is often a switch or a keypad's scene named for its door ("OH
  * Door 01", "Garage Door 1"), and its door's state comes from a contact

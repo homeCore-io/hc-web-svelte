@@ -14,6 +14,7 @@
  * Desk lamp); a light no spot's name fits takes a spot still dark, so every
  * light in a room shows. Some spots copy another when nothing of their own
  * fits (a hallway's one Overhead lights all three of its ceiling glows).
+ * The household can fix a spot's device by hand (`RoomLayout.links`).
  *
  * Pure: the drawings draw what this decides.
  */
@@ -266,7 +267,7 @@ export function isLamp(d: CoreDevice): boolean {
 }
 
 /** Whether a device can be shown by a spot of this kind at all. */
-function fits(kind: SpotKind, d: CoreDevice): boolean {
+export function fits(kind: SpotKind, d: CoreDevice): boolean {
 	const k = kindOf(d);
 	switch (kind) {
 		case 'light':
@@ -291,11 +292,15 @@ const numberOf = (s: string) => /(\d+)\s*$/.exec(s)?.[1];
 /**
  * Which of the room's devices each spot of the drawing shows. A spot no
  * device fits is left out, and draws dark (or, for a mirror, as its twin).
+ *
+ * `links` are the household's own choices, by spot: that device alone, or
+ * none (`''`). A device linked to a spot shows only there.
  */
 export function spotsOf(
 	picture: PictureId,
 	devices: CoreDevice[],
-	room: string
+	room: string,
+	links: Record<string, string> = {}
 ): Map<string, CoreDevice[]> {
 	const p = PICTURES[picture];
 	const out = new Map<string, CoreDevice[]>();
@@ -337,8 +342,21 @@ export function spotsOf(
 		const to = free ?? lights[0];
 		if (to) add(to.id, d);
 	}
+	// The household's choices, over what the names matched.
+	const fixed = new Set(p.spots.filter((s) => s.id in links).map((s) => s.id));
+	const linked = new Set([...fixed].map((id) => links[id]));
+	for (const [id, list] of out) {
+		const rest = list.filter((d) => !linked.has(d.device_id));
+		if (fixed.has(id) || rest.length === 0) out.delete(id);
+		else if (rest.length < list.length) out.set(id, rest);
+	}
+	for (const id of fixed) {
+		const d = devices.find((x) => x.device_id === links[id]);
+		if (d) out.set(id, [d]);
+	}
 	for (const s of p.spots)
-		if (s.mirror && !out.has(s.id) && out.has(s.mirror)) out.set(s.id, out.get(s.mirror)!);
+		if (s.mirror && !fixed.has(s.id) && !out.has(s.id) && out.has(s.mirror))
+			out.set(s.id, out.get(s.mirror)!);
 	return out;
 }
 
@@ -350,7 +368,13 @@ export type Glow = Record<string, number | undefined>;
 /** A command on its way to a device: what it was asked to become. */
 export type Wants = (id: string) => Record<string, unknown> | undefined;
 
-function valueOf(kind: SpotKind, d: CoreDevice, now: number, want?: Record<string, unknown>) {
+/** What one device shows on a spot of this kind, 0 to 1. */
+export function spotValue(
+	kind: SpotKind,
+	d: CoreDevice,
+	now: number,
+	want?: Record<string, unknown>
+): number {
 	if (!d.available) return 0;
 	const a = { ...d.attributes, ...want };
 	switch (kind) {
@@ -388,7 +412,7 @@ export function glowOf(
 	for (const s of PICTURES[picture].spots) {
 		const list = spots.get(s.id);
 		if (!list) continue;
-		out[s.id] = Math.max(...list.map((d) => valueOf(s.kind, d, now, wants(d.device_id))));
+		out[s.id] = Math.max(...list.map((d) => spotValue(s.kind, d, now, wants(d.device_id))));
 	}
 	return out;
 }
@@ -410,18 +434,20 @@ export const shade = (v: number | undefined): string => (v && v > 0 ? '#fff1d6' 
 /**
  * A room's drawing, how it's lit now, and its lights: those `isLamp` takes
  * and anything else the drawing lights by its name (a "Zone 03" in the Garage).
+ * `links` are the household's fixed spots (`spotsOf`).
  */
 export function roomPicture(
 	room: string,
 	devices: CoreDevice[],
 	now: number,
-	wants?: Wants
-): { picture: PictureId; g: Glow; lamps: CoreDevice[] } {
+	wants?: Wants,
+	links?: Record<string, string>
+): { picture: PictureId; spots: Map<string, CoreDevice[]>; g: Glow; lamps: CoreDevice[] } {
 	const picture = pictureOf(room);
-	const spots = spotsOf(picture, devices, room);
+	const spots = spotsOf(picture, devices, room, links);
 	const lit = PICTURES[picture].spots
 		.filter((s) => s.kind === 'light' || s.kind === 'holiday')
 		.flatMap((s) => spots.get(s.id) ?? []);
 	const lamps = devices.filter((d) => isLamp(d) || lit.includes(d));
-	return { picture, g: glowOf(picture, spots, now, wants), lamps };
+	return { picture, spots, g: glowOf(picture, spots, now, wants), lamps };
 }

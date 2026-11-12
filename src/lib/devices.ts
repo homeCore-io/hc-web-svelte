@@ -83,6 +83,7 @@ export interface Change {
 	changed_at?: string;
 	kind?: 'homecore' | 'physical' | 'external' | 'unknown';
 	source?: string;
+	actor_id?: string;
 	actor_name?: string;
 	correlation_id?: string;
 }

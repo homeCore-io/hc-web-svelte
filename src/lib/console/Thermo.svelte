@@ -17,6 +17,7 @@
 	import { reading } from '#lib/card.js';
 	import { deg, Nudge, scheduleWords, sendFor, thermostatOf, type Send } from '#lib/thermostat.js';
 	import Col from './Col.svelte';
+	import Place from './Place.svelte';
 	import { aimWord, dialAt, dialSpan, planSend, plansOf, type Plan } from './climate.js';
 	import { shortName } from './room.js';
 
@@ -205,10 +206,13 @@
 		</div>
 	{/if}
 	{#if runs && !apart}
-		<button type="button" class="ran" onclick={() => open(runs)}>
-			<span class="dot" class:busy={runsOn} aria-hidden="true"></span>
-			<span>{runsName}: <b>{runsOn ? 'On' : 'Off'}</b> · {why}</span>
-		</button>
+		<div class="rans">
+			<button type="button" class="ran" onclick={() => open(runs)}>
+				<span class="dot" class:busy={runsOn} aria-hidden="true"></span>
+				<span>{runsName}: <b>{runsOn ? 'On' : 'Off'}</b> · {why}</span>
+			</button>
+			<Place d={runs} tag={false} />
+		</div>
 	{/if}
 </Col>
 
@@ -419,7 +423,13 @@
 		line-height: 1.45;
 		color: var(--ink-muted);
 	}
+	.rans {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+	}
 	.ran {
+		min-width: 0;
 		display: flex;
 		align-items: center;
 		gap: 8px;

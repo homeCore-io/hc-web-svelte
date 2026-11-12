@@ -129,7 +129,10 @@
 			{#if layout === 'roll'}
 				<div class="strip" role="group" aria-label="The room’s other cameras">
 					{#each others as c (c.id)}
-						<Thumb cam={c} badge={badge(c.id)} onpick={() => pick(c.id)} />
+						<div class="tw">
+							<Thumb cam={c} badge={badge(c.id)} onpick={() => pick(c.id)} />
+							<Place d={c.device} corner />
+						</div>
 					{/each}
 				</div>
 			{/if}
@@ -237,6 +240,11 @@
 		display: grid;
 		grid-template-columns: repeat(4, minmax(0, 1fr));
 		gap: 8px;
+	}
+	/* Each snapshot with its "⋯" over its top right corner. */
+	.tw {
+		position: relative;
+		min-width: 0;
 	}
 	.side {
 		flex: 0 0 300px;

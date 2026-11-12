@@ -27,6 +27,8 @@ export interface Bit {
 	code?: boolean;
 	/** A part not filled in yet: "(choose a device)", said quietly (#48). */
 	todo?: boolean;
+	/** Names a person, by their id when it's known (`''` when not): shown with their picture. */
+	person?: string;
 }
 export type Phrase = Bit[];
 

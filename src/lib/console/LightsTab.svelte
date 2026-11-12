@@ -33,6 +33,7 @@
 		type LightsTab
 	} from './room.js';
 	import type { FaderStyle, SwitchStyle } from './style.js';
+	import { blocksOf } from './layout.js';
 
 	let {
 		tab,
@@ -40,7 +41,8 @@
 		fader,
 		sw,
 		may,
-		dock = false
+		dock = false,
+		order
 	}: {
 		tab: LightsTab;
 		/** The room's name, left off the front of its lights'. */
@@ -50,7 +52,11 @@
 		may: boolean;
 		/** Whether the room's audio bar sits under the tab. */
 		dock?: boolean;
+		/** The columns' order, as the room's layout has it (layout.ts). */
+		order?: string[];
 	} = $props();
+
+	const blocks = $derived(blocksOf(tab, order));
 
 	const nameOf = (d: CoreDevice) => shortName(d.name_override ?? d.name, room);
 	const want = (d: CoreDevice) => commands.pending[d.device_id]?.want;
@@ -75,7 +81,7 @@
 	/** Below the desk: the panel's edge, and the room's audio bar when it has one. */
 	const below = $derived((viewH <= 820 ? 30 : 36) + (dock ? 78 : 0));
 	$effect(() => {
-		void [viewH, tab, allScenes, picked, height];
+		void [viewH, tab, blocks, allScenes, picked, height];
 		if (!desk) return;
 		const top = desk.getBoundingClientRect().top + window.scrollY;
 		const cols = [...desk.children] as HTMLElement[];
@@ -152,199 +158,201 @@
 <svelte:window bind:innerHeight={viewH} />
 
 <div class="desk" bind:this={desk}>
-	{#each tab.columns as c (c.key)}
-		{@const chosen = pickedIn(c)}
-		{@const scenic = c.scenes.length > 0}
-		<section
-			class="col"
-			class:scenic
-			style:--scenes={`${SCENES_MIN}px`}
-			aria-label={`${c.brand}: ${c.title}`}
-		>
-			<div class="ch">
-				<span class="tag" data-brand={c.brand.toLowerCase()}>{c.brand}</span>
-				{#if c.group}
-					<button type="button" class="ttl" onclick={() => open(c.group!)}>{c.title}</button>
-				{:else}<span class="ttl">{c.title}</span>{/if}
-				{#if c.lights.length > 1}<span class="cn">{c.lights.length} lights</span>{/if}
-				{#if noteOf(c)}<span class="warn" role="status">{noteOf(c)}</span>{/if}
-				{#if c.group}<span class="pl"><Place d={c.group} /></span>{/if}
-			</div>
-			<div class="faders">
-				{#if c.group || c.lights.length > 1}
-					<Fader
-						label={`All ${c.lights.length}`}
-						value={allLevel(c)}
-						style={fader}
-						{height}
-						{tight}
-						disabled={!may}
-						waiting={c.group ? waiting(c.group) : c.lights.some(waiting)}
-						selected={scenic && !chosen}
-						onpick={scenic ? () => (picked = { ...picked, [c.key]: undefined }) : undefined}
-						onopen={!scenic && c.group ? () => open(c.group!) : undefined}
-						oncommit={(v) => setAll(c, v)}
-					/>
-				{/if}
-				{#each c.lights as l (l.device_id)}
-					{#if dims(l)}
-						<div class="fw">
-							<Fader
-								label={nameOf(l)}
-								value={level(l)}
-								style={fader}
-								{height}
-								{tight}
-								color={colour(l)}
-								disabled={!may || !l.available}
-								waiting={waiting(l)}
-								selected={chosen?.device_id === l.device_id}
-								onpick={scenic ? () => pick(c, l.device_id) : undefined}
-								onopen={scenic ? undefined : () => open(l)}
-								oncommit={(v) => setLevel(l, v)}
-							/>
-							<Place d={l} corner />
-						</div>
-					{:else}
-						<div class="plain">
-							<Switch
-								label={nameOf(l)}
-								on={isOn(l)}
-								style={sw}
-								named={false}
-								disabled={!may || !l.available}
-								waiting={waiting(l)}
-								onchange={(v) => setOn(l, v)}
-							/>
-							<button type="button" class="pname" onclick={() => open(l)}>{nameOf(l)}</button>
-							<Place d={l} corner />
-						</div>
-					{/if}
-				{/each}
-			</div>
-			{#if scenic}
-				{@const active = activeIn(c)}
-				<div class="scn" role="group" aria-label={`Scenes for ${c.title}`}>
-					<p class="cap">
-						{#if chosen}
-							Only {nameOf(chosen)} · scenes for one light aren’t available yet
-							<button type="button" class="more" onclick={() => open(chosen)}>Details</button>
-						{:else}
-							{c.group || c.lights.length > 1 ? 'The group’s scenes' : 'Scenes'} · {active
-								? `${nameOf(active)} is on`
-								: 'none on'}
-						{/if}
-						{#if clipped[c.key] || allScenes[c.key]}
-							<button
-								type="button"
-								class="more all"
-								aria-expanded={!!allScenes[c.key]}
-								onclick={() => (allScenes = { ...allScenes, [c.key]: !allScenes[c.key] })}
-								>{allScenes[c.key] ? 'Fewer' : `All ${c.scenes.length}`}</button
-							>
-						{/if}
-					</p>
-					<div class="chips" class:open={allScenes[c.key]} use:clips={c.key}>
-						{#each c.scenes as s (s.device_id)}
-							<button
-								type="button"
-								class="chip"
-								class:on={!chosen && s.attributes.active === true}
-								disabled={!may || !!chosen || !s.available}
-								title={chosen
-									? `Scenes for one light aren’t available yet. Pick All to show ${nameOf(s)} in ${c.title}.`
-									: `Show ${nameOf(s)} in ${c.title}`}
-								onclick={() => show(s)}
-								><i style:background={paletteOf(s)} aria-hidden="true"></i>{nameOf(s)}</button
-							>
-						{/each}
-					</div>
+	{#each blocks as b (b.key)}
+		{#if b.kind === 'column'}
+			{@const c = tab.columns[b.index]!}
+			{@const chosen = pickedIn(c)}
+			{@const scenic = c.scenes.length > 0}
+			<section
+				class="col"
+				class:scenic
+				style:--scenes={`${SCENES_MIN}px`}
+				aria-label={`${c.brand}: ${c.title}`}
+			>
+				<div class="ch">
+					<span class="tag" data-brand={c.brand.toLowerCase()}>{c.brand}</span>
+					{#if c.group}
+						<button type="button" class="ttl" onclick={() => open(c.group!)}>{c.title}</button>
+					{:else}<span class="ttl">{c.title}</span>{/if}
+					{#if c.lights.length > 1}<span class="cn">{c.lights.length} lights</span>{/if}
+					{#if noteOf(c)}<span class="warn" role="status">{noteOf(c)}</span>{/if}
+					{#if c.group}<span class="pl"><Place d={c.group} /></span>{/if}
 				</div>
-			{/if}
-		</section>
-	{/each}
-
-	{#if tab.switches.length > 0}
-		<section class="col sws" aria-label="Switches">
-			<div class="ch"><span class="ttl">Switches</span></div>
-			<div class="rows">
-				{#each flipped as s (s.device_id)}
-					{#if sw === 'keypad'}
-						<div class="srow">
-							<div class="one">
+				<div class="faders">
+					{#if c.group || c.lights.length > 1}
+						<Fader
+							label={`All ${c.lights.length}`}
+							value={allLevel(c)}
+							style={fader}
+							{height}
+							{tight}
+							disabled={!may}
+							waiting={c.group ? waiting(c.group) : c.lights.some(waiting)}
+							selected={scenic && !chosen}
+							onpick={scenic ? () => (picked = { ...picked, [c.key]: undefined }) : undefined}
+							onopen={!scenic && c.group ? () => open(c.group!) : undefined}
+							oncommit={(v) => setAll(c, v)}
+						/>
+					{/if}
+					{#each c.lights as l (l.device_id)}
+						{#if dims(l)}
+							<div class="fw">
+								<Fader
+									label={nameOf(l)}
+									value={level(l)}
+									style={fader}
+									{height}
+									{tight}
+									color={colour(l)}
+									disabled={!may || !l.available}
+									waiting={waiting(l)}
+									selected={chosen?.device_id === l.device_id}
+									onpick={scenic ? () => pick(c, l.device_id) : undefined}
+									onopen={scenic ? undefined : () => open(l)}
+									oncommit={(v) => setLevel(l, v)}
+								/>
+								<Place d={l} corner />
+							</div>
+						{:else}
+							<div class="plain">
+								<Switch
+									label={nameOf(l)}
+									on={isOn(l)}
+									style={sw}
+									named={false}
+									disabled={!may || !l.available}
+									waiting={waiting(l)}
+									onchange={(v) => setOn(l, v)}
+								/>
+								<button type="button" class="pname" onclick={() => open(l)}>{nameOf(l)}</button>
+								<Place d={l} corner />
+							</div>
+						{/if}
+					{/each}
+				</div>
+				{#if scenic}
+					{@const active = activeIn(c)}
+					<div class="scn" role="group" aria-label={`Scenes for ${c.title}`}>
+						<p class="cap">
+							{#if chosen}
+								Only {nameOf(chosen)} · scenes for one light aren’t available yet
+								<button type="button" class="more" onclick={() => open(chosen)}>Details</button>
+							{:else}
+								{c.group || c.lights.length > 1 ? 'The group’s scenes' : 'Scenes'} · {active
+									? `${nameOf(active)} is on`
+									: 'none on'}
+							{/if}
+							{#if clipped[c.key] || allScenes[c.key]}
+								<button
+									type="button"
+									class="more all"
+									aria-expanded={!!allScenes[c.key]}
+									onclick={() => (allScenes = { ...allScenes, [c.key]: !allScenes[c.key] })}
+									>{allScenes[c.key] ? 'Fewer' : `All ${c.scenes.length}`}</button
+								>
+							{/if}
+						</p>
+						<div class="chips" class:open={allScenes[c.key]} use:clips={c.key}>
+							{#each c.scenes as s (s.device_id)}
+								<span class="cw"
+									><button
+										type="button"
+										class="chip"
+										class:on={!chosen && s.attributes.active === true}
+										disabled={!may || !!chosen || !s.available}
+										title={chosen
+											? `Scenes for one light aren’t available yet. Pick All to show ${nameOf(s)} in ${c.title}.`
+											: `Show ${nameOf(s)} in ${c.title}`}
+										onclick={() => show(s)}
+										><i style:background={paletteOf(s)} aria-hidden="true"></i>{nameOf(s)}</button
+									><Place d={s} chip /></span
+								>
+							{/each}
+						</div>
+					</div>
+				{/if}
+			</section>
+		{:else if b.kind === 'switches'}
+			<section class="col sws" aria-label="Switches">
+				<div class="ch"><span class="ttl">Switches</span></div>
+				<div class="rows">
+					{#each flipped as s (s.device_id)}
+						{#if sw === 'keypad'}
+							<div class="srow">
+								<div class="one">
+									<Switch
+										label={nameOf(s)}
+										on={isOn(s)}
+										style={sw}
+										disabled={!may || !s.available}
+										waiting={waiting(s)}
+										onchange={(v) => setOn(s, v)}
+									>
+										{#snippet tag()}<Moved d={s} />{/snippet}
+									</Switch>
+								</div>
+								<Place d={s} tag={false} />
+							</div>
+						{:else}
+							<div class="srow">
+								<button type="button" class="sname" onclick={() => open(s)}
+									>{nameOf(s)}<Moved d={s} /></button
+								>
 								<Switch
 									label={nameOf(s)}
 									on={isOn(s)}
 									style={sw}
+									named={false}
 									disabled={!may || !s.available}
 									waiting={waiting(s)}
 									onchange={(v) => setOn(s, v)}
-								>
-									{#snippet tag()}<Moved d={s} />{/snippet}
-								</Switch>
+								/>
+								<Place d={s} tag={false} />
 							</div>
-							<Place d={s} tag={false} />
-						</div>
-					{:else}
-						<div class="srow">
-							<button type="button" class="sname" onclick={() => open(s)}
-								>{nameOf(s)}<Moved d={s} /></button
-							>
-							<Switch
-								label={nameOf(s)}
-								on={isOn(s)}
-								style={sw}
-								named={false}
-								disabled={!may || !s.available}
-								waiting={waiting(s)}
-								onchange={(v) => setOn(s, v)}
-							/>
-							<Place d={s} tag={false} />
-						</div>
-					{/if}
-					{#if commands.notes[s.device_id]}<span class="warn" role="status"
-							>{commands.notes[s.device_id]}</span
-						>{/if}
-				{/each}
-			</div>
-			{#if unflipped.length > 0}<SwitchSet list={unflipped} {room} {may} look="rows" />{/if}
-		</section>
-	{/if}
-
-	{#each tab.keypads as k (k.device_id)}
-		<section class="col" aria-label={`${nameOf(k)} keypad`}>
-			<div class="ch">
-				<span class="tag" data-brand={(k.plugin_id ?? '').split('.').pop()}
-					>{(k.plugin_id ?? '').split('.').pop()}</span
-				>
-				<span class="ttl">{nameOf(k)}</span>
-				<span class="cn">keypad</span>
-			</div>
-			<!-- Its "⋯" over the keypad, so the column is no wider for it. -->
-			<div class="kw">
-				<Keypad device={k} {may} />
-				<Place d={k} corner />
-			</div>
-		</section>
-	{/each}
-
-	{#if tab.scenes.length > 0}
-		<section class="col" aria-label="Scenes">
-			<div class="ch"><span class="ttl">Scenes</span></div>
-			<div class="scn">
-				{#each tab.scenes as s (s.device_id)}
-					<button
-						type="button"
-						class="chip"
-						disabled={!may || !s.available}
-						title={`Show ${nameOf(s)}`}
-						onclick={() => show(s)}
-						><i style:background={paletteOf(s)} aria-hidden="true"></i>{nameOf(s)}</button
+						{/if}
+						{#if commands.notes[s.device_id]}<span class="warn" role="status"
+								>{commands.notes[s.device_id]}</span
+							>{/if}
+					{/each}
+				</div>
+				{#if unflipped.length > 0}<SwitchSet list={unflipped} {room} {may} look="rows" />{/if}
+			</section>
+		{:else if b.kind === 'keypad'}
+			{@const k = tab.keypads[b.index]!}
+			<section class="col" aria-label={`${nameOf(k)} keypad`}>
+				<div class="ch">
+					<span class="tag" data-brand={(k.plugin_id ?? '').split('.').pop()}
+						>{(k.plugin_id ?? '').split('.').pop()}</span
 					>
-				{/each}
-			</div>
-		</section>
-	{/if}
+					<span class="ttl">{nameOf(k)}</span>
+					<span class="cn">keypad</span>
+				</div>
+				<!-- Its "⋯" over the keypad, so the column is no wider for it. -->
+				<div class="kw">
+					<Keypad device={k} {may} />
+					<Place d={k} corner />
+				</div>
+			</section>
+		{:else}
+			<section class="col" aria-label="Scenes">
+				<div class="ch"><span class="ttl">Scenes</span></div>
+				<div class="scn">
+					{#each tab.scenes as s (s.device_id)}
+						<span class="cw"
+							><button
+								type="button"
+								class="chip"
+								disabled={!may || !s.available}
+								title={`Show ${nameOf(s)}`}
+								onclick={() => show(s)}
+								><i style:background={paletteOf(s)} aria-hidden="true"></i>{nameOf(s)}</button
+							><Place d={s} chip /></span
+						>
+					{/each}
+				</div>
+			</section>
+		{/if}
+	{/each}
 </div>
 
 <style>
@@ -515,6 +523,10 @@
 	.more.all {
 		margin-left: auto;
 		font-weight: 600;
+	}
+	.cw {
+		position: relative;
+		display: flex;
 	}
 	.chip {
 		display: flex;

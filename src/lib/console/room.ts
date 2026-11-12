@@ -455,12 +455,14 @@ export function runByThermostats(devices: CoreDevice[]): Set<string> {
 
 /**
  * Sort a room's devices into the console's tabs, for a Lights tab `width`
- * pixels across, with the household's choices of tab (`chosen`).
+ * pixels across, with the household's choices of tab (`chosen`). Lights
+ * and switches in `off` were hidden from the room (layout.ts): left out.
  */
 export function consoleRoom(
 	devices: CoreDevice[],
 	width = LIGHTS_WIDTH,
-	chosen: TabChoices = {}
+	chosen: TabChoices = {},
+	off: ReadonlySet<string> = new Set()
 ): ConsoleRoom {
 	const byTab: Record<TabId, CoreDevice[]> = {
 		doors: [],
@@ -489,6 +491,8 @@ export function consoleRoom(
 		const choice = chosen[d.device_id];
 		const p = choice ? chosenPlace(d, choice) : placeOf(d);
 		if (p === null) continue;
+		if (off.has(d.device_id) && (p.tab === 'switch' || (p.tab === 'lights' && p.as === 'light')))
+			continue;
 		placed.push(d);
 		if (!choice && p.tab === 'lights' && p.as === 'light' && spotlightOf(d, cameras)) {
 			byTab.cameras.push(d);

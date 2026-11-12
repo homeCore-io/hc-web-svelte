@@ -180,7 +180,7 @@
 			</a>
 		{/if}
 		<a class="dest" href="/me" aria-current={isAt(pathname, '/me') ? 'page' : undefined} title="Me">
-			<Avatar name={session.me?.username ?? ''} photo={personal.doc.photo} />
+			<Avatar person={session.me?.id} name={session.me?.username ?? ''} />
 			<span class="label">Me</span>
 		</a>
 	</nav>

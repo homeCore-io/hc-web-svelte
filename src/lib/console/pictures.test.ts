@@ -275,3 +275,40 @@ describe('roomPicture', () => {
 		expect(p.lamps).toEqual([]);
 	});
 });
+
+describe('the household’s own fixes to a drawing’s spots', () => {
+	const room = 'Family Room';
+	const list = [
+		lamp('floor', 'Family Room Floor Lamp'),
+		lamp('desk', 'Family Room Desk Lamp'),
+		lamp('over', 'Family Room Overhead')
+	];
+
+	it('shows the device chosen for a spot there alone', () => {
+		const m = spotsOf('family', list, room, { small: 'desk' });
+		expect(ids(m)).toEqual({ floor: ['floor'], small: ['desk'], over: ['over'] });
+	});
+
+	it('leaves a spot fixed to none dark', () => {
+		expect(ids(spotsOf('family', list, room, { over: '' }))).toEqual({
+			floor: ['floor'],
+			desk: ['desk']
+		});
+	});
+
+	it('keeps a fixed spot from its twin, and a twin from a spot fixed to none', () => {
+		const hall = [lamp('a', 'Hallway Overhead')];
+		expect(ids(spotsOf('hallway', hall, 'Hallway', { c2: '' }))).toEqual({
+			c1: ['a'],
+			c3: ['a']
+		});
+	});
+
+	it('ignores a device the room no longer has', () => {
+		expect(ids(spotsOf('family', list, room, { small: 'gone' }))).toEqual({
+			floor: ['floor'],
+			desk: ['desk'],
+			over: ['over']
+		});
+	});
+});

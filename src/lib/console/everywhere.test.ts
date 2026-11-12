@@ -101,6 +101,22 @@ describe('Lights', () => {
 		expect(ids(rows[0]!.lights.map((device) => ({ device })))).toEqual(['desk', 'lamp']);
 	});
 
+	it('leaves out a virtual switch named as a light', () => {
+		const glue = { plugin_id: 'core.glue' };
+		const rows = lightRows(
+			placesOf(
+				house({
+					garage: [
+						dev('porch', 'switch', { on: true }, { ...glue, name: 'Porch Light' }),
+						dev('bulb', 'light', { on: false })
+					]
+				}),
+				[garage]
+			)
+		);
+		expect(ids(rows[0]!.lights.map((device) => ({ device })))).toEqual(['bulb']);
+	});
+
 	it('adds the switches Home counts as lights, after the faders', () => {
 		const rows = lightRows(
 			placesOf(

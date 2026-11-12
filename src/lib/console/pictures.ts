@@ -19,6 +19,7 @@
  */
 import { cardFor, isOpen, kindOf } from '../card.js';
 import type { CoreDevice } from '../devices.js';
+import { isHelper } from '../helpers.js';
 import { isOn, isPlayer, playerKind } from './media.js';
 import { levelOf, shortName } from './room.js';
 
@@ -247,16 +248,20 @@ const wordsOf = (d: CoreDevice, room: string) => shortName(nameOf(d), room).toLo
 
 /** A switch that says it's a light. One a person marked as a light is a light already. */
 const lightNamed = (name: string) => /light|lamp|chandelier|sconce|pendant|bulb/.test(name);
+/**
+ * A switch that may be a light, a heater or the like, by its name or its
+ * spot's. homeCore's own virtual switches are only switches, whatever they're called.
+ */
+const mayBe = (d: CoreDevice) => SWITCHES.has(kindOf(d)) && !isHelper(d);
 
 /**
  * Whether a device is one of a room's lights: a light, or a switch whose name
- * says it is one ("Deck Flood Light", "Holiday Lights").
+ * says it is one ("Deck Flood Light", "Holiday Lights"). A virtual switch
+ * named "Porch Light" is a switch.
  */
 export function isLamp(d: CoreDevice): boolean {
 	const k = kindOf(d);
-	return (
-		k === 'light' || k === 'dimmer' || (SWITCHES.has(k) && lightNamed(nameOf(d).toLowerCase()))
-	);
+	return k === 'light' || k === 'dimmer' || (mayBe(d) && lightNamed(nameOf(d).toLowerCase()));
 }
 
 /** Whether a device can be shown by a spot of this kind at all. */
@@ -265,7 +270,7 @@ function fits(kind: SpotKind, d: CoreDevice): boolean {
 	switch (kind) {
 		case 'light':
 		case 'holiday':
-			return k === 'light' || k === 'dimmer' || SWITCHES.has(k);
+			return k === 'light' || k === 'dimmer' || mayBe(d);
 		case 'screen':
 			return isPlayer(d) && playerKind(d) === 'screen';
 		case 'fan':
@@ -275,7 +280,7 @@ function fits(kind: SpotKind, d: CoreDevice): boolean {
 		case 'lock':
 			return k === 'lock';
 		case 'heat':
-			return k === 'thermostat' || k === 'heater' || SWITCHES.has(k);
+			return k === 'thermostat' || k === 'heater' || mayBe(d);
 	}
 }
 
@@ -313,7 +318,7 @@ export function spotsOf(
 				!(s.kind === 'light' && holiday && !s.words?.test(words))
 		);
 		if (can.length === 0) {
-			if (k === 'light' || k === 'dimmer' || (SWITCHES.has(k) && lightNamed(words)))
+			if (k === 'light' || k === 'dimmer' || (mayBe(d) && lightNamed(words)))
 				if (!holiday && (p.outdoor || !OUTDOOR.test(words))) left.push(d);
 			continue;
 		}

@@ -244,6 +244,12 @@ describe('isLamp', () => {
 		expect(isLamp(dev('e', 'switch', 'Zone 03'))).toBe(false);
 		expect(isLamp(dev('f', 'switch', 'Zone 03', {}, { ui_hint: 'light' }))).toBe(true);
 	});
+
+	it('takes homeCore’s virtual switches for switches, whatever they’re called', () => {
+		const glue = { plugin_id: 'core.glue' };
+		expect(isLamp(dev('a', 'switch', 'Porch Light', {}, glue))).toBe(false);
+		expect(isLamp(dev('b', 'group', 'Garage Lights', { on: true }, glue))).toBe(false);
+	});
 });
 
 describe('roomPicture', () => {
@@ -257,5 +263,15 @@ describe('roomPicture', () => {
 		expect(p.picture).toBe('garage');
 		expect(p.g).toEqual({ zone: 1, oh1: 0 });
 		expect(p.lamps.map((x) => x.device_id)).toEqual(['z']);
+	});
+
+	it('neither lights nor counts a virtual switch named as a light', () => {
+		const list = [
+			dev('p', 'switch', 'Porch Light', { on: true }, { plugin_id: 'core.glue' }),
+			dev('z', 'switch', 'Zone 03', { on: true }, { plugin_id: 'core.glue' })
+		];
+		const p = roomPicture('Garage', list, 0);
+		expect(p.g).toEqual({});
+		expect(p.lamps).toEqual([]);
 	});
 });

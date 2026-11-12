@@ -9,7 +9,8 @@
  * sensors and valves; Sensors, every reading. A switch a thermostat in the
  * room runs goes with it, in Climate. Plain on/off switches sit in Lights as
  * a column of their own, and get a tab of their own only when Lights would be
- * too crowded for them.
+ * too crowded for them. homeCore's own switches (virtual switches, groups,
+ * timers) are what they are: never placed by their names.
  *
  * The Lights tab is a row of columns, one per lighting system's group: a Hue
  * room or zone (a group device that lists its `light_ids`, or the lights and
@@ -20,6 +21,7 @@
 import { kindOf } from '../card.js';
 import type { CoreDevice, Devices } from '../devices.js';
 import type { Room } from '../house.js';
+import { isHelper } from '../helpers.js';
 import { slugOf } from '../summary.js';
 
 export type TabId =
@@ -133,7 +135,8 @@ export function placeOf(d: CoreDevice): Place {
 	if (LEFT_OUT.has(k)) return null;
 	if (isLightGroup(d)) return { tab: 'lights', as: 'group' };
 	if (isLightScene(d)) return { tab: 'lights', as: 'scene' };
-	if (isScene(d)) return OPENS.test(name) ? { tab: 'doors' } : { tab: 'lights', as: 'scene' };
+	if (isScene(d))
+		return OPENS.test(name) && !isHelper(d) ? { tab: 'doors' } : { tab: 'lights', as: 'scene' };
 	if (LIGHT_KINDS.has(k)) return { tab: 'lights', as: 'light' };
 	if (k === 'group')
 		return typeof d.attributes?.brightness_pct === 'number'
@@ -142,6 +145,8 @@ export function placeOf(d: CoreDevice): Place {
 	if (isKeypad(d)) return { tab: 'lights', as: 'keypad' };
 	if (KEYPAD_KINDS.has(k)) return null;
 	if (SWITCH_KINDS.has(k)) {
+		// A virtual switch named "Garage Door" opens nothing; it's a switch.
+		if (isHelper(d)) return { tab: 'switch' };
 		if (OPENS.test(name)) return { tab: 'doors' };
 		if (VALVE.test(name)) return { tab: 'water' };
 		if (AIR.test(name)) return { tab: 'climate' };
@@ -168,6 +173,7 @@ function spotlightOf(d: CoreDevice, cameras: Set<string>): boolean {
 export function opens(d: CoreDevice): boolean {
 	const k = kindOf(d);
 	if (OPENER_KINDS.has(k)) return true;
+	if (isHelper(d)) return false;
 	return (SWITCH_KINDS.has(k) || isScene(d)) && OPENS.test(d.name_override ?? d.name);
 }
 

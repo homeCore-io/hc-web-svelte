@@ -8,6 +8,7 @@ import {
 	levelOf,
 	levelWant,
 	lightColumns,
+	opens,
 	placeOf,
 	roomSlugOf,
 	layOut,
@@ -108,6 +109,40 @@ describe('which tab a device goes in', () => {
 			as: 'keypad'
 		});
 		expect(placeOf(hue('s', 'scene', { group_rid: 'g' }))).toEqual({ tab: 'lights', as: 'scene' });
+	});
+});
+
+describe('homeCore’s own switches', () => {
+	const glue = (id: string, type: string, name: string, attributes = {}) =>
+		dev(id, type, attributes, { name, plugin_id: 'core.glue' });
+
+	it('are switches, never placed by their names', () => {
+		expect(placeOf(glue('a', 'switch', 'Garage Door'))).toEqual({ tab: 'switch' });
+		expect(placeOf(glue('b', 'switch', 'Water Valve'))).toEqual({ tab: 'switch' });
+		expect(placeOf(glue('c', 'switch', 'Space Heater'))).toEqual({ tab: 'switch' });
+		expect(placeOf(glue('d', 'switch', 'Porch Light'))).toEqual({ tab: 'switch' });
+		expect(opens(glue('a', 'switch', 'Garage Door'))).toBe(false);
+		// A plugin's switch is still read by its name.
+		expect(placeOf(dev('e', 'switch', {}, { name: 'Garage Door' }))).toEqual({ tab: 'doors' });
+	});
+
+	it('keep a group with no brightness as a switch, and one with it as a light', () => {
+		expect(placeOf(glue('g', 'group', 'Garage things', { on: false }))).toEqual({ tab: 'switch' });
+		expect(placeOf(glue('h', 'group', 'Den lamps', { on: true, brightness_pct: 40 }))).toEqual({
+			tab: 'lights',
+			as: 'light'
+		});
+	});
+
+	it('sit with the room’s switches and count as no light', () => {
+		const r = consoleRoom([
+			glue('door', 'switch', 'Garage Door', { on: false }),
+			glue('porch', 'switch', 'Porch Light', { on: true }),
+			dev('lamp', 'light', { on: true })
+		]);
+		expect(ids(r.lights.switches)).toEqual(['door', 'porch']);
+		expect(r.byTab.doors).toEqual([]);
+		expect(r.lights.columns.flatMap((c) => ids(c.lights))).toEqual(['lamp']);
 	});
 });
 

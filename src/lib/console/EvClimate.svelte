@@ -4,11 +4,10 @@
 	then every temperature and humidity reading in the house, as many across
 	as fit (motion sensors and weather stations too, and those with no room
 	yet, marked). The readings come last, so in a short window what you control
-	stays on screen and the long list scrolls. "Fans off" asks first.
+	stays on screen and the long list scrolls. "Fans off" acts at once.
 -->
 <script lang="ts">
 	import { commands } from '#lib/commands.svelte.js';
-	import { ask } from '#lib/confirm.svelte.js';
 	import { session } from '#lib/me.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
 	import type { CoreDevice } from '#lib/devices.js';
@@ -58,18 +57,7 @@
 		if (w && may && d.available) void commands.set(d.device_id, 'fan', w, d.attributes);
 	}
 	const fansOn = $derived(view.fans.filter((f) => f.device.available && fanOn(f.device)));
-	async function allFansOff() {
-		if (fansOn.length === 0) return;
-		const yes = await ask({
-			title: 'Turn every fan off?',
-			body:
-				fansOn.length === 1
-					? `The fan in ${fansOn[0]!.place.name} stops.`
-					: `All ${fansOn.length} fans turning now stop.`,
-			go: 'Turn off',
-			stay: 'Not now'
-		});
-		if (!yes) return;
+	function allFansOff() {
 		for (const f of fansOn) setFan(f.device, false);
 	}
 

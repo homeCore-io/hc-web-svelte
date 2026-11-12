@@ -1,8 +1,7 @@
 <!--
 	A room's drawing, lit as its spots say (pictures.ts): on its tile on
-	Home, filling the tile, and behind a room's header, against its right
-	end. A header is wide and short, so there the drawing keeps most of its
-	height and fades in from the left, where the room's name is.
+	Home and behind a room's header, filling either one across, cut to fit
+	top and bottom. On a header the band over it keeps the words readable.
 -->
 <script lang="ts">
 	import type { Component } from 'svelte';
@@ -22,16 +21,7 @@
 	import Outside from './drawings/Outside.svelte';
 	import Plain from './drawings/Plain.svelte';
 
-	let {
-		picture,
-		g,
-		side = false
-	}: {
-		picture: PictureId;
-		g: Glow;
-		/** Against the right end, for a header. */
-		side?: boolean;
-	} = $props();
+	let { picture, g }: { picture: PictureId; g: Glow } = $props();
 
 	const DRAWINGS: Record<PictureId, Component<{ g: Glow }>> = {
 		family: Family,
@@ -52,7 +42,7 @@
 	const Drawing = $derived(DRAWINGS[picture]);
 </script>
 
-<span class="pic" class:side aria-hidden="true"><Drawing {g} /></span>
+<span class="pic" aria-hidden="true"><Drawing {g} /></span>
 
 <style>
 	.pic {
@@ -65,16 +55,6 @@
 		display: block;
 		width: 100%;
 		height: 100%;
-	}
-	.side :global(svg) {
-		position: absolute;
-		top: 0;
-		right: 0;
-		width: auto;
-		min-width: 60%;
-		max-width: 100%;
-		aspect-ratio: 4 / 1;
-		mask-image: linear-gradient(90deg, transparent, #000 25%);
 	}
 	.pic :global(ellipse),
 	.pic :global(rect),

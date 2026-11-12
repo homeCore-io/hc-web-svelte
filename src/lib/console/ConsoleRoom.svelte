@@ -344,7 +344,7 @@
 {:else}
 	<div class="croom">
 		<section class="hero" aria-label={room.name}>
-			<RoomPicture picture={lit.picture} g={lit.g} side />
+			<RoomPicture picture={lit.picture} g={lit.g} />
 			<div class="band" aria-hidden="true"></div>
 			<div class="hc">
 				<div class="who">

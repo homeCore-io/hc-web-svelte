@@ -347,14 +347,14 @@
 					</a>
 				{/each}
 				<span class="gap"></span>
-				<span class="count"
+				<a class="count" href="/everywhere/media" title="Everywhere › Media"
 					>{playingNow === 0
 						? 'Nothing playing now'
 						: playingNow === 1
 							? '1 playing'
 							: `${playingNow} playing`}{playing.length > DOCK_SHOWN
 						? ` · ${playing.length - DOCK_SHOWN} more`
-						: ''}</span
+						: ''}</a
 				>
 			</footer>
 		{/if}
@@ -819,6 +819,7 @@
 	}
 	.count {
 		flex: none;
+		text-decoration: none;
 		padding: 8px 12px;
 		border-radius: 10px;
 		background: rgba(160, 123, 255, 0.18);

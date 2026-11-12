@@ -13,7 +13,7 @@
  * Pure: the page draws what this decides.
  */
 import { isOpen, kindOf, type CardView } from '../card.js';
-import type { CoreDevice } from '../devices.js';
+import { displayName, type CoreDevice } from '../devices.js';
 import type { CoreScene } from '../scenes.svelte.js';
 import type { Alert } from '../alerts.js';
 import type { Room } from '../house.js';
@@ -220,12 +220,15 @@ export type Favorite = { key: string; device: CoreDevice } | { key: string; scen
 
 /**
  * The house's favorites on Home: the person's own (devices and scenes, in
- * their order), then homeCore's own scenes they haven't pinned.
+ * their order); then, as the other looks' Home has them, the house's modes,
+ * and its scenes that belong to no room (homeCore's own, and plugins' with
+ * no room), by name. `rooms` places a device in a room.
  */
 export function favoritesOf(
 	refs: string[],
 	byId: Record<string, CoreDevice>,
-	scenes: CoreScene[]
+	scenes: CoreScene[],
+	rooms: Room[] = []
 ): Favorite[] {
 	const out: Favorite[] = [];
 	for (const r of refs) {
@@ -235,8 +238,23 @@ export function favoritesOf(
 		if (device) out.push({ key: r, device });
 		else if (scene) out.push({ key: r, scene });
 	}
-	for (const s of scenes)
-		if (!refs.includes(`scene:${s.id}`)) out.push({ key: `scene:${s.id}`, scene: s });
+	const pinned = new Set(refs);
+	const all = Object.values(byId);
+	const byName = (a: { name: string }, b: { name: string }) =>
+		a.name.localeCompare(b.name, undefined, { numeric: true });
+	const modes = all.filter((d) => kindOf(d) === 'mode');
+	const loose = all.filter((d) => kindOf(d) === 'scene' && !roomOf(d, rooms));
+	const house: (Favorite & { name: string })[] = [
+		...scenes.map((s) => ({ key: `scene:${s.id}`, scene: s, name: s.name })),
+		...loose.map((d) => ({ key: `device:${d.device_id}`, device: d, name: displayName(d) }))
+	].sort(byName);
+	for (const f of [
+		...modes
+			.map((d) => ({ key: `device:${d.device_id}`, device: d, name: displayName(d) }))
+			.sort(byName),
+		...house
+	])
+		if (!pinned.has(f.key)) out.push(f);
 	return out;
 }
 

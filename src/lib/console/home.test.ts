@@ -211,6 +211,17 @@ describe('favorites', () => {
 		const out = favoritesOf(['scene:s2', 'device:a', 'device:gone'], { a: lamp }, scenes);
 		expect(out.map((f) => f.key)).toEqual(['scene:s2', 'device:a', 'scene:s1']);
 	});
+
+	it('adds the house’s modes, then its scenes in no room, by name', () => {
+		const byId = {
+			n: dev('n', 'mode', 'Night Mode'),
+			d: dev('d', 'mode', 'Day Mode'),
+			w: dev('w', 'scene', 'Welcome'),
+			r: dev('r', 'scene', 'Relax', {}, { area: 'family_room' })
+		};
+		const out = favoritesOf(['device:w'], byId, [{ id: 's1', name: 'Evening' }], [family]);
+		expect(out.map((f) => f.key)).toEqual(['device:w', 'device:d', 'device:n', 'scene:s1']);
+	});
 });
 
 describe('what’s playing', () => {

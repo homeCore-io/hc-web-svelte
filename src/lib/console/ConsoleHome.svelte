@@ -153,7 +153,9 @@
 	}
 
 	// ---- favorites ----
-	const favs = $derived(favoritesOf(personal.doc.favourites ?? [], devices.byId, scenes.list));
+	const favs = $derived(
+		favoritesOf(personal.doc.favourites ?? [], devices.byId, scenes.list, rooms.list)
+	);
 	let busy = $state(false);
 	let trouble = $state<string | null>(null);
 	/** Room off in each room with a light on, after asking. */
@@ -293,7 +295,10 @@
 						onclick={() => useDevice(f.device)}
 					>
 						<span class="fi"><Icon name={c.icon} size={16} /></span>
-						<span class="ft">{c.name}<small>{c.stateLine || 'Scene'}</small></span>
+						<span class="ft"
+							>{c.name}<small>{c.kind === 'scene' || !c.stateLine ? 'Scene' : c.stateLine}</small
+							></span
+						>
 					</button>
 				{:else}
 					<button type="button" class="fav" disabled={!may} onclick={() => runScene(f.scene)}>
@@ -521,6 +526,8 @@
 		gap: 10px;
 		padding: 14px 28px;
 		overflow-x: auto;
+		scrollbar-width: thin;
+		scrollbar-color: color-mix(in srgb, var(--ink) 18%, transparent) transparent;
 		box-shadow: inset 0 -1px 0 var(--con-edge);
 	}
 	.fav {
@@ -590,7 +597,7 @@
 		align-content: start;
 		flex: 1;
 	}
-	@container home (min-width: 1250px) {
+	@container home (min-width: 1200px) {
 		.tiles {
 			grid-template-columns: repeat(5, minmax(0, 1fr));
 		}

@@ -202,25 +202,14 @@ describe('what needs attention', () => {
 });
 
 describe('favorites', () => {
-	it('keeps the person’s order, then adds the house’s own scenes', () => {
+	it('keeps the person’s order and adds none of the house’s scenes', () => {
 		const lamp = dev('a', 'light', 'Lamp');
 		const scenes = [
 			{ id: 's1', name: 'Evening' },
 			{ id: 's2', name: 'Away' }
 		];
 		const out = favoritesOf(['scene:s2', 'device:a', 'device:gone'], { a: lamp }, scenes);
-		expect(out.map((f) => f.key)).toEqual(['scene:s2', 'device:a', 'scene:s1']);
-	});
-
-	it('adds the house’s modes, then its scenes in no room, by name', () => {
-		const byId = {
-			n: dev('n', 'mode', 'Night Mode'),
-			d: dev('d', 'mode', 'Day Mode'),
-			w: dev('w', 'scene', 'Welcome'),
-			r: dev('r', 'scene', 'Relax', {}, { area: 'family_room' })
-		};
-		const out = favoritesOf(['device:w'], byId, [{ id: 's1', name: 'Evening' }], [family]);
-		expect(out.map((f) => f.key)).toEqual(['device:w', 'device:d', 'device:n', 'scene:s1']);
+		expect(out.map((f) => f.key)).toEqual(['scene:s2', 'device:a']);
 	});
 });
 

@@ -778,11 +778,11 @@ export function readLook(raw: unknown, known: readonly Look[] = BUILT_IN): Look 
 
 /**
  * Whether a screen is one of the household's pages, which every look reaches
- * (S9): Home, rooms, the house's own pages, scenes, alerts. Settings, Me and
+ * (S9): Home, rooms, the house’s own pages, scenes, alerts, cameras. Settings, Me and
  * the admin screens are reached only by a look that says "everywhere".
  */
 export const householdPage = (path: string): boolean =>
-	path === '/' || /^\/(rooms|pages|scenes|alerts)(\/|$)/.test(path);
+	path === '/' || /^\/(rooms|pages|scenes|alerts|cameras)(\/|$)/.test(path);
 
 /** Whether a look reaches this screen. */
 export const reachesHere = (l: Look, path: string): boolean =>

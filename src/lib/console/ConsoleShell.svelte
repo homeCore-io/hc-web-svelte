@@ -23,6 +23,7 @@
 	import Shield from '@lucide/svelte/icons/shield';
 	import Droplets from '@lucide/svelte/icons/droplets';
 	import DoorOpen from '@lucide/svelte/icons/door-open';
+	import Cctv from '@lucide/svelte/icons/cctv';
 	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
@@ -53,6 +54,7 @@
 	import YouMenu from './YouMenu.svelte';
 	import HouseMenu, { houseItems } from './HouseMenu.svelte';
 	import { sidebarOf, withConsole } from './style.js';
+	import { camOf, isCamera, seesNow } from './cameras.js';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -92,6 +94,12 @@
 		{ id: 'security', label: 'Security', icon: Shield },
 		{ id: 'water', label: 'Water', icon: Droplets }
 	];
+
+	// Cameras, where the house has any: a page of their own, lit while one sees something now.
+	const cameras = $derived(Object.values(devices.byId).filter(isCamera));
+	const seeing = $derived(
+		cameras.some((d) => d.available && seesNow(camOf(d, devices.byId)) !== undefined)
+	);
 
 	// ---- Edit mode (N6), in the address (N5), as the standard frame has it ----
 	const edit = followEdit();
@@ -235,6 +243,18 @@
 					<span class="lbl">{v.label}</span>
 				</button>
 			{/each}
+			{#if cameras.length > 0}
+				<a
+					class="si"
+					href="/cameras"
+					aria-current={pathname === '/cameras' ? 'page' : undefined}
+					title={seeing ? 'Cameras: one sees something now' : 'Cameras'}
+				>
+					<Cctv size={17} strokeWidth={1.9} aria-hidden="true" />
+					<span class="lbl">Cameras</span>
+					{#if seeing}<span class="seeing" aria-label="One sees something now"></span>{/if}
+				</a>
+			{/if}
 			<span class="sep" aria-hidden="true"></span>
 			{#if folded}
 				<button class="si" aria-label="Rooms" title="Rooms" onclick={fold}>
@@ -558,6 +578,20 @@
 	}
 	.grow {
 		flex: 1;
+	}
+	.seeing {
+		margin-left: auto;
+		width: 7px;
+		height: 7px;
+		flex: none;
+		border-radius: 50%;
+		background: #ffc46b;
+		box-shadow: 0 0 8px #ffc46b;
+	}
+	.folded .seeing {
+		position: absolute;
+		top: 8px;
+		right: 8px;
 	}
 	.foot {
 		display: flex;

@@ -15,6 +15,7 @@
  * again what the household hid (M3).
  */
 
+import type { AvatarChoice } from './avatar.js';
 import type { UnitsChoice } from './units.js';
 import type { ConsoleHouse, ConsolePrefs } from './console/style.js';
 import { allLooks, findLook, type Look } from './looks/model.js';
@@ -71,8 +72,10 @@ export interface PersonDoc {
 	defaults?: Record<string, Record<string, unknown>>;
 	/** The frame: the sidebar's rooms as names, or with their status (G3). */
 	shell?: { rooms?: 'names' | 'status' };
-	/** Their picture, from the library, in place of their initial (design 15). */
+	/** Their photo, from the library (design 15): their picture when they choose it. */
 	photo?: string;
+	/** How they show to everyone: their photo, initials or an icon on a color (avatar.ts). */
+	avatar?: AvatarChoice;
 	/** Starred cards, in the order they appear in Favourites on Home. */
 	favourites?: string[];
 	/** Changes per page: `home`, `room:{id}`, `page:{id}`. */

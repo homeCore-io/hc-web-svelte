@@ -233,7 +233,7 @@
 			aria-haspopup="dialog"
 			onclick={(e) => openMenu('you', e)}
 		>
-			<Avatar name={me} photo={personal.doc.photo} size={34} />
+			<Avatar person={session.me?.id} name={me} size={34} />
 		</button>
 	</header>
 
@@ -316,7 +316,7 @@
 					title="You"
 					onclick={(e) => openMenu('you', e)}
 				>
-					<Avatar name={me} photo={personal.doc.photo} size={22} />
+					<Avatar person={session.me?.id} name={me} size={22} />
 					<span class="lbl">You</span>
 				</button>
 			</div>
@@ -514,14 +514,6 @@
 		border: 0;
 		border-radius: 50%;
 		background: none;
-	}
-	/* Their initial on the console's colored disc, where they have no picture. */
-	.avatar :global(.avatar),
-	.foot :global(.avatar) {
-		border: 0;
-		background: linear-gradient(140deg, var(--cool), color-mix(in srgb, var(--cool) 40%, #a07bff));
-		color: #0b0d12;
-		font-weight: 800;
 	}
 	.avatar[aria-expanded='true'] {
 		box-shadow: 0 0 0 2px var(--accent);

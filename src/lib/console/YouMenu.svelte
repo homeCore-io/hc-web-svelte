@@ -2,7 +2,8 @@
 	A person's own settings, from their avatar on the console (the
 	HomeConsole board): their look, their temperature unit, how the
 	console's faders and switches are drawn (shown live, as they choose),
-	whether its sidebar is open, the rest on Me, and signing out. On a
+	whether its sidebar is open, their picture (You › Picture), the rest on
+	Me, and signing out. On a
 	room, Customize for it (Customize.svelte). Only
 	theirs, on every screen they sign in to; except which room this screen
 	opens on, which is the screen's own (opensOn.ts).
@@ -17,6 +18,7 @@
 	import LayoutGrid from '@lucide/svelte/icons/layout-grid';
 	import PanelLeft from '@lucide/svelte/icons/panel-left';
 	import UserRound from '@lucide/svelte/icons/user-round';
+	import CircleUserRound from '@lucide/svelte/icons/circle-user-round';
 	import DoorOpen from '@lucide/svelte/icons/door-open';
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import { session } from '#lib/me.svelte.js';
@@ -111,13 +113,19 @@
 {/snippet}
 
 <div class="mh">
-	<Avatar name={session.me?.username ?? ''} photo={personal.doc.photo} size={30} />
+	<Avatar person={session.me?.id} name={session.me?.username ?? ''} size={30} />
 	<span class="who"
 		><b>{session.me?.username}</b><small
 			>{session.me ? `${roleName(session.me.role)}. ` : ''}Only you, on every screen you sign in to.</small
 		></span
 	>
 </div>
+
+<a class="row link" href="/me/picture" onclick={close}>
+	<span class="mic"><CircleUserRound size={15} strokeWidth={1.9} aria-hidden="true" /></span>
+	<span class="mt">Picture<small>Your photo, initials or an icon, as everyone sees you</small></span
+	>
+</a>
 
 <div class="row">
 	<span class="mic"><Palette size={15} strokeWidth={1.9} aria-hidden="true" /></span>
@@ -208,7 +216,7 @@
 {/if}
 <a class="row link" href="/me" onclick={close}>
 	<span class="mic"><UserRound size={15} strokeWidth={1.9} aria-hidden="true" /></span>
-	<span class="mt">Everything else about you<small>Picture, theme, PIN, password</small></span>
+	<span class="mt">Everything else about you<small>Theme, PIN, password</small></span>
 </a>
 <button class="row link out" onclick={signOut}>
 	<span class="mic"><LogOut size={15} strokeWidth={1.9} aria-hidden="true" /></span>

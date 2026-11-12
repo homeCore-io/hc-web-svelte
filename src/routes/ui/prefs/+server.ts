@@ -5,6 +5,9 @@
  * `PUT` carries the version the change was made against; if the document has
  * moved on (their other phone wrote first), the answer is 409 with the
  * current document, and the app reapplies its change to that.
+ *
+ * Their sign-in name goes with it, so their picture can be found by the name
+ * history gives them (`/ui/avatars`).
  */
 import type { RequestHandler } from './$types';
 import { json } from '#lib/server/http.js';
@@ -44,7 +47,7 @@ export const PUT: RequestHandler = async (event) => {
 	const written = await docs().write(
 		KIND,
 		idOf(who.person.id),
-		{ ...body.doc, person: who.person.id },
+		{ ...body.doc, person: who.person.id, username: who.person.username },
 		body.version
 	);
 	if (!written.ok)

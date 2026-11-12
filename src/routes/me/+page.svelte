@@ -13,8 +13,6 @@
 	import LookPicker from '#lib/components/LookPicker.svelte';
 	import BarChooser from '#lib/components/BarChooser.svelte';
 	import Avatar from '#lib/components/Avatar.svelte';
-	import PicturePicker from '#lib/components/PicturePicker.svelte';
-	import { isLibrary } from '#lib/pictures.svelte.js';
 	import { roleName } from '#lib/people.js';
 	import { changeMyPassword } from '#lib/peopleAdmin.js';
 	import { onMount } from 'svelte';
@@ -175,15 +173,6 @@
 		void goto('/login?changed=1');
 	}
 
-	// Their picture (design 15), in place of their initial.
-	let choosingPhoto = $state(false);
-	const photo = $derived(isLibrary(personal.doc.photo) ? personal.doc.photo : undefined);
-	const setPhoto = (url: string | undefined) =>
-		void personal.change((d) => {
-			const { photo: _was, ...rest } = d;
-			return url ? { ...rest, photo: url } : rest;
-		});
-
 	async function signOut() {
 		await session.signOut();
 		void goto('/login');
@@ -192,36 +181,15 @@
 
 <div class="stack">
 	<section class="me">
-		<button
-			type="button"
-			class="face"
-			aria-label={photo ? 'Change your picture' : 'Choose your picture'}
-			onclick={() => (choosingPhoto = true)}
-			><Avatar name={session.me?.username ?? ''} {photo} size={72} /></button
+		<a class="face" href="/me/picture" aria-label="Your picture"
+			><Avatar person={session.me?.id} name={session.me?.username ?? ''} size={72} /></a
 		>
 		<div class="words">
 			<p class="who">{session.me?.username}</p>
 			<p class="role">{session.me ? roleName(session.me.role) : ''}</p>
-			<div class="face-acts">
-				<button type="button" class="link" onclick={() => (choosingPhoto = true)}
-					>{photo ? 'Change your picture' : 'Choose your picture'}</button
-				>
-				{#if photo}<button type="button" class="link" onclick={() => setPhoto(undefined)}
-						>Just my initial</button
-					>{/if}
-			</div>
+			<a class="link" href="/me/picture">Your picture</a>
 		</div>
 	</section>
-	{#if choosingPhoto}
-		<PicturePicker
-			title="Your picture"
-			value={photo ? { url: photo } : undefined}
-			videos={false}
-			pick={(p) => setPhoto(p.url)}
-			clear={() => setPhoto(undefined)}
-			close={() => (choosingPhoto = false)}
-		/>
-	{/if}
 
 	<section>
 		<h2 class="section-label" id="appearance">Appearance</h2>
@@ -481,10 +449,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
-	}
-	.face-acts {
-		display: flex;
-		gap: 14px;
 	}
 	.who {
 		margin: 0;

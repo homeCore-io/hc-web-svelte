@@ -64,6 +64,10 @@
 	let { children }: { children: Snippet } = $props();
 
 	const pathname = $derived(page.url.pathname);
+	// Customizing a room (layout.ts): the room's settings take the sidebar's place.
+	const customizing = $derived(
+		pathname.startsWith('/rooms/') && page.url.searchParams.has('customize')
+	);
 	const title = $derived(heading.text ?? titleFor(pathname));
 	const back = $derived(heading.back ?? backFor(pathname));
 
@@ -167,7 +171,7 @@
 
 <svelte:window onkeydown={keys} onpointerdown={outside} />
 
-<div class="console" class:folded>
+<div class="console" class:folded class:customizing>
 	<header class="tb" bind:offsetHeight={barHeight}>
 		<button
 			class="collapse"
@@ -612,6 +616,9 @@
 	}
 
 	/* Folded: the rail of icons, the room list behind one button. */
+	.customizing .src {
+		display: none;
+	}
 	.folded .src {
 		flex-basis: 64px;
 		align-items: center;

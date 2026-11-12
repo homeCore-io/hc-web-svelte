@@ -95,8 +95,9 @@ export interface PersonDoc {
 	console?: ConsolePrefs;
 	/**
 	 * The device a room plays through, by room id, over the household's: a
-	 * device id, or `''` for none (console/media.ts). For a person who may not
-	 * change the household's.
+	 * device id, or `''` for none (console/media.ts). Set from the room's
+	 * bar by a person who may not change the household's, or by anyone in
+	 * Customize's "Just me".
 	 */
 	roomAudio?: Record<string, string>;
 }

@@ -91,6 +91,7 @@ export function titleFor(pathname: string): string {
 		'/pages': 'Pages',
 		'/scenes': 'Scenes',
 		'/alerts': 'Alerts',
+		'/cameras': 'Cameras',
 		'/more': 'More',
 		'/settings': 'Settings',
 		'/settings/alerts': 'Alert rules',

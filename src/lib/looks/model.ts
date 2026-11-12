@@ -1,7 +1,7 @@
 /**
  * A look as data (13 §3, §15): one choice in each of five layers (theme,
- * feel, drawings, frame, grouping), chosen as a whole (S1). Classic and Lit
- * are written here the same way any look is, so a look someone makes, or
+ * feel, drawings, frame, grouping), chosen as a whole (S1). Classic, Lit and
+ * Console are written here the same way any look is, so a look someone makes, or
  * imports from a file (§12.3), is read exactly as the built-in ones are.
  *
  * This file is small and has no components in it: Home loads it.
@@ -100,7 +100,19 @@ export interface Frame {
 	 * (§10): Lit's, or a plugin's `piece`.
 	 */
 	rest: { on: boolean; after: number; piece?: PluginRef };
+	/**
+	 * The app's frame on a wide screen: the standard sidebar and header, or the
+	 * console's toolbar, sidebar of Everywhere views and rooms, and its own
+	 * controls. Absent, the standard one.
+	 */
+	shell?: Shell;
 }
+
+/** The frames a look can put the app in (`Frame.shell`). */
+export type Shell = 'standard' | 'console';
+
+/** The frame a look puts the app in. */
+export const shellOf = (l: Look): Shell => l.frame.shell ?? 'standard';
 
 /** Home's grouping (§8.3): the order its sections start in, which start hidden, its layout. */
 export interface HomeGrouping {
@@ -451,8 +463,36 @@ export const LIT: Look = {
 	version: 1
 };
 
+/**
+ * A desktop app's look (the console boards): a dark, glossy frame with a
+ * toolbar, the house's Everywhere views and its rooms down the side, and
+ * faders and switches like a lighting desk's. Its pages are Classic's until
+ * the console draws rooms its own way.
+ */
+export const CONSOLE: Look = {
+	id: 'console',
+	name: 'Console',
+	sub: 'A desktop app: rooms down the side, faders and switches.',
+	ownColors: true,
+	feel: { density: 'standard', corners: 'round', type: 1, motion: 'gentle' },
+	drawings: {},
+	made: [],
+	frame: {
+		header: 'plain',
+		chips: true,
+		needs: false,
+		more: false,
+		sheet: false,
+		rest: { on: false, after: 60 },
+		shell: 'console'
+	},
+	grouping: {},
+	reaches: 'household',
+	version: 1
+};
+
 /** The looks that come with the app. */
-export const BUILT_IN: readonly Look[] = [CLASSIC, LIT];
+export const BUILT_IN: readonly Look[] = [CLASSIC, LIT, CONSOLE];
 
 /** How a family is drawn in a look. */
 export const drawingOf = (l: Look, f: Family): string => l.drawings[f] ?? 'classic';
@@ -655,6 +695,9 @@ export function readLook(raw: unknown, known: readonly Look[] = BUILT_IN): Look 
 	// A plugin's rest view, its own or the one it was made from's; null takes it off.
 	const piece = fr.rest?.piece === undefined ? base.frame.rest.piece : fr.rest.piece;
 	const restWith = isPluginRef(piece) ? { ...rest, piece } : rest;
+	// The frame it puts the app in: its own, else the one it was made from's.
+	const shell: Shell | undefined =
+		fr.shell === 'standard' || fr.shell === 'console' ? fr.shell : base.frame.shell;
 	const g = (o.grouping ?? {}) as { room?: unknown; home?: unknown; areas?: unknown };
 	const areas = g.areas === undefined ? base.grouping.areas : readAreas(g.areas);
 	let home = base.grouping.home;
@@ -720,7 +763,8 @@ export function readLook(raw: unknown, known: readonly Look[] = BUILT_IN): Look 
 			needs: bool(fr.needs, base.frame.needs),
 			more: bool(fr.more, base.frame.more),
 			sheet: bool(fr.sheet, base.frame.sheet),
-			rest: restWith
+			rest: restWith,
+			...(shell ? { shell } : {})
 		},
 		grouping: {
 			...(room ? { room } : {}),
@@ -734,15 +778,22 @@ export function readLook(raw: unknown, known: readonly Look[] = BUILT_IN): Look 
 
 /**
  * Whether a screen is one of the household's pages, which every look reaches
- * (S9): Home, rooms, the house's own pages, scenes, alerts. Settings, Me and
+ * (S9): Home, rooms, the house’s own pages, scenes, alerts, cameras. Settings, Me and
  * the admin screens are reached only by a look that says "everywhere".
  */
 export const householdPage = (path: string): boolean =>
-	path === '/' || /^\/(rooms|pages|scenes|alerts)(\/|$)/.test(path);
+	path === '/' || /^\/(rooms|pages|scenes|alerts|cameras)(\/|$)/.test(path);
 
 /** Whether a look reaches this screen. */
 export const reachesHere = (l: Look, path: string): boolean =>
 	l.reaches === 'everywhere' || householdPage(path);
+
+/**
+ * Whether this screen is drawn in the console's frame: the look puts the app
+ * in it, and reaches here. Elsewhere (settings, Me), the standard frame.
+ */
+export const consoleHere = (l: Look, path: string): boolean =>
+	shellOf(l) === 'console' && reachesHere(l, path);
 
 /** Every look someone may choose: the built-in ones, then the house's, then their own. */
 export function allLooks(house?: unknown[], mine?: unknown[]): Look[] {

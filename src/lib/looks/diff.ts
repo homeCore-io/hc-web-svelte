@@ -77,6 +77,8 @@ export function changesFrom(l: Look, base: Look): string[] {
 	if (fr.needs !== bf.needs) out.push(`Needs you first: ${on(fr.needs)}`);
 	if (fr.more !== bf.more) out.push(`More folded: ${on(fr.more)}`);
 	if (fr.sheet !== bf.sheet) out.push(`A room opened over Home: ${on(fr.sheet)}`);
+	if ((fr.shell ?? 'standard') !== (bf.shell ?? 'standard'))
+		out.push(fr.shell === 'console' ? 'Frame: the console' : 'Frame: the standard sidebar');
 	if (fr.rest.on !== bf.rest.on) out.push(`Rest view on displays: ${on(fr.rest.on)}`);
 	else if (fr.rest.on && fr.rest.after !== bf.rest.after)
 		out.push(`Rest view after ${fr.rest.after} seconds`);

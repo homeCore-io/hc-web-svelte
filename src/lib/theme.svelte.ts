@@ -24,6 +24,20 @@ function read(): ThemeChoice {
 
 class Theme {
 	choice = $state<ThemeChoice>(typeof localStorage === 'undefined' ? 'system' : read());
+	/**
+	 * A look that is dark unless the person chose light (the console's): while
+	 * it's shown, "like this device" is dark. Their choice itself is unchanged.
+	 */
+	dark = $state(
+		typeof document !== 'undefined' && document.documentElement.dataset.shell === 'console'
+	);
+
+	/** Whether the look shown leans dark; the page follows at once. */
+	lean(dark: boolean): void {
+		if (dark === this.dark) return;
+		this.dark = dark;
+		this.show(this.choice);
+	}
 
 	/** The person chose: show it, remember it here, and save it for them. */
 	set(choice: ThemeChoice): void {
@@ -65,7 +79,8 @@ class Theme {
 			// Private browsing: the copy lasts this visit.
 		}
 		const root = document.documentElement;
-		if (choice === 'system') delete root.dataset.theme;
+		if (choice === 'system' && this.dark) root.dataset.theme = 'dark';
+		else if (choice === 'system') delete root.dataset.theme;
 		else root.dataset.theme = choice;
 	}
 }

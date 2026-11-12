@@ -6,7 +6,7 @@
 	import '@fontsource/ibm-plex-mono/400.css';
 	import '@fontsource/ibm-plex-mono/500.css';
 	import '../app.css';
-	import type { Snippet } from 'svelte';
+	import type { Component, Snippet } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import Shell from '#lib/components/Shell.svelte';
@@ -24,7 +24,7 @@
 	import { houseUnits } from '#lib/houseUnits.svelte.js';
 	import { alerts } from '#lib/alerts.svelte.js';
 	import { lookOf, looksOf, paletteOf } from '#lib/layers.js';
-	import { findLook, reachesHere } from '#lib/looks/model.js';
+	import { consoleHere, findLook, reachesHere, shellOf } from '#lib/looks/model.js';
 	import { look } from '#lib/look.svelte.js';
 
 	let { children }: { children: Snippet } = $props();
@@ -91,6 +91,21 @@
 	$effect(() => {
 		if (personal.loaded && household.loaded) look.show(shown.look, shown.all, reaches);
 	});
+	// The console's look is dark unless the person chose light.
+	$effect(() => {
+		if (personal.loaded && household.loaded) theme.lean(shellOf(shown.look) === 'console');
+	});
+	// The frame: the console's where a look that puts the app in it reaches,
+	// the standard one elsewhere. Until the documents load, the look this
+	// browser last showed decides, so the frame doesn't change as they arrive.
+	// The console's code is loaded only for those who see it.
+	const framed = $derived(personal.loaded && household.loaded ? shown.look : look.def);
+	const desk = $derived(consoleHere(framed, page.url.pathname));
+	let ConsoleShell = $state<Component<{ children: Snippet }> | null>(null);
+	$effect(() => {
+		if (desk && ConsoleShell === null)
+			void import('#lib/console/ConsoleShell.svelte').then((m) => (ConsoleShell = m.default));
+	});
 	// The theme: the person's own, else the house's, else the look's where it reaches (D9a).
 	$effect(() => {
 		if (personal.loaded && household.loaded)
@@ -103,6 +118,10 @@
 {:else if session.isDisplay}
 	<Kiosk>{@render children()}</Kiosk>
 {:else if session.me !== null}
-	<Shell>{@render children()}</Shell>
+	{#if desk}
+		{#if ConsoleShell}<ConsoleShell>{@render children()}</ConsoleShell>{/if}
+	{:else}
+		<Shell>{@render children()}</Shell>
+	{/if}
 {/if}
 <Confirm />

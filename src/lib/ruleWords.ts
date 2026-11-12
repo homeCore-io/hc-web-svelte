@@ -41,6 +41,8 @@ export interface House {
 	plugin?(pluginId: string): string | undefined;
 	/** An alert rule by its name: "Freezer warming up". */
 	alertRule?(id: string): string | undefined;
+	/** A room by its id, slug, alias or name, as homeCore finds it: "Living Room". */
+	room?(ref: string): string | undefined;
 	/**
 	 * A step on a plugin's devices in the plugin's own words, with
 	 * `{devices}` where their names go — from its `rule.step` form.
@@ -922,6 +924,10 @@ export function stepOf(h: House, a: Json): Step {
 				t(f.hold_duration_ms ? ` for ${ms(f.hold_duration_ms)}` : ''),
 				t(f.timeout_ms ? `, at most ${ms(f.timeout_ms)}` : '')
 			]);
+		case 'RoomOff':
+			return s([t('turn off the lights in '), roomBit(h, String(f.room ?? ''))]);
+		case 'RoomOn':
+			return s([t('turn the lights in '), roomBit(h, String(f.room ?? '')), t(' back on')]);
 		case 'SetMode':
 			return s([
 				t(f.command === 'Toggle' ? 'switch ' : 'turn '),
@@ -1049,6 +1055,14 @@ function opText(op: Json): string {
 function sceneBit(h: House, id: string): Bit {
 	const name = h.scene?.(id);
 	return name ? { t: name } : { t: 'a scene that no longer exists', missing: true };
+}
+
+/** A room by its name, or marked when the house has no such room. */
+function roomBit(h: House, ref: string): Bit {
+	if (ref === '') return { t: '(choose a room)', todo: true };
+	if (!h.room) return { t: ref };
+	const name = h.room(ref);
+	return name ? { t: name } : { t: `a room called “${ref}” that no longer exists`, missing: true };
 }
 
 function ruleBit(h: House, id: string): Bit {

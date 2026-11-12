@@ -25,6 +25,11 @@
 				} catch (e) {}
 				if (l && typeof l.id === 'string' && /^[a-z0-9-]+$/.test(l.id)) {
 					document.documentElement.dataset.look = l.id;
+					// The console's frame is dark unless the person chose light.
+					if (l.shell === 'console') {
+						document.documentElement.dataset.shell = 'console';
+						if (t !== 'light') document.documentElement.dataset.theme = 'dark';
+					}
 					document.documentElement.dataset.motion = String(l.motion);
 					for (var k in l.vars)
 						if (/^--feel-[a-z-]+$/.test(k))

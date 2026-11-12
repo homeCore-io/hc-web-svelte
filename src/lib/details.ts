@@ -520,6 +520,28 @@ export function actionBody(
 	return body;
 }
 
+/** A command body without its `action`, for `commands.act`, which names it itself. */
+export function withoutAction(body: Record<string, unknown>): Record<string, unknown> {
+	const { action: _drop, ...rest } = body;
+	return rest;
+}
+
+/**
+ * One of a device's declared actions as the details sheet offers it, by id:
+ * its fields, with the options its parameters take. `undefined` when the
+ * device doesn't declare it, or it can't be run (a choice with nothing to choose).
+ */
+export function actionView(
+	d: CoreDevice,
+	id: string,
+	all: CoreDevice[] = []
+): ActionView | undefined {
+	if (!d.schema) return undefined;
+	const declared = d.schema.actions?.find((a) => a.id === id);
+	if (!declared) return undefined;
+	return groupsOf(d, { ...d.schema, actions: [declared] }, all)[0]?.actions[0];
+}
+
 /** Whether every required field of an action has something in it. */
 export function ready(action: ActionView, values: Record<string, unknown>): boolean {
 	return action.fields.every((f) => {

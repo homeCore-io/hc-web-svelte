@@ -34,10 +34,46 @@ class Commands {
 		if (!(await this.#send(id, want))) this.#drop(id);
 	}
 
+	/**
+	 * Wait for a device to report `want`, for a command something else sent on
+	 * its behalf (a room's Room off): shown as waiting until it does.
+	 */
+	expect(
+		id: string,
+		kind: string,
+		want: Record<string, unknown>,
+		current: Record<string, unknown>
+	) {
+		if (confirmed(want, current)) return;
+		const until = Date.now() + patienceFor(kind);
+		this.pending = { ...this.pending, [id]: { want, until } };
+		this.#clearNote(id);
+		setTimeout(() => this.#expire(id, until), until - Date.now() + 50);
+	}
+
 	/** Run one of the device's declared actions — nothing to wait for. */
 	async act(id: string, action: string, params: Record<string, unknown> = {}): Promise<boolean> {
 		this.#clearNote(id);
 		return this.#send(id, { action, ...params });
+	}
+
+	/**
+	 * Run an action that stands for a reading (a Sonos's `set_volume`), shown
+	 * as waiting, as `set` is, until the device reports `want`.
+	 */
+	async actFor(
+		id: string,
+		kind: string,
+		action: string,
+		params: Record<string, unknown>,
+		want: Record<string, unknown>,
+		current: Record<string, unknown>
+	): Promise<boolean> {
+		this.expect(id, kind, want, current);
+		this.#clearNote(id);
+		const sent = await this.#send(id, { action, ...params });
+		if (!sent) this.#drop(id);
+		return sent;
 	}
 
 	/** A command in the device's own words, sent as it is (a WLED look). */

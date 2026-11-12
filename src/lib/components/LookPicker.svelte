@@ -1,10 +1,10 @@
 <!--
-	The look (13 §3): Classic, Lit, the house's own, a person's own. The
+	The look (13 §3): Classic, Lit, Console, the house's own, a person's own. The
 	house's on Settings › Look; a person's on Me, where "Same as the house"
 	leaves it to the house (L1).
 -->
 <script lang="ts">
-	import { drawingOf, type Look } from '#lib/looks/model.js';
+	import { drawingOf, shellOf, type Look } from '#lib/looks/model.js';
 
 	let {
 		label,
@@ -25,6 +25,8 @@
 
 	// A hint of each: Lit's glow where a look draws lights its way.
 	const glows = (l: Look) => drawingOf(l, 'lights') === 'lit';
+	// The console's dark desk, with a lit fader in it.
+	const desk = (l: Look) => shellOf(l) === 'console';
 </script>
 
 <div class="looks" role="radiogroup" aria-label={label}>
@@ -36,7 +38,7 @@
 	{/if}
 	{#each looks as l (l.id)}
 		<button role="radio" aria-checked={current === l.id} onclick={() => pick(l.id)}>
-			<span class="sample" class:lit={glows(l)} aria-hidden="true"
+			<span class="sample" class:lit={glows(l)} class:desk={desk(l)} aria-hidden="true"
 				><span></span><span></span><span></span></span
 			>
 			<b>{l.name}</b>
@@ -93,6 +95,21 @@
 		background:
 			radial-gradient(ellipse 60% 120% at 70% 120%, rgba(255, 180, 90, 0.45), transparent 70%),
 			var(--bg);
+	}
+	.sample.desk {
+		grid-template-columns: 1fr 3fr;
+		background: linear-gradient(180deg, #1a1d24, #0c0d11);
+		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+	}
+	.sample.desk span {
+		background: rgba(255, 255, 255, 0.07);
+	}
+	.sample.desk span:first-child {
+		grid-row: span 2;
+	}
+	.sample.desk span:nth-child(2) {
+		background: linear-gradient(90deg, #ff8a3d, #ffd9a8 60%, rgba(255, 255, 255, 0.07) 60%);
+		box-shadow: 0 0 8px rgba(255, 170, 80, 0.45);
 	}
 	.sample.lit span:first-child {
 		background: linear-gradient(90deg, rgba(255, 180, 90, 0.25) 70%, var(--surface-2) 70%);

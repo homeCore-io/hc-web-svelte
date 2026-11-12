@@ -258,7 +258,8 @@ export function houseOf(
 		ids: string[],
 		state: unknown
 	) => string | undefined,
-	alertRules: { id: string; name: string }[] = []
+	alertRules: { id: string; name: string }[] = [],
+	rooms: { id: string; name: string; slug: string; aliases: string[] }[] = []
 ): House {
 	const byCanonical = new Map<string, CoreDevice>();
 	const byName = new Map<string, CoreDevice | null>();
@@ -281,7 +282,18 @@ export function houseOf(
 		alertKind: (plugin, topic) =>
 			alertKinds.find((k) => k.plugin_id === plugin && k.topic === topic)?.label,
 		plugin: knownPluginName,
-		alertRule: (id) => alertRules.find((r) => r.id === id)?.name
+		alertRule: (id) => alertRules.find((r) => r.id === id)?.name,
+		// As homeCore's rooms::find: its id, its slug, an alias, or its name.
+		room: (ref) => {
+			const k = nameKey(ref);
+			return rooms.find(
+				(r) =>
+					r.id === ref ||
+					r.slug === ref ||
+					r.aliases.some((a) => nameKey(a) === k) ||
+					nameKey(r.name) === k
+			)?.name;
+		}
 	};
 }
 

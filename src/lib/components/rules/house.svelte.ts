@@ -47,7 +47,7 @@ export function provideHouse(rules: () => Rule[]): EditorContext {
 	});
 	const all = $derived(Object.values(devices.byId));
 	const house = $derived(
-		houseOf(devices.byId, scenes.list, rules(), alertKinds.list, describeStep)
+		houseOf(devices.byId, scenes.list, rules(), alertKinds.list, describeStep, [], rooms.list)
 	);
 	const features = $derived(featuresOf(vocab));
 	const usedChannels = $derived(

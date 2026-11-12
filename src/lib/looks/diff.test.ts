@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { changesFrom } from './diff.js';
-import { BUILT_IN, LIT, copyOf } from './model.js';
+import { BUILT_IN, CONSOLE, LIT, copyOf } from './model.js';
 
 describe('what changed from the look it was made from (13 §11)', () => {
 	it('is nothing for a fresh copy', () => {
@@ -33,5 +33,16 @@ describe('the new drawings in what changed (13 §13.1)', () => {
 			'Switches drawn as rows',
 			'Readings drawn with their usual range'
 		]);
+	});
+});
+
+describe('the frame in what changed', () => {
+	it('names the console frame, and the standard one when a look leaves it', () => {
+		const desk = copyOf(LIT, 'Desk', BUILT_IN);
+		desk.frame = { ...desk.frame, shell: 'console' };
+		expect(changesFrom(desk, LIT)).toEqual(['Frame: the console']);
+		const plain = copyOf(CONSOLE, 'Plain', BUILT_IN);
+		plain.frame = { ...plain.frame, shell: 'standard' };
+		expect(changesFrom(plain, CONSOLE)).toEqual(['Frame: the standard sidebar']);
 	});
 });

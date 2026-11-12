@@ -169,7 +169,15 @@
 	});
 
 	const house = $derived(
-		houseOf(devices.byId, scenes.list, rules ?? [], alertKinds.list, describeStep, rulesOfAlerts)
+		houseOf(
+			devices.byId,
+			scenes.list,
+			rules ?? [],
+			alertKinds.list,
+			describeStep,
+			rulesOfAlerts,
+			rooms.list
+		)
 	);
 	$effect(() => alertKinds.ensure());
 	const linksById = $derived(Object.fromEntries(alertLinks.list.map((x) => [x.id, x])));

@@ -19,6 +19,7 @@
 	import Toggle from '#lib/components/Toggle.svelte';
 	import Words from '#lib/components/rules/Words.svelte';
 	import { devices } from '#lib/devices.svelte.js';
+	import { rooms } from '#lib/rooms.svelte.js';
 	import { displayName } from '#lib/devices.js';
 	import { scenes } from '#lib/scenes.svelte.js';
 	import { session } from '#lib/me.svelte.js';
@@ -135,7 +136,15 @@
 	let alertRuleNames = $state<{ id: string; name: string }[]>([]);
 	onMount(() => void alertRules().then((r) => (alertRuleNames = r ?? [])));
 	const house = $derived(
-		houseOf(devices.byId, scenes.list, all ?? [], alertKinds.list, describeStep, alertRuleNames)
+		houseOf(
+			devices.byId,
+			scenes.list,
+			all ?? [],
+			alertKinds.list,
+			describeStep,
+			alertRuleNames,
+			rooms.list
+		)
 	);
 	$effect(() => alertKinds.ensure());
 	const row = $derived(rule ? rowsOf([rule], house, {}, byMode)[0] : undefined);

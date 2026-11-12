@@ -16,6 +16,7 @@
 	import { heading } from '#lib/heading.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
+	import { rooms } from '#lib/rooms.svelte.js';
 	import { scenes } from '#lib/scenes.svelte.js';
 	import { plain, sentence, tagOf, type Rule } from '#lib/ruleWords.js';
 	import { familiesOf, houseOf } from '#lib/ruleList.js';
@@ -87,7 +88,7 @@
 	let alertRuleNames = $state<{ id: string; name: string }[]>([]);
 	onMount(() => void alertRules().then((r) => (alertRuleNames = r ?? [])));
 	const house = $derived(
-		houseOf(devices.byId, scenes.list, rules, [], describeStep, alertRuleNames)
+		houseOf(devices.byId, scenes.list, rules, [], describeStep, alertRuleNames, rooms.list)
 	);
 	const kept = $derived(readDraft('new'));
 

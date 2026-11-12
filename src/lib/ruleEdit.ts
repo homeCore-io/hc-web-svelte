@@ -52,6 +52,8 @@ export interface Features {
 	ifAnyCheck: boolean;
 	/** Alerts start, gate and are acted on by rules (0.1.85). */
 	alertRules: boolean;
+	/** A rule can turn a room's lights off and back on (0.1.103). */
+	roomLights: boolean;
 }
 
 export function featuresOf(v: Vocabulary | null | undefined): Features {
@@ -64,7 +66,8 @@ export function featuresOf(v: Vocabulary | null | undefined): Features {
 		runNow: f.has('run_now'),
 		testAt: f.has('test_at'),
 		ifAnyCheck: f.has('if_any_check'),
-		alertRules: f.has('alert_rules')
+		alertRules: f.has('alert_rules'),
+		roomLights: (v?.actions ?? []).some((a) => a.tag === 'RoomOn')
 	};
 }
 
@@ -829,14 +832,19 @@ export type WhenKind =
 	'device' | 'time' | 'sun' | 'mode' | 'start' | 'every' | 'webhook' | 'alert' | 'other';
 export type CheckKind = 'device' | 'mode' | 'time' | 'any' | 'alert' | 'other';
 export type StepKind =
-	'device' | 'scene' | 'wait' | 'notify' | 'if' | 'together' | 'mode' | 'alert' | 'other';
+	'device' | 'scene' | 'room' | 'wait' | 'notify' | 'if' | 'together' | 'mode' | 'alert' | 'other';
 
-/** The kinds this homeCore offers: the alert ones need `alert_rules`. */
+/** The kinds this homeCore offers: the alert ones need `alert_rules`, a room's lights `RoomOn`. */
 export const offered = <K extends { kind: string }>(
 	kinds: K[],
 	f: Features,
 	current?: string
-): K[] => kinds.filter((k) => k.kind !== 'alert' || f.alertRules || current === 'alert');
+): K[] =>
+	kinds.filter(
+		(k) =>
+			k.kind === current ||
+			((k.kind !== 'alert' || f.alertRules) && (k.kind !== 'room' || f.roomLights))
+	);
 
 export const WHEN_KINDS: { kind: WhenKind; label: string; sub: string }[] = [
 	{ kind: 'device', label: 'A device changes', sub: 'Opens, turns on, is pressed…' },
@@ -866,6 +874,7 @@ export const CHECK_KINDS: { kind: CheckKind; label: string; sub: string }[] = [
 export const STEP_KINDS: { kind: StepKind; label: string; sub: string }[] = [
 	{ kind: 'device', label: 'Set a device', sub: 'On, off, a level — whatever it takes' },
 	{ kind: 'scene', label: 'Run a scene', sub: 'One of homeCore’s scenes' },
+	{ kind: 'room', label: 'A room’s lights', sub: 'Off, or back on as they were' },
 	{ kind: 'wait', label: 'Wait', sub: 'For a time' },
 	{ kind: 'if', label: 'If / otherwise', sub: 'Do one thing or another' },
 	{ kind: 'notify', label: 'Tell someone', sub: 'Through a notification channel' },
@@ -923,6 +932,7 @@ export function stepKindOf(a: Json): StepKind {
 	if (kind === 'Conditional') return 'if';
 	if (kind === 'Parallel') return 'together';
 	if (kind === 'SetMode') return 'mode';
+	if (kind === 'RoomOn' || kind === 'RoomOff') return 'room';
 	if (ALERT_STEPS.has(kind)) return 'alert';
 	return 'other';
 }
@@ -1015,6 +1025,8 @@ export function newStep(kind: StepKind, firstScene = ''): Json {
 			return { Parallel: { actions: [] } };
 		case 'mode':
 			return { SetMode: { mode_id: 'mode_night', command: 'On' } };
+		case 'room':
+			return { RoomOff: { room: '' } };
 		case 'alert':
 			return { PressAlert: {} };
 		default:

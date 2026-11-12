@@ -20,7 +20,15 @@ import {
 } from './ruleWords.js';
 
 const byId = Object.fromEntries(DEVICES.map((d) => [d.device_id, d]));
-const h = houseOf(byId, [{ id: 's1', name: 'Movie' }], RULES);
+const ROOMS = [
+	{
+		id: '0356f2f0-c775-5447-a1e0-ff326651a8bf',
+		name: 'Living Room',
+		slug: 'living_room',
+		aliases: ['Lounge']
+	}
+];
+const h = houseOf(byId, [{ id: 's1', name: 'Movie' }], RULES, [], undefined, [], ROOMS);
 const rule = (id: string) => RULES.find((r) => r.id === id) as Rule;
 const say = (id: string) => plain(sentence(h, rule(id)));
 
@@ -177,7 +185,17 @@ describe('every kind homeCore has reads as words', () => {
 			'remember how Reading Lamp and Corner Lamp are set, as before'
 		],
 		['ExitRule', 'stop here'],
-		[{ PublishMqtt: { topic: 'x/y', payload: '1', retain: false } }, 'publish 1 to x/y']
+		[{ PublishMqtt: { topic: 'x/y', payload: '1', retain: false } }, 'publish 1 to x/y'],
+		[{ RoomOff: { room: 'living_room' } }, 'turn off the lights in Living Room'],
+		[{ RoomOn: { room: 'lounge' } }, 'turn the lights in Living Room back on'],
+		[
+			{ RoomOn: { room: '0356f2f0-c775-5447-a1e0-ff326651a8bf' } },
+			'turn the lights in Living Room back on'
+		],
+		[
+			{ RoomOff: { room: 'Den' } },
+			'turn off the lights in a room called “Den” that no longer exists'
+		]
 	])('%j', (action, words) => {
 		expect(plain(stepOf(h, action).words)).toBe(words);
 	});

@@ -3,7 +3,8 @@
 	fills the tab; from two, the one picked is large and live and the others
 	a roll of snapshots below it, and picking one swaps it in. Down the right,
 	the picked camera's controls, then what the room's cameras saw today
-	(naming the camera where there are several), and the way to every camera
+	(naming the camera where there are several; as many as fit, with ‹ ›
+	for the rest), and the way to every camera
 	on the Cameras page. An event picked here, or from the room's header,
 	shows its still large, with Back to live.
 
@@ -31,6 +32,7 @@
 		camerasOf,
 		kindName,
 		latestOf,
+		pageOf,
 		pickedOf,
 		roomLayoutOf
 	} from './cameras.js';
@@ -83,6 +85,8 @@
 	let listH = $state(0);
 	const ROW = 59;
 	const fits = $derived(Math.max(1, Math.floor((listH + 6) / (ROW + 6))));
+	let first = $state(0);
+	const pg = $derived(pageOf(events.length, fits, first));
 	const nameOf = (id: string) => shortName(cams.find((c) => c.id === id)?.name ?? id, room);
 	const at = (t: number) =>
 		new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -131,15 +135,31 @@
 			<div class="ch">
 				<span class="ttl">Here today</span>
 				<span class="cn"
-					>{events.length === 1 ? '1 event' : `${events.length} events`}{cams.some(
+					>{pg.word || (events.length === 1 ? '1 event' : `${events.length} events`)}{cams.some(
 						(c) => camEvents.failed[c.id]
 					)
 						? ' · history unread'
 						: ''}</span
 				>
+				{#if pg.word}
+					<div class="pager" role="group" aria-label="Page through today’s events">
+						<button
+							type="button"
+							aria-label="Newer events"
+							disabled={pg.prev === undefined}
+							onclick={() => (first = pg.prev ?? 0)}>‹</button
+						>
+						<button
+							type="button"
+							aria-label="Older events"
+							disabled={pg.next === undefined}
+							onclick={() => (first = pg.next ?? first)}>›</button
+						>
+					</div>
+				{/if}
 			</div>
 			<div class="evs" bind:clientHeight={listH}>
-				{#each events.slice(0, fits) as e (e.key)}
+				{#each events.slice(pg.first, pg.last) as e (e.key)}
 					{@const c = cams.find((x) => x.id === e.cam)}
 					<button
 						type="button"
@@ -147,7 +167,7 @@
 						class:on={e.key === eventKey}
 						onclick={() => showEvent(e.key, e.cam)}
 					>
-						<span class="pic"><EventShot plugin={c?.device.plugin_id} path={e.snapshot} /></span>
+						<span class="pic"><EventShot plugin={c?.device.plugin_id} event={e} /></span>
 						<span class="et"
 							>{kindName(e.kind)}{cams.length > 1 ? ` · ${nameOf(e.cam)}` : ''}<small
 								>{at(e.at)} · {agoWord(e.at, clock.now)}</small
@@ -288,10 +308,38 @@
 		box-shadow: 0 0 0 2px #ffc46b;
 	}
 	.ev:focus-visible,
+	.pager button:focus-visible,
 	.ttl:focus-visible,
 	.more:focus-visible {
 		outline: 2px solid var(--accent);
 		outline-offset: 2px;
+	}
+	.pager {
+		flex: none;
+		display: flex;
+		gap: 4px;
+		margin-left: auto;
+	}
+	.pager button {
+		width: 26px;
+		height: 24px;
+		padding: 0;
+		border: 0;
+		border-radius: 8px;
+		background: color-mix(in srgb, var(--ink) 6%, transparent);
+		color: var(--ink);
+		font-size: 16px;
+		font-weight: 600;
+		line-height: 1;
+		cursor: pointer;
+	}
+	.pager button:hover:not(:disabled) {
+		background: color-mix(in srgb, var(--ink) 12%, transparent);
+	}
+	.pager button:disabled {
+		color: var(--ink-muted);
+		opacity: 0.45;
+		cursor: default;
 	}
 	.pic {
 		flex: none;

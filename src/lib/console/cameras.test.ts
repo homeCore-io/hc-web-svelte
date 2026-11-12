@@ -8,8 +8,11 @@ import {
 	badgeOf,
 	camerasOf,
 	camOf,
+	cardsAcross,
 	eventsOf,
 	gridOf,
+	keptUrl,
+	pageOf,
 	pickedOf,
 	pillPrefsOf,
 	pillsOf,
@@ -18,6 +21,7 @@ import {
 	railWidth,
 	roomLayoutOf,
 	seesNow,
+	stillsOf,
 	wallSplit,
 	withHousePills,
 	withPillPrefs,
@@ -228,6 +232,35 @@ describe('the day’s events', () => {
 		expect(events[0]!.key).toBe(`cam:person:${Date.parse(t('05:00'))}`);
 	});
 
+	it('shows the app’s own copy of a still first, then the plugin’s file', () => {
+		const at = Date.parse(t('00:00'));
+		const events = eventsOf('cam', {
+			kinds: {
+				person: [
+					{ at: t('00:00'), value: true },
+					{ at: t('00:10'), value: false },
+					{ at: t('09:00'), value: true }
+				],
+				animal: [{ at: t('20:00'), value: true }]
+			},
+			// The plugin's newest few: the first event's is gone from its files.
+			snapshots: [{ at: t('09:01'), value: 'snap/cam-9.jpg' }],
+			kept: [at + 900, Date.parse(t('09:01')), Date.parse(t('15:00'))]
+		});
+		const [animal, late, early] = events;
+		expect(early!.kept).toBe(at + 900);
+		expect(early!.snapshot).toBeUndefined();
+		expect(stillsOf(early!, 'hc-reolink')).toEqual([`/ui/stills/cam/${at + 900}.jpg`]);
+		expect(stillsOf(late!, 'hc-reolink')).toEqual([
+			keptUrl('cam', Date.parse(t('09:01'))),
+			'/api/v1/plugins/hc-reolink/files/snap/cam-9.jpg'
+		]);
+		// A copy from far off is another event's.
+		expect(animal!.kept).toBeUndefined();
+		expect(stillsOf(animal!, 'hc-reolink')).toEqual([]);
+		expect(keptUrl('a b', 5)).toBe('/ui/stills/a%20b/5.jpg');
+	});
+
 	it('merges cameras newest first, kept to the kinds asked for', () => {
 		const e = (cam: string, kind: CamEvent['kind'], at: number): CamEvent => ({
 			key: `${cam}:${kind}:${at}`,
@@ -314,5 +347,47 @@ describe('the header’s pills', () => {
 			pills: { home: true }
 		});
 		expect(withHousePills({ pills: { home: true } }, { home: false })).toBeUndefined();
+	});
+});
+
+describe('paging the events', () => {
+	it('shows as many as fit and says which', () => {
+		expect(pageOf(110, 7, 0)).toEqual({
+			first: 0,
+			last: 7,
+			prev: undefined,
+			next: 7,
+			word: '1 to 7 of 110'
+		});
+		expect(pageOf(110, 7, 7)).toMatchObject({ first: 7, last: 14, prev: 0, next: 14 });
+		expect(pageOf(110, 7, 105)).toMatchObject({
+			first: 105,
+			last: 110,
+			prev: 98,
+			next: undefined,
+			word: '106 to 110 of 110'
+		});
+	});
+
+	it('says nothing when all fit, and keeps pages whole as the room changes', () => {
+		expect(pageOf(5, 7, 0)).toEqual({
+			first: 0,
+			last: 5,
+			prev: undefined,
+			next: undefined,
+			word: ''
+		});
+		expect(pageOf(0, 7, 14)).toMatchObject({ first: 0, last: 0, word: '' });
+		// Past the end (events aged out, or a filter): the last page.
+		expect(pageOf(20, 7, 70)).toMatchObject({ first: 14, last: 20 });
+		// From the middle of a page, its start.
+		expect(pageOf(20, 6, 8)).toMatchObject({ first: 6, last: 12 });
+		expect(pageOf(3, 0, 0)).toMatchObject({ first: 0, last: 1, next: 1 });
+	});
+
+	it('fits cards across', () => {
+		expect(cardsAcross(1000, 130, 10)).toBe(7);
+		expect(cardsAcross(1130, 130, 10)).toBe(8);
+		expect(cardsAcross(50, 130, 10)).toBe(1);
 	});
 });

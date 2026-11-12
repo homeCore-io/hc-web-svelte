@@ -66,12 +66,13 @@ const known = new Map();
 const TTL_MS = 60_000;
 
 /**
- * Whether the request's session is someone homeCore knows now.
+ * Whether the request's session is someone homeCore knows now. Kept camera
+ * stills (`stills.js`) are guarded the same way.
  * @param {import('node:http').IncomingMessage} req
  * @param {string} core
  * @param {boolean} secure
  */
-async function signedIn(req, core, secure) {
+export async function signedIn(req, core, secure) {
 	const session = await resolveSession(req.headers.cookie, { core, secure });
 	if (session === undefined) return false;
 	const now = Date.now();
@@ -92,7 +93,7 @@ async function signedIn(req, core, secure) {
 }
 
 /** @param {import('node:http').IncomingMessage} req */
-function isSecure(req) {
+export function isSecure(req) {
 	return (
 		/** @type {import('node:tls').TLSSocket} */ (req.socket).encrypted === true ||
 		req.headers['x-forwarded-proto'] === 'https'

@@ -134,6 +134,24 @@ export function fileUrl(plugin: string | undefined, path: string): string {
 		.join('/')}`;
 }
 
+/** A camera's still kept by the app's own server for a week (`server/stills.js`). */
+export const keptUrl = (cam: string, at: number): string =>
+	`/ui/stills/${encodeURIComponent(cam)}/${at}.jpg`;
+
+/**
+ * Where an event's still may be, best first: the app's own copy, then the
+ * plugin's file (gone once it keeps newer ones). Empty when it had none.
+ */
+export function stillsOf(
+	e: Pick<CamEvent, 'cam' | 'kept' | 'snapshot'>,
+	plugin?: string
+): string[] {
+	const out: string[] = [];
+	if (e.kept !== undefined) out.push(keptUrl(e.cam, e.kept));
+	if (e.snapshot) out.push(fileUrl(plugin, e.snapshot));
+	return out;
+}
+
 /** A still of a stream now, from go2rtc through the app's `/video`. */
 export const frameUrl = (stream: string): string =>
 	`/video/api/frame.jpeg?src=${encodeURIComponent(stream)}`;
@@ -240,10 +258,11 @@ export interface HistoryRow {
 	value: unknown;
 }
 
-/** One camera's history for the day: each kind's values, and its stills. */
+/** One camera's history for the day: each kind's values, its stills, and when the app kept its own copies. */
 export interface CamHistory {
 	kinds: Partial<Record<EventKind, HistoryRow[]>>;
 	snapshots: HistoryRow[];
+	kept?: number[];
 }
 
 export interface CamEvent {
@@ -256,6 +275,8 @@ export interface CamEvent {
 	end?: number;
 	/** The still taken as it started, in the plugin's files. */
 	snapshot?: string;
+	/** When the app's own copy of its still was taken (ms), if it kept one. */
+	kept?: number;
 }
 
 /** Sightings of the same kind closer together than this are one event. */
@@ -302,9 +323,13 @@ export function eventsOf(cam: string, h: CamHistory, merge = MERGE_MS): CamEvent
 			}
 		}
 	}
+	const kept = [...(h.kept ?? [])].filter(Number.isFinite).sort((a, b) => a - b);
+	const near = (e: CamEvent, t: number) => t >= e.at - SNAP_BEFORE_MS && t <= e.at + SNAP_AFTER_MS;
 	for (const e of out) {
-		const s = snaps.find((x) => x.at >= e.at - SNAP_BEFORE_MS && x.at <= e.at + SNAP_AFTER_MS);
+		const s = snaps.find((x) => near(e, x.at));
 		if (s) e.snapshot = s.path;
+		const k = kept.find((t) => near(e, t));
+		if (k !== undefined) e.kept = k;
 	}
 	return out.sort((a, b) => b.at - a.at);
 }
@@ -436,4 +461,41 @@ export function withHousePills<C extends { pills?: PillPrefs }>(
 	const next = withPillPrefs(pills, patch);
 	const out = (next ? { ...rest, pills: next } : rest) as C;
 	return Object.keys(out).length > 0 ? out : undefined;
+}
+
+// ---- paging an events list ----
+
+export interface EventPage {
+	/** The first shown, and one past the last. */
+	first: number;
+	last: number;
+	/** Where ‹ and › go; undefined at either end. */
+	prev?: number;
+	next?: number;
+	/** "1 to 7 of 110", or empty when everything fits. */
+	word: string;
+}
+
+/**
+ * The page of `total` events that `fits` cards show, from `first`: pages
+ * start at whole multiples of `fits`, so the same events stay together as
+ * the list grows, and a page past the end comes back to the last.
+ */
+export function pageOf(total: number, fits: number, first: number): EventPage {
+	const n = Math.max(1, Math.floor(fits));
+	const lastPage = Math.max(0, Math.ceil(total / n) - 1);
+	const at = Math.min(Math.max(0, Math.floor(first / n)), lastPage) * n;
+	const last = Math.min(total, at + n);
+	return {
+		first: at,
+		last,
+		prev: at > 0 ? at - n : undefined,
+		next: last < total ? last : undefined,
+		word: total > n ? `${at + 1} to ${last} of ${total}` : ''
+	};
+}
+
+/** How many cards `width` wide, `gap` apart, fit across `room`; at least one. */
+export function cardsAcross(room: number, width: number, gap: number): number {
+	return Math.max(1, Math.floor((room + gap) / (width + gap)));
 }

@@ -6,7 +6,8 @@
 	swaps the large view for every camera as an equal snapshot; picking one
 	plays it large. Under the view, the camera's spotlight, siren, pan and
 	tilt and saved positions. Along the bottom, the day's events with each
-	one's still, by kind; picking one shows its still large, with Back to live.
+	one's still, by kind, as many as fit across and ‹ › for the rest;
+	picking one shows its still large, with Back to live.
 
 	Fills the window without scrolling. Loaded only on its own page.
 -->
@@ -32,9 +33,11 @@
 		areasOf,
 		badgeOf,
 		camerasOf,
+		cardsAcross,
 		gridOf,
 		kindName,
 		latestOf,
+		pageOf,
 		pickedOf,
 		pillPrefsOf,
 		pillsOf,
@@ -108,6 +111,20 @@
 	let kind = $state<EventKind | 'all'>('all');
 	const kindsSeen = $derived(KINDS.filter((k) => cams.some((c) => c.kinds.includes(k.id))));
 	const today = $derived(events.filter((e) => kind === 'all' || e.kind === kind));
+	// As many cards as fit across, and ‹ › for the rest: the strip never scrolls.
+	let evsW = $state(0);
+	let winH = $state(800);
+	const GAP = 10;
+	const card = $derived(Math.round(Math.min(150, Math.max(112, winH * 0.15))));
+	let first = $state(0);
+	const across = $derived(cardsAcross(evsW, card, GAP));
+	// The cards widened a little to fill the row, so it ends flush.
+	const cardW = $derived(evsW > 0 ? Math.floor((evsW - GAP * (across - 1)) / across) : card);
+	const pg = $derived(pageOf(today.length, across, first));
+	function filter(k: EventKind | 'all') {
+		kind = k;
+		first = 0;
+	}
 	const failed = $derived(cams.filter((c) => camEvents.failed[c.id]).length);
 	const prefs = $derived(pillPrefsOf(household.doc.console?.pills));
 	const pills = $derived(pillsOf(events, clock.now, prefs.kinds));
@@ -119,6 +136,8 @@
 		return e ? badgeOf(e, clock.now) : undefined;
 	};
 </script>
+
+<svelte:window bind:innerHeight={winH} />
 
 <div class="wall">
 	<div class="top">
@@ -238,25 +257,41 @@
 						type="button"
 						class:on={kind === 'all'}
 						aria-pressed={kind === 'all'}
-						onclick={() => (kind = 'all')}>All</button
+						onclick={() => filter('all')}>All</button
 					>
 					{#each kindsSeen as k (k.id)}
 						<button
 							type="button"
 							class:on={kind === k.id}
 							aria-pressed={kind === k.id}
-							onclick={() => (kind = k.id)}>{k.name}</button
+							onclick={() => filter(k.id)}>{k.name}</button
 						>
 					{/each}
 				</div>
 				<span class="cn"
-					>{today.length === 1 ? '1 event' : `${today.length} events`}{failed > 0
+					>{pg.word || (today.length === 1 ? '1 event' : `${today.length} events`)}{failed > 0
 						? ` · ${failed === 1 ? 'one camera’s' : `${failed} cameras’`} history couldn’t be read`
 						: ''}</span
 				>
+				{#if pg.word}
+					<div class="pager" role="group" aria-label="Page through today’s events">
+						<button
+							type="button"
+							aria-label="Newer events"
+							disabled={pg.prev === undefined}
+							onclick={() => (first = pg.prev ?? 0)}>‹</button
+						>
+						<button
+							type="button"
+							aria-label="Older events"
+							disabled={pg.next === undefined}
+							onclick={() => (first = pg.next ?? first)}>›</button
+						>
+					</div>
+				{/if}
 			</div>
-			<div class="evs">
-				{#each today as e (e.key)}
+			<div class="evs" bind:clientWidth={evsW} style:--card={`${cardW}px`}>
+				{#each today.slice(pg.first, pg.last) as e (e.key)}
 					{@const c = cams.find((x) => x.id === e.cam)}
 					<button
 						type="button"
@@ -264,7 +299,7 @@
 						class:on={e.key === eventKey}
 						onclick={() => showEvent(e.key, e.cam)}
 					>
-						<EventShot plugin={c?.device.plugin_id} path={e.snapshot} />
+						<EventShot plugin={c?.device.plugin_id} event={e} />
 						<span class="et"
 							>{kindName(e.kind)} · {nameOf(e.cam)}<small
 								>{at(e.at)} · {agoWord(e.at, clock.now)}</small
@@ -511,12 +546,38 @@
 		color: var(--ink);
 	}
 	.evs {
-		--card: clamp(112px, 15vh, 150px);
 		display: flex;
 		gap: 10px;
+		min-width: 0;
 		min-height: calc(var(--card) * 9 / 16 + 38px);
-		overflow-x: auto;
-		scrollbar-width: thin;
+		overflow: hidden;
+	}
+	.pager {
+		flex: none;
+		display: flex;
+		gap: 4px;
+		margin-left: auto;
+	}
+	.pager button {
+		width: 28px;
+		height: 26px;
+		padding: 0;
+		border: 0;
+		border-radius: 8px;
+		background: color-mix(in srgb, var(--ink) 6%, transparent);
+		color: var(--ink);
+		font-size: 17px;
+		font-weight: 600;
+		line-height: 1;
+		cursor: pointer;
+	}
+	.pager button:hover:not(:disabled) {
+		background: color-mix(in srgb, var(--ink) 12%, transparent);
+	}
+	.pager button:disabled {
+		color: var(--ink-muted);
+		opacity: 0.45;
+		cursor: default;
 	}
 	.evc {
 		flex: none;
@@ -535,6 +596,7 @@
 		box-shadow: 0 0 0 2px #ffc46b;
 	}
 	.evc:focus-visible,
+	.pager button:focus-visible,
 	.filt button:focus-visible,
 	.areas button:focus-visible,
 	.camchip:focus-visible,

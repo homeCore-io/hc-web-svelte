@@ -61,6 +61,17 @@ home as the app is, and only for someone homeCore says is signed in. Only
 go2rtc's addresses for watching are passed on, and only streams by name: its
 own API, whose streams hold the cameras' passwords, stays out of reach.
 
+### Camera stills
+
+The camera plugin keeps only its newest few stills, so the UI server keeps
+its own copy of each event's still, in `camera-stills/<camera>/<ms>.jpg` under
+its data directory, for `HC_STILLS_DAYS` days (7 unless set). They are shown
+only to someone signed in and are in no backup. To copy every still as the
+camera takes it, give the server an API key of its own that holds only
+`devices:read` (Settings › People & access › API keys), in `HC_STILLS_KEY` or in a file named by
+`HC_STILLS_KEY_FILE`. Without one, stills are kept only while someone has a
+camera page open.
+
 ### UI extensions
 
 Extensions (drawings and cards the looks can choose, from

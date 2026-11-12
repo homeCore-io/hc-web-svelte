@@ -8,6 +8,7 @@
 import { coreUrl } from './config.js';
 import { isCorePath, proxyRequest, proxyUpgrade } from './proxy.js';
 import { isVideoPath, videoRequest, videoUpgrade } from './video.js';
+import { isStillsPath, stillsRequest } from './stills.js';
 
 /** @returns {import('vite').Plugin} */
 export function coreProxy() {
@@ -15,6 +16,7 @@ export function coreProxy() {
 	const mount = (server) => {
 		server.middlewares.use((req, res, next) => {
 			if (isVideoPath(req.url)) return void videoRequest(req, res, coreUrl());
+			if (isStillsPath(req.url)) return void stillsRequest(req, res, coreUrl());
 			if (!isCorePath(req.url)) return next();
 			void proxyRequest(req, res, coreUrl());
 		});

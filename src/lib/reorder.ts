@@ -4,10 +4,13 @@
  * `[data-item]` children; a row is picked up by its `[data-grip]`, by mouse
  * or touch, and the list is told each time the held row passes another, so
  * it moves as the pointer does. Arrow buttons beside it stay the way to do
- * it by keyboard.
+ * it by keyboard. A row of items across (`axis: 'x'`) follows the pointer
+ * across; `drop` hears when the row is let go.
  */
 export interface Reorder {
 	move: (from: number, to: number) => void;
+	axis?: 'x' | 'y';
+	drop?: () => void;
 }
 
 export function reorder(list: HTMLElement, given: Reorder) {
@@ -30,7 +33,9 @@ export function reorder(list: HTMLElement, given: Reorder) {
 		let to = all.length - 1;
 		for (let i = 0; i < all.length; i++) {
 			const r = all[i]!.getBoundingClientRect();
-			if (e.clientY < r.top + r.height / 2) {
+			const past =
+				opts.axis === 'x' ? e.clientX < r.left + r.width / 2 : e.clientY < r.top + r.height / 2;
+			if (past) {
 				to = i;
 				break;
 			}
@@ -44,6 +49,7 @@ export function reorder(list: HTMLElement, given: Reorder) {
 		if (!held || e.pointerId !== held.pointer) return;
 		held.row.classList.remove('lifted');
 		held = null;
+		opts.drop?.();
 	}
 
 	list.addEventListener('pointerdown', down);

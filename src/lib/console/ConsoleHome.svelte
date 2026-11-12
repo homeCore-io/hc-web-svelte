@@ -52,6 +52,8 @@
 	import RoomPicture from './RoomPicture.svelte';
 	import HomePills from './HomePills.svelte';
 	import { anyLit, roomPicture } from './pictures.js';
+	import { roomIn } from './layout.js';
+	import { household } from '#lib/household.svelte.js';
 	import { devicesIn, levelOf } from './room.js';
 	import {
 		favoritesOf,
@@ -117,7 +119,16 @@
 				kindOptions.of('home', 'room', ref.room(room.id), ROOM_BUILT_IN)
 			);
 			const lit = roomPicture(room.name, list, clock.now, wants);
-			return { room, list, cards, ...tileOf(room, list, cards, box, lit.lamps, wants), ...lit };
+			// The household may have chosen the room plain, with no drawing (layout.ts).
+			const plain = roomIn(household.doc.console?.rooms, room.id).picture === 'plain';
+			return {
+				room,
+				list,
+				cards,
+				...tileOf(room, list, cards, box, lit.lamps, wants),
+				...lit,
+				plain
+			};
 		})
 	);
 
@@ -318,7 +329,7 @@
 					href={`/rooms/${t.room.id}`}
 					aria-label={`${t.room.name}, ${[t.temp, t.status].filter(Boolean).join(', ')}`}
 				>
-					<RoomPicture picture={t.picture} g={t.g} />
+					{#if !t.plain}<RoomPicture picture={t.picture} g={t.g} />{/if}
 					<span class="tdim" class:off={!anyLit(t.picture, t.g)} aria-hidden="true"></span>
 					<span class="tshade" aria-hidden="true"></span>
 					<span class="tinfo"><b>{t.room.name}</b><small>{t.status}</small></span>

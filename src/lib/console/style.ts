@@ -10,6 +10,7 @@
  */
 
 import type { PillPrefs } from './cameras.js';
+import type { RoomLayouts } from './layout.js';
 import type { TabChoices } from './room.js';
 
 export type FaderStyle = 'machined' | 'glass' | 'lightbar';
@@ -27,6 +28,8 @@ export interface ConsolePrefs {
 	fader?: FaderStyle;
 	switch?: SwitchStyle;
 	switchesAs?: SetLook;
+	/** Their own layout of each room, by room id (layout.ts). */
+	rooms?: RoomLayouts;
 }
 
 /** The household's defaults for the controls (`HouseDoc.console`). */
@@ -37,6 +40,8 @@ export interface ConsoleHouse {
 	pills?: PillPrefs;
 	/** The tab each device was put on in its room, by device id (room.ts). */
 	tabs?: TabChoices;
+	/** Each room's layout for everyone, by room id (layout.ts). */
+	rooms?: RoomLayouts;
 }
 
 export const FADER_STYLES: readonly { id: FaderStyle; name: string }[] = [
@@ -75,15 +80,18 @@ export const switchesAs = (mine?: ConsolePrefs): SetLook =>
 export const sidebarOf = (mine?: ConsolePrefs): Sidebar =>
 	mine?.sidebar === 'folded' ? 'folded' : 'open';
 
+/** The choices `withPrefs` makes: the controls' and the sidebar's. */
+export type Choice = Exclude<keyof ConsolePrefs, 'rooms'>;
+
 /**
  * A person's console choices with `patch` made: a choice set to `undefined`
  * goes back to the default and is taken out, and nothing left is no choices.
  */
 export function withPrefs(
 	mine: ConsolePrefs | undefined,
-	patch: Partial<Record<keyof ConsolePrefs, string | undefined>>
+	patch: Partial<Record<Choice, string | undefined>>
 ): ConsolePrefs | undefined {
-	const next: Record<string, string> = {};
+	const next: Record<string, unknown> = {};
 	const all = { ...mine, ...patch };
 	const sidebar = all.sidebar === 'open' || all.sidebar === 'folded' ? all.sidebar : undefined;
 	const fader = known(FADER_STYLES, all.fader);
@@ -94,13 +102,15 @@ export function withPrefs(
 	if (sw) next.switch = sw;
 	// Rows is the default, so it's kept as no choice.
 	if (as === 'tiles') next.switchesAs = as;
+	// Their rooms' layouts are layout.ts's to change; kept as they are.
+	if (mine?.rooms && Object.keys(mine.rooms).length > 0) next.rooms = mine.rooms;
 	return Object.keys(next).length > 0 ? (next as ConsolePrefs) : undefined;
 }
 
 /** A preferences document with its console choices changed by `patch`. */
 export function withConsole<D extends { console?: ConsolePrefs }>(
 	doc: D,
-	patch: Partial<Record<keyof ConsolePrefs, string | undefined>>
+	patch: Partial<Record<Choice, string | undefined>>
 ): D {
 	const { console: was, ...rest } = doc;
 	const next = withPrefs(was, patch);

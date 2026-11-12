@@ -67,6 +67,12 @@ describe('changing a person’s console choices', () => {
 		expect(withPrefs({ fader: 'glass' }, { fader: undefined })).toBeUndefined();
 	});
 
+	it('keeps their rooms’ layouts as they are', () => {
+		const rooms = { fam: { opens: 'media' as const } };
+		expect(withPrefs({ rooms }, { fader: 'glass' })).toEqual({ fader: 'glass', rooms });
+		expect(withPrefs({ rooms: {} }, {})).toBeUndefined();
+	});
+
 	it('drops what it doesn’t know', () => {
 		expect(withPrefs(undefined, { fader: 'wood', sidebar: 'open' })).toEqual({ sidebar: 'open' });
 	});

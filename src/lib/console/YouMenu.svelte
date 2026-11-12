@@ -2,12 +2,15 @@
 	A person's own settings, from their avatar on the console (the
 	HomeConsole board): their look, their temperature unit, how the
 	console's faders and switches are drawn (shown live, as they choose),
-	whether its sidebar is open, the rest on Me, and signing out. Only
+	whether its sidebar is open, the rest on Me, and signing out. On a
+	room, Customize for it (Customize.svelte). Only
 	theirs, on every screen they sign in to; except which room this screen
 	opens on, which is the screen's own (opensOn.ts).
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
+	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 	import Palette from '@lucide/svelte/icons/palette';
 	import Thermometer from '@lucide/svelte/icons/thermometer';
 	import SlidersVertical from '@lucide/svelte/icons/sliders-vertical';
@@ -38,7 +41,7 @@
 		sidebarOf,
 		switchStyle,
 		withConsole,
-		type ConsolePrefs
+		type Choice
 	} from './style.js';
 
 	let { close }: { close: () => void } = $props();
@@ -66,7 +69,7 @@
 	const sw = $derived(switchStyle(personal.doc.console, household.doc.console));
 	const sidebar = $derived(sidebarOf(personal.doc.console));
 	const together = $derived(switchesAs(personal.doc.console));
-	const choose = (patch: Partial<Record<keyof ConsolePrefs, string | undefined>>) =>
+	const choose = (patch: Partial<Record<Choice, string | undefined>>) =>
 		void personal.change((d) => withConsole(d, patch));
 	// The sample: one light and one switch, to see the choice as it's made.
 	let level = $state(70);
@@ -81,6 +84,9 @@
 		opens = id;
 		setOpensOn(id || undefined);
 	}
+
+	// ---- Customize, on a room ----
+	const here = $derived(rooms.list.find((r) => page.url.pathname === `/rooms/${r.id}`));
 
 	async function signOut() {
 		close();
@@ -192,6 +198,14 @@
 	</select>
 </div>
 
+{#if here}
+	<a class="row link" href={`/rooms/${here.id}?customize`} onclick={close}>
+		<span class="mic"><SlidersHorizontal size={15} strokeWidth={1.9} aria-hidden="true" /></span>
+		<span class="mt"
+			>Customize the {here.name}<small>Favorites, tabs, lights, its picture and pills</small></span
+		>
+	</a>
+{/if}
 <a class="row link" href="/me" onclick={close}>
 	<span class="mic"><UserRound size={15} strokeWidth={1.9} aria-hidden="true" /></span>
 	<span class="mt">Everything else about you<small>Picture, theme, PIN, password</small></span>

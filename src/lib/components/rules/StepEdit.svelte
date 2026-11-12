@@ -6,6 +6,7 @@
 <script lang="ts">
 	import StepList from './StepList.svelte';
 	import { displayName } from '#lib/devices.js';
+	import { rooms } from '#lib/rooms.svelte.js';
 	import { stepLine, tagOf } from '#lib/ruleWords.js';
 	import {
 		STEP_KINDS,
@@ -301,6 +302,37 @@
 			field={{ kind: 'text', name: 'message', label: 'Message', long: true }}
 			value={f.message}
 			onchange={(v) => set('message', v)}
+		/>
+	{:else if kind === 'room'}
+		<FieldInput
+			field={{
+				kind: 'choice',
+				name: 'room',
+				label: 'Room',
+				options: [
+					...(f.room ? [] : [{ value: '', label: 'Choose a room' }]),
+					...rooms.list.map((r) => ({ value: r.slug, label: r.name })),
+					// A room the rule names some other way (its name, an alias) stays as written.
+					...(f.room && !rooms.list.some((r) => r.slug === f.room)
+						? [{ value: String(f.room), label: String(f.room) }]
+						: [])
+				]
+			}}
+			value={f.room ?? ''}
+			onchange={(v) => set('room', v)}
+		/>
+		<FieldInput
+			field={{
+				kind: 'choice',
+				name: 'lights',
+				label: 'Its lights',
+				options: [
+					{ value: 'RoomOff', label: 'off, remembering how they were' },
+					{ value: 'RoomOn', label: 'back on as they were' }
+				]
+			}}
+			value={tag}
+			onchange={(v) => onchange({ [String(v)]: { room: f.room ?? '' } })}
 		/>
 	{:else if kind === 'mode'}
 		<FieldInput

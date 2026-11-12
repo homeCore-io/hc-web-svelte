@@ -31,6 +31,7 @@ import {
 	newWhen,
 	newStep,
 	offered,
+	STEP_KINDS,
 	checkKindOf,
 	WHEN_KINDS,
 	type Lists,
@@ -236,7 +237,8 @@ test('the rest of the vocabulary, as fields', () => {
 		runNow: false,
 		testAt: false,
 		ifAnyCheck: false,
-		alertRules: false
+		alertRules: false,
+		roomLights: false
 	});
 	expect(
 		featuresOf({
@@ -561,6 +563,18 @@ describe('alerts and named numbers in rules', () => {
 		expect(checkKindOf('TriggerAlertActive')).toBe('alert');
 		expect(stepKindOf({ ForEachAlert: { filter: {}, actions: [] } })).toBe('alert');
 		expect(newStep('alert')).toEqual({ PressAlert: {} });
+	});
+
+	it('a room’s lights are a step a homeCore with Room on offers', () => {
+		const roomOn = { tag: 'RoomOn', fields: [] };
+		const on = featuresOf({ triggers: [], conditions: [], actions: [roomOn], features: [] });
+		const off = featuresOf({ triggers: [], conditions: [], actions: [], features: [] });
+		expect(offered(STEP_KINDS, on).some((k) => k.kind === 'room')).toBe(true);
+		expect(offered(STEP_KINDS, off).some((k) => k.kind === 'room')).toBe(false);
+		expect(offered(STEP_KINDS, off, 'room').some((k) => k.kind === 'room')).toBe(true);
+		expect(stepKindOf({ RoomOn: { room: 'office' } })).toBe('room');
+		expect(stepKindOf({ RoomOff: { room: 'office' } })).toBe('room');
+		expect(newStep('room')).toEqual({ RoomOff: { room: '' } });
 	});
 });
 

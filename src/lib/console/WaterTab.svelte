@@ -16,6 +16,8 @@
 	import { shownUnit, toShown } from '#lib/units.js';
 	import Col from './Col.svelte';
 	import { fit } from './fit.js';
+	import SwitchSet from './SwitchSet.svelte';
+	import { setTitle } from './switches.js';
 	import { shortName } from './room.js';
 	import { valveOpen, valveWant, waterTab, wet } from './water.js';
 
@@ -114,6 +116,12 @@
 			{/if}
 		</Col>
 	{/each}
+
+	{#if tab.other.length > 0}
+		<Col title={setTitle(tab.other)} grow>
+			<SwitchSet list={tab.other} {room} {may} />
+		</Col>
+	{/if}
 </div>
 
 <style>

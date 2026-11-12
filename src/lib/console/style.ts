@@ -10,6 +10,7 @@
  */
 
 import type { PillPrefs } from './cameras.js';
+import type { TabChoices } from './room.js';
 
 export type FaderStyle = 'machined' | 'glass' | 'lightbar';
 export type SwitchStyle = 'precision' | 'keypad' | 'offon';
@@ -34,6 +35,8 @@ export interface ConsoleHouse {
 	switch?: SwitchStyle;
 	/** Camera events as pills in a room's header and on Home (cameras.ts). */
 	pills?: PillPrefs;
+	/** The tab each device was put on in its room, by device id (room.ts). */
+	tabs?: TabChoices;
 }
 
 export const FADER_STYLES: readonly { id: FaderStyle; name: string }[] = [

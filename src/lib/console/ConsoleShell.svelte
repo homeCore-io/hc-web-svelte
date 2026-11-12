@@ -59,6 +59,7 @@
 	import { commands } from '#lib/commands.svelte.js';
 	import EverywhereStatus from './EverywhereStatus.svelte';
 	import { everyRoom, placesOf, statusOf } from './everywhere.js';
+	import { tabChoicesOf } from './room.js';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -99,7 +100,14 @@
 		{ id: 'water', label: 'Water', icon: Droplets }
 	] as const;
 	const everywhere = $derived(
-		statusOf(placesOf(grouped, everyRoom(roomsInOrder, rooms.list)), commands.pending)
+		statusOf(
+			placesOf(
+				grouped,
+				everyRoom(roomsInOrder, rooms.list),
+				tabChoicesOf(household.doc.console?.tabs)
+			),
+			commands.pending
+		)
 	);
 
 	// Cameras, where the house has any: a page of their own, lit while one sees something now.

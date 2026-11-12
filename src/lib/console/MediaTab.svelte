@@ -42,6 +42,8 @@
 	import { cardFor } from '#lib/card.js';
 	import { openDevice } from '#lib/popup.js';
 	import Level from './Level.svelte';
+	import SwitchSet from './SwitchSet.svelte';
+	import { setTitle } from './switches.js';
 	import Fader from './Fader.svelte';
 	import type { FaderStyle } from './style.js';
 	import {
@@ -79,7 +81,8 @@
 		audio,
 		audioNote,
 		onstep,
-		onmute
+		onmute,
+		extras = []
 	}: {
 		screens: CoreDevice[];
 		speakers: CoreDevice[];
@@ -94,6 +97,8 @@
 		audioNote: string;
 		onstep: (by: 1 | -1) => void;
 		onmute: () => void;
+		/** What the household put here that plays nothing: a switch, a timer. */
+		extras?: CoreDevice[];
 	} = $props();
 
 	const nameOf = (d: CoreDevice) => playerName(d, room);
@@ -452,6 +457,13 @@
 			{/if}
 		</section>
 	{/if}
+
+	{#if extras.length > 0}
+		<section class="extras" aria-label={setTitle(extras)}>
+			<h3 class="xh">{setTitle(extras)}</h3>
+			<SwitchSet list={extras} {room} {may} />
+		</section>
+	{/if}
 </div>
 
 <svelte:window bind:innerHeight={viewH} bind:innerWidth={wide} />
@@ -566,6 +578,15 @@
 {/snippet}
 
 <style>
+	.extras {
+		max-width: 640px;
+	}
+	.xh {
+		margin: 0 0 10px;
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--ink);
+	}
 	.media {
 		container: media / inline-size;
 		display: flex;

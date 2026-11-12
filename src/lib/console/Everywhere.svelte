@@ -21,6 +21,8 @@
 	import EvSecurity from './EvSecurity.svelte';
 	import EvWater from './EvWater.svelte';
 	import { everyRoom, placesOf, viewOf } from './everywhere.js';
+	import { tabChoicesOf } from './room.js';
+	import { household } from '#lib/household.svelte.js';
 
 	let { view }: { view: string } = $props();
 
@@ -33,7 +35,9 @@
 			rooms.list
 		)
 	);
-	const places = $derived(placesOf(byRoom(devices.byId, rooms.list), order));
+	const places = $derived(
+		placesOf(byRoom(devices.byId, rooms.list), order, tabChoicesOf(household.doc.console?.tabs))
+	);
 </script>
 
 <div class="ev">

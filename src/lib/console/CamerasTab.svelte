@@ -19,6 +19,8 @@
 	import { cardFor } from '#lib/card.js';
 	import { openDevice } from '#lib/popup.js';
 	import Viewer from './Viewer.svelte';
+	import SwitchSet from './SwitchSet.svelte';
+	import { setsWithSwitches } from './switches.js';
 	import Thumb from './Thumb.svelte';
 	import CamControls from './CamControls.svelte';
 	import EventShot from './EventShot.svelte';
@@ -50,6 +52,8 @@
 		new Set(cams.flatMap((c) => [c.id, c.spotlight?.device_id, c.siren?.device_id]))
 	);
 	const loose = $derived(list.filter((d) => !owned.has(d.device_id)));
+	// A switch or timer the household put here sits as it would with the switches.
+	const switched = $derived(loose.filter(setsWithSwitches));
 
 	const events = $derived(
 		allEvents(
@@ -98,7 +102,8 @@
 
 {#if layout === 'none'}
 	<div class="desk none">
-		{#each loose as d (d.device_id)}
+		{#if switched.length > 0}<SwitchSet list={switched} {room} {may} />{/if}
+		{#each loose.filter((d) => !switched.includes(d)) as d (d.device_id)}
 			<Row
 				name={shortName(d.name_override ?? d.name, room)}
 				sub={brandOf(d.plugin_id)}

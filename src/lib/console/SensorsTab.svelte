@@ -8,6 +8,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import type { CoreDevice } from '#lib/devices.js';
+	import { session } from '#lib/me.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { cardFor } from '#lib/card.js';
 	import { batteriesOf } from '#lib/batteries.js';
@@ -17,6 +18,8 @@
 	import Col from './Col.svelte';
 	import Row from './Row.svelte';
 	import { fit } from './fit.js';
+	import SwitchSet from './SwitchSet.svelte';
+	import { setsWithSwitches, setTitle } from './switches.js';
 	import { brandOf, shortName } from './room.js';
 	import { between, sensorsTab, type Reading } from './sensors.js';
 
@@ -32,6 +35,9 @@
 	} = $props();
 
 	const tab = $derived(sensorsTab(list));
+	// A switch or timer the household put here sits as it would with the switches.
+	const switched = $derived(tab.watch.filter(setsWithSwitches));
+	const watched = $derived(tab.watch.filter((d) => !switched.includes(d)));
 	const unit = $derived(units().temperature === 'F' ? '°F' : '°C');
 	const batteries = $derived(batteriesOf(all));
 	const nameOf = (d: CoreDevice) => shortName(d.name_override ?? d.name, room);
@@ -116,10 +122,10 @@
 		{/each}
 	{/if}
 
-	{#if tab.watch.length > 0}
+	{#if watched.length > 0}
 		<Col title="Watching" width="calc(200px + 50px * var(--k, 1))">
 			<div class="list">
-				{#each tab.watch as d (d.device_id)}
+				{#each watched as d (d.device_id)}
 					<Row
 						name={nameOf(d)}
 						sub={brandOf(d.plugin_id)}
@@ -129,6 +135,12 @@
 					/>
 				{/each}
 			</div>
+		</Col>
+	{/if}
+
+	{#if switched.length > 0}
+		<Col title={setTitle(switched)} width="calc(230px + 60px * var(--k, 1))">
+			<SwitchSet list={switched} {room} may={session.mayUse} />
 		</Col>
 	{/if}
 

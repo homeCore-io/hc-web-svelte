@@ -61,6 +61,7 @@
 	import { roomPicture } from './pictures.js';
 	import {
 		audioChoices,
+		isPlayer,
 		muteCmd,
 		orderPlayers,
 		playerName,
@@ -81,6 +82,7 @@
 		LIGHTS_WIDTH,
 		shortName,
 		brandOf,
+		tabChoicesOf,
 		tabOf,
 		type TabId
 	} from './room.js';
@@ -92,7 +94,13 @@
 	const list = $derived(room ? devicesIn(devices.byId, room) : []);
 	// The Lights tab is laid out for the width the panel has (room.ts), once it's known.
 	let across = $state(0);
-	const model = $derived(consoleRoom(list, across > 0 ? across - 4 : LIGHTS_WIDTH));
+	const model = $derived(
+		consoleRoom(
+			list,
+			across > 0 ? across - 4 : LIGHTS_WIDTH,
+			tabChoicesOf(household.doc.console?.tabs)
+		)
+	);
 	const tab = $derived(tabOf(model, page.url.searchParams.get('tab')));
 	const fader = $derived(faderStyle(personal.doc.console, household.doc.console));
 	const sw = $derived(switchStyle(personal.doc.console, household.doc.console));
@@ -552,6 +560,7 @@
 						{audioNote}
 						onstep={volStep}
 						onmute={volMute}
+						extras={model.byTab.media.filter((d) => !isPlayer(d))}
 					/>
 				{:else if tab === 'climate'}
 					<ClimateTab list={model.byTab.climate} room={room.name} {fader} {sw} {may} />

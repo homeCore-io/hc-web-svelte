@@ -23,7 +23,7 @@ import { thermostatOf } from '../thermostat.js';
 import { units, type Units } from '../units.js';
 import { climateTab } from './climate.js';
 import { isPlaying, orderPlayers } from './media.js';
-import { brandOf, consoleRoom, levelOf, type ConsoleRoom } from './room.js';
+import { brandOf, consoleRoom, levelOf, type ConsoleRoom, type TabChoices } from './room.js';
 import { roomPicture } from './pictures.js';
 import { readingOf, type Reading } from './sensors.js';
 import { valveOpen, waterTab, wet } from './water.js';
@@ -56,17 +56,23 @@ export interface Place {
 
 /**
  * Every room in `order`, then what's in no room. `grouped` is the devices by
- * room id, those in no room under `''` (summary.ts's `byRoom`).
+ * room id, those in no room under `''` (summary.ts's `byRoom`); `chosen`,
+ * the household's choices of tab, so each view has what the rooms' tabs have.
  */
-export function placesOf(grouped: Map<string, CoreDevice[]>, order: Room[]): Place[] {
+export function placesOf(
+	grouped: Map<string, CoreDevice[]>,
+	order: Room[],
+	chosen: TabChoices = {}
+): Place[] {
+	const model = (list: CoreDevice[]) => consoleRoom(list, undefined, chosen);
 	const places: Place[] = order.map((r) => ({
 		key: r.id,
 		name: r.name,
 		room: r,
-		model: consoleRoom(grouped.get(r.id) ?? [])
+		model: model(grouped.get(r.id) ?? [])
 	}));
 	const loose = grouped.get('') ?? [];
-	if (loose.length > 0) places.push({ key: '', name: 'No room', model: consoleRoom(loose) });
+	if (loose.length > 0) places.push({ key: '', name: 'No room', model: model(loose) });
 	return places;
 }
 

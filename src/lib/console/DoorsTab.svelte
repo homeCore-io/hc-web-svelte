@@ -2,7 +2,9 @@
 	A room's Doors tab in the console (the Garage and LivingRoom boards):
 	each overhead door drawn big, open or shut as its sensor says, with a
 	button that moves it; then the room's other doors and its locks
-	(doors.ts). Cameras and sirens have a tab of their own (CamerasTab).
+	(doors.ts). Cameras and sirens have a tab of their own (CamerasTab). A
+	switch or timer the household put here sits with them as it would with
+	the switches (SwitchSet).
 	Without an overhead door, doors and locks are drawn big themselves.
 
 	Opening a door and unlocking a lock ask first; shutting and locking don't.
@@ -19,6 +21,8 @@
 	import Col from './Col.svelte';
 	import Row from './Row.svelte';
 	import { fit } from './fit.js';
+	import SwitchSet from './SwitchSet.svelte';
+	import { setTitle } from './switches.js';
 	import { doorsTab, pressFor, type BigDoor } from './doors.js';
 	import { brandOf, shortName } from './room.js';
 
@@ -263,6 +267,12 @@
 				{/each}
 			</div>
 			<span class="sub">Their pages have their controls.</span>
+		</Col>
+	{/if}
+
+	{#if tab.other.length > 0}
+		<Col title={setTitle(tab.other)} grow>
+			<SwitchSet list={tab.other} {room} {may} />
 		</Col>
 	{/if}
 </div>

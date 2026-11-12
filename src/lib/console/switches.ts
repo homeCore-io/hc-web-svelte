@@ -6,6 +6,7 @@
  * switches and timers sit together, `partsOf` sorts them for SwitchSet.
  */
 import type { CoreDevice } from '#lib/devices.js';
+import { kindOf } from '#lib/card.js';
 import { isTimer } from './timer.js';
 
 export interface SwitchCol {
@@ -115,3 +116,12 @@ export function setTitle(list: CoreDevice[]): string {
 	if (switches.length === 0) return timers.length === 1 ? 'Timer' : 'Timers';
 	return 'Switches and timers';
 }
+
+const SWITCHY = new Set(['switch', 'outlet', 'plug', 'virtual_switch', 'group']);
+
+/**
+ * Whether a device another tab was given sits as it would with the switches
+ * (a switch, a timer), rather than as that tab's own row.
+ */
+export const setsWithSwitches = (d: CoreDevice): boolean =>
+	isTimer(d) || (SWITCHY.has(kindOf(d)) && flips(d));

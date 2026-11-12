@@ -6,10 +6,11 @@
 	Sensors, Cameras, as the room has them (room.ts). What the room's cameras
 	saw in the last half hour shows as pills in the header, as the household
 	chose (cameras.ts); each opens the Cameras tab at that event. The tab shown is kept in the
-	address (`?tab=`), so each room opens where the person left it.
+	address (`?tab=`), so each room opens where the person left it. Each
+	device on a tab has a "⋯" for the tab and room it shows in (Placer).
 
-	The header is a dark band for now; a picture of the room goes behind it
-	later. Loaded only by the console's look.
+	Behind the header, the room's drawing (pictures.ts), lit live by its
+	lights. Loaded only by the console's look.
 -->
 <script lang="ts">
 	import { page } from '$app/state';
@@ -45,6 +46,8 @@
 	import SensorsTab from './SensorsTab.svelte';
 	import SwitchesTab from './SwitchesTab.svelte';
 	import CamerasTab from './CamerasTab.svelte';
+	import Placer from './Placer.svelte';
+	import { Placer as Placing, providePlacer } from './placer.svelte.js';
 	import { camEvents } from './camEvents.svelte.js';
 	import {
 		KINDS,
@@ -57,8 +60,11 @@
 		type EventKind
 	} from './cameras.js';
 	import AudioBar from './AudioBar.svelte';
+	import RoomPicture from './RoomPicture.svelte';
+	import { roomPicture } from './pictures.js';
 	import {
 		audioChoices,
+		isPlayer,
 		muteCmd,
 		orderPlayers,
 		playerName,
@@ -79,6 +85,7 @@
 		LIGHTS_WIDTH,
 		shortName,
 		brandOf,
+		tabChoicesOf,
 		tabOf,
 		type TabId
 	} from './room.js';
@@ -90,11 +97,23 @@
 	const list = $derived(room ? devicesIn(devices.byId, room) : []);
 	// The Lights tab is laid out for the width the panel has (room.ts), once it's known.
 	let across = $state(0);
-	const model = $derived(consoleRoom(list, across > 0 ? across - 4 : LIGHTS_WIDTH));
+	const model = $derived(
+		consoleRoom(
+			list,
+			across > 0 ? across - 4 : LIGHTS_WIDTH,
+			tabChoicesOf(household.doc.console?.tabs)
+		)
+	);
 	const tab = $derived(tabOf(model, page.url.searchParams.get('tab')));
 	const fader = $derived(faderStyle(personal.doc.console, household.doc.console));
 	const sw = $derived(switchStyle(personal.doc.console, household.doc.console));
 	const may = $derived(session.mayUse);
+	// Each device's "⋯": where it shows, for the household (Placer).
+	const placing = providePlacer(new Placing(() => (across > 0 ? across - 4 : LIGHTS_WIDTH)));
+	$effect(() => {
+		void id;
+		return () => placing.close();
+	});
 
 	// The page draws its own title, in the header.
 	$effect(() => heading.ownTitle());
@@ -122,8 +141,16 @@
 		)
 	);
 	const temperature = $derived(box.bigIs === 'lights' ? undefined : box.big);
-	const lamps = $derived(model.lights.columns.flatMap((c) => c.lights));
-	// Counted as the faders show them, with commands on their way.
+	// The room's drawing, lit as its lights are, with commands on their way.
+	const lit = $derived(
+		roomPicture(room?.name ?? '', list, clock.now, (d) => commands.pending[d]?.want)
+	);
+	// The faders, then the switches named as lights, as Home and Everywhere count them.
+	const lamps = $derived.by(() => {
+		const faders = model.lights.columns.flatMap((c) => c.lights);
+		return [...faders, ...lit.lamps.filter((d) => !faders.includes(d))];
+	});
+	// Counted as the faders and switches show them, with commands on their way.
 	const lampsOn = $derived(
 		lamps.filter((d) => d.available && levelOf(d, commands.pending[d.device_id]?.want) > 0).length
 	);
@@ -338,6 +365,7 @@
 {:else}
 	<div class="croom">
 		<section class="hero" aria-label={room.name}>
+			<RoomPicture picture={lit.picture} g={lit.g} />
 			<div class="band" aria-hidden="true"></div>
 			<div class="hc">
 				<div class="who">
@@ -545,6 +573,7 @@
 						{audioNote}
 						onstep={volStep}
 						onmute={volMute}
+						extras={model.byTab.media.filter((d) => !isPlayer(d))}
 					/>
 				{:else if tab === 'climate'}
 					<ClimateTab list={model.byTab.climate} room={room.name} {fader} {sw} {may} />
@@ -555,7 +584,7 @@
 				{:else if tab === 'sensors'}
 					<SensorsTab list={model.byTab.sensors} all={list} room={room.name} />
 				{:else if tab === 'switches'}
-					<SwitchesTab list={model.byTab.switches} room={room.name} {sw} {may} />
+					<SwitchesTab list={model.byTab.switches} room={room.name} {may} />
 				{:else if tab === 'cameras'}
 					<CamerasTab list={model.byTab.cameras} room={room.name} {may} {sw} />
 				{/if}
@@ -577,6 +606,7 @@
 			/>
 		{/if}
 	</div>
+	<Placer p={placing} />
 {/if}
 
 <style>
@@ -593,7 +623,7 @@
 		color: var(--ink-muted);
 	}
 
-	/* ---- the header: a dark band now, the room's picture later ---- */
+	/* ---- the header: the room's drawing, shaded where the words go ---- */
 	.hero {
 		position: relative;
 		min-height: 190px;
@@ -605,31 +635,24 @@
 		position: absolute;
 		inset: 0;
 		background:
-			radial-gradient(
-				700px 260px at 78% 0%,
-				color-mix(in srgb, var(--accent) 22%, transparent),
-				transparent 70%
-			),
-			radial-gradient(500px 220px at 100% 100%, rgba(127, 184, 255, 0.1), transparent 70%),
 			linear-gradient(
 				90deg,
-				rgba(7, 8, 11, 0.95) 0%,
-				rgba(7, 8, 11, 0.55) 45%,
-				rgba(7, 8, 11, 0.2) 100%
+				rgba(7, 8, 11, 0.92) 0%,
+				rgba(7, 8, 11, 0.55) 38%,
+				rgba(7, 8, 11, 0) 70%
 			),
-			linear-gradient(180deg, #161922, #0c0d12);
+			linear-gradient(0deg, rgba(7, 8, 11, 0.9), rgba(7, 8, 11, 0) 45%);
 	}
-	:global(:root[data-theme='light']) .hero {
-		background: #e9e5dc;
-	}
+	/* In the light theme the drawing shows through a pale wash, under dark words. */
 	:global(:root[data-theme='light']) .band {
 		background:
-			radial-gradient(
-				700px 260px at 78% 0%,
-				color-mix(in srgb, var(--accent) 28%, transparent),
-				transparent 70%
+			linear-gradient(
+				90deg,
+				rgba(243, 240, 234, 0.95) 0%,
+				rgba(243, 240, 234, 0.75) 40%,
+				rgba(243, 240, 234, 0.35) 100%
 			),
-			linear-gradient(180deg, #f3f0ea, #e3ded3);
+			linear-gradient(0deg, rgba(243, 240, 234, 0.9), rgba(243, 240, 234, 0) 50%);
 	}
 	.hc {
 		position: relative;

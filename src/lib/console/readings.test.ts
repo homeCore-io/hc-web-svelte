@@ -78,6 +78,14 @@ describe('the Water tab', () => {
 		const tab = waterTab([dev('leak', 'water_sensor'), dev('Water Valve', 'switch')]);
 		expect(ids(tab.leaks)).toEqual(['leak']);
 		expect(ids(tab.valves)).toEqual(['Water Valve']);
+		expect(tab.other).toEqual([]);
+	});
+
+	it('keeps what was put here that is no valve apart', () => {
+		const virtual = { ...dev('Water Valve', 'switch'), plugin_id: 'core.glue' };
+		const tab = waterTab([dev('Pump', 'switch'), virtual, dev('Garden', 'sprinkler')]);
+		expect(ids(tab.valves)).toEqual(['Garden']);
+		expect(ids(tab.other)).toEqual(['Pump', 'Water Valve']);
 	});
 
 	it('knows a wet sensor', () => {

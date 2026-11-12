@@ -9,7 +9,12 @@
  * sensors and valves; Sensors, every reading. A switch a thermostat in the
  * room runs goes with it, in Climate. Plain on/off switches sit in Lights as
  * a column of their own, and get a tab of their own only when Lights would be
- * too crowded for them.
+ * too crowded for them. homeCore's own switches (virtual switches, groups,
+ * timers) are what they are: never placed by their names.
+ *
+ * The household may put any device on any tab of its room (`TabChoices`):
+ * that tab takes it over where it would go, and draws what it has no
+ * drawing of its own for as a switch, a timer's clock or a row.
  *
  * The Lights tab is a row of columns, one per lighting system's group: a Hue
  * room or zone (a group device that lists its `light_ids`, or the lights and
@@ -20,6 +25,7 @@
 import { kindOf } from '../card.js';
 import type { CoreDevice, Devices } from '../devices.js';
 import type { Room } from '../house.js';
+import { isHelper } from '../helpers.js';
 import { slugOf } from '../summary.js';
 
 export type TabId =
@@ -65,7 +71,8 @@ const LIGHT_KINDS = new Set(['light', 'dimmer']);
 const SWITCH_KINDS = new Set(['switch', 'outlet', 'virtual_switch', 'plug']);
 const KEYPAD_KINDS = new Set(['keypad', 'vcrx']);
 const OPENER_KINDS = new Set(['cover', 'garage', 'garage_door', 'gate', 'shade', 'blind']);
-const DOOR_KINDS = new Set(['lock', 'contact_sensor', 'door', 'window', ...OPENER_KINDS]);
+const OPENING_KINDS = new Set(['contact_sensor', 'door', 'window', ...OPENER_KINDS]);
+const DOOR_KINDS = new Set(['lock', ...OPENING_KINDS]);
 const SECURITY_KINDS = new Set(['camera', 'siren', 'doorbell']);
 const MEDIA_KINDS = new Set(['media_player', 'tv', 'speaker', 'receiver']);
 const CLIMATE_KINDS = new Set([
@@ -105,6 +112,9 @@ const LEFT_OUT = new Set(['gateway', 'bridge', 'pico_remote', 'remote', 'mode'])
 const OPENS = /\b(garage door|oh door|overhead door|gate)\b/i;
 /** A switch that runs a valve. */
 const VALVE = /\bvalve\b/i;
+/** A plugin's switch named for the valve it runs: shown as the valve. */
+export const runsValve = (d: CoreDevice): boolean =>
+	SWITCH_KINDS.has(kindOf(d)) && !isHelper(d) && VALVE.test(d.name_override ?? d.name);
 /** A switch that powers something you'd set the room's air with. */
 const AIR = /\b(humidifier|dehumidifier|heater|space heater)\b/i;
 
@@ -132,7 +142,8 @@ export function placeOf(d: CoreDevice): Place {
 	if (LEFT_OUT.has(k)) return null;
 	if (isLightGroup(d)) return { tab: 'lights', as: 'group' };
 	if (isLightScene(d)) return { tab: 'lights', as: 'scene' };
-	if (isScene(d)) return OPENS.test(name) ? { tab: 'doors' } : { tab: 'lights', as: 'scene' };
+	if (isScene(d))
+		return OPENS.test(name) && !isHelper(d) ? { tab: 'doors' } : { tab: 'lights', as: 'scene' };
 	if (LIGHT_KINDS.has(k)) return { tab: 'lights', as: 'light' };
 	if (k === 'group')
 		return typeof d.attributes?.brightness_pct === 'number'
@@ -141,6 +152,8 @@ export function placeOf(d: CoreDevice): Place {
 	if (isKeypad(d)) return { tab: 'lights', as: 'keypad' };
 	if (KEYPAD_KINDS.has(k)) return null;
 	if (SWITCH_KINDS.has(k)) {
+		// A virtual switch named "Garage Door" opens nothing; it's a switch.
+		if (isHelper(d)) return { tab: 'switch' };
 		if (OPENS.test(name)) return { tab: 'doors' };
 		if (VALVE.test(name)) return { tab: 'water' };
 		if (AIR.test(name)) return { tab: 'climate' };
@@ -157,6 +170,53 @@ export function placeOf(d: CoreDevice): Place {
 	return { tab: 'sensors' };
 }
 
+// ---- the household's choice of tab ----
+
+/**
+ * The tab the household chose for a device, by device id, in its room
+ * (`HouseDoc.console.tabs`): `{ "switch_auto_garage_door": "doors" }`.
+ */
+export type TabChoices = Record<string, TabId>;
+
+const TAB_IDS = new Set<string>(TABS.map((t) => t.id));
+
+/** The choices as they stand, from a document anyone could have written. */
+export function tabChoicesOf(v: unknown): TabChoices {
+	if (typeof v !== 'object' || v === null || Array.isArray(v)) return {};
+	return Object.fromEntries(
+		Object.entries(v).filter(([id, t]) => id !== '' && typeof t === 'string' && TAB_IDS.has(t))
+	) as TabChoices;
+}
+
+/**
+ * The household's console choices with a device's tab set, or with
+ * `undefined` back to where it goes by itself; nothing left is none.
+ */
+export function withDeviceTab<C extends { tabs?: TabChoices }>(
+	c: C | undefined,
+	id: string,
+	tab: TabId | undefined
+): C | undefined {
+	const { tabs, ...rest } = (c ?? {}) as C;
+	const next = { ...tabChoicesOf(tabs) };
+	if (tab && TAB_IDS.has(tab)) next[id] = tab;
+	else delete next[id];
+	const out = (Object.keys(next).length > 0 ? { ...rest, tabs: next } : rest) as C;
+	return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/**
+ * Where a device the household put on a tab goes: that tab. On Lights, a
+ * light where it would go, anything that dims as a light, and anything else
+ * with the room's switches.
+ */
+function chosenPlace(d: CoreDevice, tab: TabId): Exclude<Place, null> {
+	if (tab !== 'lights') return { tab };
+	const own = placeOf(d);
+	if (own?.tab === 'lights') return own;
+	return dims(d) ? { tab: 'lights', as: 'light' } : { tab: 'switch' };
+}
+
 /** Whether a light is the spotlight of one of these cameras: `<camera>_spotlight`. */
 function spotlightOf(d: CoreDevice, cameras: Set<string>): boolean {
 	const m = /^(.+)_spotlight$/.exec(d.device_id);
@@ -167,7 +227,17 @@ function spotlightOf(d: CoreDevice, cameras: Set<string>): boolean {
 export function opens(d: CoreDevice): boolean {
 	const k = kindOf(d);
 	if (OPENER_KINDS.has(k)) return true;
+	if (isHelper(d)) return false;
 	return (SWITCH_KINDS.has(k) || isScene(d)) && OPENS.test(d.name_override ?? d.name);
+}
+
+/**
+ * Whether a kind of device keeps the house shut, as a header's pills show
+ * it: a lock, or a door, window or cover that opens.
+ */
+export function guards(kind: string): 'lock' | 'door' | undefined {
+	if (kind === 'lock') return 'lock';
+	return OPENING_KINDS.has(kind) ? 'door' : undefined;
 }
 
 // ---- the Lights tab ----
@@ -206,7 +276,7 @@ export interface ConsoleRoom {
 	lights: LightsTab;
 	/** Each tab's devices (Lights' too: every light, switch, keypad and scene in it). */
 	byTab: Record<TabId, CoreDevice[]>;
-	/** For the header: locks, and what opens and closes (doors, windows, covers). */
+	/** For the header: locks, and what opens and closes (doors, windows, covers), on any tab. */
 	locks: CoreDevice[];
 	openings: CoreDevice[];
 	/** The tab shown when none was chosen. */
@@ -383,8 +453,15 @@ export function runByThermostats(devices: CoreDevice[]): Set<string> {
 	return new Set(ids);
 }
 
-/** Sort a room's devices into the console's tabs, for a Lights tab `width` pixels across. */
-export function consoleRoom(devices: CoreDevice[], width = LIGHTS_WIDTH): ConsoleRoom {
+/**
+ * Sort a room's devices into the console's tabs, for a Lights tab `width`
+ * pixels across, with the household's choices of tab (`chosen`).
+ */
+export function consoleRoom(
+	devices: CoreDevice[],
+	width = LIGHTS_WIDTH,
+	chosen: TabChoices = {}
+): ConsoleRoom {
 	const byTab: Record<TabId, CoreDevice[]> = {
 		doors: [],
 		lights: [],
@@ -407,14 +484,17 @@ export function consoleRoom(devices: CoreDevice[], width = LIGHTS_WIDTH): Consol
 			.filter((d) => kindOf(d) === 'camera' || kindOf(d) === 'doorbell')
 			.map((d) => d.device_id)
 	);
+	const placed: CoreDevice[] = [];
 	for (const d of [...devices].sort(byName)) {
-		const p = placeOf(d);
+		const choice = chosen[d.device_id];
+		const p = choice ? chosenPlace(d, choice) : placeOf(d);
 		if (p === null) continue;
-		if (p.tab === 'lights' && p.as === 'light' && spotlightOf(d, cameras)) {
+		placed.push(d);
+		if (!choice && p.tab === 'lights' && p.as === 'light' && spotlightOf(d, cameras)) {
 			byTab.cameras.push(d);
 			continue;
 		}
-		if (p.tab === 'switch' && run.has(d.device_id)) byTab.climate.push(d);
+		if (!choice && p.tab === 'switch' && run.has(d.device_id)) byTab.climate.push(d);
 		else if (p.tab === 'switch') switches.push(d);
 		else if (p.tab === 'lights') {
 			({ light: lights, group: groups, scene: scenes, keypad: keypads })[p.as].push(d);
@@ -452,11 +532,9 @@ export function consoleRoom(devices: CoreDevice[], width = LIGHTS_WIDTH): Consol
 		tabs,
 		lights: tab,
 		byTab,
-		locks: byTab.doors.filter((d) => kindOf(d) === 'lock'),
-		openings: byTab.doors.filter((d) => {
-			const k = kindOf(d);
-			return k === 'contact_sensor' || k === 'door' || k === 'window' || OPENER_KINDS.has(k);
-		}),
+		// Its locks and doors, on whichever tab they are.
+		locks: placed.filter((d) => guards(kindOf(d)) === 'lock'),
+		openings: placed.filter((d) => guards(kindOf(d)) === 'door'),
 		first: tabs[0]?.id
 	};
 }

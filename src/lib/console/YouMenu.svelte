@@ -3,30 +3,38 @@
 	HomeConsole board): their look, their temperature unit, how the
 	console's faders and switches are drawn (shown live, as they choose),
 	whether its sidebar is open, the rest on Me, and signing out. Only
-	theirs, on every screen they sign in to.
+	theirs, on every screen they sign in to; except which room this screen
+	opens on, which is the screen's own (opensOn.ts).
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import Palette from '@lucide/svelte/icons/palette';
 	import Thermometer from '@lucide/svelte/icons/thermometer';
 	import SlidersVertical from '@lucide/svelte/icons/sliders-vertical';
+	import LayoutGrid from '@lucide/svelte/icons/layout-grid';
 	import PanelLeft from '@lucide/svelte/icons/panel-left';
 	import UserRound from '@lucide/svelte/icons/user-round';
+	import DoorOpen from '@lucide/svelte/icons/door-open';
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import { session } from '#lib/me.svelte.js';
 	import { personal } from '#lib/personal.svelte.js';
 	import { household } from '#lib/household.svelte.js';
 	import { houseUnits } from '#lib/houseUnits.svelte.js';
-	import { lookOf, looksOf } from '#lib/layers.js';
+	import { homeRoomOrder, lookOf, looksOf, ref } from '#lib/layers.js';
 	import { units, type TemperatureUnit } from '#lib/units.js';
 	import { roleName } from '#lib/people.js';
+	import { rooms } from '#lib/rooms.svelte.js';
+	import { view } from '#lib/view.svelte.js';
 	import Avatar from '#lib/components/Avatar.svelte';
 	import Fader from './Fader.svelte';
 	import Switch from './Switch.svelte';
+	import { opensOn, setOpensOn } from './opensOn.js';
 	import {
 		FADER_STYLES,
+		SET_LOOKS,
 		SWITCH_STYLES,
 		faderStyle,
+		switchesAs,
 		sidebarOf,
 		switchStyle,
 		withConsole,
@@ -57,11 +65,22 @@
 	const fader = $derived(faderStyle(personal.doc.console, household.doc.console));
 	const sw = $derived(switchStyle(personal.doc.console, household.doc.console));
 	const sidebar = $derived(sidebarOf(personal.doc.console));
+	const together = $derived(switchesAs(personal.doc.console));
 	const choose = (patch: Partial<Record<keyof ConsolePrefs, string | undefined>>) =>
 		void personal.change((d) => withConsole(d, patch));
 	// The sample: one light and one switch, to see the choice as it's made.
 	let level = $state(70);
 	let on = $state(true);
+
+	// ---- which room this screen opens on: the screen's, not the person's ----
+	const order = $derived(
+		homeRoomOrder(rooms.list, (r) => ref.room(r.id), view.changes('home')).shown
+	);
+	let opens = $state(opensOn() ?? '');
+	function openOn(id: string) {
+		opens = id;
+		setOpensOn(id || undefined);
+	}
 
 	async function signOut() {
 		close();
@@ -143,6 +162,12 @@
 </div>
 
 <div class="row">
+	<span class="mic"><LayoutGrid size={15} strokeWidth={1.9} aria-hidden="true" /></span>
+	<span class="mt">Switches and timers as<small>Where they sit together</small></span>
+	{@render seg('Switches and timers as', SET_LOOKS, together, (id) => choose({ switchesAs: id }))}
+</div>
+
+<div class="row">
 	<span class="mic"><PanelLeft size={15} strokeWidth={1.9} aria-hidden="true" /></span>
 	<span class="mt">Sidebar<small>Open, or folded to icons</small></span>
 	{@render seg(
@@ -154,6 +179,17 @@
 		sidebar,
 		(id) => choose({ sidebar: id === 'folded' ? 'folded' : undefined })
 	)}
+</div>
+
+<div class="row">
+	<span class="mic"><DoorOpen size={15} strokeWidth={1.9} aria-hidden="true" /></span>
+	<label class="mt" for="console-opens"
+		>This screen opens on<small>Just this screen, for a wall panel</small></label
+	>
+	<select id="console-opens" value={opens} onchange={(e) => openOn(e.currentTarget.value)}>
+		<option value="">Home</option>
+		{#each order as r (r.id)}<option value={r.id}>{r.name}</option>{/each}
+	</select>
 </div>
 
 <a class="row link" href="/me" onclick={close}>

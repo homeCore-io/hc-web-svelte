@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PersonDoc } from '../layers.js';
-import { faderStyle, sidebarOf, switchStyle, withConsole, withPrefs } from './style.js';
+import { faderStyle, switchesAs, sidebarOf, switchStyle, withConsole, withPrefs } from './style.js';
 
 describe('the console’s controls, as each person sees them', () => {
 	it('draws them Machined and Precision until someone chooses', () => {
@@ -33,6 +33,22 @@ describe('the console’s sidebar', () => {
 		expect(sidebarOf()).toBe('open');
 		expect(sidebarOf({ sidebar: 'folded' })).toBe('folded');
 		expect(sidebarOf({ sidebar: 'sideways' } as never)).toBe('open');
+	});
+});
+
+describe('switches and timers together', () => {
+	it('sit as rows until the person picks tiles', () => {
+		expect(switchesAs()).toBe('rows');
+		expect(switchesAs({ switchesAs: 'tiles' })).toBe('tiles');
+		expect(switchesAs({ switchesAs: 'grid' } as never)).toBe('rows');
+	});
+
+	it('keep tiles as a choice, and rows as none', () => {
+		expect(withPrefs({ fader: 'glass' }, { switchesAs: 'tiles' })).toEqual({
+			fader: 'glass',
+			switchesAs: 'tiles'
+		});
+		expect(withPrefs({ switchesAs: 'tiles' }, { switchesAs: 'rows' })).toBeUndefined();
 	});
 });
 

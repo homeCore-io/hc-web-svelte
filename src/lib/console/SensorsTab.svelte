@@ -8,6 +8,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import type { CoreDevice } from '#lib/devices.js';
+	import { session } from '#lib/me.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { cardFor } from '#lib/card.js';
 	import { batteriesOf } from '#lib/batteries.js';
@@ -16,7 +17,10 @@
 	import { units } from '#lib/units.js';
 	import Col from './Col.svelte';
 	import Row from './Row.svelte';
+	import Place from './Place.svelte';
 	import { fit } from './fit.js';
+	import SwitchSet from './SwitchSet.svelte';
+	import { setsWithSwitches, setTitle } from './switches.js';
 	import { brandOf, shortName } from './room.js';
 	import { between, sensorsTab, type Reading } from './sensors.js';
 
@@ -32,6 +36,9 @@
 	} = $props();
 
 	const tab = $derived(sensorsTab(list));
+	// A switch or timer the household put here sits as it would with the switches.
+	const switched = $derived(tab.watch.filter(setsWithSwitches));
+	const watched = $derived(tab.watch.filter((d) => !switched.includes(d)));
 	const unit = $derived(units().temperature === 'F' ? '°F' : '°C');
 	const batteries = $derived(batteriesOf(all));
 	const nameOf = (d: CoreDevice) => shortName(d.name_override ?? d.name, room);
@@ -94,12 +101,15 @@
 		<Col title="Readings" flex="1 1 400px">
 			<div class="tiles">
 				{#each tab.readings as r (r.device.device_id)}
-					<button type="button" class="tile" onclick={() => open(r.device)}>
-						<span class="tn"
-							><span class="tag">{brandOf(r.device.plugin_id)}</span>{nameOf(r.device)}</span
-						>
-						{@render reading(r, true)}
-					</button>
+					<div class="tw">
+						<button type="button" class="tile" onclick={() => open(r.device)}>
+							<span class="tn"
+								><span class="tag">{brandOf(r.device.plugin_id)}</span>{nameOf(r.device)}</span
+							>
+							{@render reading(r, true)}
+						</button>
+						<Place d={r.device} corner />
+					</div>
 				{/each}
 			</div>
 		</Col>
@@ -110,25 +120,33 @@
 				plugin={r.device.plugin_id}
 				width="calc(200px + 50px * var(--k, 1))"
 				onopen={() => open(r.device)}
+				place={r.device}
 			>
 				{@render reading(r, false)}
 			</Col>
 		{/each}
 	{/if}
 
-	{#if tab.watch.length > 0}
+	{#if watched.length > 0}
 		<Col title="Watching" width="calc(200px + 50px * var(--k, 1))">
 			<div class="list">
-				{#each tab.watch as d (d.device_id)}
+				{#each watched as d (d.device_id)}
 					<Row
 						name={nameOf(d)}
 						sub={brandOf(d.plugin_id)}
 						dot={dotOf(d)}
 						word={card(d).stateLine.split(' · ')[0]}
 						onopen={() => open(d)}
+						place={d}
 					/>
 				{/each}
 			</div>
+		</Col>
+	{/if}
+
+	{#if switched.length > 0}
+		<Col title={setTitle(switched)} width="calc(230px + 60px * var(--k, 1))">
+			<SwitchSet list={switched} {room} may={session.mayUse} />
 		</Col>
 	{/if}
 
@@ -227,7 +245,13 @@
 		grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
 		gap: 10px;
 	}
+	.tw {
+		position: relative;
+		display: flex;
+	}
 	.tile {
+		flex: 1;
+		min-width: 0;
 		display: flex;
 		flex-direction: column;
 		gap: calc(4px + 4px * var(--k, 1));
@@ -250,6 +274,8 @@
 		font-size: 12.5px;
 		font-weight: 700;
 		min-width: 0;
+		/* Clear of its "⋯". */
+		padding-right: 22px;
 	}
 	.tag {
 		flex: none;

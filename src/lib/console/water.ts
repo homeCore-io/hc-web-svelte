@@ -1,24 +1,31 @@
 /**
  * A room's Water tab in the console (the Garage board): its leak sensors,
- * each dry or wet, and the valves that shut its water off.
+ * each dry or wet, and the valves that shut its water off. Anything else the
+ * household put here (a switch, a timer) is drawn as it would be with the switches.
  *
  * Pure: the tab draws what this decides.
  */
 import { kindOf } from '../card.js';
 import type { CoreDevice } from '../devices.js';
+import { runsValve } from './room.js';
 
 const LEAKS = new Set(['water_sensor', 'leak_sensor']);
+const VALVES = new Set(['valve', 'water_valve', 'sprinkler']);
 
 export interface WaterTab {
 	leaks: CoreDevice[];
 	/** Valves, sprinklers and the switches named for a valve. */
 	valves: CoreDevice[];
+	/** Anything else. */
+	other: CoreDevice[];
 }
 
 export function waterTab(devices: CoreDevice[]): WaterTab {
+	const valve = (d: CoreDevice) => VALVES.has(kindOf(d)) || runsValve(d);
 	return {
 		leaks: devices.filter((d) => LEAKS.has(kindOf(d))),
-		valves: devices.filter((d) => !LEAKS.has(kindOf(d)))
+		valves: devices.filter(valve),
+		other: devices.filter((d) => !LEAKS.has(kindOf(d)) && !valve(d))
 	};
 }
 

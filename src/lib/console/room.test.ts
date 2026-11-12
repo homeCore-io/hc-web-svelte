@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CoreDevice } from '../devices.js';
 import type { Room } from '../house.js';
+import type { ConsoleHouse } from './style.js';
 import {
 	brandOf,
 	consoleRoom,
@@ -8,11 +9,14 @@ import {
 	levelOf,
 	levelWant,
 	lightColumns,
+	opens,
 	placeOf,
 	roomSlugOf,
 	layOut,
 	shortName,
-	tabOf
+	tabChoicesOf,
+	tabOf,
+	withDeviceTab
 } from './room.js';
 
 const dev = (
@@ -108,6 +112,117 @@ describe('which tab a device goes in', () => {
 			as: 'keypad'
 		});
 		expect(placeOf(hue('s', 'scene', { group_rid: 'g' }))).toEqual({ tab: 'lights', as: 'scene' });
+	});
+});
+
+describe('homeCore’s own switches', () => {
+	const glue = (id: string, type: string, name: string, attributes = {}) =>
+		dev(id, type, attributes, { name, plugin_id: 'core.glue' });
+
+	it('are switches, never placed by their names', () => {
+		expect(placeOf(glue('a', 'switch', 'Garage Door'))).toEqual({ tab: 'switch' });
+		expect(placeOf(glue('b', 'switch', 'Water Valve'))).toEqual({ tab: 'switch' });
+		expect(placeOf(glue('c', 'switch', 'Space Heater'))).toEqual({ tab: 'switch' });
+		expect(placeOf(glue('d', 'switch', 'Porch Light'))).toEqual({ tab: 'switch' });
+		expect(opens(glue('a', 'switch', 'Garage Door'))).toBe(false);
+		// A plugin's switch is still read by its name.
+		expect(placeOf(dev('e', 'switch', {}, { name: 'Garage Door' }))).toEqual({ tab: 'doors' });
+	});
+
+	it('keep a group with no brightness as a switch, and one with it as a light', () => {
+		expect(placeOf(glue('g', 'group', 'Garage things', { on: false }))).toEqual({ tab: 'switch' });
+		expect(placeOf(glue('h', 'group', 'Den lamps', { on: true, brightness_pct: 40 }))).toEqual({
+			tab: 'lights',
+			as: 'light'
+		});
+	});
+
+	it('sit with the room’s switches and count as no light', () => {
+		const r = consoleRoom([
+			glue('door', 'switch', 'Garage Door', { on: false }),
+			glue('porch', 'switch', 'Porch Light', { on: true }),
+			dev('lamp', 'light', { on: true })
+		]);
+		expect(ids(r.lights.switches)).toEqual(['door', 'porch']);
+		expect(r.byTab.doors).toEqual([]);
+		expect(r.lights.columns.flatMap((c) => ids(c.lights))).toEqual(['lamp']);
+	});
+});
+
+describe('the household’s choice of tab', () => {
+	const glue = (id: string, type: string, name: string, attributes = {}) =>
+		dev(id, type, attributes, { name, plugin_id: 'core.glue' });
+	const room = [
+		glue('switch_auto_garage_door', 'switch', 'Auto Garage Door', { on: false }),
+		glue('timer_garage_close', 'timer', 'Garage Close', { state: 'idle' }),
+		glue('switch_porch_light', 'switch', 'Porch Light', { on: false }),
+		dev('lock', 'lock', { locked: true }),
+		dev('lamp', 'light', { on: true, brightness_pct: 40 })
+	];
+	/** Every tab and part of the Lights tab a device shows in. */
+	const whereIs = (r: ReturnType<typeof consoleRoom>, id: string) => [
+		...Object.entries(r.byTab)
+			.filter(([, list]) => ids(list).includes(id))
+			.map(([t]) => t),
+		...(ids(r.lights.switches).includes(id) ? ['lights.switches'] : []),
+		...(r.lights.columns.some((c) => ids(c.lights).includes(id)) ? ['lights.columns'] : [])
+	];
+
+	it('puts a virtual switch and a timer on Doors, and nowhere else', () => {
+		const r = consoleRoom(room, undefined, {
+			switch_auto_garage_door: 'doors',
+			timer_garage_close: 'doors'
+		});
+		expect(whereIs(r, 'switch_auto_garage_door')).toEqual(['doors']);
+		expect(whereIs(r, 'timer_garage_close')).toEqual(['doors']);
+		expect(ids(r.byTab.doors)).toEqual(['switch_auto_garage_door', 'timer_garage_close', 'lock']);
+		// The rest go where they go by themselves.
+		expect(whereIs(r, 'switch_porch_light')).toEqual(['lights', 'lights.switches']);
+		expect(r.tabs.find((t) => t.id === 'switches')).toBeUndefined();
+	});
+
+	it('without a choice, leaves the switch with the switches and the timer on Switches', () => {
+		const r = consoleRoom(room);
+		expect(whereIs(r, 'switch_auto_garage_door')).toEqual(['lights', 'lights.switches']);
+		expect(whereIs(r, 'timer_garage_close')).toEqual(['switches']);
+	});
+
+	it('puts what dims on Lights as a light, and what doesn’t with its switches', () => {
+		const r = consoleRoom(
+			[
+				dev('fan', 'fan', { on: true, brightness_pct: 50 }),
+				glue('t', 'timer', 'Lights Off', { state: 'idle' }),
+				dev('lamp', 'light', { on: true })
+			],
+			undefined,
+			{ fan: 'lights', t: 'lights' }
+		);
+		expect(whereIs(r, 'fan')).toEqual(['lights', 'lights.columns']);
+		expect(whereIs(r, 't')).toEqual(['lights', 'lights.switches']);
+	});
+
+	it('keeps a lock in the header on whichever tab it is', () => {
+		const r = consoleRoom(room, undefined, { lock: 'switches' });
+		expect(whereIs(r, 'lock')).toEqual(['switches']);
+		expect(ids(r.locks)).toEqual(['lock']);
+	});
+
+	it('reads only tabs it knows from the saved choices', () => {
+		expect(tabChoicesOf({ a: 'doors', b: 'attic', c: 3, '': 'doors' })).toEqual({ a: 'doors' });
+		expect(tabChoicesOf(['doors'])).toEqual({});
+		expect(tabChoicesOf(undefined)).toEqual({});
+	});
+
+	it('sets a device’s tab beside the household’s other console choices, and clears it', () => {
+		const was: ConsoleHouse = { switch: 'keypad', pills: { home: true } };
+		const set = withDeviceTab(was, 'timer_garage_close', 'doors');
+		expect(set).toEqual({
+			switch: 'keypad',
+			pills: { home: true },
+			tabs: { timer_garage_close: 'doors' }
+		});
+		expect(withDeviceTab(set, 'timer_garage_close', undefined)).toEqual(was);
+		expect(withDeviceTab({ tabs: { a: 'doors' } }, 'a', undefined)).toBeUndefined();
 	});
 });
 

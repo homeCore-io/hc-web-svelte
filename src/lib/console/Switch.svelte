@@ -5,6 +5,7 @@
 	the switch role, so it reads as a switch whichever way it's drawn.
 -->
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import type { SwitchStyle } from './style.js';
 
 	let {
@@ -15,7 +16,8 @@
 		named = true,
 		disabled = false,
 		waiting = false,
-		onchange
+		onchange,
+		tag
 	}: {
 		on: boolean;
 		/** The thing's name, and the switch's. */
@@ -29,6 +31,8 @@
 		/** A command is on its way: shown until the device answers. */
 		waiting?: boolean;
 		onchange: (on: boolean) => void;
+		/** Under the name: a room's "moved here" (Moved). */
+		tag?: Snippet;
 	} = $props();
 </script>
 
@@ -46,14 +50,14 @@
 	>
 		<span class="led" aria-hidden="true"></span>
 		<span class="nm"
-			>{label}{#if sub}<small>{sub}</small>{/if}</span
+			><span class="lb">{label}</span>{#if sub}<small>{sub}</small>{/if}{@render tag?.()}</span
 		>
 		<small class="word" aria-hidden="true">{on ? 'On' : 'Off'}</small>
 	</button>
 {:else}
 	<div class="trow" class:waiting>
 		{#if named}<span class="nm" aria-hidden="true"
-				>{label}{#if sub}<small>{sub}</small>{/if}</span
+				><span class="lb">{label}</span>{#if sub}<small>{sub}</small>{/if}{@render tag?.()}</span
 			>{/if}
 		<button
 			type="button"
@@ -126,8 +130,15 @@
 		flex: 1;
 		min-width: 0;
 		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+	}
+	/* A long name takes a second line rather than being cut short. */
+	.lb {
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		overflow: hidden;
+		overflow-wrap: anywhere;
 	}
 	.nm small {
 		display: block;

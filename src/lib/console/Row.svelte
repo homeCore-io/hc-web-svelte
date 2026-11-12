@@ -2,9 +2,13 @@
 	A row of a console list (the Garage board's "Other doors" and "Watching"):
 	a light for its state, the thing's name with where it's from under it,
 	and its state or a button at the end. The name opens the thing's page.
+	In a room, `place` adds its "⋯" (Place), and "moved here" under the name.
 -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import type { CoreDevice } from '#lib/devices.js';
+	import Place from './Place.svelte';
+	import Moved from './Moved.svelte';
 
 	let {
 		name,
@@ -12,6 +16,7 @@
 		dot = 'quiet',
 		word,
 		onopen,
+		place,
 		children
 	}: {
 		name: string;
@@ -21,6 +26,8 @@
 		/** Its state at the end, when there's no button there. */
 		word?: string;
 		onopen?: () => void;
+		/** The device, for its "⋯". */
+		place?: CoreDevice;
 		children?: Snippet;
 	} = $props();
 </script>
@@ -29,13 +36,14 @@
 	<span class="dot {dot}" aria-hidden="true"></span>
 	{#if onopen}
 		<button type="button" class="nm" onclick={onopen}
-			>{name}{#if sub}<small>{sub}</small>{/if}</button
+			>{name}{#if sub}<small>{sub}</small>{/if}{#if place}<Moved d={place} />{/if}</button
 		>
 	{:else}<span class="nm"
-			>{name}{#if sub}<small>{sub}</small>{/if}</span
+			>{name}{#if sub}<small>{sub}</small>{/if}{#if place}<Moved d={place} />{/if}</span
 		>{/if}
 	{#if word}<b class="word {dot}">{word}</b>{/if}
 	{@render children?.()}
+	{#if place}<Place d={place} tag={false} />{/if}
 </div>
 
 <style>
@@ -101,7 +109,8 @@
 		text-overflow: ellipsis;
 	}
 	.word {
-		flex: 0 1 auto;
+		/* The name gives way first: its basis is greedy. */
+		flex: 0 0.2 auto;
 		min-width: 0;
 		overflow: hidden;
 		text-overflow: ellipsis;

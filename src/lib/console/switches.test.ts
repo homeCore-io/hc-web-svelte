@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { CoreDevice } from '../devices.js';
-import { drawOf, flips, PER_COL, switchCols } from './switches.js';
+import {
+	drawOf,
+	flips,
+	partsOf,
+	PER_COL,
+	setsWithSwitches,
+	setTitle,
+	switchCols
+} from './switches.js';
 
 const sw = (name: string, plugin: string, attributes: Record<string, unknown> = { on: false }) =>
 	({
@@ -54,5 +62,38 @@ describe('the Switches tab', () => {
 		expect(drawOf(sw('a', 'p'))).toBeUndefined();
 		expect(flips(sw('a', 'p'))).toBe(true);
 		expect(flips(sw('a', 'p', { remaining: 30 }))).toBe(false);
+	});
+});
+
+describe('switches and timers together', () => {
+	const timer = (name: string) =>
+		({ ...sw(name, 'core.glue', { state: 'idle' }), device_type: 'timer' }) as CoreDevice;
+	const button = { ...sw('Doorbell', 'p', {}), device_type: 'button' } as CoreDevice;
+
+	it('sorts switches, timers and the rest', () => {
+		const p = partsOf([sw('Fan', 'p'), timer('Close'), button]);
+		expect(p.switches.map((d) => d.name)).toEqual(['Fan']);
+		expect(p.timers.map((d) => d.name)).toEqual(['Close']);
+		expect(p.others.map((d) => d.name)).toEqual(['Doorbell']);
+	});
+
+	it('heads a set by what is in it', () => {
+		expect(setTitle([sw('a', 'p'), sw('b', 'p')])).toBe('Switches');
+		expect(setTitle([timer('a')])).toBe('Timer');
+		expect(setTitle([sw('a', 'p'), timer('b')])).toBe('Switches and timers');
+		expect(setTitle([sw('a', 'p'), button])).toBe('Also here');
+	});
+
+	it('titles a system’s column of timers as timers', () => {
+		expect(shape([timer('Close'), timer('Lights')])).toEqual([
+			['Timers', false, ['Close', 'Lights']]
+		]);
+	});
+
+	it('takes a switch or a timer to sit with the switches on another tab, and no sensor', () => {
+		expect(setsWithSwitches(sw('a', 'p'))).toBe(true);
+		expect(setsWithSwitches(timer('t'))).toBe(true);
+		const motion = { ...sw('m', 'p', { on: true }), device_type: 'motion_sensor' } as CoreDevice;
+		expect(setsWithSwitches(motion)).toBe(false);
 	});
 });

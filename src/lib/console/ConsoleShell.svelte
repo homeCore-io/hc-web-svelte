@@ -56,6 +56,10 @@
 	import { sidebarOf, withConsole } from './style.js';
 	import HomePills from './HomePills.svelte';
 	import { camOf, isCamera, seesNow } from './cameras.js';
+	import { commands } from '#lib/commands.svelte.js';
+	import EverywhereStatus from './EverywhereStatus.svelte';
+	import { everyRoom, placesOf, statusOf } from './everywhere.js';
+	import { tabChoicesOf } from './room.js';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -87,14 +91,24 @@
 	);
 	const grouped = $derived(byRoom(devices.byId, rooms.list));
 
-	// The house's Everywhere views: each a page of its own, coming in a later step.
+	// The house's Everywhere views: each a page of its own, with a word on how it is now.
 	const EVERYWHERE = [
 		{ id: 'lights', label: 'Lights', icon: Lightbulb },
 		{ id: 'media', label: 'Media', icon: Music },
 		{ id: 'climate', label: 'Climate', icon: Thermometer },
 		{ id: 'security', label: 'Security', icon: Shield },
 		{ id: 'water', label: 'Water', icon: Droplets }
-	];
+	] as const;
+	const everywhere = $derived(
+		statusOf(
+			placesOf(
+				grouped,
+				everyRoom(roomsInOrder, rooms.list),
+				tabChoicesOf(household.doc.console?.tabs)
+			),
+			commands.pending
+		)
+	);
 
 	// Cameras, where the house has any: a page of their own, lit while one sees something now.
 	const cameras = $derived(Object.values(devices.byId).filter(isCamera));
@@ -233,16 +247,17 @@
 			<span class="sep" aria-hidden="true"></span>
 			<p class="sh">Everywhere</p>
 			{#each EVERYWHERE as v (v.id)}
-				<button
-					type="button"
-					class="si soon"
-					aria-disabled="true"
-					aria-label={`${v.label} everywhere, coming soon`}
-					title={`${v.label} everywhere: coming soon`}
+				{@const s = everywhere[v.id]}
+				<a
+					class="si"
+					href={`/everywhere/${v.id}`}
+					aria-current={pathname === `/everywhere/${v.id}` ? 'page' : undefined}
+					title={s.word ? `${v.label}: ${s.word}` : v.label}
 				>
 					<v.icon size={17} strokeWidth={1.9} aria-hidden="true" />
 					<span class="lbl">{v.label}</span>
-				</button>
+					<EverywhereStatus status={s} />
+				</a>
 			{/each}
 			{#if cameras.length > 0}
 				<a
@@ -564,13 +579,6 @@
 		background: var(--con-here);
 		color: var(--ink);
 		font-weight: 600;
-	}
-	.si.soon {
-		color: var(--ink-muted);
-		cursor: default;
-	}
-	.si.soon:hover {
-		background: transparent;
 	}
 	.lbl {
 		min-width: 0;

@@ -42,6 +42,9 @@
 	import { cardFor } from '#lib/card.js';
 	import { openDevice } from '#lib/popup.js';
 	import Level from './Level.svelte';
+	import SwitchSet from './SwitchSet.svelte';
+	import Place from './Place.svelte';
+	import { setTitle } from './switches.js';
 	import Fader from './Fader.svelte';
 	import type { FaderStyle } from './style.js';
 	import {
@@ -79,7 +82,8 @@
 		audio,
 		audioNote,
 		onstep,
-		onmute
+		onmute,
+		extras = []
 	}: {
 		screens: CoreDevice[];
 		speakers: CoreDevice[];
@@ -94,6 +98,8 @@
 		audioNote: string;
 		onstep: (by: 1 | -1) => void;
 		onmute: () => void;
+		/** What the household put here that plays nothing: a switch, a timer. */
+		extras?: CoreDevice[];
 	} = $props();
 
 	const nameOf = (d: CoreDevice) => playerName(d, room);
@@ -206,6 +212,7 @@
 					>
 					<button type="button" class="ttl" onclick={() => open(d)}>{nameOf(d)}</button>
 					<span class="cn">{d.available ? (on(d) ? 'On' : 'Off') : 'Offline'}</span>
+					<span class="pl"><Place {d} /></span>
 				</div>
 				<div class="tube" class:dark={!on(d) || !d.available}>
 					<span class="big">{s.title}</span>
@@ -399,6 +406,7 @@
 										>{v.level ? (v.muted ? 'mute' : Math.round(v.level.value)) : ''}</span
 									>
 								{/if}
+								<Place {d} />
 							</div>
 							{#if v.level}
 								<Fader
@@ -452,6 +460,13 @@
 			{/if}
 		</section>
 	{/if}
+
+	{#if extras.length > 0}
+		<section class="extras" aria-label={setTitle(extras)}>
+			<h3 class="xh">{setTitle(extras)}</h3>
+			<SwitchSet list={extras} {room} {may} />
+		</section>
+	{/if}
 </div>
 
 <svelte:window bind:innerHeight={viewH} bind:innerWidth={wide} />
@@ -489,6 +504,7 @@
 				>
 				<button type="button" class="who" onclick={() => open(d)}>{nameOf(d)}</button>
 				{#if n.state}<span class="st" class:on={t.playing}>{n.state}</span>{/if}
+				<span class="pl"><Place {d} /></span>
 			</div>
 			<p class="now" title={n.title}>{n.title}</p>
 			{#if n.artist}<p class="by">{n.artist}</p>{/if}
@@ -566,6 +582,15 @@
 {/snippet}
 
 <style>
+	.extras {
+		max-width: 640px;
+	}
+	.xh {
+		margin: 0 0 10px;
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--ink);
+	}
 	.media {
 		container: media / inline-size;
 		display: flex;
@@ -984,6 +1009,11 @@
 		display: flex;
 		flex-direction: column;
 		gap: 3px;
+	}
+	.pl {
+		flex: none;
+		display: flex;
+		margin-left: auto;
 	}
 	.eyebrow {
 		display: flex;

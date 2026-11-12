@@ -3,6 +3,8 @@
  * overhead doors drawn big, each with the opener that moves it; then the
  * other doors and windows, and the locks. Cameras and sirens have a tab of
  * their own (cameras.ts); one that reaches here anyway is listed under Security.
+ * Anything else the household put here (a switch, a timer) is drawn as it
+ * would be with the switches.
  *
  * An opener is often a switch or a keypad's scene named for its door ("OH
  * Door 01", "Garage Door 1"), and its door's state comes from a contact
@@ -34,12 +36,15 @@ export interface DoorsTab {
 	openers: CoreDevice[];
 	/** Cameras, sirens and doorbells. */
 	watch: CoreDevice[];
+	/** Anything else: switches, timers, readings. */
+	other: CoreDevice[];
 }
 
 const nameOf = (d: CoreDevice) => d.name_override ?? d.name;
 const OVERHEAD = /\b(oh\s*\d+|oh\b|overhead|garage\s*door)/i;
 const SENSORS = new Set(['contact_sensor', 'door', 'window']);
 const OWN = new Set(['cover', 'garage', 'garage_door', 'gate', 'shade', 'blind']);
+const WATCH = new Set(['camera', 'siren', 'doorbell']);
 
 /** The door a name numbers: "OH1", "OH Door 01" and "Garage Door 1" are all 1. */
 export function doorNumber(name: string): number | undefined {
@@ -56,7 +61,7 @@ export const doorName = (name: string, room: string): string =>
 
 /** Sort the tab's devices: overhead doors with their openers, then the rest. */
 export function doorsTab(devices: CoreDevice[], room = ''): DoorsTab {
-	const tab: DoorsTab = { big: [], doors: [], locks: [], openers: [], watch: [] };
+	const tab: DoorsTab = { big: [], doors: [], locks: [], openers: [], watch: [], other: [] };
 	const sensors = devices.filter((d) => SENSORS.has(kindOf(d)));
 	const openers = devices.filter((d) => opens(d) && !OWN.has(kindOf(d)));
 	const byNumber = new Map<number, BigDoor>();
@@ -97,7 +102,9 @@ export function doorsTab(devices: CoreDevice[], room = ''): DoorsTab {
 		...tab.doors.map((d) => d.device_id),
 		...tab.locks.map((d) => d.device_id)
 	]);
-	tab.watch = devices.filter((d) => !placed.has(d.device_id) && !OWN.has(kindOf(d)));
+	const rest = devices.filter((d) => !placed.has(d.device_id) && !OWN.has(kindOf(d)));
+	tab.watch = rest.filter((d) => WATCH.has(kindOf(d)));
+	tab.other = rest.filter((d) => !WATCH.has(kindOf(d)));
 	return tab;
 }
 

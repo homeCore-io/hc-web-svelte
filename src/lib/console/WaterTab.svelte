@@ -16,6 +16,8 @@
 	import { shownUnit, toShown } from '#lib/units.js';
 	import Col from './Col.svelte';
 	import { fit } from './fit.js';
+	import SwitchSet from './SwitchSet.svelte';
+	import { setTitle } from './switches.js';
 	import { shortName } from './room.js';
 	import { valveOpen, valveWant, waterTab, wet } from './water.js';
 
@@ -67,6 +69,7 @@
 			alert
 			width="calc(190px + 70px * var(--k, 1))"
 			onopen={() => open(d)}
+			place={d}
 		>
 			<div class="drop">
 				<svg viewBox="0 0 80 100" class:wet={isWet} aria-hidden="true">
@@ -89,6 +92,7 @@
 			alert
 			width="calc(200px + 90px * var(--k, 1))"
 			onopen={() => open(d)}
+			place={d}
 		>
 			<svg class="valve" class:on viewBox="0 0 160 90" aria-hidden="true">
 				<rect class="pipe" x="0" y="34" width="160" height="22" rx="4" />
@@ -114,6 +118,12 @@
 			{/if}
 		</Col>
 	{/each}
+
+	{#if tab.other.length > 0}
+		<Col title={setTitle(tab.other)} grow>
+			<SwitchSet list={tab.other} {room} {may} />
+		</Col>
+	{/if}
 </div>
 
 <style>

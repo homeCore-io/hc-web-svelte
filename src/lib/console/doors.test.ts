@@ -62,6 +62,15 @@ describe('the Doors tab’s parts', () => {
 		expect(ids(tab.watch)).toEqual([cam.device_id]);
 	});
 
+	it('keeps a virtual switch and a timer put here apart from the doors and the cameras', () => {
+		const auto = { ...dev('Auto Garage Door', 'switch', { on: false }), plugin_id: 'core.glue' };
+		const timer = { ...dev('Garage Close', 'timer', { state: 'idle' }), plugin_id: 'core.glue' };
+		const tab = doorsTab([oh1, auto, timer, lock, cam], 'Garage');
+		expect(tab.openers).toEqual([]);
+		expect(ids(tab.watch)).toEqual([cam.device_id]);
+		expect(ids(tab.other)).toEqual([auto.device_id, timer.device_id]);
+	});
+
 	it('draws a cover that reports where it is as its own door', () => {
 		const gd = dev('Shop door', 'garage_door', { open: false });
 		const tab = doorsTab([gd]);

@@ -299,7 +299,7 @@
 						class:on={e.key === eventKey}
 						onclick={() => showEvent(e.key, e.cam)}
 					>
-						<EventShot plugin={c?.device.plugin_id} event={e} />
+						<EventShot plugin={c?.device.plugin_id} path={e.snapshot} />
 						<span class="et"
 							>{kindName(e.kind)} · {nameOf(e.cam)}<small
 								>{at(e.at)} · {agoWord(e.at, clock.now)}</small

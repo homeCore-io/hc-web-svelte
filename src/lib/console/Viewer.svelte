@@ -8,7 +8,7 @@
 	import Maximize from '@lucide/svelte/icons/maximize';
 	import { clock } from '#lib/clock.svelte.js';
 	import Live from './Live.svelte';
-	import { agoWord, fileUrl, kindName, stillsOf, type Cam, type CamEvent } from './cameras.js';
+	import { agoWord, fileUrl, kindName, type Cam, type CamEvent } from './cameras.js';
 	import type { Playing } from './mse.js';
 	import { stills } from './stills.svelte.js';
 
@@ -32,17 +32,15 @@
 
 	let box = $state<HTMLElement>();
 	let playing = $state<Playing>('paused');
-	/** Stills that wouldn't load: the next place is tried. */
-	let gone = $state<Record<string, true>>({});
+	let gone = $state<string | undefined>(undefined);
 
 	const stream = $derived(hd && cam.hd ? cam.hd : cam.stream);
 	const poster = $derived(
 		(cam.stream ? stills.shots[cam.stream]?.url : undefined) ??
 			(cam.snapshot ? fileUrl(cam.device.plugin_id, cam.snapshot) : undefined)
 	);
-	// The app's own copy first, then the plugin's file.
 	const shotUrl = $derived(
-		event ? stillsOf(event, cam.device.plugin_id).find((u) => !gone[u]) : undefined
+		event?.snapshot ? fileUrl(cam.device.plugin_id, event.snapshot) : undefined
 	);
 	const at = (t: number) =>
 		new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -73,12 +71,12 @@
 
 <div class="cv" bind:this={box}>
 	{#if event}
-		{#if shotUrl}
+		{#if shotUrl && gone !== shotUrl}
 			<img
 				class="shot"
 				src={shotUrl}
 				alt={`${kindName(event.kind)} at the ${cam.name}`}
-				onerror={() => (gone = { ...gone, [shotUrl]: true })}
+				onerror={() => (gone = shotUrl)}
 			/>
 		{:else}
 			<p class="none">No still was kept of this one.</p>

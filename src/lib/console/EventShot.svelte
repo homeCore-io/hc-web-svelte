@@ -1,25 +1,22 @@
 <!--
-	An event's still (cameras.ts), 16:9: the app's own copy, kept a week
-	(server/stills.js), else the picture the plugin took as it began, from
-	its files. The plugin keeps only its newest few per camera, so with no
-	copy an older event's may be gone: then it says so.
+	An event's still (cameras.ts): the picture the plugin took as it began,
+	from its files, 16:9. The plugin keeps only its newest few per camera, so
+	an older event's may be gone: then it says so.
 -->
 <script lang="ts">
-	import { stillsOf, type CamEvent } from './cameras.js';
+	import { fileUrl } from './cameras.js';
 
-	let { plugin, event }: { plugin: string | undefined; event: CamEvent } = $props();
+	let { plugin, path }: { plugin: string | undefined; path: string | undefined } = $props();
 
-	const all = $derived(stillsOf(event, plugin));
-	/** Places that wouldn't load: the next is tried. */
-	let gone = $state<Record<string, true>>({});
-	const src = $derived(all.find((u) => !gone[u]));
+	const src = $derived(path ? fileUrl(plugin, path) : undefined);
+	let gone = $state<string | undefined>(undefined);
 </script>
 
 <span class="shot">
-	{#if src}
-		<img {src} alt="" loading="lazy" onerror={() => (gone = { ...gone, [src]: true })} />
+	{#if src && gone !== src}
+		<img {src} alt="" loading="lazy" onerror={() => (gone = src)} />
 	{:else}
-		<small>{all.length > 0 ? 'Still not kept' : 'No still'}</small>
+		<small>{src ? 'Still not kept' : 'No still'}</small>
 	{/if}
 </span>
 

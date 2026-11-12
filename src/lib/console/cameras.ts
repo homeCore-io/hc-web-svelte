@@ -134,24 +134,6 @@ export function fileUrl(plugin: string | undefined, path: string): string {
 		.join('/')}`;
 }
 
-/** A camera's still kept by the app's own server for a week (`server/stills.js`). */
-export const keptUrl = (cam: string, at: number): string =>
-	`/ui/stills/${encodeURIComponent(cam)}/${at}.jpg`;
-
-/**
- * Where an event's still may be, best first: the app's own copy, then the
- * plugin's file (gone once it keeps newer ones). Empty when it had none.
- */
-export function stillsOf(
-	e: Pick<CamEvent, 'cam' | 'kept' | 'snapshot'>,
-	plugin?: string
-): string[] {
-	const out: string[] = [];
-	if (e.kept !== undefined) out.push(keptUrl(e.cam, e.kept));
-	if (e.snapshot) out.push(fileUrl(plugin, e.snapshot));
-	return out;
-}
-
 /** A still of a stream now, from go2rtc through the app's `/video`. */
 export const frameUrl = (stream: string): string =>
 	`/video/api/frame.jpeg?src=${encodeURIComponent(stream)}`;
@@ -258,11 +240,10 @@ export interface HistoryRow {
 	value: unknown;
 }
 
-/** One camera's history for the day: each kind's values, its stills, and when the app kept its own copies. */
+/** One camera's history for the day: each kind's values, and its stills. */
 export interface CamHistory {
 	kinds: Partial<Record<EventKind, HistoryRow[]>>;
 	snapshots: HistoryRow[];
-	kept?: number[];
 }
 
 export interface CamEvent {
@@ -275,8 +256,6 @@ export interface CamEvent {
 	end?: number;
 	/** The still taken as it started, in the plugin's files. */
 	snapshot?: string;
-	/** When the app's own copy of its still was taken (ms), if it kept one. */
-	kept?: number;
 }
 
 /** Sightings of the same kind closer together than this are one event. */
@@ -323,13 +302,10 @@ export function eventsOf(cam: string, h: CamHistory, merge = MERGE_MS): CamEvent
 			}
 		}
 	}
-	const kept = [...(h.kept ?? [])].filter(Number.isFinite).sort((a, b) => a - b);
 	const near = (e: CamEvent, t: number) => t >= e.at - SNAP_BEFORE_MS && t <= e.at + SNAP_AFTER_MS;
 	for (const e of out) {
 		const s = snaps.find((x) => near(e, x.at));
 		if (s) e.snapshot = s.path;
-		const k = kept.find((t) => near(e, t));
-		if (k !== undefined) e.kept = k;
 	}
 	return out.sort((a, b) => b.at - a.at);
 }

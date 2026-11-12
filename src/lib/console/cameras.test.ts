@@ -11,7 +11,6 @@ import {
 	cardsAcross,
 	eventsOf,
 	gridOf,
-	keptUrl,
 	pageOf,
 	pickedOf,
 	pillPrefsOf,
@@ -21,7 +20,6 @@ import {
 	railWidth,
 	roomLayoutOf,
 	seesNow,
-	stillsOf,
 	wallSplit,
 	withHousePills,
 	withPillPrefs,
@@ -230,35 +228,6 @@ describe('the day’s events', () => {
 		expect(events[2]!.end).toBe(Date.parse(t('00:40')));
 		expect(events[1]!.end).toBeUndefined();
 		expect(events[0]!.key).toBe(`cam:person:${Date.parse(t('05:00'))}`);
-	});
-
-	it('shows the app’s own copy of a still first, then the plugin’s file', () => {
-		const at = Date.parse(t('00:00'));
-		const events = eventsOf('cam', {
-			kinds: {
-				person: [
-					{ at: t('00:00'), value: true },
-					{ at: t('00:10'), value: false },
-					{ at: t('09:00'), value: true }
-				],
-				animal: [{ at: t('20:00'), value: true }]
-			},
-			// The plugin's newest few: the first event's is gone from its files.
-			snapshots: [{ at: t('09:01'), value: 'snap/cam-9.jpg' }],
-			kept: [at + 900, Date.parse(t('09:01')), Date.parse(t('15:00'))]
-		});
-		const [animal, late, early] = events;
-		expect(early!.kept).toBe(at + 900);
-		expect(early!.snapshot).toBeUndefined();
-		expect(stillsOf(early!, 'hc-reolink')).toEqual([`/ui/stills/cam/${at + 900}.jpg`]);
-		expect(stillsOf(late!, 'hc-reolink')).toEqual([
-			keptUrl('cam', Date.parse(t('09:01'))),
-			'/api/v1/plugins/hc-reolink/files/snap/cam-9.jpg'
-		]);
-		// A copy from far off is another event's.
-		expect(animal!.kept).toBeUndefined();
-		expect(stillsOf(animal!, 'hc-reolink')).toEqual([]);
-		expect(keptUrl('a b', 5)).toBe('/ui/stills/a%20b/5.jpg');
 	});
 
 	it('merges cameras newest first, kept to the kinds asked for', () => {

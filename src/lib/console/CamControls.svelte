@@ -1,6 +1,7 @@
 <!--
 	What a camera does (the boards' controls): its spotlight as a switch in
-	the person's style, its siren, which always asks first, and where it can
+	the person's style, its siren, which always asks before it sounds and
+	stops at once, and where it can
 	turn, a pan and tilt pad with zoom and its saved positions. Each part
 	shows only when the camera has it. Every send goes through `commands`.
 -->
@@ -35,6 +36,10 @@
 	const spotOn = $derived(
 		spot ? { ...spot.attributes, ...commands.pending[spot.device_id]?.want }.on === true : false
 	);
+	/** Sounding, as the camera's plugin says, or as asked a moment ago. */
+	const sounding = $derived(
+		siren ? { ...siren.attributes, ...commands.pending[siren.device_id]?.want }.on === true : false
+	);
 	const note = $derived(
 		[cam.id, spot?.device_id, siren?.device_id]
 			.map((id) => (id ? commands.notes[id] : undefined))
@@ -50,16 +55,18 @@
 		if (!siren || !may) return;
 		const yes = await ask({
 			title: `Sound the ${cam.name} siren?`,
-			body: 'It’s loud, and everyone near the camera hears it.',
+			body: 'It’s loud, and everyone near the camera hears it. It sounds until you stop it, and stops on its own after a time limit.',
 			go: 'Sound it',
 			stay: 'Not now',
 			danger: true
 		});
 		if (!yes) return;
-		if (siren.schema?.actions?.some((a) => a.id === 'sound'))
-			void commands.act(siren.device_id, 'sound');
-		else void commands.set(siren.device_id, 'siren', { on: true }, siren.attributes);
+		void commands.set(siren.device_id, 'siren', { on: true }, siren.attributes);
 	}
+	/** Stopping never asks. */
+	const stop = () => {
+		if (siren && may) void commands.set(siren.device_id, 'siren', { on: false }, siren.attributes);
+	};
 	const turn = (direction: string) => {
 		if (may) void commands.act(cam.id, 'ptz_move', { direction, duration_ms: 400 });
 	};
@@ -86,9 +93,18 @@
 				/>
 			{/if}
 			{#if siren}
-				<button type="button" class="siren" disabled={!may || !siren.available} onclick={sound}
-					>Sound the siren…</button
-				>
+				{#if sounding}
+					<button
+						type="button"
+						class="siren loud"
+						disabled={!may || !siren.available}
+						onclick={stop}>Stop the siren</button
+					>
+				{:else}
+					<button type="button" class="siren" disabled={!may || !siren.available} onclick={sound}
+						>Sound the siren…</button
+					>
+				{/if}
 			{/if}
 			{#if note}<span class="note bad" role="status">{note}</span>{/if}
 		</div>
@@ -198,6 +214,15 @@
 	}
 	.siren:hover:not(:disabled) {
 		background: rgba(255, 107, 91, 0.24);
+	}
+	/* Sounding: a solid stop that's hard to miss. */
+	.siren.loud {
+		background: #ff6b5b;
+		color: #1a0605;
+		box-shadow: 0 0 18px rgba(255, 107, 91, 0.55);
+	}
+	.siren.loud:hover:not(:disabled) {
+		background: #ff8475;
 	}
 	.siren:disabled {
 		cursor: default;

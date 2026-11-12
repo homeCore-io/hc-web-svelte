@@ -2,13 +2,15 @@
  * A room's layout in the console, as Customize arranges it (the
  * CustomizeConsole board): its favorites, its tabs' order, which are hidden
  * and which one it opens on, the Lights tab's columns and the lights hidden
- * from it, its picture and which header pills show.
+ * from it, its picture and which header pills show. A photo's light spots,
+ * and the devices a drawing's spots show where the household fixed them by
+ * hand, go with the picture.
  *
  * Two layers, the same shape: the household's (`HouseDoc.console.rooms`,
  * for people who may change the house's content) and each person's own
  * (`PersonDoc.console.rooms`). Each choice is the person's, else the
- * household's, else the room's own default. The picture and the pills are
- * the household's alone.
+ * household's, else the room's own default. The picture, its spots and the
+ * pills are the household's alone.
  *
  * A person's favorites are their stars (`PersonDoc.favourites`), the same
  * list Home shows: in a room, those in it. They show where the household
@@ -20,14 +22,35 @@
  */
 import { TABS, type LightsTab, type TabId } from './room.js';
 
-/** How a room's header is drawn: its drawing, or plain. A photo comes later. */
-export type PictureChoice = 'drawn' | 'plain';
+/**
+ * How a room's header is drawn: its drawing, the household's photo of it
+ * (`HouseDoc.photos`, kept by the app server's pictures library), or plain.
+ */
+export type PictureChoice = 'drawn' | 'photo' | 'plain';
 
-export const PICTURE_CHOICES: readonly { id: PictureChoice | 'photo'; name: string }[] = [
+export const PICTURE_CHOICES: readonly { id: PictureChoice; name: string }[] = [
 	{ id: 'drawn', name: 'Drawn' },
 	{ id: 'photo', name: 'Photo' },
 	{ id: 'plain', name: 'Plain' }
 ];
+
+/** How far a spot's glow reaches on a photo. */
+export type GlowSize = 's' | 'm' | 'l';
+
+/**
+ * A light spot on a room's photo: where it sits, in percent across and down,
+ * the device that makes it glow, and how far the glow reaches (`m` unsaid).
+ * One with no device never glows.
+ */
+export interface PhotoSpot {
+	x: number;
+	y: number;
+	device?: string;
+	size?: GlowSize;
+}
+
+/** The most spots a photo keeps. */
+export const MAX_SPOTS = 24;
 
 export interface RoomLayout {
 	/** The household's favorites for the room, as refs, in order. */
@@ -46,6 +69,13 @@ export interface RoomLayout {
 	off?: string[];
 	/** The household's: how the header is drawn. */
 	picture?: PictureChoice;
+	/** The household's: the photo's light spots. Unsaid, they're seeded from the drawing's (photo.ts). */
+	spots?: PhotoSpot[];
+	/**
+	 * The household's: the device a drawing's spot shows, by the spot's id,
+	 * over the one its name matched; `''` for none.
+	 */
+	links?: Record<string, string>;
 	/** The household's: locks and doors whose pill the header leaves out, by device id. */
 	pillsOff?: string[];
 }
@@ -54,6 +84,38 @@ export type RoomLayouts = Record<string, RoomLayout>;
 
 const TAB_IDS = new Set<string>(TABS.map((t) => t.id));
 const isTab = (v: unknown): v is TabId => typeof v === 'string' && TAB_IDS.has(v);
+const isObject = (v: unknown): v is Record<string, unknown> =>
+	typeof v === 'object' && v !== null && !Array.isArray(v);
+/** A percentage, to a tenth, kept on the photo. */
+const pct = (v: unknown): number | undefined =>
+	typeof v === 'number' && Number.isFinite(v)
+		? Math.round(Math.min(100, Math.max(0, v)) * 10) / 10
+		: undefined;
+
+/** A photo's spots as a document has them: those with a place, the rest left out. */
+function spotsOf(v: unknown): PhotoSpot[] | undefined {
+	if (!Array.isArray(v)) return undefined;
+	const out: PhotoSpot[] = [];
+	for (const o of v.filter(isObject).slice(0, MAX_SPOTS)) {
+		const x = pct(o.x);
+		const y = pct(o.y);
+		if (x === undefined || y === undefined) continue;
+		const spot: PhotoSpot = { x, y };
+		if (typeof o.device === 'string' && o.device !== '') spot.device = o.device;
+		if (o.size === 's' || o.size === 'l') spot.size = o.size;
+		out.push(spot);
+	}
+	return out;
+}
+
+const SPOT_ID = /^[A-Za-z0-9]{1,16}$/;
+function linksOf(v: unknown): Record<string, string> | undefined {
+	if (!isObject(v)) return undefined;
+	const out: Record<string, string> = {};
+	for (const [k, d] of Object.entries(v)) if (SPOT_ID.test(k) && typeof d === 'string') out[k] = d;
+	return Object.keys(out).length > 0 ? out : undefined;
+}
+
 const strings = (v: unknown): string[] | undefined =>
 	Array.isArray(v)
 		? [...new Set(v.filter((x): x is string => typeof x === 'string' && x !== ''))]
@@ -76,7 +138,13 @@ export function layoutOf(v: unknown): RoomLayout {
 	if (columns?.length) out.columns = columns;
 	const off = strings(o.off);
 	if (off?.length) out.off = off;
-	if (o.picture === 'drawn' || o.picture === 'plain') out.picture = o.picture;
+	if (o.picture === 'drawn' || o.picture === 'photo' || o.picture === 'plain')
+		out.picture = o.picture;
+	// An empty list is kept: every spot taken off is a choice, not the seeded ones.
+	const spots = spotsOf(o.spots);
+	if (spots) out.spots = spots;
+	const links = linksOf(o.links);
+	if (links) out.links = links;
 	const pillsOff = strings(o.pillsOff);
 	if (pillsOff?.length) out.pillsOff = pillsOff;
 	return out;
@@ -130,6 +198,8 @@ export interface Resolved {
 	columns?: string[];
 	off: string[];
 	picture: PictureChoice;
+	spots?: PhotoSpot[];
+	links: Record<string, string>;
 	pillsOff: string[];
 }
 
@@ -153,6 +223,8 @@ export function resolve(
 		columns: m.columns ?? house.columns,
 		off: m.off ?? house.off ?? [],
 		picture: house.picture ?? 'drawn',
+		spots: house.spots,
+		links: house.links ?? {},
 		pillsOff: house.pillsOff ?? []
 	};
 }

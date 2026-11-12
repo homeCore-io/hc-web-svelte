@@ -52,6 +52,8 @@
 	import RoomPicture from './RoomPicture.svelte';
 	import HomePills from './HomePills.svelte';
 	import { anyLit, roomPicture } from './pictures.js';
+	import RoomPhoto from './RoomPhoto.svelte';
+	import { photoGlow, photoLit, photoSpots } from './photo.js';
 	import { roomIn } from './layout.js';
 	import { household } from '#lib/household.svelte.js';
 	import { devicesIn, levelOf } from './room.js';
@@ -118,16 +120,23 @@
 				devices.byId,
 				kindOptions.of('home', 'room', ref.room(room.id), ROOM_BUILT_IN)
 			);
-			const lit = roomPicture(room.name, list, clock.now, wants);
-			// The household may have chosen the room plain, with no drawing (layout.ts).
-			const plain = roomIn(household.doc.console?.rooms, room.id).picture === 'plain';
+			const lay = roomIn(household.doc.console?.rooms, room.id);
+			const lit = roomPicture(room.name, list, clock.now, wants, lay.links);
+			// The household may have chosen the room plain, with no drawing, or its photo (layout.ts).
+			const plain = lay.picture === 'plain';
+			const photo = lay.picture === 'photo' ? household.photoOf(room.id) : undefined;
+			const glow = photo
+				? photoGlow(photoSpots(lay.spots, lit.picture, lit.spots), devices.byId, clock.now, wants)
+				: [];
 			return {
 				room,
 				list,
 				cards,
 				...tileOf(room, list, cards, box, lit.lamps, wants),
 				...lit,
-				plain
+				plain,
+				photo,
+				glow
 			};
 		})
 	);
@@ -329,8 +338,18 @@
 					href={`/rooms/${t.room.id}`}
 					aria-label={`${t.room.name}, ${[t.temp, t.status].filter(Boolean).join(', ')}`}
 				>
-					{#if !t.plain}<RoomPicture picture={t.picture} g={t.g} />{/if}
-					<span class="tdim" class:off={!anyLit(t.picture, t.g)} aria-hidden="true"></span>
+					{#if t.photo}<RoomPhoto
+							src={t.photo.src}
+							focus={t.photo.focus}
+							glow={t.glow}
+							size="tile"
+							shade={false}
+						/>{:else if !t.plain}<RoomPicture picture={t.picture} g={t.g} />{/if}
+					<span
+						class="tdim"
+						class:off={t.photo ? !photoLit(t.glow) : !anyLit(t.picture, t.g)}
+						aria-hidden="true"
+					></span>
 					<span class="tshade" aria-hidden="true"></span>
 					<span class="tinfo"><b>{t.room.name}</b><small>{t.status}</small></span>
 					{#if t.temp}<span class="ttemp">{t.temp}</span>{/if}

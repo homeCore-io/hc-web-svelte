@@ -6,6 +6,12 @@
 	hide. Down the side, the room's audio device, its picture, its header
 	pills and the person's own controls.
 
+	A room's photo (the PhotoAvatar board) comes from the pictures library,
+	kept by the app server and never by homeCore. Its light spots show on it
+	numbered: pick one in the list or on the photo, then click the photo to
+	move it, or nudge it with the arrow keys. The same device choice fixes a
+	drawing's spots by hand.
+
 	A bar across the top says whose layout changes: "Just me" (the person's
 	own layer) or "Everyone" (the household's, for people who may change the
 	house's content). Every change can be undone until Done, and each layer
@@ -26,6 +32,8 @@
 	import EyeOff from '@lucide/svelte/icons/eye-off';
 	import X from '@lucide/svelte/icons/x';
 	import Plus from '@lucide/svelte/icons/plus';
+	import PicturePicker from '#lib/components/PicturePicker.svelte';
+	import { sized } from '#lib/pictures.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { personal } from '#lib/personal.svelte.js';
@@ -38,7 +46,9 @@
 	import { moved, reorder, type Reorder } from '#lib/reorder.js';
 	import Icon from '#lib/components/Icon.svelte';
 	import RoomPicture from './RoomPicture.svelte';
-	import { roomPicture } from './pictures.js';
+	import RoomPhoto from './RoomPhoto.svelte';
+	import { fits, PICTURES, roomPicture } from './pictures.js';
+	import { GLOW_SIZES, kindFor, nudgeSpot, photoGlow, photoSpots } from './photo.js';
 	import { audioChoices, roomAudioOf, withRoomAudio } from './media.js';
 	import { KINDS, pillPrefsOf, withHousePills, type EventKind } from './cameras.js';
 	import {
@@ -55,12 +65,14 @@
 		flipped,
 		nudged,
 		ordered,
+		MAX_SPOTS,
 		PICTURE_CHOICES,
 		resolve,
 		roomIn,
 		withoutRoom,
 		withRoomLayout,
 		withRoomStars,
+		type PhotoSpot,
 		type RoomLayout,
 		type RoomLayouts
 	} from './layout.js';
@@ -82,7 +94,6 @@
 	const list = $derived(room ? devicesIn(devices.byId, room) : []);
 	// Everything in the room, hidden lights too, so they can be shown again.
 	const full = $derived(consoleRoom(list, LIGHTS_WIDTH, tabChoicesOf(household.doc.console?.tabs)));
-	const lit = $derived(roomPicture(name, list, clock.now));
 	const short = (d: CoreDevice) => shortName(d.name_override ?? d.name, name);
 	/** As the header's pill names it: "Door", not "Door Sensor". */
 	const pillName = (d: CoreDevice) =>
@@ -98,9 +109,10 @@
 	const stars = $derived((personal.doc.favourites ?? []).filter((r) => inRoom.has(r)));
 	// What the layer being changed shows: the household's alone, or the person's over it.
 	const view = $derived(resolve(forAll ? undefined : mine, house, stars));
+	const lit = $derived(roomPicture(name, list, clock.now, undefined, view.links));
 
 	// ---- every change can be undone: what it changed, as it was ----
-	type HouseSnap = Pick<HouseDoc, 'console' | 'roomAudio'>;
+	type HouseSnap = Pick<HouseDoc, 'console' | 'roomAudio' | 'photos'>;
 	type MeSnap = Pick<PersonDoc, 'console' | 'favourites' | 'roomAudio'>;
 	type Step = { house: HouseSnap } | { me: MeSnap };
 	let history = $state<Step[]>([]);
@@ -114,7 +126,7 @@
 	};
 	function toHouse(edit: (d: HouseDoc) => HouseDoc) {
 		const d = $state.snapshot(household.doc) as HouseDoc;
-		history.push({ house: { console: d.console, roomAudio: d.roomAudio } });
+		history.push({ house: { console: d.console, roomAudio: d.roomAudio, photos: d.photos } });
 		void household.change(edit);
 	}
 	function toMe(edit: (d: PersonDoc) => PersonDoc) {
@@ -314,6 +326,102 @@
 				: 'The household chooses this for everyone.'
 	);
 
+	// ---- the room's photo (photo.ts): the household's ----
+	const photo = $derived(household.photoOf(id));
+	const showPhoto = $derived(view.picture === 'photo' && photo !== undefined);
+	let choosingPhoto = $state(false);
+	/** A photo picked: the room's from now on, shown. */
+	function setPhoto(p: { url: string; focus?: number; dim?: number } | null) {
+		toHouse((d) => {
+			const { [id]: _was, ...rest } = d.photos ?? {};
+			const photos = p ? { ...rest, [id]: { src: p.url, focus: p.focus, dim: p.dim } } : rest;
+			const { photos: _all, ...doc } = d;
+			return withConsoleOf(
+				Object.keys(photos).length > 0 ? { ...doc, photos } : doc,
+				withRoomLayout(d.console, id, { picture: p ? 'photo' : undefined })
+			);
+		});
+	}
+	function pickPicture(v: string) {
+		if (v === 'photo' && !photo) choosingPhoto = true;
+		else setLayout({ picture: v === 'drawn' ? undefined : v });
+	}
+
+	// Its spots: the household's, else seeded from the drawing's.
+	const spots = $derived(photoSpots(view.spots, lit.picture, lit.spots));
+	let preview = $state<'live' | 'off'>('live');
+	const glow = $derived(
+		photoGlow(spots, devices.byId, clock.now).map((g) =>
+			preview === 'off' ? { ...g, opacity: 0, lit: false } : g
+		)
+	);
+	let sel = $state(0);
+	const at = $derived(Math.min(sel, Math.max(0, spots.length - 1)));
+	const spot = $derived(spots[at]);
+	const setSpots = (next: PhotoSpot[]) => setLayout({ spots: next });
+	const changeSpot = (patch: Partial<PhotoSpot>) =>
+		setSpots(spots.map((s, i) => (i === at ? { ...s, ...patch } : s)));
+	// What a spot can show: the room's lights, screens, fans, doors, locks and heaters.
+	const glowers = $derived(
+		list
+			.filter((d) => kindFor(d) !== undefined)
+			.sort((a, b) => short(a).localeCompare(short(b), undefined, { numeric: true }))
+	);
+	const deviceOf = (s: PhotoSpot | undefined) =>
+		s?.device ? here.get(ref.device(s.device)) : undefined;
+	function spotNote(s: PhotoSpot): { text: string; warn: boolean } {
+		if (!s.device) return { text: 'Pick a device, or it never glows', warn: true };
+		const d = deviceOf(s);
+		if (!d) return { text: 'Not in the room any more', warn: true };
+		return { text: `${kindWord(d)} · ${cardFor(d, clock.now).stateLine}`, warn: false };
+	}
+	function addSpot() {
+		if (spots.length >= MAX_SPOTS) return;
+		setSpots([...spots, { x: 50, y: 50 }]);
+		sel = spots.length;
+	}
+	function removeSpot() {
+		setSpots(spots.filter((_, i) => i !== at));
+		sel = Math.max(0, at - 1);
+	}
+	let photoBox = $state<HTMLElement>();
+	/** A click on the photo moves the spot picked to it. */
+	function placeAt(e: MouseEvent) {
+		if (!photoBox || !spot) return;
+		const r = photoBox.getBoundingClientRect();
+		const x = Math.round(((e.clientX - r.left) / r.width) * 1000) / 10;
+		const y = Math.round(((e.clientY - r.top) / r.height) * 1000) / 10;
+		changeSpot(nudgeSpot({ ...spot, x, y }, 0, 0));
+	}
+	const STEP: Record<string, [number, number]> = {
+		ArrowLeft: [-1, 0],
+		ArrowRight: [1, 0],
+		ArrowUp: [0, -1],
+		ArrowDown: [0, 1]
+	};
+	/** The arrow keys on a spot nudge it, further with Shift. */
+	function nudgeKey(e: KeyboardEvent, i: number) {
+		const step = STEP[e.key];
+		if (!step) return;
+		e.preventDefault();
+		const by = e.shiftKey ? 5 : 1;
+		sel = i;
+		setSpots(spots.map((s, j) => (j === i ? nudgeSpot(s, step[0] * by, step[1] * by) : s)));
+	}
+	// The photo's own shape, so the editor shows it whole.
+	let ratio = $state(16 / 9);
+
+	// ---- a drawing's spots, fixed by hand ----
+	const drawnSpots = $derived(PICTURES[lit.picture].spots);
+	const linkValue = (spotId: string) =>
+		spotId in view.links ? view.links[spotId] || 'none' : 'auto';
+	function link(spotId: string, v: string) {
+		const { [spotId]: _was, ...rest } = view.links;
+		setLayout({ links: v === 'auto' ? rest : { ...rest, [spotId]: v === 'none' ? '' : v } });
+	}
+	const matched = (spotId: string) =>
+		(lit.spots.get(spotId) ?? []).map(short).join(', ') || 'nothing';
+
 	// ---- the person's own controls ----
 	const fader = $derived(faderStyle(personal.doc.console, household.doc.console));
 	const sw = $derived(switchStyle(personal.doc.console, household.doc.console));
@@ -410,7 +518,11 @@
 	<div class="czbody">
 		<main class="stage">
 			<section class="hero zone" aria-label="Room picture">
-				{#if view.picture === 'drawn'}<RoomPicture picture={lit.picture} g={lit.g} />{/if}
+				{#if showPhoto && photo}<RoomPhoto
+						src={photo.src}
+						focus={photo.focus}
+						{glow}
+					/>{:else if view.picture !== 'plain'}<RoomPicture picture={lit.picture} g={lit.g} />{/if}
 				<div class="band" aria-hidden="true"></div>
 				<span class="ztag">Picture · {view.picture}</span>
 				<div class="hc">
@@ -422,6 +534,68 @@
 					</div>
 				</div>
 			</section>
+
+			{#if showPhoto && photo && forAll}
+				<section class="zone" aria-label="The photo’s light spots">
+					<span class="ztag">Photo · light spots</span>
+					<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+					<div
+						class="ped"
+						bind:this={photoBox}
+						style:aspect-ratio={ratio}
+						style:max-width={`${Math.round(340 * ratio)}px`}
+						onclick={placeAt}
+					>
+						<img
+							src={sized(photo.src, 'screen')}
+							alt=""
+							onload={(e) => {
+								const i = e.currentTarget as HTMLImageElement;
+								ratio = i.naturalWidth / i.naturalHeight || ratio;
+							}}
+						/>
+						<RoomPhoto src={photo.src} focus={4} {glow} />
+						{#each spots as p, i (i)}
+							{@const d = deviceOf(p)}
+							<button
+								type="button"
+								class="spot"
+								class:sel={i === at}
+								class:warn={!d}
+								style:left={`${p.x}%`}
+								style:top={`${p.y}%`}
+								aria-label={`Spot ${i + 1}: ${d ? short(d) : 'no device'}. Arrow keys move it.`}
+								aria-pressed={i === at}
+								onclick={(e) => {
+									e.stopPropagation();
+									sel = i;
+								}}
+								onkeydown={(e) => nudgeKey(e, i)}>{i + 1}</button
+							>
+							<span class="slbl" style:left={`${p.x}%`} style:top={`${p.y}%`}
+								>{d ? short(d) : 'No device'}</span
+							>
+						{/each}
+					</div>
+					<div class="pfoot">
+						<p class="znote">
+							{view.spots
+								? 'Pick a spot, then click the photo to move it.'
+								: 'Spots were first placed from the drawing. Move any that sit wrong on your photo.'}
+						</p>
+						<span class="pv">Preview</span>
+						{@render seg(
+							'Preview',
+							[
+								{ id: 'live', name: 'As the lights are' },
+								{ id: 'off', name: 'All off' }
+							],
+							preview,
+							(v) => (preview = v as 'live' | 'off')
+						)}
+					</div>
+				</section>
+			{/if}
 
 			<div class="zone favs" role="group" aria-label="Favorites, being arranged">
 				<span class="ztag">Favorites · drag to reorder</span>
@@ -612,20 +786,100 @@
 							type="button"
 							role="radio"
 							aria-checked={view.picture === o.id}
-							disabled={!forAll || o.id === 'photo'}
-							title={o.id === 'photo' ? 'Coming soon' : undefined}
-							onclick={() => setLayout({ picture: o.id === 'drawn' ? undefined : o.id })}
-							>{o.name}{#if o.id === 'photo'}<small>coming soon</small>{/if}</button
+							disabled={!forAll}
+							onclick={() => pickPicture(o.id)}>{o.name}</button
 						>
 					{/each}
 				</div>
+				{#if forAll && (photo || view.picture === 'photo')}
+					<div class="btns">
+						<button type="button" class="tbtn" onclick={() => (choosingPhoto = true)}
+							>{photo ? 'Replace photo…' : 'Choose a photo…'}</button
+						>
+						{#if photo}<button type="button" class="tbtn" onclick={() => setPhoto(null)}
+								>Remove photo</button
+							>{/if}
+					</div>
+				{/if}
 				<p class="note">
 					{onlyAll ??
-						(view.picture === 'drawn'
-							? 'A drawing of the room that lights up with its lights.'
-							: 'Just the room’s name and status, no picture.')}
+						(view.picture === 'photo'
+							? 'A wide photo works best. It fills the room’s header and Home tile, cropped to fit.'
+							: view.picture === 'drawn'
+								? 'A drawing of the room that lights up with its lights.'
+								: 'Just the room’s name and status, no picture.')}
 				</p>
 			</div>
+
+			{#if forAll && showPhoto}
+				<div class="sec">
+					<div class="trow">
+						<p class="sh nm">LIGHT SPOTS</p>
+						<button
+							type="button"
+							class="tbtn"
+							disabled={spots.length >= MAX_SPOTS}
+							onclick={addSpot}>Add a spot</button
+						>
+					</div>
+					<p class="note">Each spot glows when its device is on.</p>
+					<div class="spots" role="listbox" aria-label="Light spots">
+						{#each spots as p, i (i)}
+							{@const n = spotNote(p)}
+							{@const d = deviceOf(p)}
+							<button
+								type="button"
+								role="option"
+								class="srow"
+								aria-selected={i === at}
+								onclick={() => (sel = i)}
+								><span class="sn" class:warn={n.warn}>{i + 1}</span><span class="nm"
+									>{d ? short(d) : 'No device'}<small class:warn={n.warn}>{n.text}</small></span
+								></button
+							>
+						{/each}
+					</div>
+					{#if spot}
+						<label class="via"
+							><small>Spot {at + 1}: device</small>
+							<select
+								value={spot.device ?? ''}
+								onchange={(e) => changeSpot({ device: e.currentTarget.value || undefined })}
+							>
+								<option value="">No device</option>
+								{#each glowers as d (d.device_id)}
+									<option value={d.device_id}>{short(d)} · {kindWord(d)}</option>
+								{/each}
+							</select></label
+						>
+						<p class="note">Glow</p>
+						{@render seg('Glow size', GLOW_SIZES, spot.size ?? 'm', (v) =>
+							changeSpot({ size: v === 'm' ? undefined : (v as 's' | 'l') })
+						)}
+						<button type="button" class="tbtn ghost" onclick={removeSpot}>Remove spot</button>
+					{/if}
+				</div>
+			{:else if forAll && view.picture !== 'plain'}
+				<div class="sec">
+					<p class="sh">DRAWING SPOTS <span class="scope">everyone</span></p>
+					<p class="note">What each part of the drawing lights up with.</p>
+					{#each drawnSpots as p (p.id)}
+						{@const v = linkValue(p.id)}
+						<label class="via"
+							><small>{p.name}</small>
+							<select value={v} onchange={(e) => link(p.id, e.currentTarget.value)}>
+								<option value="auto"
+									>Matched by name{v === 'auto' ? `: ${matched(p.id)}` : ''}</option
+								>
+								<option value="none">Nothing</option>
+								{#each list.filter((d) => fits(p.kind, d)) as d (d.device_id)}
+									<option value={d.device_id}>{short(d)}</option>
+								{/each}
+							</select></label
+						>
+					{/each}
+				</div>
+			{/if}
 
 			{#if guards.length > 0 || hasCams}
 				<div class="sec">
@@ -708,6 +962,19 @@
 			</div>
 		</aside>
 	</div>
+
+	{#if choosingPhoto}
+		<PicturePicker
+			title={`A photo for the ${name}`}
+			value={photo ? { url: photo.src, focus: photo.focus, dim: photo.dim } : undefined}
+			shared
+			videos={false}
+			over
+			pick={(p) => setPhoto(p)}
+			clear={photo ? () => setPhoto(null) : undefined}
+			close={() => (choosingPhoto = false)}
+		/>
+	{/if}
 
 	{#if picking}
 		<div class="shade" aria-hidden="true"></div>
@@ -1139,6 +1406,7 @@
 	/* ---- down the side ---- */
 	.side {
 		flex: 0 0 300px;
+		min-width: 0;
 		box-sizing: border-box;
 		padding: 6px 16px 16px;
 		background: color-mix(in srgb, var(--side, var(--surface)) 82%, transparent);
@@ -1188,6 +1456,8 @@
 		color: var(--ink-muted);
 	}
 	.via select {
+		width: 100%;
+		min-width: 0;
 		height: 32px;
 		padding: 0 8px;
 		border: 0;
@@ -1223,10 +1493,6 @@
 		line-height: 1.15;
 		cursor: pointer;
 	}
-	.seg button small {
-		font-size: 9.5px;
-		font-weight: 500;
-	}
 	.seg button[aria-checked='true'] {
 		background: linear-gradient(140deg, #ffc46b, #ff8a5b);
 		color: #1d1006;
@@ -1237,6 +1503,120 @@
 	.seg button:disabled:not([aria-checked='true']) {
 		opacity: 0.5;
 	}
+	.btns {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+
+	/* ---- the photo's spots ---- */
+	.ped {
+		position: relative;
+		width: 100%;
+		margin: 0 auto;
+		border-radius: 10px;
+		overflow: hidden;
+		cursor: crosshair;
+		background: #0c0d12;
+	}
+	.ped > img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		visibility: hidden;
+	}
+	.spot {
+		position: absolute;
+		z-index: 2;
+		width: 30px;
+		height: 30px;
+		margin: -15px 0 0 -15px;
+		padding: 0;
+		border: 2px dashed rgba(255, 255, 255, 0.75);
+		border-radius: 50%;
+		background: rgba(10, 12, 16, 0.55);
+		color: #fff;
+		font: 700 11px var(--font);
+		cursor: pointer;
+	}
+	.spot.warn {
+		border-color: #ffb35c;
+	}
+	.spot.sel {
+		border-style: solid;
+		border-color: #7fb8ff;
+		box-shadow: 0 0 0 4px rgba(127, 184, 255, 0.3);
+	}
+	.slbl {
+		position: absolute;
+		z-index: 1;
+		transform: translate(-50%, 18px);
+		padding: 2px 7px;
+		border-radius: 6px;
+		background: rgba(0, 0, 0, 0.55);
+		color: #e9ecf2;
+		font-size: 11px;
+		font-weight: 600;
+		white-space: nowrap;
+		pointer-events: none;
+	}
+	.pfoot {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+	.pfoot .znote {
+		flex: 1;
+		margin: 0;
+	}
+	.pv {
+		font-size: 11px;
+		font-weight: 600;
+		color: var(--ink-muted);
+	}
+	.pfoot .seg {
+		width: 250px;
+		flex: none;
+	}
+	.spots {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+	.srow {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 6px 8px;
+		border: 0;
+		border-radius: 9px;
+		background: transparent;
+		color: var(--ink);
+		font: 600 12.5px var(--font);
+		text-align: left;
+		cursor: pointer;
+	}
+	.srow[aria-selected='true'] {
+		background: color-mix(in srgb, #7fb8ff 14%, transparent);
+	}
+	.sn {
+		flex: none;
+		width: 22px;
+		height: 22px;
+		display: grid;
+		place-items: center;
+		border-radius: 50%;
+		background: color-mix(in srgb, var(--ink) 9%, transparent);
+		font-size: 10.5px;
+		font-weight: 700;
+	}
+	.sn.warn {
+		box-shadow: inset 0 0 0 1.5px #ffb35c;
+	}
+	small.warn {
+		color: #e8913a;
+	}
+
 	.trow {
 		display: flex;
 		align-items: center;

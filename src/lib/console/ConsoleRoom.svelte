@@ -15,7 +15,8 @@
 	Customize itself (`?customize`) is drawn in its place, loaded only then.
 
 	Behind the header, the room's drawing (pictures.ts), lit live by its
-	lights, unless the household chose it plain. Loaded only by the console's look.
+	lights, or the household's photo of it with its light spots (photo.ts),
+	unless the household chose it plain. Loaded only by the console's look.
 -->
 <script lang="ts">
 	import { page } from '$app/state';
@@ -57,7 +58,9 @@
 	import { allEvents, camerasOf, pillPrefsOf, pillsOf, pillWord } from './cameras.js';
 	import AudioBar from './AudioBar.svelte';
 	import RoomPicture from './RoomPicture.svelte';
+	import RoomPhoto from './RoomPhoto.svelte';
 	import { roomPicture } from './pictures.js';
+	import { photoGlow, photoSpots } from './photo.js';
 	import {
 		audioChoices,
 		isPlayer,
@@ -165,7 +168,19 @@
 	const temperature = $derived(box.bigIs === 'lights' ? undefined : box.big);
 	// The room's drawing, lit as its lights are, with commands on their way.
 	const lit = $derived(
-		roomPicture(room?.name ?? '', list, clock.now, (d) => commands.pending[d]?.want)
+		roomPicture(room?.name ?? '', list, clock.now, (d) => commands.pending[d]?.want, lay.links)
+	);
+	// The household's photo, if it chose one and it's still there, lit by its spots.
+	const photo = $derived(lay.picture === 'photo' ? household.photoOf(id) : undefined);
+	const glow = $derived(
+		photo
+			? photoGlow(
+					photoSpots(lay.spots, lit.picture, lit.spots),
+					devices.byId,
+					clock.now,
+					(d) => commands.pending[d]?.want
+				)
+			: []
 	);
 	// The faders, then the switches named as lights, as Home and Everywhere count them.
 	const lamps = $derived.by(() => {
@@ -360,7 +375,11 @@
 {:else}
 	<div class="croom">
 		<section class="hero" aria-label={room.name}>
-			{#if lay.picture === 'drawn'}<RoomPicture picture={lit.picture} g={lit.g} />{/if}
+			{#if photo}<RoomPhoto
+					src={photo.src}
+					focus={photo.focus}
+					{glow}
+				/>{:else if lay.picture !== 'plain'}<RoomPicture picture={lit.picture} g={lit.g} />{/if}
 			<div class="band" aria-hidden="true"></div>
 			<div class="hc">
 				<div class="who">

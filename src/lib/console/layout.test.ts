@@ -39,8 +39,40 @@ describe('a room’s layout, read from a document', () => {
 			hidden: ['sensors'],
 			columns: ['rid:1'],
 			off: ['lamp'],
+			picture: 'photo',
 			pillsOff: ['door']
 		});
+		expect(layoutOf({ picture: 'video' })).toEqual({});
+	});
+
+	it('keeps a photo’s spots that have a place, on the photo', () => {
+		expect(
+			layoutOf({
+				spots: [
+					{ x: 12.345, y: 50, device: 'lamp', size: 'l' },
+					{ x: -4, y: 140, device: '', size: 'xl' },
+					{ x: '10', y: 5 },
+					'spot'
+				]
+			})
+		).toEqual({
+			spots: [
+				{ x: 12.3, y: 50, device: 'lamp', size: 'l' },
+				{ x: 0, y: 100 }
+			]
+		});
+		// Every spot taken off is a choice, and not the drawing's.
+		expect(layoutOf({ spots: [] })).toEqual({ spots: [] });
+		expect(
+			layoutOf({ spots: Array.from({ length: 40 }, () => ({ x: 1, y: 1 })) }).spots
+		).toHaveLength(24);
+	});
+
+	it('keeps the devices fixed to a drawing’s spots, none among them', () => {
+		expect(layoutOf({ links: { floor: 'lamp', c2: '', 'no such': 'x', tv: 4 } })).toEqual({
+			links: { floor: 'lamp', c2: '' }
+		});
+		expect(layoutOf({ links: {} })).toEqual({});
 	});
 
 	it('is empty for anything that isn’t one', () => {
@@ -77,6 +109,19 @@ describe('changing a room’s layout in a layer', () => {
 		expect(withoutRoom(c, 'fam')).toEqual({ switch: 'keypad' });
 		expect(withoutRoom({ rooms: { fam: {} } }, 'fam')).toBeUndefined();
 	});
+
+	it('changes a photo’s spots as one, beside the picture', () => {
+		const c = { rooms: { fam: { picture: 'photo' as const, spots: [{ x: 1, y: 2 }] } } };
+		const next = withRoomLayout(c, 'fam', { spots: [{ x: 3, y: 4, device: 'lamp' }] });
+		expect(next).toEqual({
+			rooms: { fam: { picture: 'photo', spots: [{ x: 3, y: 4, device: 'lamp' }] } }
+		});
+		expect(withRoomLayout(next, 'fam', { links: { floor: '' } })?.rooms?.fam).toEqual({
+			picture: 'photo',
+			spots: [{ x: 3, y: 4, device: 'lamp' }],
+			links: { floor: '' }
+		});
+	});
 });
 
 describe('the person’s layer over the household’s over the defaults', () => {
@@ -104,6 +149,8 @@ describe('the person’s layer over the household’s over the defaults', () => 
 			columns: undefined,
 			off: [],
 			picture: 'drawn',
+			spots: undefined,
+			links: {},
 			pillsOff: []
 		});
 	});
@@ -123,10 +170,12 @@ describe('the person’s layer over the household’s over the defaults', () => 
 		expect(resolve(undefined, {}, ['device:lamp']).favs).toEqual([]);
 	});
 
-	it('keeps the picture and the pills the household’s', () => {
-		const mine = { picture: 'drawn', pillsOff: ['x'] } as never;
+	it('keeps the picture, its spots and the pills the household’s', () => {
+		const mine = { picture: 'drawn', pillsOff: ['x'], spots: [], links: { a: 'b' } } as never;
 		expect(resolve(mine, house).picture).toBe('plain');
 		expect(resolve(mine, {}).pillsOff).toEqual([]);
+		const photo = { picture: 'photo' as const, spots: [{ x: 5, y: 5 }], links: { c1: 'lamp' } };
+		expect(resolve(mine, photo)).toMatchObject(photo);
 	});
 });
 

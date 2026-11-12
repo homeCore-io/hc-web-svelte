@@ -11,6 +11,7 @@
 	import Palette from '@lucide/svelte/icons/palette';
 	import Thermometer from '@lucide/svelte/icons/thermometer';
 	import SlidersVertical from '@lucide/svelte/icons/sliders-vertical';
+	import LayoutGrid from '@lucide/svelte/icons/layout-grid';
 	import PanelLeft from '@lucide/svelte/icons/panel-left';
 	import UserRound from '@lucide/svelte/icons/user-round';
 	import DoorOpen from '@lucide/svelte/icons/door-open';
@@ -30,8 +31,10 @@
 	import { opensOn, setOpensOn } from './opensOn.js';
 	import {
 		FADER_STYLES,
+		SET_LOOKS,
 		SWITCH_STYLES,
 		faderStyle,
+		switchesAs,
 		sidebarOf,
 		switchStyle,
 		withConsole,
@@ -62,6 +65,7 @@
 	const fader = $derived(faderStyle(personal.doc.console, household.doc.console));
 	const sw = $derived(switchStyle(personal.doc.console, household.doc.console));
 	const sidebar = $derived(sidebarOf(personal.doc.console));
+	const together = $derived(switchesAs(personal.doc.console));
 	const choose = (patch: Partial<Record<keyof ConsolePrefs, string | undefined>>) =>
 		void personal.change((d) => withConsole(d, patch));
 	// The sample: one light and one switch, to see the choice as it's made.
@@ -155,6 +159,12 @@
 			<Switch label="Sample switch" style={sw} {on} onchange={(v) => (on = v)} />
 		</div>
 	</div>
+</div>
+
+<div class="row">
+	<span class="mic"><LayoutGrid size={15} strokeWidth={1.9} aria-hidden="true" /></span>
+	<span class="mt">Switches and timers as<small>Where they sit together</small></span>
+	{@render seg('Switches and timers as', SET_LOOKS, together, (id) => choose({ switchesAs: id }))}
 </div>
 
 <div class="row">

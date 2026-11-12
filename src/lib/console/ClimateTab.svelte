@@ -20,6 +20,8 @@
 	import { fit } from './fit.js';
 	import { climateTab, fanSpeeds, speedLabel, speedWant, spinOf } from './climate.js';
 	import { shortName } from './room.js';
+	import SwitchSet from './SwitchSet.svelte';
+	import { isTimer } from './timer.js';
 	import type { FaderStyle, SwitchStyle } from './style.js';
 
 	let {
@@ -43,6 +45,9 @@
 	const open = (d: CoreDevice) => openDevice(d.device_id, page.url);
 	const isOn = (d: CoreDevice) => ({ ...d.attributes, ...want(d) }).on === true;
 	const canSwitch = (d: CoreDevice) => d.schema?.attributes.on?.writable === true;
+	// A timer the household put here shows as its clock, below the switches.
+	const timers = $derived(tab.switches.filter(isTimer));
+	const switches = $derived(tab.switches.filter((d) => !isTimer(d)));
 
 	// The switch a thermostat runs gets its own column while there's room across.
 	const across = $derived(
@@ -150,9 +155,9 @@
 	{/each}
 
 	{#if tab.switches.length > 0}
-		<Col title="Switches" grow>
+		<Col title={timers.length > 0 && switches.length === 0 ? 'Timers' : 'Switches'} grow>
 			<div class="rows">
-				{#each tab.switches as s (s.device_id)}
+				{#each switches as s (s.device_id)}
 					{#if canSwitch(s)}
 						<Switch
 							label={nameOf(s)}
@@ -173,6 +178,7 @@
 						>{/if}
 				{/each}
 			</div>
+			{#if timers.length > 0}<SwitchSet list={timers} {room} {may} />{/if}
 		</Col>
 	{/if}
 </div>

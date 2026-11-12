@@ -17,6 +17,9 @@
 	import { colourOf } from '#lib/lit/room.js';
 	import Fader from './Fader.svelte';
 	import Switch from './Switch.svelte';
+	import SwitchSet from './SwitchSet.svelte';
+	import { flips } from './switches.js';
+	import { isTimer } from './timer.js';
 	import Keypad from './Keypad.svelte';
 	import {
 		dims,
@@ -54,6 +57,9 @@
 	const isOn = (d: CoreDevice) => ({ ...d.attributes, ...want(d) }).on === true;
 	const open = (d: CoreDevice) => openDevice(d.device_id, page.url);
 	const colour = (d: CoreDevice) => (isOn(d) ? `rgb(${colourOf(d)})` : undefined);
+	// A timer, or anything else that doesn't switch, put here by the household: below the switches.
+	const flipped = $derived(tab.switches.filter((d) => flips(d) && !isTimer(d)));
+	const unflipped = $derived(tab.switches.filter((d) => !flipped.includes(d)));
 
 	// A crowded room: narrower pills, so the columns fit across.
 	const tight = $derived(tab.tight);
@@ -255,7 +261,7 @@
 		<section class="col sws" aria-label="Switches">
 			<div class="ch"><span class="ttl">Switches</span></div>
 			<div class="rows">
-				{#each tab.switches as s (s.device_id)}
+				{#each flipped as s (s.device_id)}
 					{#if sw === 'keypad'}
 						<Switch
 							label={nameOf(s)}
@@ -284,6 +290,7 @@
 						>{/if}
 				{/each}
 			</div>
+			{#if unflipped.length > 0}<SwitchSet list={unflipped} {room} {may} look="rows" />{/if}
 		</section>
 	{/if}
 

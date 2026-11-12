@@ -2,9 +2,11 @@
  * A room's Switches tab (the LivingRoom board): its switches in columns by
  * system, a numbered set ("Holiday Lights 1" to "4") in a column of its own
  * with All on and All off, and a plug's power beside its name. Timers,
- * buttons and anything else with actions of its own sit with them.
+ * buttons and anything else with actions of its own sit with them. Where
+ * switches and timers sit together, `partsOf` sorts them for SwitchSet.
  */
 import type { CoreDevice } from '#lib/devices.js';
+import { isTimer } from './timer.js';
 
 export interface SwitchCol {
 	key: string;
@@ -61,13 +63,19 @@ export function switchCols(list: CoreDevice[]): SwitchCol[] {
 			...split({
 				key: `${plugin}:`,
 				plugin,
-				title: plugs ? (rest.length > 1 ? 'Plugs' : 'Plug') : 'Switches',
+				title: plugs ? (rest.length > 1 ? 'Plugs' : 'Plug') : columnTitle(rest),
 				devices: rest,
 				together: false
 			})
 		);
 	}
 	return cols;
+}
+
+/** A column's heading: "Timers" when that's all it holds, else "Switches". */
+function columnTitle(list: CoreDevice[]): string {
+	const t = setTitle(list);
+	return t === 'Timer' || t === 'Timers' || t === 'Switches and timers' ? t : 'Switches';
 }
 
 /** A column longer than `PER_COL` goes on in the next, under the same title. */
@@ -83,4 +91,27 @@ function split(c: SwitchCol): SwitchCol[] {
 			together: c.together && i === 0
 		});
 	return out;
+}
+
+// ---- switches and timers together ----
+
+/** What a set of devices holds: switches to flip, timers, and the rest (rows that open their page). */
+export function partsOf(list: CoreDevice[]): {
+	switches: CoreDevice[];
+	timers: CoreDevice[];
+	others: CoreDevice[];
+} {
+	const timers = list.filter(isTimer);
+	const switches = list.filter((d) => !isTimer(d) && flips(d));
+	const others = list.filter((d) => !isTimer(d) && !flips(d));
+	return { switches, timers, others };
+}
+
+/** A heading over such a set: "Switches", "Timers", "Switches and timers", else "Also here". */
+export function setTitle(list: CoreDevice[]): string {
+	const { switches, timers, others } = partsOf(list);
+	if (others.length > 0) return 'Also here';
+	if (timers.length === 0) return switches.length === 1 ? 'Switch' : 'Switches';
+	if (switches.length === 0) return timers.length === 1 ? 'Timer' : 'Timers';
+	return 'Switches and timers';
 }

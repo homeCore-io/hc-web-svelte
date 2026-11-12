@@ -1,7 +1,7 @@
 /**
  * The console's own choices for each person (the console boards): how its
- * faders and switches are drawn, and whether its sidebar is open or folded to
- * the icon rail. Kept in the person's preferences, so they follow them to
+ * faders and switches are drawn, whether switches and timers sit as rows or
+ * as tiles, and whether its sidebar is open or folded to the icon rail. Kept in the person's preferences, so they follow them to
  * every screen; the household can set the controls' style for anyone who
  * hasn't chosen.
  *
@@ -14,12 +14,18 @@ import type { PillPrefs } from './cameras.js';
 export type FaderStyle = 'machined' | 'glass' | 'lightbar';
 export type SwitchStyle = 'precision' | 'keypad' | 'offon';
 export type Sidebar = 'open' | 'folded';
+/**
+ * How switches and timers sit together: as rows, each switch with its
+ * toggle and the timers' clocks below; or as tiles of one size, side by side.
+ */
+export type SetLook = 'rows' | 'tiles';
 
 /** A person's console choices (`PersonDoc.console`). */
 export interface ConsolePrefs {
 	sidebar?: Sidebar;
 	fader?: FaderStyle;
 	switch?: SwitchStyle;
+	switchesAs?: SetLook;
 }
 
 /** The household's defaults for the controls (`HouseDoc.console`). */
@@ -42,6 +48,11 @@ export const SWITCH_STYLES: readonly { id: SwitchStyle; name: string }[] = [
 	{ id: 'offon', name: 'Off · On' }
 ];
 
+export const SET_LOOKS: readonly { id: SetLook; name: string }[] = [
+	{ id: 'rows', name: 'Rows' },
+	{ id: 'tiles', name: 'Tiles' }
+];
+
 const known = <T extends string>(all: readonly { id: T }[], v: unknown): T | undefined =>
 	all.some((s) => s.id === v) ? (v as T) : undefined;
 
@@ -52,6 +63,10 @@ export const faderStyle = (mine?: ConsolePrefs, house?: ConsoleHouse): FaderStyl
 /** How switches are drawn: the person's choice, else the household's, else Precision. */
 export const switchStyle = (mine?: ConsolePrefs, house?: ConsoleHouse): SwitchStyle =>
 	known(SWITCH_STYLES, mine?.switch) ?? known(SWITCH_STYLES, house?.switch) ?? 'precision';
+
+/** How switches and timers sit together: the person's choice, else rows. */
+export const switchesAs = (mine?: ConsolePrefs): SetLook =>
+	known(SET_LOOKS, mine?.switchesAs) ?? 'rows';
 
 /** Whether the sidebar is open or folded to its icons; open until the person folds it. */
 export const sidebarOf = (mine?: ConsolePrefs): Sidebar =>
@@ -70,9 +85,12 @@ export function withPrefs(
 	const sidebar = all.sidebar === 'open' || all.sidebar === 'folded' ? all.sidebar : undefined;
 	const fader = known(FADER_STYLES, all.fader);
 	const sw = known(SWITCH_STYLES, all.switch);
+	const as = known(SET_LOOKS, all.switchesAs);
 	if (sidebar) next.sidebar = sidebar;
 	if (fader) next.fader = fader;
 	if (sw) next.switch = sw;
+	// Rows is the default, so it's kept as no choice.
+	if (as === 'tiles') next.switchesAs = as;
 	return Object.keys(next).length > 0 ? (next as ConsolePrefs) : undefined;
 }
 

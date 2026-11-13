@@ -76,6 +76,11 @@
 			all = res.data;
 		}
 	}
+	/** The rules, then this one's history: none is asked for a rule that isn't there. */
+	async function loadBoth() {
+		await load();
+		if (all?.some((r) => r.id === id)) await loadHistory();
+	}
 	async function loadHistory() {
 		const res = await history(id);
 		records = res.ok ? res.data : [];
@@ -119,10 +124,7 @@
 			if (f.type === 'rule_removed' && all) all = all.filter((r) => r.id !== f.rule_id);
 		});
 		const back = () => {
-			if (document.visibilityState === 'visible') {
-				void load();
-				void loadHistory();
-			}
+			if (document.visibilityState === 'visible') void loadBoth();
 		};
 		document.addEventListener('visibilitychange', back);
 		return () => {
@@ -330,8 +332,7 @@
 		text = null;
 		showText = false;
 		note = null;
-		void load();
-		void loadHistory();
+		void loadBoth();
 	});
 
 	// ---- runs, folded open one at a time ----
@@ -382,7 +383,7 @@
 	<p class="quiet">Loading…</p>
 {:else if !rule || !reading || !row}
 	<p class="quiet">
-		There’s no such rule — it may have been deleted. <a href="/settings/automations"
+		There’s no such rule. It may have been deleted. <a href="/settings/automations"
 			>All automations</a
 		>
 	</p>

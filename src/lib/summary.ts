@@ -84,8 +84,12 @@ export function houseChips(cards: CardView[]): Chip[] {
 	return chips;
 }
 
-/** A room's one line: lights on, the temperature, anything open, anything playing. */
-export function roomSummary(cards: CardView[]): string {
+/**
+ * A room's one line: lights on, the temperature, anything open, anything
+ * playing. `temperature` is the room's, as its box says it (`roomBox.ts`),
+ * so the line and the box never show two numbers for one room.
+ */
+export function roomSummary(cards: CardView[], temperature?: string): string {
 	const parts: string[] = [];
 	const wet = cards.filter((c) => c.alarm === 'wet').length;
 	if (wet > 0) parts.push(wet === 1 ? 'Leak' : `${wet} leaks`);
@@ -99,13 +103,7 @@ export function roomSummary(cards: CardView[]): string {
 	if (switches > 0) parts.push(plural(switches, 'switch on', 'switches on'));
 	const fans = cards.filter((c) => c.available && c.kind === 'fan' && c.tone === 'on').length;
 	if (fans > 0) parts.push(plural(fans, 'fan on', 'fans on'));
-	const temp = cards.find(
-		(c) => c.available && (c.kind === 'temperature_sensor' || c.kind === 'weather_station')
-	);
-	if (temp) {
-		const reading = temp.stateLine.split(' · ')[0];
-		if (reading && /\d/.test(reading)) parts.push(reading);
-	}
+	if (temperature) parts.push(temperature);
 	const open = cards.filter((c) => c.available && isOpen(c));
 	if (open.length === 1) parts.push(`${open[0]!.name} open`);
 	else if (open.length > 1) parts.push(`${open.length} open`);

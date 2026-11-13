@@ -11,7 +11,10 @@ import { isOpen, kindOf, type CardView, type IconName } from './card.js';
 import { displayName, unitOf, type CoreDevice, type Devices } from './devices.js';
 import { numbersOf, sourceOf, type NumberId, type Options, type Source } from './options.js';
 import { allOffTargets } from './summary.js';
-import { shownUnit, toShown } from './units.js';
+import { shownUnit, toShown, type Units } from './units.js';
+
+/** Readings in homeCore's own units, to compare against a fixed °C. */
+const CELSIUS: Units = { temperature: 'C', measures: 'metric' };
 
 // ---- readings ----
 
@@ -29,9 +32,53 @@ export const reads = (d: CoreDevice, attr: string): boolean =>
 const mean = (xs: number[]) =>
 	xs.length > 0 ? xs.reduce((a, b) => a + b, 0) / xs.length : undefined;
 
+// ---- what reads a room's air ----
+
+/** Kinds whose temperature is the air's: a thermometer, a weather station. */
+const THERMOMETERS = new Set(['temperature_sensor', 'weather_station']);
+/** Kinds whose temperature is the device's own, never the room's: a leak sensor's. */
+const NOT_AIR = new Set(['water_sensor', 'leak_sensor']);
+/** Plugins whose thermostats read a heated floor, not the air above it. */
+const FLOOR_HEAT = new Set(['plugin.nuheat']);
+/** Names that say a sensor sits in something cold. */
+const COLD_STORE = /freez|fridge|refrigerat|cooler/i;
+
+/**
+ * Whether a sensor keeps a cold box: its name says so, or its own safe range
+ * tops out below 10 °C (a freezer probe's -20 to -5).
+ */
+function inColdStore(d: CoreDevice): boolean {
+	if (COLD_STORE.test(displayName(d)) || COLD_STORE.test(d.name)) return true;
+	const high = d.attributes.temp_limit_high;
+	if (typeof high !== 'number') return false;
+	return toShown(high, unitOf(d, 'temperature') ?? '°C', CELSIUS) < 10;
+}
+
+/**
+ * The devices whose temperature is the room's air, best first: its
+ * thermometers and weather stations if it has any, else its thermostats'
+ * own readings, else anything else that reads the air (a motion sensor's).
+ * Never a leak sensor's, a freezer probe's or a heated floor's, so a room
+ * with only those shows no temperature rather than theirs.
+ */
+export function airReaders(near: CoreDevice[]): CoreDevice[] {
+	const air = near.filter((d) => {
+		if (typeof d.attributes.temperature !== 'number') return false;
+		const kind = kindOf(d);
+		if (NOT_AIR.has(kind) || NOT_AIR.has(d.device_type ?? '')) return false;
+		if (kind === 'thermostat' && FLOOR_HEAT.has(d.plugin_id ?? '')) return false;
+		return !inColdStore(d);
+	});
+	const thermometers = air.filter((d) => THERMOMETERS.has(kindOf(d)));
+	if (thermometers.length > 0) return thermometers;
+	const thermostats = air.filter((d) => kindOf(d) === 'thermostat');
+	return thermostats.length > 0 ? thermostats : air;
+}
+
 /**
  * A reading from a source: the devices chosen (one, or their average), or —
- * `auto` — the average of `near`, the devices it would naturally be.
+ * `auto` — the average of `near`, the devices it would naturally be. For a
+ * temperature, `auto` takes only what reads the air (`airReaders`).
  */
 export function sourced(
 	source: Source,
@@ -40,7 +87,12 @@ export function sourced(
 	near: CoreDevice[]
 ): number | undefined {
 	if (source === 'none') return undefined;
-	const from = source === 'auto' ? near : source.flatMap((id) => all[id] ?? []);
+	const from =
+		source === 'auto'
+			? attr === 'temperature'
+				? airReaders(near)
+				: near
+			: source.flatMap((id) => all[id] ?? []);
 	return mean(from.flatMap((d) => readingOf(d, attr) ?? []));
 }
 

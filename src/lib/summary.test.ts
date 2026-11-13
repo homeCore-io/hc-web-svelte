@@ -46,7 +46,9 @@ describe('rooms', () => {
 	});
 
 	it('a room’s summary: lights, temperature, anything playing', () => {
-		expect(roomSummary(cardsIn('r-den'))).toBe('1 light on · 1 fan on · 21.4°C · Den TV playing');
+		expect(roomSummary(cardsIn('r-den'), '21°')).toBe(
+			'1 light on · 1 fan on · 21° · Den TV playing'
+		);
 		expect(roomSummary(cardsIn('r-kitchen'))).toBe('Back door open');
 		expect(roomSummary(cardsIn('r-garage'))).toBe('Leak · 1 switch on');
 		expect(roomSummary(cardsIn('r-bedroom'))).toBe('All quiet');

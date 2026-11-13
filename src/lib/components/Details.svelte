@@ -7,6 +7,7 @@
 <script lang="ts">
 	import { momentOf, timeOf } from '#lib/when.js';
 	import X from '@lucide/svelte/icons/x';
+	import Pencil from '@lucide/svelte/icons/pencil';
 	import Avatar from './Avatar.svelte';
 	import { session } from '#lib/me.svelte.js';
 	import Power from '@lucide/svelte/icons/power';
@@ -174,6 +175,14 @@
 			{[room?.name, note ?? card.stateLine].filter(Boolean).join(' · ')}
 		</p>
 	</div>
+	{#if session.can('devices:write')}
+		<a
+			class="close"
+			href={`/settings/devices/${encodeURIComponent(id)}`}
+			aria-label="Edit {view.name}"
+			title="Edit: name, room and more"><Pencil size={19} /></a
+		>
+	{/if}
 	<button class="close" aria-label="Close" onclick={onclose}><X size={22} /></button>
 </header>
 
@@ -748,6 +757,7 @@
 		font-weight: 600;
 	}
 	.close {
+		color: inherit;
 		width: var(--target);
 		height: var(--target);
 		border: none;

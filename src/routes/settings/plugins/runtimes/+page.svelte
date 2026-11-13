@@ -4,7 +4,6 @@
 	the code it shows. A token lets one join without asking.
 -->
 <script lang="ts">
-	import { notAdmin } from '#lib/refusals.js';
 	import { momentOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { ask } from '#lib/confirm.svelte.js';
@@ -88,10 +87,9 @@
 	const when = (iso?: string) => (iso ? `${ago(clock.now - Date.parse(iso))} ago` : '—');
 </script>
 
-{#if !session.isAdmin}
-	<p class="quiet">
-		{notAdmin('Plugins are for the house’s admins.', 'manage plugin runtimes')}
-	</p>
+<!-- homeCore lets in whoever may change plugins (plugins:write), admin or not. -->
+{#if !session.can('plugins:write')}
+	<p class="quiet">Plugin runtimes are for people who may change plugins.</p>
 {:else}
 	<div class="page">
 		<p class="lead">

@@ -30,13 +30,14 @@
 	onMount(() => {
 		void load();
 		void loadRegistry().then((r) => (r.ok ? (registry = r.data.plugins) : (noRegistry = r.error)));
-		void loadRuntimes().then((r) => {
-			if (r.ok)
-				runtimes = {
-					pending: r.data.runtimes.filter((x) => x.status === 'pending').length,
-					all: r.data.runtimes.length
-				};
-		});
+		if (session.can('plugins:write'))
+			void loadRuntimes().then((r) => {
+				if (r.ok)
+					runtimes = {
+						pending: r.data.runtimes.filter((x) => x.status === 'pending').length,
+						all: r.data.runtimes.length
+					};
+			});
 		// Status changes are announced; heartbeats aren't, so read again now and then.
 		const stop = live.listen((f) => {
 			if ((f as { type: string }).type === 'plugin_status_changed') void load();
@@ -78,7 +79,7 @@
 			<span class="sum">
 				{running} running{updates ? ` · ${updates} ${updates === 1 ? 'update' : 'updates'}` : ''}
 			</span>
-			{#if session.isAdmin}
+			{#if session.can('plugins:write')}
 				<a class="plain" href="/settings/plugins/runtimes"
 					>Plugin runtimes{runtimes
 						? ` · ${runtimes.pending ? `${runtimes.pending} waiting` : runtimes.all || 'none'}`

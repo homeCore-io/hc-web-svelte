@@ -4,6 +4,7 @@
 	The house always keeps an admin.
 -->
 <script lang="ts">
+	import { notAdmin } from '#lib/notAdmin.js';
 	import Avatar from '#lib/components/Avatar.svelte';
 	import { fullDateOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
@@ -155,7 +156,9 @@
 </script>
 
 {#if !session.isAdmin}
-	<p class="quiet">People and access are for the house’s admins.</p>
+	<p class="quiet">
+		{notAdmin('People and access are for the house’s admins.', 'manage people')}
+	</p>
 {:else if failed}
 	<p class="note bad" role="alert">{failed}</p>
 {:else if people === null}

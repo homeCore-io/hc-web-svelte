@@ -7,6 +7,7 @@
 	It does nothing until it has its settings, so its settings come next.
 -->
 <script lang="ts">
+	import { notAdmin } from '#lib/notAdmin.js';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -156,7 +157,9 @@
 		<CatalogExtensions />
 	{/await}
 {:else if !session.isAdmin}
-	<p class="quiet">Plugins are for the house’s admins.</p>
+	<p class="quiet">
+		{notAdmin('Plugins are for the house’s admins.', 'add plugins from the Catalog')}
+	</p>
 {:else if failed}
 	<p class="quiet">The registry: {failed}</p>
 {:else if registry === null}

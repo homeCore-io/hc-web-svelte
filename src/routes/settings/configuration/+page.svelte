@@ -5,6 +5,7 @@
 	doesn't know about stay exactly as written.
 -->
 <script lang="ts">
+	import { notAdmin } from '#lib/notAdmin.js';
 	import { onMount } from 'svelte';
 	import LocationHelp from '#lib/components/admin/LocationHelp.svelte';
 	import WhitelistHint from '#lib/components/admin/WhitelistHint.svelte';
@@ -138,7 +139,9 @@
 </script>
 
 {#if !session.isAdmin}
-	<p class="quiet">Configuration is for admins.</p>
+	<p class="quiet">
+		{notAdmin('Configuration is for admins.', 'change the configuration')}
+	</p>
 {:else}
 	{#if !sectionPage}
 		<div class="top">

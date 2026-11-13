@@ -92,7 +92,11 @@
 	});
 	async function loadDisplays() {
 		const res = await fetch('/api/v1/displays').catch(() => null);
-		if (!res?.ok) return;
+		if (!res?.ok) {
+			// Said under the list, in place of looking for them.
+			trouble = 'homeCore didn’t list its displays.';
+			return;
+		}
 		const list = ((await res.json()) as Omit<Display, 'doc'>[]).filter((d) => !d.revoked);
 		displays = await Promise.all(
 			list.map(async (d) => {
@@ -227,7 +231,7 @@
 			{:else if !session.isAdmin}
 				<p>An admin puts the house’s pages on displays, in Settings → Displays.</p>
 			{:else if displays === null}
-				<p>Looking for displays…</p>
+				{#if !trouble}<p>Looking for displays…</p>{/if}
 			{:else if displays.length === 0}
 				<p>No displays yet. A kitchen panel or hall tablet is set up in Settings → Displays.</p>
 			{:else}

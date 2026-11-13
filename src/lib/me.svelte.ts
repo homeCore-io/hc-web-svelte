@@ -76,8 +76,14 @@ class Session {
 		return this.me?.kind === 'display';
 	}
 
+	/**
+	 * Whether homeCore treats this sign-in as an admin, the way it checks: an
+	 * admin's own session carries `users:write` with its role, and a key is an
+	 * admin's only when it was given that scope. A key made by an admin without
+	 * it is refused everything admin-only, so the app doesn't offer those.
+	 */
 	get isAdmin(): boolean {
-		return this.me?.role === 'admin';
+		return this.me?.role === 'admin' && this.can('users:write');
 	}
 
 	/** Whether they may tell devices what to do — not only look. */

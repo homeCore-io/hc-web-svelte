@@ -4,6 +4,7 @@
 	the code it shows. A token lets one join without asking.
 -->
 <script lang="ts">
+	import { notAdmin } from '#lib/notAdmin.js';
 	import { momentOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { ask } from '#lib/confirm.svelte.js';
@@ -82,7 +83,9 @@
 </script>
 
 {#if !session.isAdmin}
-	<p class="quiet">Plugins are for the house’s admins.</p>
+	<p class="quiet">
+		{notAdmin('Plugins are for the house’s admins.', 'manage plugin runtimes')}
+	</p>
 {:else}
 	<div class="page">
 		<p class="lead">

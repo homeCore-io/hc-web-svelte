@@ -4,6 +4,7 @@
 	homeCore's own scopes. Adding a person; API keys; displays.
 -->
 <script lang="ts">
+	import { notAdmin } from '#lib/notAdmin.js';
 	import { fullDateOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { onReturn } from '#lib/refresh.js';
@@ -60,7 +61,9 @@
 </script>
 
 {#if !session.isAdmin}
-	<p class="quiet">People and access are for the house’s admins.</p>
+	<p class="quiet">
+		{notAdmin('People and access are for the house’s admins.', 'manage people')}
+	</p>
 {:else}
 	<div class="page">
 		<div class="tools">

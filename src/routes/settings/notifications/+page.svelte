@@ -4,6 +4,7 @@
 	a test send and the automations that use each.
 -->
 <script lang="ts">
+	import { notAdmin } from '#lib/notAdmin.js';
 	import { timeOf } from '#lib/when.js';
 	import { onMount, untrack } from 'svelte';
 	import { liveRules } from '#lib/rules.svelte.js';
@@ -234,7 +235,7 @@
 </script>
 
 {#if !session.isAdmin}
-	<p class="quiet">Notifications are for admins.</p>
+	<p class="quiet">{notAdmin('Notifications are for admins.', 'manage notifications')}</p>
 {:else if channels === null}
 	{#if trouble}<p class="trouble" role="alert">{trouble}</p>{:else}<p class="quiet">
 			Loading…

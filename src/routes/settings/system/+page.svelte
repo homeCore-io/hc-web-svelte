@@ -4,6 +4,7 @@
 	versions, and restarting it.
 -->
 <script lang="ts">
+	import { notAdmin } from '#lib/notAdmin.js';
 	import { dateOf, fullDateOf, momentOf, timeOf } from '#lib/when.js';
 	import { page } from '$app/state';
 	import { deviceHref } from '#lib/popup.js';
@@ -287,7 +288,9 @@
 </script>
 
 {#if !session.isAdmin}
-	<p class="quiet">The system is for the house’s admins.</p>
+	<p class="quiet">
+		{notAdmin('The system is for the house’s admins.', 'manage the system')}
+	</p>
 {:else if failed}
 	<p class="note bad" role="alert">{failed}</p>
 {:else if !status}

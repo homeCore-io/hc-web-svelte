@@ -8,6 +8,7 @@
 	session's token); if that won't open, asked for every two seconds.
 -->
 <script lang="ts">
+	import { notAdmin } from '#lib/notAdmin.js';
 	import { timeOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { session } from '#lib/me.svelte.js';
@@ -126,7 +127,7 @@
 </script>
 
 {#if !session.isAdmin}
-	<p class="quiet">Logs are for the house’s admins.</p>
+	<p class="quiet">{notAdmin('Logs are for the house’s admins.', 'read the logs')}</p>
 {:else}
 	<div class="page">
 		<div class="tools">

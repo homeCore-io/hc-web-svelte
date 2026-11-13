@@ -5,6 +5,7 @@
 	Its name is homeCore's, and can be changed from homeCore 0.1.81.
 -->
 <script lang="ts">
+	import { notAdmin } from '#lib/notAdmin.js';
 	import { agoOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { onReturn } from '#lib/refresh.js';
@@ -153,7 +154,7 @@
 </script>
 
 {#if !session.isAdmin}
-	<p class="quiet">Displays are for admins.</p>
+	<p class="quiet">{notAdmin('Displays are for admins.', 'manage displays')}</p>
 {:else}
 	<div class="stack">
 		<p class="quiet">

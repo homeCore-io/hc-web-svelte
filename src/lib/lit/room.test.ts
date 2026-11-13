@@ -142,5 +142,8 @@ describe('sensors and house scenes in the Lit look', () => {
 		const evening = houseScene({ hue_lamp: { on: true, color_temp: 2700 } }, devices);
 		expect(evening.dark).toBe(false);
 		expect(evening.colours).toHaveLength(1);
+		expect(evening.does).toBe('A light on');
+		const movie = houseScene({ hue_lamp: { on: true }, hue_ceiling: { on: true } }, devices);
+		expect(movie.does).toBe('2 lights on');
 	});
 });

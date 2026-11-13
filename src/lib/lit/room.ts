@@ -446,7 +446,7 @@ export function houseScene(
 		else if (MEDIA_KINDS.has(kind)) badges.add('media');
 		else if (d) badges.add('other');
 	}
-	if (on > 0) words.push(on === 1 ? 'A light on' : ` lights on`);
+	if (on > 0) words.push(on === 1 ? 'A light on' : `${on} lights on`);
 	else if (off > 0) words.push('Lights off');
 	if (badges.has('lock')) words.push('locks');
 	if (badges.has('heat')) words.push('sets the heat');

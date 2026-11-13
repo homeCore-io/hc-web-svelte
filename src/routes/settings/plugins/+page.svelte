@@ -11,6 +11,7 @@
 	import { wide } from '#lib/wide.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { live } from '#lib/live.svelte.js';
+	import { devices } from '#lib/devices.svelte.js';
 	import { notInstalled, rowsOf, type PluginRecord, type RegistryPlugin } from '#lib/plugins.js';
 	import { loadRegistry, loadRuntimes, loadStatus } from '#lib/pluginAdmin.js';
 
@@ -47,7 +48,22 @@
 		};
 	});
 
-	const rows = $derived(list ? rowsOf(list, registry, clock.now, core.version) : []);
+	// The devices homeCore holds for each: the count its own page shows. A
+	// plugin's own count can lag behind; it's used only until they're in.
+	const held = $derived.by(() => {
+		if (!devices.loaded) return null;
+		const n: Record<string, number> = {};
+		for (const d of Object.values(devices.byId))
+			if (d.plugin_id) n[d.plugin_id] = (n[d.plugin_id] ?? 0) + 1;
+		return n;
+	});
+	const rows = $derived(
+		list
+			? rowsOf(list, registry, clock.now, core.version).map((r) =>
+					held ? { ...r, devices: held[r.id] ?? 0 } : r
+				)
+			: []
+	);
 	const running = $derived(rows.filter((r) => r.state.word === 'Running').length);
 	const updates = $derived(rows.filter((r) => r.update).length);
 	const more = $derived(list ? notInstalled(registry, list) : []);

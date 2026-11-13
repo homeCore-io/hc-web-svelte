@@ -152,3 +152,13 @@ export function spinOf(speeds: FanSpeeds): number {
 	if (on.length === 1) return 1;
 	return Math.round((1.8 - (i / (on.length - 1)) * 1.3) * 100) / 100;
 }
+
+/**
+ * Whose a thermostat's reading is, beside it on its dial: the thermostat's
+ * own ("Thermostat"), never the room's name, since the room's temperature
+ * may come from a thermometer and differ; "Floor" for a floor's heat.
+ */
+export function readingName(d: CoreDevice): string {
+	const said = d.schema?.attributes.temperature?.display_name;
+	return said && !/^temperature$/i.test(said) ? said.replace(/\s+temperature$/i, '') : 'Thermostat';
+}

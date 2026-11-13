@@ -10,6 +10,7 @@ import {
 	fanSpeeds,
 	planSend,
 	plansOf,
+	readingName,
 	speedLabel,
 	speedWant,
 	spinOf
@@ -176,5 +177,27 @@ describe('a fan’s speeds', () => {
 		expect(spinOf({ options: o, value: 'off' })).toBe(0);
 		expect(spinOf({ options: o, value: 'low' })).toBe(1.8);
 		expect(spinOf({ options: o, value: 'high' })).toBe(0.5);
+	});
+});
+
+describe('a thermostat’s reading on its dial', () => {
+	it('is the thermostat’s, or the floor’s, never the room’s name', () => {
+		const t = {
+			device_id: 't',
+			name: 'Garage Heater Thermostat',
+			device_type: 'thermostat',
+			available: true,
+			attributes: { temperature: 6.7 }
+		} as CoreDevice;
+		expect(readingName(t)).toBe('Thermostat');
+		const floor = {
+			...t,
+			schema: {
+				attributes: {
+					temperature: { kind: 'number', writable: false, display_name: 'Floor temperature' }
+				}
+			}
+		} as unknown as CoreDevice;
+		expect(readingName(floor)).toBe('Floor');
 	});
 });

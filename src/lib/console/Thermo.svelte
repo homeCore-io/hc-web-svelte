@@ -20,6 +20,7 @@
 	import Place from './Place.svelte';
 	import { aimWord, dialAt, dialSpan, planSend, plansOf, type Plan } from './climate.js';
 	import { shortName } from './room.js';
+	import { readingName } from './climate.js';
 
 	let {
 		device,
@@ -78,11 +79,12 @@
 	const busy = $derived(t.doing === 'heating' || t.doing === 'cooling');
 	const arcDeg = $derived(Math.round(dialAt(span, target) * 270));
 	const nowAt = $derived(t.now === undefined ? undefined : dialAt(span, t.now));
-	/** What the temperature inside is of: the room, or the floor for a floor's heat. */
-	const nowOf = $derived.by(() => {
-		const said = device.schema?.attributes.temperature?.display_name;
-		return said && !/^temperature$/i.test(said) ? said.replace(/\s+temperature$/i, '') : room;
-	});
+	/**
+	 * Whose the temperature under the target is: the thermostat's own reading
+	 * (the room's, in its header, may come from a thermometer and differ), or
+	 * the floor's for a floor's heat.
+	 */
+	const nowOf = $derived(readingName(device));
 	const doingWord = $derived(
 		t.doing === 'heating'
 			? 'heating'

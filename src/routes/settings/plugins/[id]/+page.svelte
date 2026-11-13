@@ -528,7 +528,9 @@
 				<dl>
 					<dt>Version</dt>
 					<dd>
-						{`${versionOf(plugin) ?? '—'}${reg && latestOf(reg, core.version) && !update ? ' · the latest' : ''}`}
+						{versionOf(plugin)
+							? `${versionOf(plugin)}${reg && latestOf(reg, core.version) && !update ? ' · the latest' : ''}`
+							: 'Not known'}
 					</dd>
 					<dt>Runs on</dt>
 					<dd>

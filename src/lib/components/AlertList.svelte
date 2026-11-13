@@ -343,6 +343,7 @@
 		background: var(--surface);
 		border: 1px solid var(--card-line);
 		container-type: inline-size;
+		position: relative;
 	}
 	li > a {
 		display: flex;
@@ -411,6 +412,22 @@
 		}
 		.acts .menu .seen-narrow {
 			display: block;
+		}
+		.acts .dots {
+			width: 44px;
+			height: 44px;
+		}
+		/* With nothing beside it, the "⋯" sits in the card's corner by the age,
+		   rather than on a row of its own. */
+		li:has(> .acts):not(:has(> .acts > :not(.more, .seen-wide))) > a {
+			padding-right: 50px;
+		}
+		.acts:not(:has(> :not(.more, .seen-wide))) {
+			position: absolute;
+			top: 8px;
+			right: 4px;
+			padding: 0;
+			border-top: 0;
 		}
 	}
 	.acts .starts {

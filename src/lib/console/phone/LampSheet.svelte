@@ -344,7 +344,7 @@
 	}
 	.ct {
 		position: relative;
-		height: 36px;
+		height: 44px;
 		margin-top: 14px;
 		border-radius: 12px;
 		background: linear-gradient(90deg, #ff9a3c, #ffe1b0, #f4f7ff, #a9cdff);
@@ -355,7 +355,7 @@
 		position: absolute;
 		top: -4px;
 		width: 6px;
-		height: 44px;
+		height: 52px;
 		margin-left: -3px;
 		border-radius: 3px;
 		background: #fff;

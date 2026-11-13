@@ -113,7 +113,7 @@
 					>
 				{/each}
 			</div>
-			<div class="pair" role="group" aria-label={`${r.place.name} lights`}>
+			<div class="pair" class:phone role="group" aria-label={`${r.place.name} lights`}>
 				<button
 					type="button"
 					disabled={!may || busy[r.place.key] !== undefined}
@@ -248,5 +248,14 @@
 	.pair button:disabled {
 		cursor: default;
 		opacity: 0.6;
+	}
+	/* On a phone, a finger's size. */
+	.pair.phone {
+		padding: 0;
+	}
+	.pair.phone button {
+		height: 44px;
+		min-width: 50px;
+		border-radius: 12px;
 	}
 </style>

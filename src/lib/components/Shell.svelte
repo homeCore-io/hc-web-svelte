@@ -306,6 +306,17 @@
 		font-weight: 600;
 		text-decoration: none;
 	}
+	/* A finger's reach on a phone, the link drawn as it is. */
+	@media (pointer: coarse), (max-width: 699px) {
+		.back {
+			position: relative;
+		}
+		.back::after {
+			content: '';
+			position: absolute;
+			inset: -14px -8px;
+		}
+	}
 	/* Above Home's title in the room field: the day, and the house's mode (mockup A). */
 	.kicker {
 		font-size: 11px;

@@ -158,6 +158,25 @@
 	.pl :global(.dots) {
 		width: 20px;
 	}
+	/* Stacked, the heading is a finger tall, and the "⋯" ends its line,
+	   a finger wide, whatever the rule above the heading. */
+	.stack .ch {
+		min-height: 44px;
+	}
+	.stack .pl {
+		position: static;
+		width: auto;
+		margin-left: auto;
+	}
+	.stack .pl :global(.dots) {
+		width: 44px;
+		height: 44px;
+	}
+	/* Its name: the heading's full height, and a finger wide however short. */
+	.stack button.ttl {
+		align-self: stretch;
+		min-width: 44px;
+	}
 	.cn.alert {
 		color: var(--alert);
 	}

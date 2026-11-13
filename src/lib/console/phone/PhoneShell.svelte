@@ -288,6 +288,57 @@
 		color: var(--accent);
 	}
 
+	/* ---- a finger's reach, 44 pixels, for what the shared tabs draw smaller ---- */
+	/* Rows and segments a finger presses: as tall as one. */
+	.phone
+		:global(
+			:is(
+				.seg[role='radiogroup'] > button,
+				.speeds button,
+				.row button.nm,
+				button.batt,
+				button.kbtn,
+				button.tbtn,
+				button.dbtn
+			)
+		) {
+		min-height: 44px;
+	}
+	/* Small things drawn as they are, with a finger's place to tap around them. */
+	.phone
+		:global(
+			:is(.place:not(.corner) .dots, button.sw, button.sb, .tile button.tb, .kp button.more)
+		) {
+		position: relative;
+	}
+	.phone :global(:is(.place .dots, button.sw, button.sb, .tile button.tb, .kp button.more)::after) {
+		content: '';
+		position: absolute;
+		inset: min(0px, calc((100% - 44px) / 2));
+	}
+
+	/* A name that opens its page, as tall as a finger, its words where they were
+	   (a thermostat's under its buttons, a timer's over its own). */
+	.phone :global(a.nm) {
+		position: relative;
+		padding: 4px 0 26px;
+		margin: -4px 0 -26px;
+	}
+	.phone :global(.tile button.nm) {
+		position: relative;
+		padding-block: 15px;
+		margin-block: -15px;
+	}
+
+	/* ---- a page drawn as it is (Me, alerts, scenes): every control a finger's size ---- */
+	.plain
+		:global(:is(button, select, input:not([type='checkbox'], [type='radio'], [type='range']))) {
+		min-height: 44px;
+	}
+	.plain :global(:is(button, a.link)) {
+		min-width: 44px;
+	}
+
 	/* ---- the person's own settings ---- */
 	.you {
 		margin: 0 -10px;

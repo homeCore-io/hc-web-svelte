@@ -11,6 +11,7 @@
 	import { agoWord, fileUrl, kindName, type Cam, type CamEvent } from './cameras.js';
 	import type { Playing } from './mse.js';
 	import { stills } from './stills.svelte.js';
+	import { camEvents } from './camEvents.svelte.js';
 
 	let {
 		cam,
@@ -18,7 +19,8 @@
 		event,
 		onhd,
 		onback,
-		ongrid
+		ongrid,
+		named = true
 	}: {
 		cam: Cam;
 		hd?: boolean;
@@ -28,6 +30,8 @@
 		onback?: () => void;
 		/** The Cameras page's Grid. */
 		ongrid?: () => void;
+		/** Its name in the corner; the phone writes it under the picture instead. */
+		named?: boolean;
 	} = $props();
 
 	let box = $state<HTMLElement>();
@@ -39,8 +43,11 @@
 		(cam.stream ? stills.shots[cam.stream]?.url : undefined) ??
 			(cam.snapshot ? fileUrl(cam.device.plugin_id, cam.snapshot) : undefined)
 	);
+	// Asked for only while the plugin likely keeps it (camEvents.kept).
 	const shotUrl = $derived(
-		event?.snapshot ? fileUrl(cam.device.plugin_id, event.snapshot) : undefined
+		event?.snapshot && camEvents.kept(cam.id, event.snapshot)
+			? fileUrl(cam.device.plugin_id, event.snapshot)
+			: undefined
 	);
 	const at = (t: number) =>
 		new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -76,7 +83,10 @@
 				class="shot"
 				src={shotUrl}
 				alt={`${kindName(event.kind)} at the ${cam.name}`}
-				onerror={() => (gone = shotUrl)}
+				onerror={() => {
+					gone = shotUrl;
+					if (event.snapshot) camEvents.lost(cam.id, event.snapshot);
+				}}
 			/>
 		{:else}
 			<p class="none">No still was kept of this one.</p>
@@ -90,9 +100,8 @@
 		/>
 	{/if}
 	<div class="ov">
-		<span class="dot" class:snap={!!event || playing !== 'live'}></span>{cam.name}<small
-			>{mode}</small
-		>
+		<span class="dot" class:snap={!!event || playing !== 'live'}
+		></span>{#if named}{cam.name}{/if}<small>{mode}</small>
 	</div>
 	<div class="tr">
 		{#if cam.hd && !event}

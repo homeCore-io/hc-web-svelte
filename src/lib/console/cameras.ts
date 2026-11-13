@@ -310,6 +310,37 @@ export function eventsOf(cam: string, h: CamHistory, merge = MERGE_MS): CamEvent
 	return out.sort((a, b) => b.at - a.at);
 }
 
+/**
+ * How many stills the camera plugin keeps of each camera by itself
+ * (hc-reolink's `snapshots_kept`): older ones are deleted as new ones come.
+ */
+export const STILLS_KEPT = 20;
+
+/** When a still was taken, from its name ("snap/cam-1794584940106.jpg"), if it says. */
+export function stillAt(path: string): number | undefined {
+	const m = /-(\d{10,})\.[a-z]+$/i.exec(path);
+	return m ? Number(m[1]) : undefined;
+}
+
+/**
+ * Whether a still is likely still kept, so it's worth asking for: among the
+ * newest `kept` of the camera's stills today (`today`, any order), and
+ * newer than the newest one found gone (`goneAt`, ms), since the plugin
+ * deletes its oldest first. A still not in today's list (just taken) is.
+ */
+export function stillKept(
+	path: string,
+	today: readonly string[],
+	goneAt?: number,
+	kept = STILLS_KEPT
+): boolean {
+	const at = stillAt(path);
+	if (goneAt !== undefined && at !== undefined && at <= goneAt) return false;
+	const newest = [...new Set(today)].sort((a, b) => (stillAt(b) ?? 0) - (stillAt(a) ?? 0));
+	const i = newest.indexOf(path);
+	return i < 0 || i < kept;
+}
+
 /** Every camera's events, newest first, kept to `kinds` when given. */
 export function allEvents(
 	byCam: Record<string, CamEvent[]>,

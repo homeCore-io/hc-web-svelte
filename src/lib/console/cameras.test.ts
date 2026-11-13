@@ -22,6 +22,8 @@ import {
 	railWidth,
 	roomLayoutOf,
 	seesNow,
+	stillAt,
+	stillKept,
 	wallSplit,
 	withHousePills,
 	withPillPrefs,
@@ -372,5 +374,30 @@ describe('counts while they load', () => {
 		expect(eventsWord(3, true)).toBe('3 events so far');
 		expect(eventsWord(0, false)).toBe('0 events');
 		expect(eventsWord(1, false)).toBe('1 event');
+	});
+});
+
+describe('stills the plugin still keeps', () => {
+	const snap = (n: number) => `snap/cam-${1794584940000 + n * 1000}.jpg`;
+	const day = Array.from({ length: 25 }, (_, i) => snap(i));
+
+	it('reads when a still was taken from its name', () => {
+		expect(stillAt('snap/reolink_driveway-1794584940106.jpg')).toBe(1794584940106);
+		expect(stillAt('snap/other.jpg')).toBeUndefined();
+	});
+
+	it('keeps only the newest of the day, as the plugin deletes its oldest', () => {
+		expect(stillKept(snap(24), day)).toBe(true);
+		expect(stillKept(snap(5), day)).toBe(true);
+		expect(stillKept(snap(4), day)).toBe(false);
+		expect(stillKept(snap(0), day)).toBe(false);
+		expect(stillKept(snap(4), day, undefined, 25)).toBe(true);
+	});
+
+	it('takes a still not in the day yet as kept, and none at or before one found gone', () => {
+		expect(stillKept(snap(30), day)).toBe(true);
+		expect(stillKept(snap(10), day, 1794584940000 + 12_000)).toBe(false);
+		expect(stillKept(snap(12), day, 1794584940000 + 12_000)).toBe(false);
+		expect(stillKept(snap(13), day, 1794584940000 + 12_000)).toBe(true);
 	});
 });

@@ -89,7 +89,14 @@
 {:else if sel}
 	<div class="cams">
 		<div class="view" bind:this={top}>
-			<Viewer cam={sel} {hd} {event} onhd={() => (hd = !hd)} onback={() => show(null)} />
+			<Viewer
+				cam={sel}
+				{hd}
+				{event}
+				named={false}
+				onhd={() => (hd = !hd)}
+				onback={() => show(null)}
+			/>
 		</div>
 		<div class="who">
 			<span>{sel.name}{sel.model ? ` · ${sel.model}` : ''}</span>
@@ -138,7 +145,7 @@
 						aria-pressed={e.key === eventKey}
 						onclick={() => showEvent(e.key, e.cam)}
 					>
-						<EventShot plugin={c?.device.plugin_id} path={e.snapshot} />
+						<EventShot plugin={c?.device.plugin_id} path={e.snapshot} cam={e.cam} />
 						<span class="et"
 							><b>{kindName(e.kind)}</b>{cams.length > 1 ? ` · ${nameOf(e.cam)}` : ''}<small
 								>{at(e.at)} · {agoWord(e.at, clock.now)}</small
@@ -185,6 +192,21 @@
 	.view :global(.cv) {
 		position: absolute;
 		inset: 0;
+	}
+	/* The name is under the picture, so the corner says only how it plays. */
+	.view :global(.ov) {
+		max-width: calc(100% - 130px);
+	}
+	/* HD, full screen and Back to live: a thumb's reach, the buttons as drawn. */
+	.view :global(.cbtn) {
+		position: relative;
+		min-width: 38px;
+		justify-content: center;
+	}
+	.view :global(.cbtn::after) {
+		content: '';
+		position: absolute;
+		inset: -7px -3px;
 	}
 	.who {
 		display: flex;

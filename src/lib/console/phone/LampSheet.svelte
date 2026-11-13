@@ -289,11 +289,11 @@
 	}
 	.tag[data-brand='hue'] {
 		background: rgba(127, 184, 255, 0.15);
-		color: #a9cdff;
+		color: var(--cool-ink, #a9cdff);
 	}
 	.tag[data-brand='lutron'] {
 		background: rgba(255, 196, 107, 0.15);
-		color: #ffd48a;
+		color: var(--warm-ink, #ffd48a);
 	}
 	.st {
 		margin: 0;

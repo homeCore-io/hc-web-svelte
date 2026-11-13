@@ -22,8 +22,16 @@
 	import { ask } from '#lib/confirm.svelte.js';
 	import { backupDue, daysAgo, size, uptime } from '#lib/settings.js';
 	import { houseDevices } from '#lib/inventory.js';
-	import { isRunning } from '#lib/plugins.js';
-	import { PRESETS, directiveOf, keptOf, readLevel, type Preset } from '#lib/system.js';
+	import {
+		PRESETS,
+		directiveOf,
+		keptOf,
+		pluginHealth,
+		pluginHealthLine,
+		readLevel,
+		type PluginHealth,
+		type Preset
+	} from '#lib/system.js';
 	import { loadConfig } from '#lib/config.js';
 	import {
 		keepLevel,
@@ -47,7 +55,7 @@
 	let level = $state<string | null>(null);
 	let levelMissing = $state(false);
 	// Turned off on purpose isn't trouble: counted apart from the ones meant to run.
-	let plugins = $state<{ running: number; all: number; off: number } | null>(null);
+	let plugins = $state<PluginHealth | null>(null);
 
 	let connections = $state<Connection[] | null>(null);
 
@@ -77,12 +85,7 @@
 		if (v.ok) versions = v.data;
 		if (l.ok) level = l.data.level;
 		else levelMissing = true;
-		if (p.ok)
-			plugins = {
-				running: p.data.filter(isRunning).length,
-				all: p.data.filter((x) => x.enabled).length,
-				off: p.data.filter((x) => !x.enabled).length
-			};
+		if (p.ok) plugins = pluginHealth(p.data);
 	}
 	let updates = $state.raw<{ core?: Latest; app?: Latest }>({});
 	onMount(() => {
@@ -143,12 +146,9 @@
 				value: plugins
 					? `${plugins.running} of ${plugins.all} running`
 					: `${status.plugins_active} running`,
-				detail:
-					plugins && plugins.running < plugins.all
-						? 'Some aren’t running'
-						: `All well${plugins?.off ? ` · ${plugins.off} turned off` : ''}`,
+				detail: plugins ? pluginHealthLine(plugins) : '',
 				href: '/settings/plugins',
-				bad: !!plugins && plugins.running < plugins.all
+				bad: !!plugins && (plugins.running < plugins.all || plugins.trouble > 0)
 			},
 			{
 				label: 'Devices',

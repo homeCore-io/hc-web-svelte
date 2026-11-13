@@ -6,8 +6,11 @@
 	switches, its keypads and the scenes that belong to no group.
 
 	A lamp's pill picks it as the scenes' target. With none picked, a scene
-	chip shows the scene in the whole group. The bridge has no scenes for a
-	single lamp yet, so with a lamp picked the chips say so and wait.
+	chip shows the scene in the whole group. With a lamp picked, a chip shows
+	only that lamp's part of the scene, where the scene sets that lamp and its
+	plugin can (`apply_scene`); the other chips wait. The chip that is on is
+	the one the group, or the picked lamp, reports showing, and a lamp showing
+	a scene the group isn't says so under its name.
 -->
 <script lang="ts">
 	import { page } from '$app/state';
@@ -34,6 +37,14 @@
 	} from './room.js';
 	import type { FaderStyle, SwitchStyle } from './style.js';
 	import { blocksOf } from './layout.js';
+	import {
+		appliesTo,
+		lampSceneNote,
+		onLabel,
+		onScene,
+		swatchOf,
+		takesScenes
+	} from './hueScenes.js';
 
 	let {
 		tab,
@@ -141,16 +152,22 @@
 		(picked = { ...picked, [c.key]: picked[c.key] === id ? undefined : id });
 	const pickedIn = (c: LightColumn) => c.lights.find((l) => l.device_id === picked[c.key]);
 
-	const activeIn = (c: LightColumn) => c.scenes.find((s) => s.attributes.active === true);
-	const paletteOf = (s: CoreDevice) => {
-		const p = Array.isArray(s.attributes.palette)
-			? (s.attributes.palette as unknown[]).filter((x) => typeof x === 'string')
-			: [];
-		return p.length > 1
-			? `linear-gradient(135deg, ${p.slice(0, 4).join(', ')})`
-			: ((p[0] as string | undefined) ?? 'radial-gradient(circle at 35% 30%, #fff3e0, #f7b979)');
-	};
+	/** The chip that is on: the picked lamp's scene, else the group's. */
+	const activeIn = (c: LightColumn, lamp?: CoreDevice) =>
+		lamp ? onScene(c.scenes, lamp, true) : onScene(c.scenes, c.group);
 	const show = (s: CoreDevice) => void commands.act(s.device_id, 'activate');
+	/** Only the lamp's part of the scene, waited for until the lamp reports showing it. */
+	const showIn = (l: CoreDevice, s: CoreDevice) =>
+		void commands.actFor(
+			l.device_id,
+			'light',
+			'apply_scene',
+			{ scene_id: s.device_id },
+			{ scene: s.device_id },
+			l.attributes
+		);
+	const sending = (l: CoreDevice | undefined, s: CoreDevice) =>
+		!!l && commands.pending[l.device_id]?.want.scene === s.device_id;
 	const noteOf = (c: LightColumn) =>
 		[c.group, ...c.lights].map((d) => d && commands.notes[d.device_id]).find((n) => !!n);
 </script>
@@ -206,6 +223,7 @@
 									color={colour(l)}
 									disabled={!may || !l.available}
 									waiting={waiting(l)}
+									sub={scenic ? lampSceneNote(l, c.group) : undefined}
 									selected={chosen?.device_id === l.device_id}
 									onpick={scenic ? () => pick(c, l.device_id) : undefined}
 									onopen={scenic ? undefined : () => open(l)}
@@ -231,16 +249,21 @@
 					{/each}
 				</div>
 				{#if scenic}
-					{@const active = activeIn(c)}
+					{@const active = activeIn(c, chosen)}
 					<div class="scn" role="group" aria-label={`Scenes for ${c.title}`}>
 						<p class="cap">
 							{#if chosen}
-								Only {nameOf(chosen)} · scenes for one light aren’t available yet
+								<span class="for"
+									>Scene for <b>{nameOf(chosen)}</b> · {takesScenes(chosen)
+										? onLabel(chosen, active && nameOf(active))
+										: 'it can’t take one alone'}</span
+								>
 								<button type="button" class="more" onclick={() => open(chosen)}>Details</button>
 							{:else}
-								{c.group || c.lights.length > 1 ? 'The group’s scenes' : 'Scenes'} · {active
-									? `${nameOf(active)} is on`
-									: 'none on'}
+								{c.group || c.lights.length > 1 ? 'The group’s scenes' : 'Scenes'} · {onLabel(
+									c.group,
+									active && nameOf(active)
+								)}
 							{/if}
 							{#if clipped[c.key] || allScenes[c.key]}
 								<button
@@ -258,13 +281,19 @@
 									><button
 										type="button"
 										class="chip"
-										class:on={!chosen && s.attributes.active === true}
-										disabled={!may || !!chosen || !s.available}
-										title={chosen
-											? `Scenes for one light aren’t available yet. Pick All to show ${nameOf(s)} in ${c.title}.`
-											: `Show ${nameOf(s)} in ${c.title}`}
-										onclick={() => show(s)}
-										><i style:background={paletteOf(s)} aria-hidden="true"></i>{nameOf(s)}</button
+										class:on={active?.device_id === s.device_id}
+										class:wait={sending(chosen, s)}
+										aria-pressed={active?.device_id === s.device_id}
+										disabled={!may || !s.available || (!!chosen && !appliesTo(s, chosen))}
+										title={!chosen
+											? `Show ${nameOf(s)} in ${c.title}`
+											: appliesTo(s, chosen)
+												? `Show ${nameOf(s)} in ${nameOf(chosen)} only`
+												: takesScenes(chosen)
+													? `${nameOf(s)} doesn’t set ${nameOf(chosen)}. Pick All to show it in ${c.title}.`
+													: `${nameOf(chosen)} can’t take a scene alone. Pick All to show ${nameOf(s)} in ${c.title}.`}
+										onclick={() => (chosen ? showIn(chosen, s) : show(s))}
+										><i style:background={swatchOf(s)} aria-hidden="true"></i>{nameOf(s)}</button
 									><Place d={s} chip /></span
 								>
 							{/each}
@@ -345,7 +374,7 @@
 								disabled={!may || !s.available}
 								title={`Show ${nameOf(s)}`}
 								onclick={() => show(s)}
-								><i style:background={paletteOf(s)} aria-hidden="true"></i>{nameOf(s)}</button
+								><i style:background={swatchOf(s)} aria-hidden="true"></i>{nameOf(s)}</button
 							><Place d={s} chip /></span
 						>
 					{/each}
@@ -560,6 +589,31 @@
 		background: color-mix(in srgb, var(--ink) 16%, transparent);
 		color: var(--ink);
 		box-shadow: inset 0 0 0 1.5px var(--ink);
+	}
+	/* Sent to one lamp, until it reports showing it: the chip breathes. */
+	.chip.wait {
+		animation: breathe 1.2s ease-in-out infinite;
+	}
+	@keyframes breathe {
+		50% {
+			opacity: 0.55;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.chip.wait {
+			animation: none;
+			opacity: 0.7;
+		}
+	}
+	.for {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.for b {
+		color: var(--ink);
+		font-weight: 600;
 	}
 	.chip:focus-visible,
 	.pname:focus-visible,

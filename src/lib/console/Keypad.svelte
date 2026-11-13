@@ -5,6 +5,10 @@
 	button presses it on the wall, where the keypad's plugin declares a press;
 	otherwise the drawing only shows what the keypad shows. A button that
 	opens a door or a gate asks first.
+
+	Someone who may change devices can rename its buttons in place, where its
+	plugin lets them: each button becomes a box for its name, and an empty one
+	goes back to the engraving.
 -->
 <script lang="ts">
 	import { page } from '$app/state';
@@ -13,6 +17,8 @@
 	import { openDevice } from '#lib/popup.js';
 	import { ask } from '#lib/confirm.svelte.js';
 	import { goAhead } from '#lib/ask.js';
+	import { session } from '#lib/me.svelte.js';
+	import { blankName, keypadButtons, renames } from './keypad.js';
 
 	let { device, may = true }: { device: CoreDevice; may?: boolean } = $props();
 
@@ -22,25 +28,7 @@
 
 	const a = $derived(device.attributes);
 	const name = $derived(device.name_override ?? device.name);
-	const buttons = $derived.by(() => {
-		const raw = Array.isArray(a.available_buttons) ? (a.available_buttons as unknown[]) : [];
-		return raw
-			.map((b) => {
-				const n =
-					typeof b === 'number'
-						? b
-						: typeof (b as { number?: unknown })?.number === 'number'
-							? (b as { number: number }).number
-							: NaN;
-				const named =
-					device.button_names?.[String(n)] ??
-					(typeof (b as { name?: unknown })?.name === 'string'
-						? (b as { name: string }).name
-						: `Button ${n}`);
-				return { n, name: named };
-			})
-			.filter((b) => Number.isFinite(b.n));
-	});
+	const buttons = $derived(keypadButtons(device));
 	const keys = $derived(buttons.filter((b) => b.n !== LOWER && b.n !== RAISE));
 	const rocker = $derived(buttons.some((b) => b.n === LOWER) && buttons.some((b) => b.n === RAISE));
 	const press = $derived(device.schema?.actions?.find((x) => x.id === 'press_button'));
@@ -53,7 +41,7 @@
 	const lastName = $derived(
 		last === LOWER ? 'lower' : last === RAISE ? 'raise' : buttons.find((b) => b.n === last)?.name
 	);
-	const blank = (s: string) => /^button \d+$/i.test(s);
+	const blank = blankName;
 
 	/** A button that opens or unlocks something, by its name: always asked first. */
 	const OPENS = /\b(door|gate|garage|lock|unlock)\b/i;
@@ -65,22 +53,63 @@
 			: await goAhead(device.device_id, 'keypad', `Press ${label} on ${name}?`);
 		if (go) void commands.act(device.device_id, 'press_button', { button: n });
 	}
+
+	// ---- renaming its buttons ----
+	const mayRename = $derived(renames(device) && session.can('devices:write') && device.available);
+	let renaming = $state(false);
+	let saving = $state<Record<number, boolean>>({});
+	/** Send a button's new name; an empty one gives it back its engraving. */
+	async function rename(n: number, input: HTMLInputElement) {
+		const b = buttons.find((x) => x.n === n);
+		const typed = input.value.trim();
+		if (!b || typed === (blank(b.name) ? '' : b.name)) return;
+		saving = { ...saving, [n]: true };
+		const sent = await commands.act(device.device_id, 'set_button_name', {
+			button: n,
+			name: typed
+		});
+		saving = { ...saving, [n]: false };
+		if (!sent) input.value = blank(b.name) ? '' : b.name;
+	}
+	function keyed(e: KeyboardEvent, b: { name: string }) {
+		const input = e.currentTarget as HTMLInputElement;
+		if (e.key === 'Enter') input.blur();
+		else if (e.key === 'Escape') {
+			input.value = blank(b.name) ? '' : b.name;
+			input.blur();
+		}
+	}
 </script>
 
 <div class="kp">
 	<div class="kplate" role="group" aria-label={`${name} keypad`}>
 		{#each keys as b (b.n)}
-			<button
-				type="button"
-				class="kbtn"
-				class:lit={lit(b.n)}
-				class:blank={blank(b.name)}
-				class:last={last === b.n}
-				disabled={!can}
-				aria-label={`${b.name}${lit(b.n) ? ', its light on' : ''}`}
-				onclick={() => void push(b.n)}
-				><span class="kled" aria-hidden="true"></span><span class="ktxt">{b.name}</span></button
-			>
+			{#if renaming}
+				<label class="kbtn kname" class:wait={saving[b.n]}
+					><span class="kled" aria-hidden="true"></span><input
+						type="text"
+						value={blank(b.name) ? '' : b.name}
+						placeholder={b.engraved ?? `Button ${b.n}`}
+						maxlength="40"
+						disabled={saving[b.n]}
+						aria-label={`Name for button ${b.n}${b.engraved ? `, engraved ${b.engraved}` : ''}`}
+						onkeydown={(e) => keyed(e, b)}
+						onchange={(e) => void rename(b.n, e.currentTarget)}
+					/></label
+				>
+			{:else}
+				<button
+					type="button"
+					class="kbtn"
+					class:lit={lit(b.n)}
+					class:blank={blank(b.name)}
+					class:last={last === b.n}
+					disabled={!can}
+					aria-label={`${b.name}${lit(b.n) ? ', its light on' : ''}`}
+					onclick={() => void push(b.n)}
+					><span class="kled" aria-hidden="true"></span><span class="ktxt">{b.name}</span></button
+				>
+			{/if}
 		{/each}
 		{#if rocker}
 			<div class="krock">
@@ -94,13 +123,21 @@
 		{/if}
 	</div>
 	<p class="note">
-		{#if lastName}Last pressed: {lastName}.{/if}
-		{press
-			? 'Its lights show what the keypad shows.'
-			: 'Shown as it is; it can’t be pressed from here.'}
-		<button type="button" class="more" onclick={() => openDevice(device.device_id, page.url)}
-			>Details</button
-		>
+		{#if renaming}
+			Type a name, or clear it for the engraving.
+			<button type="button" class="more" onclick={() => (renaming = false)}>Done</button>
+		{:else}
+			{#if lastName}Last pressed: {lastName}.{/if}
+			{press
+				? 'Its lights show what the keypad shows.'
+				: 'Shown as it is; it can’t be pressed from here.'}
+			<button type="button" class="more" onclick={() => openDevice(device.device_id, page.url)}
+				>Details</button
+			>
+			{#if mayRename}
+				<button type="button" class="more" onclick={() => (renaming = true)}>Rename buttons</button>
+			{/if}
+		{/if}
 	</p>
 </div>
 
@@ -182,6 +219,36 @@
 		box-shadow:
 			0 0 0 2px rgba(255, 196, 107, 0.8),
 			inset 0 1px 0 #fff;
+	}
+	/* Renaming: the button is a box for its name, the same size. */
+	.kname {
+		cursor: text;
+		background: #fff;
+		box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+	}
+	.kname:focus-within {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+	.kname input {
+		flex: 1;
+		min-width: 0;
+		height: 100%;
+		border: 0;
+		padding: 0;
+		background: none;
+		color: inherit;
+		font: inherit;
+		letter-spacing: inherit;
+		text-transform: none;
+		outline: none;
+	}
+	.kname input::placeholder {
+		color: #9d998f;
+		text-transform: uppercase;
+	}
+	.kname.wait {
+		opacity: 0.6;
 	}
 	.ktxt {
 		white-space: nowrap;

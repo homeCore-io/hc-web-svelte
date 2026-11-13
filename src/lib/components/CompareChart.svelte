@@ -5,7 +5,7 @@
 -->
 <script lang="ts">
 	import { devices } from '#lib/devices.svelte.js';
-	import { displayName } from '#lib/devices.js';
+	import { displayName, unitOf } from '#lib/devices.js';
 	import { shownUnit, toShown } from '#lib/units.js';
 	import { dailyRanges, nearest, scaleOf, type Point } from '#lib/compare.js';
 
@@ -22,7 +22,12 @@
 	const W = 600;
 	const H = 200;
 	const temp = $derived(attr === 'temperature');
-	const show = (v: number) => (temp ? toShown(v, '°C') : v);
+	// In the person's units, from each sensor's own (an Ecowitt reads °F).
+	const showOf = (id: string) => {
+		const d = devices.byId[id];
+		const own = (d && unitOf(d, attr)) ?? '°C';
+		return (v: number) => (temp ? toShown(v, own) : v);
+	};
 	const unit = $derived(temp ? (shownUnit('°C') ?? '°') : '%');
 	const fmt = (v: number) =>
 		`${Math.abs(v) < 10 ? v.toFixed(1) : Math.round(v)}${temp ? '°' : '%'}`;
@@ -62,9 +67,10 @@
 	const series = $derived(
 		shownIds.map((id, i) => ({
 			id,
+			show: showOf(id),
 			color: COLORS[i % COLORS.length]!,
 			name: devices.byId[id] ? displayName(devices.byId[id]!) : 'A sensor that’s gone',
-			pts: (data[id] ?? []).map((p) => ({ t: p.t, v: show(p.v) })),
+			pts: (data[id] ?? []).map((p) => ({ t: p.t, v: showOf(id)(p.v) })),
 			now: devices.byId[id]?.attributes?.[attr]
 		}))
 	);
@@ -126,7 +132,7 @@
 				aria-pressed={!hidden[s.id]}
 				onclick={() => (hidden = { ...hidden, [s.id]: !hidden[s.id] })}
 				><span class="swatch" style:background={s.color}
-				></span>{s.name}{#if typeof s.now === 'number'}<span class="num">{fmt(show(s.now))}</span
+				></span>{s.name}{#if typeof s.now === 'number'}<span class="num">{fmt(s.show(s.now))}</span
 					>{/if}</button
 			>
 		{/each}

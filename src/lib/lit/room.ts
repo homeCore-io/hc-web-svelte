@@ -5,7 +5,8 @@
  * The page's own arrangement still applies (what is hidden, what a card is
  * called); Lit only decides where each kind of thing goes on the page.
  */
-import type { CoreDevice, Devices } from '../devices.js';
+import { unitOf, type CoreDevice, type Devices } from '../devices.js';
+import { toShown } from '../units.js';
 import { INFRASTRUCTURE, isOpen, kindOf, type CardView } from '../card.js';
 import type { Card } from '../page.js';
 
@@ -64,7 +65,7 @@ export interface Reading {
 	name: string;
 	/** The attribute drawn over time. */
 	attr: 'temperature' | 'humidity';
-	/** The device's own safe range, when it keeps one (a freezer probe), in °C. */
+	/** The device's own safe range, when it keeps one (a freezer probe), in its own unit. */
 	range?: { low: number; high: number };
 }
 
@@ -325,6 +326,16 @@ export function litRoom(
 		problems,
 		glow
 	};
+}
+
+/**
+ * A reading's number in the person's units. A temperature is in the device's
+ * own unit (an Ecowitt station's °F, its temperature_unit), so it is converted
+ * from that, never assumed to be °C. Its history and safe range are in it too.
+ */
+export function shownReading(r: Pick<Reading, 'card' | 'attr'>, v: number): number {
+	if (r.attr !== 'temperature') return v;
+	return toShown(v, unitOf(r.card.device, 'temperature') ?? '°C');
 }
 
 /** A temperature or humidity sensor, with its day (and its own safe range); null for anything else. */

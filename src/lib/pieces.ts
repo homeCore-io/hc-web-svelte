@@ -10,7 +10,7 @@ import { kindOf } from './card.js';
 import { sourceOf, type Options } from './options.js';
 import { readingOf } from './roomBox.js';
 import { roomOf } from './summary.js';
-import { shownUnit, toShown } from './units.js';
+import { readingUnit, shownUnit, toShown } from './units.js';
 
 export interface Item {
 	id: string;
@@ -292,7 +292,12 @@ export function weatherOf(d: CoreDevice, now: number, max = 4): Weather {
 		if (label === 'UV') text = String(Math.round(num(d.attributes[name])!));
 		// Temperatures and wind in whole numbers, as the big temperature is: "58°F", "2 mph".
 		if (WHOLE.has(label)) {
-			const unit = spec?.unit ?? usual;
+			// The device's own unit where it names one: an Ecowitt says °F once, in
+			// temperature_unit, for its feels-like too.
+			const own =
+				d.attributes[`${name}_unit`] ??
+				(label === 'Feels like' ? d.attributes.temperature_unit : undefined);
+			const unit = readingUnit(spec?.unit ?? usual, own);
 			const shown = shownUnit(unit) ?? '';
 			const v = Math.round(toShown(num(d.attributes[name])!, unit));
 			text = shown.startsWith('°') ? `${v}${shown}` : `${v} ${shown}`;

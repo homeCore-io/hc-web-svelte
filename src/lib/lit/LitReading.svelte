@@ -8,8 +8,8 @@
 <script lang="ts">
 	import { page as here } from '$app/state';
 	import { openDevice } from '#lib/popup.js';
-	import { shownUnit, toShown } from '#lib/units.js';
-	import type { Reading } from './room.js';
+	import { shownUnit } from '#lib/units.js';
+	import { shownReading, type Reading } from './room.js';
 	import { bandOf } from '#lib/looks/band.js';
 
 	let { r, band = false }: { r: Reading; band?: boolean } = $props();
@@ -43,8 +43,8 @@
 
 	const a = $derived(r.card.device.attributes ?? {});
 	const temp = $derived(r.attr === 'temperature');
-	// In the person's units: °C kept, °F shown to someone who reads °F.
-	const show = (c: number) => (temp ? toShown(c, '°C') : c);
+	// In the person's units, from the device's own: an Ecowitt's °F is not converted twice.
+	const show = (v: number) => shownReading(r, v);
 	const unit = $derived(temp ? (shownUnit('°C') ?? '°') : '%');
 	const now = $derived(typeof a[r.attr] === 'number' ? show(a[r.attr] as number) : undefined);
 	const humidity = $derived(

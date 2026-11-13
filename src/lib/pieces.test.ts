@@ -117,6 +117,21 @@ describe('the weather (G21)', () => {
 		expect(w.forecast).toEqual([]);
 	});
 
+	it('reads a °F station’s feels-like in °F, from its temperature_unit', () => {
+		const d: CoreDevice = {
+			...all.ecowitt_station!,
+			attributes: {
+				...all.ecowitt_station!.attributes,
+				temperature: 50,
+				feels_like: 50,
+				temperature_unit: 'F'
+			}
+		};
+		const w = weatherOf(d, FIXTURE_NOW);
+		// The tests read in °C: 50 °F is 10 °C.
+		expect(w.readings.find((r) => r.label === 'Feels like')?.text).toBe('10°C');
+	});
+
 	it('shows a forecast the device publishes: days from today, in °C, five at most', () => {
 		const day = (n: number) => new Date(FIXTURE_NOW + n * 86_400_000).toISOString();
 		const forecast = [

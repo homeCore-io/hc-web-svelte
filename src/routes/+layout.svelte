@@ -112,6 +112,16 @@
 		if (small && PhoneShell === null)
 			void import('#lib/console/phone/PhoneShell.svelte').then((m) => (PhoneShell = m.default));
 	});
+	// The page app.html shows while the app starts stays until there's a frame
+	// to see: signing in, a display, or the person's frame once it's loaded.
+	const drawn = $derived(
+		onLogin ||
+			session.isDisplay ||
+			(session.me !== null && (small ? PhoneShell !== null : desk ? ConsoleShell !== null : true))
+	);
+	$effect(() => {
+		if (drawn) document.getElementById('hc-boot')?.remove();
+	});
 	// The theme: the person's own, else the house's, else the look's where it reaches (D9a).
 	$effect(() => {
 		if (personal.loaded && household.loaded)

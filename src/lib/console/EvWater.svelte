@@ -215,10 +215,13 @@
 		min-width: 0;
 		font-size: 16px;
 		font-weight: 700;
-		color: #8fbfff;
+		color: var(--cool-ink, #8fbfff);
 	}
 	.word.shut {
 		color: #ffb38a;
+	}
+	:global(:root[data-theme='light']) .word.shut {
+		color: #b4471c;
 	}
 	/* On a phone: the pipe and its name, then how it is and its button. */
 	:global(.ev.phone) .valve {

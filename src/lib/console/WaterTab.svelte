@@ -165,7 +165,7 @@
 		color: var(--good-ink, color-mix(in srgb, var(--good, #4fe0a0) 70%, var(--ink)));
 	}
 	.drop b.wet {
-		color: #6fb6ff;
+		color: var(--cool-ink, #6fb6ff);
 	}
 	.drop small,
 	.sub {

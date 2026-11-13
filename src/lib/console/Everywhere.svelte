@@ -181,7 +181,7 @@
 	}
 	:where(.ev) :global(.spill.wet) {
 		background: rgba(58, 140, 255, 0.22);
-		color: color-mix(in srgb, #8fbfff 80%, var(--ink));
+		color: var(--cool-ink, color-mix(in srgb, #8fbfff 80%, var(--ink)));
 		box-shadow:
 			inset 0 0 0 1px rgba(90, 160, 255, 0.7),
 			0 0 14px rgba(58, 140, 255, 0.45);
@@ -239,7 +239,7 @@
 	:where(.ev) :global(.ipill.wet) {
 		background: rgba(58, 140, 255, 0.16);
 		box-shadow: inset 0 0 0 1px rgba(90, 160, 255, 0.6);
-		color: color-mix(in srgb, #8fbfff 70%, var(--ink));
+		color: var(--cool-ink, color-mix(in srgb, #8fbfff 70%, var(--ink)));
 	}
 	:where(.ev) :global(.ipill.wet i),
 	:where(.ev) :global(.ipill.wet b) {

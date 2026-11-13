@@ -216,17 +216,23 @@ export class RoomNow {
 	// ---- Room on, Room off ----
 	/** Whether Room on and Room off would reach anything: a light, not a camera's spotlight. */
 	hasPower = $derived(roomPowerLights(this.list, devices.byId).length > 0);
-	busy = $state<'on' | 'off' | null>(null);
-	trouble = $state<string | null>(null);
+	// Kept with the room they are for, so the next room's buttons start free
+	// and clear, while this one's answer still comes back to it.
+	#busy = $state<{ room: string; on: boolean } | null>(null);
+	#trouble = $state<{ room: string; text: string } | null>(null);
+	busy = $derived<'on' | 'off' | null>(
+		this.#busy?.room === this.id ? (this.#busy.on ? 'on' : 'off') : null
+	);
+	trouble = $derived(this.#trouble?.room === this.id ? this.#trouble.text : null);
 	async power(on: boolean): Promise<void> {
 		const room = this.room;
 		if (!room || this.busy) return;
-		this.busy = on ? 'on' : 'off';
-		this.trouble = null;
+		this.#busy = { room: room.id, on };
+		this.#trouble = null;
 		const { error, lights } = await roomPower(room.id, on);
-		this.busy = null;
+		if (this.#busy?.room === room.id) this.#busy = null;
 		if (error) {
-			this.trouble = error;
+			this.#trouble = { room: room.id, text: error };
 			return;
 		}
 		// Each light it sent a command to waits for its answer, as a fader would.

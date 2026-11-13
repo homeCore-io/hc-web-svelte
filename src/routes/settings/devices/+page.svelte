@@ -538,7 +538,7 @@
 	.row {
 		display: grid;
 		grid-template-columns:
-			36px minmax(0, 2.2fr) minmax(0, 1.1fr) minmax(0, 1.1fr) minmax(0, 0.8fr)
+			36px minmax(0, 2fr) minmax(0, 1.1fr) minmax(0, 1.1fr) minmax(0, 1fr)
 			minmax(0, 1.6fr) minmax(0, 0.8fr);
 		align-items: center;
 		gap: var(--space-2);

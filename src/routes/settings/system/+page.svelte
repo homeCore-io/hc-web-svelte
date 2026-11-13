@@ -619,6 +619,18 @@
 		font-weight: 600;
 		color: var(--ink-muted);
 	}
+	/* On a phone the four fit in one row, each its share, rather than wrapping inside the pill. */
+	@media (max-width: 480px) {
+		.seg {
+			align-self: stretch;
+			flex-wrap: nowrap;
+		}
+		.seg button {
+			flex: 1 1 0;
+			min-width: 0;
+			padding: 0 6px;
+		}
+	}
 	.seg button[aria-checked='true'] {
 		background: var(--surface);
 		color: var(--ink);

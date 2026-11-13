@@ -170,11 +170,7 @@
 	<ListDetail chosen={asked !== null && room !== undefined} label="Rooms">
 		{#snippet list()}
 			<form class="new" onsubmit={add}>
-				<input
-					bind:value={newName}
-					placeholder="New room, named as you'd say it"
-					aria-label="New room"
-				/>
+				<input bind:value={newName} placeholder="New room, as you’d say it" aria-label="New room" />
 				<button type="submit" disabled={newName.trim() === ''} aria-label="Add room"
 					><Plus size={18} aria-hidden="true" /></button
 				>

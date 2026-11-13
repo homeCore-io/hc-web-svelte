@@ -654,6 +654,13 @@
 		font-weight: 600;
 		font-size: 14px;
 	}
+	/* On a phone, a choice takes the full width under its name, so it isn't cut. */
+	@media (max-width: 520px) {
+		.row {
+			grid-template-columns: minmax(0, 1fr);
+			gap: 4px;
+		}
+	}
 	input,
 	select {
 		height: 40px;

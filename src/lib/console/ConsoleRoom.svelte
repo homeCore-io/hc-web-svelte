@@ -230,8 +230,8 @@
 								class="pill"
 								class:ok={d.available && !open}
 								class:bad={!d.available || open}
-								title="See the room’s doors"
-								onclick={() => choose('doors')}
+								title={r.openingHint(d)}
+								onclick={() => r.openingPill(d, choose)}
 							>
 								{#if open}<DoorOpen
 										size={13}

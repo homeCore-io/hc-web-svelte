@@ -192,7 +192,9 @@
 							class="pill"
 							class:ok={d.available && !open}
 							class:bad={!d.available || open}
-							onclick={() => choose('doors')}
+							title={r.openingHint(d)}
+							aria-label={`${r.short(r.nameOf(d))}: ${d.available ? (open ? 'Open' : 'Closed') : 'Offline'}. ${r.openingHint(d)}`}
+							onclick={() => r.openingPill(d, choose)}
 						>
 							{#if open}<DoorOpen
 									size={13}

@@ -271,6 +271,18 @@ export function tabToShow(
 	return a.shown.find((t) => t.id === asked)?.id ?? a.opens;
 }
 
+/**
+ * The shown tab a device is on, for a header's pill: none when the household
+ * moved it to a tab it hid, or it is on none (the pill opens the device then).
+ */
+export function tabWith(
+	byTab: Partial<Record<TabId, readonly { device_id: string }[]>>,
+	shown: readonly { id: TabId }[],
+	id: string
+): TabId | undefined {
+	return shown.find((t) => byTab[t.id]?.some((d) => d.device_id === id))?.id;
+}
+
 // ---- the Lights tab's columns ----
 
 /** One column of the Lights tab, in the order it's drawn. */

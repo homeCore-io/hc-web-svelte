@@ -47,9 +47,17 @@ import {
 	withRoomAudio
 } from './media.js';
 import { send } from './send.js';
-import { brandOf, consoleRoom, devicesIn, LIGHTS_WIDTH, shortName, tabChoicesOf } from './room.js';
+import {
+	brandOf,
+	consoleRoom,
+	devicesIn,
+	LIGHTS_WIDTH,
+	shortName,
+	tabChoicesOf,
+	type TabId
+} from './room.js';
 import { faderStyle, switchStyle } from './style.js';
-import { arrangeTabs, resolve, roomIn } from './layout.js';
+import { arrangeTabs, resolve, roomIn, tabWith } from './layout.js';
 
 export class RoomNow {
 	#id: () => string;
@@ -185,6 +193,21 @@ export class RoomNow {
 			return void commands.set(d.device_id, c.kind, { locked: false }, d.attributes);
 		}
 		void commands.set(d.device_id, c.kind, { locked: true }, d.attributes);
+	}
+	/**
+	 * A door's pill: the tab the door is on, while it is shown, else the door
+	 * itself, so a pill never does nothing.
+	 */
+	openingPill(d: CoreDevice, choose: (t: TabId) => void): void {
+		const t = tabWith(this.model.byTab, this.arranged.shown, d.device_id);
+		if (t) choose(t);
+		else openDevice(d.device_id, page.url);
+	}
+	/** What the pill says it does, for its title. */
+	openingHint(d: CoreDevice): string {
+		const t = tabWith(this.model.byTab, this.arranged.shown, d.device_id);
+		const name = this.arranged.shown.find((x) => x.id === t)?.name;
+		return name ? `See it on ${name}` : `Open ${this.nameOf(d)}`;
 	}
 	// Locks and doors as pills, but those the household left out.
 	locks = $derived(this.model.locks.filter((d) => !this.lay.pillsOff.includes(d.device_id)));

@@ -64,11 +64,9 @@
 			</span>
 			{#if session.isAdmin}
 				<a class="plain" href="/settings/plugins/runtimes"
-					>Plugin runtimes · {runtimes
-						? runtimes.pending
-							? `${runtimes.pending} waiting`
-							: runtimes.all || 'none'
-						: '…'}</a
+					>Plugin runtimes{runtimes
+						? ` · ${runtimes.pending ? `${runtimes.pending} waiting` : runtimes.all || 'none'}`
+						: ''}</a
 				>
 			{/if}
 			{#if session.isAdmin || session.can('plugins:write')}

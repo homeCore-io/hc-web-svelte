@@ -418,7 +418,7 @@
 					>
 				</label>
 				{#if logNote}<p class="trouble">{logNote}</p>{/if}
-				{#if lines === null}<p class="quiet">Loading…</p>
+				{#if lines === null}{#if !logNote}<p class="quiet">Loading…</p>{/if}
 				{:else if lines.length === 0}<p class="quiet">Nothing at this level yet.</p>
 				{:else}
 					<ol class="log">

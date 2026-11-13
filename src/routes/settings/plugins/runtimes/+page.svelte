@@ -30,9 +30,15 @@
 	let note = $state<string | null>(null);
 	let token = $state<{ token: string; expires_at: string } | null>(null);
 	let placements = $state<Placement[]>([]);
+	/** The first list was refused: say why, and stop saying it's loading. */
+	let unlisted = $state(false);
 	async function load() {
 		const [r, p] = await Promise.all([loadRuntimes(), loadPlacements()]);
-		if (!r.ok) return void (note = r.error);
+		if (!r.ok) {
+			unlisted = runtimes === null;
+			return void (note = r.error);
+		}
+		unlisted = false;
 		runtimes = r.data.runtimes;
 		if (p.ok) placements = p.data;
 	}
@@ -106,7 +112,7 @@
 		{/if}
 		{#if note}<p class="note" role="status">{note}</p>{/if}
 		{#if runtimes === null}
-			<p class="quiet">Loading…</p>
+			{#if !unlisted}<p class="quiet">Loading…</p>{/if}
 		{:else if runtimes.length === 0}
 			<p class="quiet">No runtime has asked to join.</p>
 		{:else}

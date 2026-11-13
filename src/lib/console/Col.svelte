@@ -221,7 +221,7 @@
 		color: #8a5a10;
 	}
 	:global(:root[data-theme='light']) .tag[data-brand='yolink'] {
-		color: #157a4f;
+		color: var(--good-ink);
 	}
 	:global(:root[data-theme='light']) .tag[data-brand='nuheat'],
 	:global(:root[data-theme='light']) .tag[data-brand='mysa'] {

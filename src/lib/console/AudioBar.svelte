@@ -382,6 +382,10 @@
 		text-transform: uppercase;
 		opacity: 0.6;
 	}
+	:global(:root[data-theme='light']) .via small {
+		color: var(--ink-muted);
+		opacity: 1;
+	}
 	.via select {
 		height: 28px;
 		max-width: 220px;

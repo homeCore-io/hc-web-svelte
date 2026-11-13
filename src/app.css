@@ -31,6 +31,15 @@
 	--fill: #f6c987;
 	/* A thermostat cooling, beside --track-on heating. */
 	--cool: #2f7fc1;
+	/*
+	 * Words in a status colour, dark enough to read on a light page: all is
+	 * well, cool or wet, warm or waiting, and playing. Dark leaves them unset,
+	 * so each place keeps its own brighter colour there.
+	 */
+	--good-ink: #1d6b48;
+	--cool-ink: #1f5fae;
+	--warm-ink: #8a5a10;
+	--media-ink: #5a3aa8;
 	--alert: #b42318;
 	--alert-ink: #ffffff;
 	--alert-bg: #fce9e6;
@@ -90,6 +99,10 @@
 		--track-off: #3a414d;
 		--fill: #b9862e;
 		--cool: #5aa9e6;
+		--good-ink: initial;
+		--cool-ink: initial;
+		--warm-ink: initial;
+		--media-ink: initial;
 		--alert: #ff7a6b;
 		--alert-ink: #1a0806;
 		--alert-bg: #33191a;
@@ -120,6 +133,10 @@
 	--track-off: #3a414d;
 	--fill: #b9862e;
 	--cool: #5aa9e6;
+	--good-ink: initial;
+	--cool-ink: initial;
+	--warm-ink: initial;
+	--media-ink: initial;
 	--alert: #ff7a6b;
 	--alert-ink: #1a0806;
 	--alert-bg: #33191a;

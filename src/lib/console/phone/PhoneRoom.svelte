@@ -507,7 +507,7 @@
 	}
 	.pill.ok {
 		background: color-mix(in srgb, var(--good, #4fe0a0) 18%, transparent);
-		color: color-mix(in srgb, var(--good, #4fe0a0) 70%, var(--ink));
+		color: var(--good-ink, color-mix(in srgb, var(--good, #4fe0a0) 70%, var(--ink)));
 	}
 	.pill.bad {
 		background: color-mix(in srgb, var(--alert) 22%, transparent);

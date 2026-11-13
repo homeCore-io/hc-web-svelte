@@ -1053,7 +1053,7 @@
 	}
 	.st.on {
 		background: color-mix(in srgb, var(--good, #4fe0a0) 20%, transparent);
-		color: color-mix(in srgb, var(--good, #4fe0a0) 75%, var(--ink));
+		color: var(--good-ink, color-mix(in srgb, var(--good, #4fe0a0) 75%, var(--ink)));
 	}
 	.now {
 		margin: 6px 0 0;

@@ -576,6 +576,8 @@
 		font-weight: 600;
 	}
 	.lbl {
+		/* The view's name stays whole; a long word beside it gives way. */
+		flex: none;
 		min-width: 0;
 		overflow: hidden;
 		text-overflow: ellipsis;

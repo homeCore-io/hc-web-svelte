@@ -299,12 +299,30 @@ export const secRows = (places: Place[], wants: Wants = {}): SecRow[] =>
 export const issuesOf = (rows: SecRow[]): { place: Place; item: SecItem }[] =>
 	rows.flatMap((r) => r.items.filter((i) => !i.ok).map((item) => ({ place: r.place, item })));
 
-/** The sidebar's word for what needs attention: "2 open", "1 offline", "3 to check". */
+/**
+ * What needs attention, each kind counted apart: "2 open", "1 open · 1
+ * unlocked", "1 open · 1 unlocked · 1 offline".
+ */
+export function issuesFull(issues: { item: SecItem }[]): string {
+	const count = (word: SecItem['word']) => issues.filter((i) => i.item.word === word).length;
+	const parts: [number, string][] = [
+		[count('Open'), 'open'],
+		[count('Unlocked'), 'unlocked'],
+		[count('Offline'), 'offline']
+	];
+	return parts
+		.filter(([n]) => n > 0)
+		.map(([n, w]) => `${n} ${w}`)
+		.join(' · ');
+}
+
+/**
+ * The sidebar's word for it, short enough for its row: `issuesFull` while it
+ * is one kind ("2 open", "1 unlocked"), else "2 to check", in full in its title.
+ */
 export function issuesWord(issues: { item: SecItem }[]): string {
-	const offline = issues.filter((i) => !i.item.device.available).length;
-	if (offline === 0) return `${issues.length} open`;
-	if (offline === issues.length) return `${offline} offline`;
-	return `${issues.length} to check`;
+	const full = issuesFull(issues);
+	return full.includes(' · ') ? `${issues.length} to check` : full;
 }
 
 // ---- Water ----
@@ -358,7 +376,7 @@ export function statusOf(places: Place[], wants: Wants = {}): Record<ViewId, Vie
 		media: playing ? { word: `${playing} playing`, tone: 'media' } : { word: '' },
 		climate: { word: busy ? `${busy} working` : '' },
 		security: issues.length
-			? { word: issuesWord(issues), tone: 'warn' }
+			? { word: issuesWord(issues), full: issuesFull(issues), tone: 'warn' }
 			: { word: secRows(places).length ? 'secure' : '', tone: 'ok' },
 		water: water.wet.length
 			? { word: `${water.wet.length} leaking`, tone: 'wet' }

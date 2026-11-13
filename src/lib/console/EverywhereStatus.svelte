@@ -27,6 +27,12 @@
 		font-weight: 400;
 		color: var(--ink-muted);
 		white-space: nowrap;
+		min-width: 0;
+	}
+	.w {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 	.st.warn {
 		color: var(--alert);

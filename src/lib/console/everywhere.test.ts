@@ -7,6 +7,7 @@ import {
 	everyRoom,
 	fromWord,
 	issuesOf,
+	issuesFull,
 	issuesWord,
 	lightRows,
 	lightsCount,
@@ -343,7 +344,11 @@ describe('Security', () => {
 	it('names the sidebar’s count by what it is', () => {
 		const issues = issuesOf(secRows(places));
 		expect(issuesWord(issues)).toBe('3 to check');
-		expect(issuesWord(issues.filter((i) => i.item.device.available))).toBe('2 open');
+		expect(issuesFull(issues)).toBe('1 open · 1 unlocked · 1 offline');
+		// An unlocked lock is not "open".
+		expect(issuesWord(issues.filter((i) => i.item.device.available))).toBe('2 to check');
+		expect(issuesFull(issues.filter((i) => i.item.device.available))).toBe('1 open · 1 unlocked');
+		expect(issuesWord(issues.filter((i) => i.item.word === 'Open'))).toBe('1 open');
 		expect(issuesWord(issues.filter((i) => !i.item.device.available))).toBe('1 offline');
 	});
 
@@ -399,7 +404,7 @@ describe('the sidebar', () => {
 		const s = statusOf(places);
 		expect(s.lights).toEqual({ word: '1 on', full: '1 on in 1 room', tone: 'on' });
 		expect(s.media).toEqual({ word: '1 playing', tone: 'media' });
-		expect(s.security).toEqual({ word: '1 open', tone: 'warn' });
+		expect(s.security).toEqual({ word: '1 unlocked', full: '1 unlocked', tone: 'warn' });
 		expect(s.water).toEqual({ word: 'all dry', tone: 'ok' });
 		expect(statusOf(places, { lock: { want: { locked: true } } }).security).toEqual({
 			word: 'secure',
@@ -418,6 +423,10 @@ describe('the sidebar', () => {
 			}),
 			[office]
 		);
-		expect(statusOf(places).security).toEqual({ word: '2 offline', tone: 'warn' });
+		expect(statusOf(places).security).toEqual({
+			word: '2 offline',
+			full: '2 offline',
+			tone: 'warn'
+		});
 	});
 });

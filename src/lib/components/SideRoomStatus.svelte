@@ -12,19 +12,21 @@
 	import { kindOptions } from '#lib/kindOptions.svelte.js';
 	import { ref } from '#lib/layers.js';
 	import { ROOM_BUILT_IN } from '#lib/options.js';
-	import { roomBox } from '#lib/roomBox.js';
+	import { roomBox, troubleOf } from '#lib/roomBox.js';
 
 	let { room, list }: { room: string; list: CoreDevice[] } = $props();
+	const cards = $derived(list.map((d) => cardFor(d, clock.now)));
 	const box = $derived(
 		roomBox(
 			list,
-			list.map((d) => cardFor(d, clock.now)),
+			cards,
 			devices.byId,
 			kindOptions.of('home', 'room', ref.room(room), ROOM_BUILT_IN),
 			houseNow.lightIds
 		)
 	);
-	const wrong = $derived(box.lines.find((l) => l.alert)?.text);
+	// What's wrong, a lock left unlocked too, as Home's tile rings it.
+	const wrong = $derived(troubleOf(box, cards));
 </script>
 
 <span class="status" class:wrong={wrong !== undefined} title={wrong}>

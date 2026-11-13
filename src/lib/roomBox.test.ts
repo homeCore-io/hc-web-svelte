@@ -20,6 +20,7 @@ import {
 	readingOf,
 	roomBox,
 	sourced,
+	troubleOf,
 	type Box
 } from './roomBox.js';
 import { homeStyle, styleChanges, styleOf, shellRooms } from './styles.js';
@@ -216,6 +217,19 @@ describe('a room’s box', () => {
 		);
 		expect(b.alarm).toBe(true);
 		expect(b.lines.filter((l) => l.alert).map((l) => l.text)).toEqual(['Leak', 'door open']);
+	});
+
+	it('names what is wrong as Home rings it, a lock left unlocked too', () => {
+		const list = [...office, dev('lock', 'lock', { locked: false })];
+		const cards = list.map((d) => cardFor(d, NOW));
+		const b = roomBox(list, cards, all, resolve([{ doors: false }], ROOM_BUILT_IN));
+		expect(troubleOf(b, cards)).toBe('lock unlocked');
+		expect(
+			troubleOf(
+				box(),
+				office.map((d) => cardFor(d, NOW))
+			)
+		).toBeUndefined();
 	});
 
 	it('offers All off only while something is on, and only if asked', () => {

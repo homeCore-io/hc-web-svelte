@@ -382,6 +382,18 @@ export function fieldText(b: Box): FieldText {
 	};
 }
 
+/**
+ * What is wrong in a room, in words, as Home's tile rings it in red: what the
+ * box says is wrong, else a lock left unlocked. Missing when nothing is.
+ */
+export function troubleOf(b: Box, cards: CardView[]): string | undefined {
+	const wrong = b.lines.find((l) => l.alert)?.text;
+	if (wrong) return wrong;
+	const unlocked = cards.filter((c) => c.available && c.icon === 'unlock');
+	if (unlocked.length === 1) return `${unlocked[0]!.name} unlocked`;
+	return unlocked.length > 1 ? `${unlocked.length} unlocked` : undefined;
+}
+
 /** How much is going on in a room: lights on, marks, what's wrong. */
 export function busyness(b: Box): number {
 	return (

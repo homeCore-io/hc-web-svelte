@@ -129,7 +129,7 @@
 							<span class="text">
 								<strong>{r.name}</strong>
 								<span class="sub {r.state.tone}"
-									>{r.state.word} · {r.devices} devices · {r.version ?? '—'}</span
+									>{r.state.word} · {r.devices} devices{r.version ? ` · ${r.version}` : ''}</span
 								>
 								{#if r.notice}<span class="sub bad">{r.notice.message}</span>{/if}
 							</span>

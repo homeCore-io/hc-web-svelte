@@ -233,7 +233,7 @@
 		display: grid;
 		place-items: center;
 		background: var(--alert);
-		color: #1a0605;
+		color: var(--alert-ink);
 		font-size: 12px;
 	}
 	:where(.ev) :global(.ipill.wet) {

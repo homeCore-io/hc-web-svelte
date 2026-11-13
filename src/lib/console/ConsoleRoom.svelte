@@ -552,7 +552,11 @@
 		cursor: pointer;
 	}
 	:global(:root[data-theme='light']) .ghost {
-		background: rgba(255, 255, 255, 0.7);
+		background: rgba(255, 255, 255, 0.8);
+		color: var(--ink);
+	}
+	:global(:root[data-theme='light']) .ghost:hover {
+		background: #fff;
 	}
 	.ghost:hover {
 		color: var(--ink);

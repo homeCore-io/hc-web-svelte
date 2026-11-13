@@ -247,7 +247,7 @@
 	}
 	.rbtn.close {
 		background: color-mix(in srgb, var(--alert) 85%, transparent);
-		color: #1a0605;
+		color: var(--alert-ink);
 	}
 	.rbtn.close:hover:not(:disabled) {
 		background: var(--alert);

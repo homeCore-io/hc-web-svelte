@@ -13,6 +13,7 @@
 	import { looksOf, paletteOf } from '#lib/layers.js';
 	import { BUILT_IN, allLooks, type Look } from '#lib/looks/model.js';
 	import LookEditor from '#lib/components/looks/LookEditor.svelte';
+	import { heading } from '#lib/heading.svelte.js';
 
 	const id = $derived(page.params.id ?? '');
 	const all = $derived(looksOf(undefined, household.doc));
@@ -21,6 +22,7 @@
 			.slice(BUILT_IN.length)
 			.find((l) => l.id === id)
 	);
+	$effect(() => heading.show(mine?.name ?? 'Look', { href: '/settings/look', label: 'Look' }));
 	// The theme on screen before the editor shows the look's.
 	const palette = paletteOf(personal.doc, household.doc, look.def);
 
@@ -39,7 +41,7 @@
 	<p class="quiet">Loading…</p>
 {:else if !mine}
 	<p class="quiet">
-		This look isn't one of the house's own. <a href="/settings/look">Back to Look</a>
+		This look isn’t one of the house’s own. <a href="/settings/look">Back to Look</a>
 	</p>
 {:else}
 	{#key mine.id}

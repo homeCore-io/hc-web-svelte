@@ -110,7 +110,8 @@
 
 	async function load() {
 		const res = await loadPlugin(id);
-		if (!res.ok) return void (failed = res.error);
+		if (!res.ok)
+			return void (failed = res.status === 404 ? `There is no plugin called “${id}”.` : res.error);
 		failed = null;
 		plugin = res.data;
 	}

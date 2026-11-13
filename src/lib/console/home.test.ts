@@ -64,14 +64,21 @@ describe('the greeting', () => {
 	});
 
 	it('sums the house up in one line', () => {
-		expect(houseLine({ lightsOn: 8, litRooms: 5, playing: 2, working: 3, issues: 0 })).toBe(
+		const lights = (on: number, rooms: number, loose = 0) => ({ on, all: 40, rooms, loose });
+		expect(houseLine({ lights: lights(8, 5), playing: 2, working: 3, issues: 0 })).toBe(
 			'8 lights on in 5 rooms · 2 playing · 3 thermostats working · all secure'
 		);
-		expect(houseLine({ lightsOn: 1, litRooms: 1, playing: 0, working: 1, issues: 1 })).toBe(
+		expect(houseLine({ lights: lights(1, 1), playing: 0, working: 1, issues: 1 })).toBe(
 			'1 light on in 1 room · 1 thermostat working · 1 thing needs attention'
 		);
-		expect(houseLine({ lightsOn: 0, litRooms: 0, playing: 0, working: 0, issues: 2 })).toBe(
+		expect(houseLine({ lights: lights(0, 0), playing: 0, working: 0, issues: 2 })).toBe(
 			'Every light off · 2 things need attention'
+		);
+		expect(houseLine({ lights: lights(27, 10, 1), playing: 0, working: 0, issues: 0 })).toBe(
+			'27 lights on in 10 rooms and 1 with no room · all secure'
+		);
+		expect(houseLine({ lights: lights(1, 0, 1), playing: 0, working: 0, issues: 0 })).toBe(
+			'1 light on with no room · all secure'
 		);
 	});
 });

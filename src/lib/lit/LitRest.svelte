@@ -5,6 +5,7 @@
 	and that touch does nothing else.
 -->
 <script lang="ts">
+	import { houseNow } from '#lib/houseNow.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { alerts } from '#lib/alerts.svelte.js';
@@ -39,7 +40,8 @@
 						here,
 						here.map((d) => cardFor(d, clock.now)),
 						devices.byId,
-						kindOptions.of('home', 'room', ref.room(r.id), ROOM_BUILT_IN)
+						kindOptions.of('home', 'room', ref.room(r.id), ROOM_BUILT_IN),
+						houseNow.lightIds
 					);
 					return { id: r.id, name: r.name, box, size: here.length };
 				})

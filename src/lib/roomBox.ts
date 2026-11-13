@@ -207,12 +207,21 @@ function wrong(cards: CardView[]): { lines: Line[]; alarm: boolean } {
 /**
  * A room's box. `devices` are the room's, `cards` their descriptions, `all`
  * the house's (a chosen sensor may be elsewhere), `o` the settings that apply.
+ * `lightIds` are the house's lights as every place counts them (lights.ts,
+ * `houseNow.lightIds`); without them, its lights that aren't a camera's spotlight.
  */
-export function roomBox(devices: CoreDevice[], cards: CardView[], all: Devices, o: Options): Box {
+export function roomBox(
+	devices: CoreDevice[],
+	cards: CardView[],
+	all: Devices,
+	o: Options,
+	lightIds?: ReadonlySet<string>
+): Box {
 	const { lines, alarm } = wrong(cards);
-	// A camera's spotlight is its camera's, not one of the room's lights.
 	const lights = cards.filter(
-		(c) => c.available && LIGHT(c) && !isCameraLight({ device_id: c.id }, all)
+		(c) =>
+			c.available &&
+			(lightIds ? lightIds.has(c.id) : LIGHT(c) && !isCameraLight({ device_id: c.id }, all))
 	);
 	const on = lights.filter((c) => c.tone === 'on');
 	const temperature = degrees(sourced(sourceOf(o.temperature), 'temperature', all, devices));

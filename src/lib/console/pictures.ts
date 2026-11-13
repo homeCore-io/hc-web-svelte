@@ -20,10 +20,14 @@
  */
 import { cardFor, isOpen, kindOf } from '../card.js';
 import type { CoreDevice, Devices } from '../devices.js';
+import type { Room } from '../house.js';
+import { byRoom } from '../summary.js';
 import { isCameraLight } from '../cameraLights.js';
-import { isHelper } from '../helpers.js';
+import { isLamp, lightNamed, mayBeLight as mayBe, powersNamed } from '../lights.js';
 import { isOn, isPlayer, playerKind } from './media.js';
-import { levelOf, shortName } from './room.js';
+import { levelOf, placeOf, shortName, type TabChoices } from './room.js';
+
+export { isLamp };
 
 export type PictureId =
 	| 'family'
@@ -248,25 +252,6 @@ const nameOf = (d: CoreDevice) => d.name_override ?? d.name;
 /** A device's name as the room says it, lower case: "Family Room Floor Lamp" is "floor lamp". */
 const wordsOf = (d: CoreDevice, room: string) => shortName(nameOf(d), room).toLowerCase();
 
-/** A switch that says it's a light. One a person marked as a light is a light already. */
-const lightNamed = (name: string) =>
-	/light|lamp|chandelier|sconce|pendant|bulb|overhead/.test(name);
-/**
- * A switch that may be a light, a heater or the like, by its name or its
- * spot's. homeCore's own virtual switches are only switches, whatever they're called.
- */
-const mayBe = (d: CoreDevice) => SWITCHES.has(kindOf(d)) && !isHelper(d);
-
-/**
- * Whether a device is one of a room's lights: a light, or a switch whose name
- * says it is one ("Deck Flood Light", "Holiday Lights"). A virtual switch
- * named "Porch Light" is a switch.
- */
-export function isLamp(d: CoreDevice): boolean {
-	const k = kindOf(d);
-	return k === 'light' || k === 'dimmer' || (mayBe(d) && lightNamed(nameOf(d).toLowerCase()));
-}
-
 /** Whether a device can be shown by a spot of this kind at all. */
 export function fits(kind: SpotKind, d: CoreDevice): boolean {
 	const k = kindOf(d);
@@ -453,6 +438,56 @@ export function roomPicture(
 	const lit = PICTURES[picture].spots
 		.filter((s) => s.kind === 'light' || s.kind === 'holiday')
 		.flatMap((s) => spots.get(s.id) ?? []);
-	const lamps = devices.filter((d) => isLamp(d) || lit.includes(d));
+	// A switch the drawing lights by its name is a light, unless its name says it
+	// powers something else ("Garage Heater"); one the household linked to a light is.
+	const linked = new Set(Object.values(links ?? {}));
+	const lamps = devices.filter(
+		(d) => isLamp(d) || (lit.includes(d) && (linked.has(d.device_id) || !powersNamed(nameOf(d))))
+	);
 	return { picture, spots, g: glowOf(picture, spots, now, wants), lamps };
+}
+
+/**
+ * A room's lights, as every place counts them (lights.ts): those its drawing
+ * takes (`roomPicture`), a light that dims as one (a group with no members
+ * listed), and whatever the household put on the room's Lights tab that is not
+ * a scene, a keypad or a system's group. Never a camera's spotlight. `house`
+ * is every device; `links` the household's spots, `chosen` its tabs.
+ */
+export function roomLights(
+	room: string,
+	list: CoreDevice[],
+	house: Devices | readonly CoreDevice[] = list,
+	o: { links?: Record<string, string>; chosen?: TabChoices } = {}
+): CoreDevice[] {
+	const { lamps } = roomPicture(room, list, 0, undefined, o.links, house);
+	const chosen = o.chosen ?? {};
+	const more = list.filter((d) => {
+		if (lamps.includes(d) || isCameraLight(d, house)) return false;
+		const own = placeOf(d);
+		if (own?.tab === 'lights') return own.as === 'light';
+		return chosen[d.device_id] === 'lights';
+	});
+	return [...lamps, ...more];
+}
+
+/**
+ * The house's lights, room by room in `order`, then those in no room (`room`
+ * missing), each room's as `roomLights` counts them. `linksOf` gives a
+ * room's drawing's spots the household fixed (layout.ts).
+ */
+export function houseLights(
+	byId: Devices,
+	order: Room[],
+	chosen: TabChoices = {},
+	linksOf: (roomId: string) => Record<string, string> | undefined = () => undefined
+): { room?: Room; name: string; lights: CoreDevice[] }[] {
+	const grouped = byRoom(byId, order);
+	const out = order.map((r) => ({
+		room: r,
+		name: r.name,
+		lights: roomLights(r.name, grouped.get(r.id) ?? [], byId, { links: linksOf(r.id), chosen })
+	}));
+	const loose = roomLights('', grouped.get('') ?? [], byId, { chosen });
+	return loose.length > 0 ? [...out, { name: 'No room', lights: loose }] : out;
 }

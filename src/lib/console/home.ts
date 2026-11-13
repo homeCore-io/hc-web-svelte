@@ -32,6 +32,7 @@ import {
 import { roomOf } from './cameras.js';
 import { guards, levelOf, shortName } from './room.js';
 import { isLamp, type Wants } from './pictures.js';
+import { whereLit, type LightsCount } from '../lights.js';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const join = (xs: (string | undefined | false)[]) => xs.filter(Boolean).join(' · ');
@@ -58,16 +59,15 @@ export function working(d: CoreDevice): string | undefined {
  * playing · 3 thermostats working · all secure".
  */
 export function houseLine(h: {
-	lightsOn: number;
-	litRooms: number;
+	lights: LightsCount;
 	playing: number;
 	working: number;
 	issues: number;
 }): string {
 	return join([
-		h.lightsOn === 0
+		h.lights.on === 0
 			? 'Every light off'
-			: `${plural(h.lightsOn, 'light', 'lights')} on in ${plural(h.litRooms, 'room', 'rooms')}`,
+			: `${plural(h.lights.on, 'light', 'lights')} on ${whereLit(h.lights)}`,
 		h.playing > 0 && `${h.playing} playing`,
 		h.working > 0 && `${plural(h.working, 'thermostat', 'thermostats')} working`,
 		h.issues === 0

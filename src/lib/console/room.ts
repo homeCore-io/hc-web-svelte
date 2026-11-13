@@ -28,6 +28,7 @@ import type { CoreDevice, Devices } from '../devices.js';
 import { isCamera, isCameraLight } from '../cameraLights.js';
 import type { Room } from '../house.js';
 import { isHelper } from '../helpers.js';
+import { isLamp, lightLevel } from '../lights.js';
 import { slugOf } from '../summary.js';
 
 export type TabId =
@@ -465,14 +466,17 @@ export function runByThermostats(devices: CoreDevice[]): Set<string> {
  * pixels across, with the household's choices of tab (`chosen`). Lights
  * and switches in `off` were hidden from the room (layout.ts): left out.
  * `all` is the house, so a camera's spotlight goes with Cameras even when
- * its camera is in another room.
+ * its camera is in another room. `isLight` says which of the room's switches
+ * are lights, for the Lights tab's count (lights.ts; `roomLights` knows the
+ * room's drawing too); by itself, a switch named as a light.
  */
 export function consoleRoom(
 	devices: CoreDevice[],
 	width = LIGHTS_WIDTH,
 	chosen: TabChoices = {},
 	off: ReadonlySet<string> = new Set(),
-	all: Devices | readonly CoreDevice[] = devices
+	all: Devices | readonly CoreDevice[] = devices,
+	isLight: (d: CoreDevice) => boolean = isLamp
 ): ConsoleRoom {
 	const byTab: Record<TabId, CoreDevice[]> = {
 		doors: [],
@@ -527,10 +531,13 @@ export function consoleRoom(
 			TabId,
 			number
 		>),
-		// The Lights tab counts what lights the room, not its scenes or groups;
-		// with nothing that lights it (a keypad alone), what is on it.
+		// The Lights tab counts the room's lights on it, not its scenes, groups or
+		// the switches that power something else (an AC outlet, a fan); with
+		// nothing that lights it (a keypad alone), what is on it.
 		lights:
-			columns.reduce((n, c) => n + c.lights.length, 0) + tab.switches.length || byTab.lights.length,
+			columns.reduce((n, c) => n + c.lights.length, 0) +
+				tab.switches.filter((d) => chosen[d.device_id] === 'lights' || isLight(d)).length ||
+			byTab.lights.length,
 		// The Cameras tab counts its cameras, not their spotlights and sirens.
 		cameras: byTab.cameras.filter((d) => cameras.has(d.device_id)).length || byTab.cameras.length
 	};
@@ -564,11 +571,7 @@ export const dims = (d: CoreDevice): boolean =>
 	typeof d.attributes?.brightness_pct === 'number' || d.attributes?.supports_dimming === true;
 
 /** A light's level, 0 to 100: its brightness when on, else 0. `want` is a command on its way. */
-export function levelOf(d: CoreDevice, want?: Record<string, unknown>): number {
-	const a = { ...d.attributes, ...want };
-	if (a.on !== true) return 0;
-	return typeof a.brightness_pct === 'number' ? Math.round(a.brightness_pct) : 100;
-}
+export const levelOf = lightLevel;
 
 /** What to send for a fader set to `v`: off at 0, else on at that brightness. */
 export const levelWant = (v: number): Record<string, unknown> =>

@@ -4,6 +4,7 @@
 	something's wrong — from the same settings as its box on Home.
 -->
 <script lang="ts">
+	import { houseNow } from '#lib/houseNow.svelte.js';
 	import { cardFor } from '#lib/card.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
@@ -19,7 +20,8 @@
 			list,
 			list.map((d) => cardFor(d, clock.now)),
 			devices.byId,
-			kindOptions.of('home', 'room', ref.room(room), ROOM_BUILT_IN)
+			kindOptions.of('home', 'room', ref.room(room), ROOM_BUILT_IN),
+			houseNow.lightIds
 		)
 	);
 	const wrong = $derived(box.lines.find((l) => l.alert)?.text);

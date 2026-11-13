@@ -86,3 +86,25 @@ describe('rooms', () => {
 		expect(slugOf('  TV Room ')).toBe('tv_room');
 	});
 });
+
+describe('the lights, as the house counts them', () => {
+	const sw = (id: string, name: string) =>
+		cardFor(
+			{
+				device_id: id,
+				name,
+				device_type: 'switch',
+				plugin_id: 'plugin.test',
+				available: true,
+				attributes: { on: true }
+			},
+			FIXTURE_NOW
+		);
+	it('counts the house’s lights, switches named as lights too, and calls the rest switches', () => {
+		const holiday = sw('holiday', 'Holiday Lights');
+		const ac = sw('ac', 'Outlet - Office AC');
+		const lights = new Set(['holiday']);
+		expect(houseChips([holiday, ac], lights).map((c) => c.text)).toEqual(['1 light on']);
+		expect(roomSummary([holiday, ac], undefined, lights)).toBe('1 light on · 1 switch on');
+	});
+});

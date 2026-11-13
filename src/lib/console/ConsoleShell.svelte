@@ -256,7 +256,7 @@
 					class="si"
 					href={`/everywhere/${v.id}`}
 					aria-current={pathname === `/everywhere/${v.id}` ? 'page' : undefined}
-					title={s.word ? `${v.label}: ${s.word}` : v.label}
+					title={s.word ? `${v.label}: ${s.full ?? s.word}` : v.label}
 				>
 					<v.icon size={17} strokeWidth={1.9} aria-hidden="true" />
 					<span class="lbl">{v.label}</span>

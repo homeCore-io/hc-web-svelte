@@ -9,6 +9,7 @@
  * Made while a page is set up.
  */
 import { goto } from '$app/navigation';
+import { houseNow } from '#lib/houseNow.svelte.js';
 import { page } from '$app/state';
 import { devices } from '#lib/devices.svelte.js';
 import { rooms } from '#lib/rooms.svelte.js';
@@ -23,7 +24,6 @@ import { commands } from '#lib/commands.svelte.js';
 import { kindOptions } from '#lib/kindOptions.svelte.js';
 import { ask } from '#lib/confirm.svelte.js';
 import { goAhead } from '#lib/ask.js';
-import { roomPower } from '#lib/admin.js';
 import { homeRoomOrder, ref } from '#lib/layers.js';
 import { cardFor, kindOf } from '#lib/card.js';
 import { displayName, type CoreDevice } from '#lib/devices.js';
@@ -40,7 +40,11 @@ import { openDevice } from '#lib/popup.js';
 import { roomPicture } from './pictures.js';
 import { photoGlow, photoSpots } from './photo.js';
 import { roomIn } from './layout.js';
-import { devicesIn, levelOf } from './room.js';
+import { devicesIn, tabChoicesOf } from './room.js';
+import { byRoom } from '#lib/summary.js';
+import { lightsCount, whereLit } from '#lib/lights.js';
+import { everyRoom, lightRows, placesOf } from './everywhere.js';
+import { everyLightOff as allOff } from './switchLights.js';
 import {
 	favoritesOf,
 	houseLine,
@@ -79,6 +83,18 @@ export class HomeNow {
 
 	// ---- every room, as a tile ----
 	#order = $derived(homeRoomOrder(rooms.list, (r) => ref.room(r.id), view.changes('home')).shown);
+	// The house's lights, as every place counts them (lights.ts): every room's,
+	// shown on Home or not, and those in no room, as Everywhere › Lights has them.
+	#lightRows = $derived(
+		lightRows(
+			placesOf(
+				byRoom(devices.byId, rooms.list),
+				everyRoom(this.#order, rooms.list),
+				tabChoicesOf(household.doc.console?.tabs),
+				(id) => roomIn(household.doc.console?.rooms, id).links
+			)
+		).map((r) => ({ room: r.place.room, name: r.place.name, lights: r.lights }))
+	);
 	tiles = $derived(
 		this.#order.map((room) => {
 			const list = devicesIn(devices.byId, room);
@@ -87,7 +103,8 @@ export class HomeNow {
 				list,
 				cards,
 				devices.byId,
-				kindOptions.of('home', 'room', ref.room(room.id), ROOM_BUILT_IN)
+				kindOptions.of('home', 'room', ref.room(room.id), ROOM_BUILT_IN),
+				houseNow.lightIds
 			);
 			const lay = roomIn(household.doc.console?.rooms, room.id);
 			const lit = roomPicture(room.name, list, clock.now, wants, lay.links, devices.byId);
@@ -101,7 +118,14 @@ export class HomeNow {
 				room,
 				list,
 				cards,
-				...tileOf(room, list, cards, box, lit.lamps, wants),
+				...tileOf(
+					room,
+					list,
+					cards,
+					box,
+					this.#lightRows.find((r) => r.room?.id === room.id)?.lights ?? [],
+					wants
+				),
 				...lit,
 				plain,
 				photo,
@@ -112,8 +136,8 @@ export class HomeNow {
 
 	// ---- the house in a line ----
 	#all = $derived(Object.values(devices.byId));
-	lightsOn = $derived(this.tiles.reduce((n, t) => n + t.lightsOn, 0));
-	litRooms = $derived(this.tiles.filter((t) => t.lightsOn > 0));
+	lights = $derived(lightsCount(this.#lightRows, commands.pending));
+	lightsOn = $derived(this.lights.on);
 	issues = $derived(
 		issuesOf(
 			this.tiles.map((t) => ({ room: t.room, cards: t.cards })),
@@ -125,8 +149,7 @@ export class HomeNow {
 	playing = $derived(playingOf(this.#all, rooms.list, (d) => cardFor(d, clock.now).nowPlaying));
 	line = $derived(
 		houseLine({
-			lightsOn: this.lightsOn,
-			litRooms: this.litRooms.length,
+			lights: this.lights,
 			playing: this.playing.filter((p) => p.playing).length,
 			working: this.#all.filter((d) => working(d) !== undefined).length,
 			issues: this.issues.filter((i) => i.key !== 'rest').length
@@ -145,32 +168,23 @@ export class HomeNow {
 	favs = $derived(favoritesOf(personal.doc.favourites ?? [], devices.byId, scenes.list));
 	busy = $state(false);
 	trouble = $state<string | null>(null);
-	/** Room off in each room with a light on, after asking. */
+	/**
+	 * Every light in the house off, after asking: the same lights Everywhere ›
+	 * Lights turns off, in every room (shown on Home or not) and in no room.
+	 */
 	everyLightOff = async (): Promise<void> => {
-		const litRooms = this.litRooms;
-		if (this.busy || litRooms.length === 0) return;
+		const n = this.lights.on;
+		if (this.busy || n === 0) return;
 		const ok = await ask({
 			title: 'Turn every light off?',
-			body: `${this.lightsOn === 1 ? 'The light' : `All ${this.lightsOn} lights`} on in ${litRooms
-				.map((t) => t.room.name)
-				.join(', ')}. Room on brings each room back as it was.`,
+			body: `${n === 1 ? 'The one light on goes' : `All ${n} lights on ${whereLit(this.lights)} go`} off. Room on brings a room back as it was.`,
 			go: 'Turn them off'
 		});
 		if (!ok) return;
 		this.busy = true;
 		this.trouble = null;
-		const done = await Promise.all(litRooms.map((t) => roomPower(t.room.id, false)));
+		this.trouble = await allOff(this.#lightRows);
 		this.busy = false;
-		this.trouble = done.find((r) => r.error)?.error ?? null;
-		for (const lid of done.flatMap((r) => r.lights)) {
-			const d = devices.byId[lid];
-			if (d) commands.expect(lid, kindOf(d), { on: false }, d.attributes);
-		}
-		// A switch named as a light that Room off doesn't cover is sent its own.
-		const sent = new Set(done.flatMap((r) => r.lights));
-		for (const d of litRooms.flatMap((t) => t.lamps))
-			if (d.available && !sent.has(d.device_id) && levelOf(d, wants(d.device_id)) > 0)
-				void commands.set(d.device_id, kindOf(d), { on: false }, d.attributes);
 	};
 	useDevice = async (d: CoreDevice): Promise<void> => {
 		const c = cardFor(d, clock.now);

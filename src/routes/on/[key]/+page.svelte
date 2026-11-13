@@ -3,6 +3,7 @@
 	open, what's playing — as cards, so they can be dealt with from here.
 -->
 <script lang="ts">
+	import { houseNow } from '#lib/houseNow.svelte.js';
 	import { untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { cardFor } from '#lib/card.js';
@@ -12,7 +13,12 @@
 	import { heading } from '#lib/heading.svelte.js';
 	import CardGrid from '#lib/components/CardGrid.svelte';
 
-	const chips = $derived(houseChips(Object.values(devices.byId).map((d) => cardFor(d, clock.now))));
+	const chips = $derived(
+		houseChips(
+			Object.values(devices.byId).map((d) => cardFor(d, clock.now)),
+			houseNow.lightIds
+		)
+	);
 	const chip = $derived(chips.find((c) => c.key === page.params.key));
 	// Kept on the page while it is open: a light turned off here stays listed,
 	// so the switch doesn't vanish from under the finger.

@@ -5,6 +5,8 @@
 	header shows no title (the room's name is here).
 -->
 <script lang="ts">
+	import { houseNow } from '#lib/houseNow.svelte.js';
+	import { isLamp, isLit } from '#lib/lights.js';
 	import type { KindProps } from '#lib/kinds.js';
 	import { cardFor, type CardView } from '#lib/card.js';
 	import { withPending } from '#lib/pending.js';
@@ -58,14 +60,17 @@
 			live,
 			Object.values(views),
 			devices.byId,
-			kindOptions.of('home', 'room', ref.room(card.id), ROOM_BUILT_IN)
+			kindOptions.of('home', 'room', ref.room(card.id), ROOM_BUILT_IN),
+			houseNow.lightIds
 		)
 	);
+	// The room's lights on, as Home, the sidebar and Everywhere count them (lights.ts).
 	const lightsOn = $derived(
-		[
-			...lit.lights.flatMap((l) => ('members' in l ? l.members : [l])),
-			...lit.switches.lights
-		].filter((l) => l.on).length
+		live.filter(
+			(d) =>
+				(houseNow.lightIds ? houseNow.lightIds.has(d.device_id) : isLamp(d)) &&
+				isLit(d, commands.pending)
+		).length
 	);
 	// Glowing, or plain where the look says so (13 §7).
 	const plain = $derived(here.def.frame.header === 'plain');

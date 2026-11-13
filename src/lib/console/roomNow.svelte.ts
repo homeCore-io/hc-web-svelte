@@ -9,6 +9,7 @@
  * Made while a page is set up; the page keeps the tab shown and what's open.
  */
 import { page } from '$app/state';
+import { houseNow } from '#lib/houseNow.svelte.js';
 import { devices } from '#lib/devices.svelte.js';
 import { rooms } from '#lib/rooms.svelte.js';
 import { personal } from '#lib/personal.svelte.js';
@@ -30,7 +31,8 @@ import { ROOM_BUILT_IN } from '#lib/options.js';
 import { roomBox } from '#lib/roomBox.js';
 import { camEvents } from './camEvents.svelte.js';
 import { allEvents, camerasOf, pillPrefsOf, pillsOf } from './cameras.js';
-import { roomPicture } from './pictures.js';
+import { roomLights, roomPicture } from './pictures.js';
+import { isLit } from '#lib/lights.js';
 import { photoGlow, photoSpots } from './photo.js';
 import {
 	audioChoices,
@@ -44,15 +46,7 @@ import {
 	withRoomAudio
 } from './media.js';
 import { send } from './send.js';
-import {
-	brandOf,
-	consoleRoom,
-	devicesIn,
-	levelOf,
-	LIGHTS_WIDTH,
-	shortName,
-	tabChoicesOf
-} from './room.js';
+import { brandOf, consoleRoom, devicesIn, LIGHTS_WIDTH, shortName, tabChoicesOf } from './room.js';
 import { faderStyle, switchStyle } from './style.js';
 import { arrangeTabs, resolve, roomIn } from './layout.js';
 
@@ -90,15 +84,25 @@ export class RoomNow {
 			(personal.doc.favourites ?? []).filter((r) => this.#inRoom.has(r))
 		)
 	);
-	model = $derived(
-		consoleRoom(
+	#chosen = $derived(tabChoicesOf(household.doc.console?.tabs));
+	// The room's lights, as Home, the sidebar and Everywhere count them (lights.ts).
+	#lamps = $derived(
+		roomLights(this.room?.name ?? '', this.list, devices.byId, {
+			links: roomIn(household.doc.console?.rooms, this.id).links,
+			chosen: this.#chosen
+		})
+	);
+	model = $derived.by(() => {
+		const lamps = new Set(this.#lamps);
+		return consoleRoom(
 			this.list,
 			this.width(),
-			tabChoicesOf(household.doc.console?.tabs),
+			this.#chosen,
 			new Set(this.lay.off),
-			devices.byId
-		)
-	);
+			devices.byId,
+			(d) => lamps.has(d)
+		);
+	});
 	arranged = $derived(arrangeTabs(this.model.tabs, this.lay));
 
 	fader = $derived(faderStyle(personal.doc.console, household.doc.console));
@@ -124,7 +128,8 @@ export class RoomNow {
 			this.list,
 			this.list.map((d) => cardFor(d, clock.now)),
 			devices.byId,
-			kindOptions.of('home', 'room', ref.room(this.id), ROOM_BUILT_IN)
+			kindOptions.of('home', 'room', ref.room(this.id), ROOM_BUILT_IN),
+			houseNow.lightIds
 		)
 	);
 	temperature = $derived(this.#box.bigIs === 'lights' ? undefined : this.#box.big);
@@ -151,16 +156,8 @@ export class RoomNow {
 				)
 			: []
 	);
-	// The faders, then the switches named as lights, as Home and Everywhere count them.
-	#lamps = $derived.by(() => {
-		const faders = this.model.lights.columns.flatMap((c) => c.lights);
-		return [...faders, ...this.lit.lamps.filter((d) => !faders.includes(d))];
-	});
-	// Counted as the faders and switches show them, with commands on their way.
-	#lampsOn = $derived(
-		this.#lamps.filter((d) => d.available && levelOf(d, commands.pending[d.device_id]?.want) > 0)
-			.length
-	);
+	// Counted with commands on their way.
+	#lampsOn = $derived(this.#lamps.filter((d) => isLit(d, commands.pending)).length);
 	lightsWord = $derived(
 		this.#lamps.length === 0
 			? undefined

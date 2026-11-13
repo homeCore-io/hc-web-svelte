@@ -1,5 +1,5 @@
 <!--
-	An Everywhere view's word in the sidebar (the Everywhere board): "3 rooms",
+	An Everywhere view's word in the sidebar (the Everywhere board): "27 on",
 	"1 playing", "secure", with a light while its lights are on, something
 	plays, a door is open or a sensor finds water. On the folded rail, the
 	light alone.

@@ -5,6 +5,7 @@
 	anyone's every-room settings; "Use these instead" takes this layer's away.
 -->
 <script lang="ts">
+	import { houseNow } from '#lib/houseNow.svelte.js';
 	import { cardFor } from '#lib/card.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
@@ -70,7 +71,8 @@
 						sample.devices,
 						sample.devices.map((d) => cardFor(d, clock.now)),
 						devices.byId,
-						o
+						o,
+						houseNow.lightIds
 					)}
 					devices={[]}
 				/>

@@ -8,6 +8,7 @@ import { houseChips } from './summary.js';
 import { cardRef } from './layers.js';
 import { homePage, type Page } from './page.js';
 import { devices } from './devices.svelte.js';
+import { houseNow } from './houseNow.svelte.js';
 import { rooms } from './rooms.svelte.js';
 import { scenes } from './scenes.svelte.js';
 import { personal } from './personal.svelte.js';
@@ -34,7 +35,10 @@ export function homeDocument(): Page {
 				: undefined;
 		},
 		alerts: alerts.list.length,
-		chips: houseChips(Object.values(devices.byId).map((d) => cardFor(d, clock.now))),
+		chips: houseChips(
+			Object.values(devices.byId).map((d) => cardFor(d, clock.now)),
+			houseNow.lightIds
+		),
 		mode: view.mode(HOME)
 	});
 }

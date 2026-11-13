@@ -153,17 +153,60 @@ describe('Lights', () => {
 
 	it('counts lights on and the rooms they are in, with commands on their way', () => {
 		const rows = lightRows(places);
-		expect(lightsCount(rows)).toEqual({ on: 1, all: 3, rooms: 1 });
+		expect(lightsCount(rows)).toEqual({ on: 1, all: 3, rooms: 1, loose: 0 });
 		expect(lightsCount(rows, { bulb: { want: { on: true } } })).toEqual({
 			on: 2,
 			all: 3,
-			rooms: 2
+			rooms: 2,
+			loose: 0
 		});
 		expect(lightsCount(rows, { lamp: { want: { on: false } } })).toEqual({
 			on: 0,
 			all: 3,
-			rooms: 0
+			rooms: 0,
+			loose: 0
 		});
+	});
+
+	it('never counts No room as a room, and says the lights in it apart', () => {
+		const places = placesOf(
+			house({
+				garage: [dev('bulb', 'light', { on: true })],
+				'': [dev('wled', 'light', { on: true }), dev('eaves', 'light', { on: true })]
+			}),
+			[garage]
+		);
+		const count = lightsCount(lightRows(places));
+		expect(count).toEqual({ on: 3, all: 3, rooms: 1, loose: 2 });
+		expect(statusOf(places).lights).toMatchObject({
+			word: '3 on',
+			full: '3 on in 1 room and 2 with no room'
+		});
+	});
+
+	it('counts an offline light as off', () => {
+		const rows = lightRows(
+			placesOf(house({ '': [{ ...dev('eaves', 'light', { on: true }), available: false }] }), [])
+		);
+		expect(lightsCount(rows)).toEqual({ on: 0, all: 1, rooms: 0, loose: 0 });
+	});
+
+	it('leaves out what powers something else, unless the household put it on Lights', () => {
+		const devices = [
+			dev('ac', 'switch', { on: true }, { name: 'Outlet - Living Room AC' }),
+			dev('meter', 'switch', { on: true }, { name: 'YoLink Plug Power Meter' }),
+			dev('fan', 'switch', { on: true }, { name: 'Bathroom Exhaust Fan' }),
+			dev('holiday', 'switch', { on: true }, { name: 'Holiday Lights 1' }),
+			dev('lamp', 'light', { on: true })
+		];
+		const rows = lightRows(placesOf(house({ garage: devices }), [garage]));
+		expect(ids(rows[0]!.lights.map((device) => ({ device }))).sort()).toEqual(['holiday', 'lamp']);
+		const chosen = lightRows(placesOf(house({ garage: devices }), [garage], { ac: 'lights' }));
+		expect(ids(chosen[0]!.lights.map((device) => ({ device }))).sort()).toEqual([
+			'ac',
+			'holiday',
+			'lamp'
+		]);
 	});
 
 	it('says how many are on in a room', () => {
@@ -354,7 +397,7 @@ describe('the sidebar', () => {
 			[office]
 		);
 		const s = statusOf(places);
-		expect(s.lights).toEqual({ word: '1 room', tone: 'on' });
+		expect(s.lights).toEqual({ word: '1 on', full: '1 on in 1 room', tone: 'on' });
 		expect(s.media).toEqual({ word: '1 playing', tone: 'media' });
 		expect(s.security).toEqual({ word: '1 open', tone: 'warn' });
 		expect(s.water).toEqual({ word: 'all dry', tone: 'ok' });

@@ -357,7 +357,32 @@ describe('a room in tabs', () => {
 		const r = consoleRoom([...lamps, dev('s1', 'switch'), dev('s2', 'switch')]);
 		expect(ids(r.lights.switches)).toEqual(['s1', 's2']);
 		expect(r.tabs.find((t) => t.id === 'switches')).toBeUndefined();
-		expect(r.tabs[0]).toMatchObject({ id: 'lights', count: 5 });
+		// Plain switches sit on the tab but are not lights: the count is the lights.
+		expect(r.tabs[0]).toMatchObject({ id: 'lights', count: 3 });
+	});
+
+	it('counts the switches that are lights on the Lights tab, as the room counts them', () => {
+		const ac = { ...dev('ac', 'switch'), name: 'Outlet - Living Room AC' };
+		const holiday = { ...dev('holiday', 'switch'), name: 'Holiday Lights 1' };
+		const zone = { ...dev('zone', 'switch'), name: 'Zone 03' };
+		expect(consoleRoom([...lamps, ac, holiday, zone]).tabs[0]).toMatchObject({ count: 4 });
+		// The room's own rule (its drawing's "Zone 03"), and the household's choice.
+		const own = consoleRoom(
+			[...lamps, ac, holiday, zone],
+			undefined,
+			{},
+			undefined,
+			undefined,
+			(d) => ['holiday', 'zone'].includes(d.device_id)
+		);
+		expect(own.tabs[0]).toMatchObject({ count: 5 });
+		const chosen = consoleRoom([...lamps, ac, holiday], undefined, { ac: 'lights' });
+		expect(chosen.tabs[0]).toMatchObject({ count: 5 });
+	});
+
+	it('counts a Lights tab of plain switches by what is on it, never 0', () => {
+		const r = consoleRoom([dev('s1', 'switch'), dev('s2', 'switch')]);
+		expect(r.tabs[0]).toMatchObject({ id: 'lights', count: 2 });
 	});
 
 	it('gives switches a tab when they would crowd Lights', () => {

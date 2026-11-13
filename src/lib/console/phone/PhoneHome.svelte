@@ -183,6 +183,9 @@
 	.cams {
 		padding: 0 16px;
 	}
+	.cams :global(.camchip) {
+		height: 44px;
+	}
 
 	/* ---- favorites, across ---- */
 	.favs {

@@ -369,8 +369,11 @@
 		max-width: 100%;
 		text-align: left;
 	}
+	:where(.ev.phone) :global(.pair button) {
+		height: 44px;
+	}
 	:where(.ev.phone) :global(.spill) {
-		height: 34px;
+		height: 44px;
 		max-width: 100%;
 		overflow: hidden;
 		text-overflow: ellipsis;

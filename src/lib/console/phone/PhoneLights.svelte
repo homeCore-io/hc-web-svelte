@@ -325,8 +325,8 @@
 		align-items: center;
 		gap: 6px;
 		max-width: 100%;
-		min-height: 36px;
-		padding: 0 12px 0 5px;
+		min-height: 44px;
+		padding: 0 13px 0 7px;
 		border: 0;
 		border-radius: 999px;
 		background: color-mix(in srgb, var(--ink) 6%, transparent);
@@ -381,6 +381,11 @@
 		color: inherit;
 		font: 600 14px var(--font);
 		text-align: left;
+	}
+	/* A device's "⋯", a finger wide. */
+	.plights :global(.place .dots) {
+		min-width: 44px;
+		min-height: 44px;
 	}
 	.kw {
 		align-self: center;

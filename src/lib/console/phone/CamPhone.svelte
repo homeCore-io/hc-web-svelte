@@ -251,7 +251,7 @@
 	}
 	.filt button {
 		flex: none;
-		min-height: 36px;
+		min-height: 44px;
 		padding: 0 14px;
 		border: 0;
 		border-radius: 999px;

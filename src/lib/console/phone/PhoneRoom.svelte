@@ -115,6 +115,12 @@
 	// ---- the "⋯", and the audio's sheet ----
 	let more = $state(false);
 	let audioOpen = $state(false);
+	// Another room, from the "⋯": its sheets start closed.
+	$effect(() => {
+		void id;
+		more = false;
+		audioOpen = false;
+	});
 	const hasAudio = $derived(r.model.byTab.media.length > 0);
 </script>
 
@@ -456,7 +462,7 @@
 		position: absolute;
 		left: 16px;
 		right: 16px;
-		bottom: 10px;
+		bottom: 3px;
 	}
 	h1 {
 		margin: 0;
@@ -466,10 +472,12 @@
 		line-height: 1.1;
 		overflow-wrap: anywhere;
 	}
+	/* The pills' rows are a finger high, though the pills look slimmer. */
 	.hp {
 		display: flex;
 		gap: 6px;
-		margin-top: 8px;
+		margin-top: 1px;
+		padding: 7px 0;
 		overflow-x: auto;
 		scrollbar-width: none;
 	}
@@ -491,6 +499,14 @@
 		font: 600 12px var(--font);
 		color: inherit;
 		white-space: nowrap;
+	}
+	.pill {
+		position: relative;
+	}
+	.pill::after {
+		content: '';
+		position: absolute;
+		inset: -7px 0;
 	}
 	.pill.ok {
 		background: color-mix(in srgb, var(--good, #4fe0a0) 18%, transparent);
@@ -606,7 +622,7 @@
 	}
 	.sub {
 		flex: none;
-		min-height: 40px;
+		min-height: 44px;
 		display: inline-flex;
 		align-items: center;
 		gap: 6px;

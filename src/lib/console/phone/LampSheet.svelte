@@ -384,8 +384,8 @@
 		align-items: center;
 		gap: 6px;
 		max-width: 100%;
-		min-height: 40px;
-		padding: 0 12px 0 6px;
+		min-height: 44px;
+		padding: 0 13px 0 8px;
 		border: 0;
 		border-radius: 999px;
 		background: color-mix(in srgb, var(--ink) 7%, transparent);

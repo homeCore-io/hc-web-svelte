@@ -231,6 +231,10 @@
 	.you :global(.row) {
 		min-height: 48px;
 	}
+	.you :global(select),
+	.you :global(.seg button) {
+		min-height: 44px;
+	}
 	.house {
 		display: flex;
 		align-items: center;

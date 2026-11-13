@@ -207,7 +207,7 @@
 	.named .bulb {
 		width: auto;
 		max-width: 100%;
-		height: 38px;
+		height: 44px;
 		display: inline-flex;
 		align-items: center;
 		gap: 7px;

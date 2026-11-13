@@ -149,11 +149,15 @@
 		.text {
 			flex: 1 1 auto;
 		}
-		.text > span,
 		strong {
 			overflow: hidden;
 			text-overflow: ellipsis;
 			white-space: nowrap;
+		}
+		/* The warning that the edit is shared is always read whole, on two lines if it needs them. */
+		.text > span {
+			font-size: 12px;
+			line-height: 1.2;
 		}
 		.long,
 		.word {

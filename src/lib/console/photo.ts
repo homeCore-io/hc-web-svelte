@@ -67,7 +67,7 @@ export const SPOT_AT: Record<PictureId, Record<string, [number, number]>> = {
 	},
 	kitchen: { p1: [38, 45], p2: [62, 45], ucl: [21, 40], ucr: [71, 40] },
 	bedroom: { fan: [56, 6], lampL: [38, 48], lampR: [76, 48] },
-	bathroom: { vanity: [53, 18], ceil: [56, 5] },
+	bathroom: { vanity: [53, 28], ceil: [56, 5] },
 	hallway: { c1: [18, 10], c2: [50, 22], c3: [82, 10] },
 	laundry: { ceil: [50, 6] },
 	dining: { chand: [50, 30], buffet: [86, 48] },

@@ -113,6 +113,11 @@ describe('which tab a device goes in', () => {
 		});
 		expect(placeOf(hue('s', 'scene', { group_rid: 'g' }))).toEqual({ tab: 'lights', as: 'scene' });
 	});
+
+	it('counts a Lights tab with only a keypad by what is on it, never 0', () => {
+		const r = consoleRoom([lutron('k', 'keypad', { available_buttons: [], led_1: 1 })]);
+		expect(r.tabs.find((t) => t.id === 'lights')?.count).toBe(1);
+	});
 });
 
 describe('homeCore’s own switches', () => {

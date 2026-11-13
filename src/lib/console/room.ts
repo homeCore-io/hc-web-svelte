@@ -533,8 +533,10 @@ export function consoleRoom(
 			TabId,
 			number
 		>),
-		// The Lights tab counts what lights the room, not its scenes or groups.
-		lights: columns.reduce((n, c) => n + c.lights.length, 0) + tab.switches.length,
+		// The Lights tab counts what lights the room, not its scenes or groups;
+		// with nothing that lights it (a keypad alone), what is on it.
+		lights:
+			columns.reduce((n, c) => n + c.lights.length, 0) + tab.switches.length || byTab.lights.length,
 		// The Cameras tab counts its cameras, not their spotlights and sirens.
 		cameras: byTab.cameras.filter((d) => cameras.has(d.device_id)).length || byTab.cameras.length
 	};

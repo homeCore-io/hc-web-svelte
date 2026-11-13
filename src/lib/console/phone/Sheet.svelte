@@ -123,10 +123,15 @@
 		border-radius: inherit;
 		background: color-mix(in srgb, var(--surface) 80%, transparent);
 		backdrop-filter: blur(40px) saturate(1.4);
-		-webkit-backdrop-filter: blur(40px) saturate(1.4);
 		box-shadow:
 			inset 0 1px 0 rgba(255, 255, 255, 0.12),
 			0 -20px 50px rgba(0, 0, 0, 0.5);
+	}
+	/* Without blur, what is behind would read through the sheet, so it is nearly solid. */
+	@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+		.glass::before {
+			background: color-mix(in srgb, var(--surface) 96%, transparent);
+		}
 	}
 	.top {
 		flex: none;

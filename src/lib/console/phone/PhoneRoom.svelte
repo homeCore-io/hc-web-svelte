@@ -451,7 +451,6 @@
 		place-items: center;
 		background: rgba(10, 12, 16, 0.55);
 		backdrop-filter: blur(10px);
-		-webkit-backdrop-filter: blur(10px);
 		color: #fff;
 	}
 	.back {

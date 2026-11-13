@@ -199,8 +199,12 @@
 			max(8px, env(safe-area-inset-left));
 		background: color-mix(in srgb, var(--surface) 82%, transparent);
 		backdrop-filter: blur(24px);
-		-webkit-backdrop-filter: blur(24px);
 		box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 7%, transparent);
+	}
+	@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+		.tabbar {
+			background: color-mix(in srgb, var(--surface) 96%, transparent);
+		}
 	}
 	.tabbar a {
 		flex: 1;

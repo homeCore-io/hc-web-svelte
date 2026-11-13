@@ -402,7 +402,6 @@
 		padding: 0 14px;
 		background: var(--con-bar);
 		backdrop-filter: blur(20px);
-		-webkit-backdrop-filter: blur(20px);
 		box-shadow: inset 0 -1px 0 var(--con-edge);
 	}
 	/* Nothing in the toolbar is squeezed or cut off; the search gives way first. */
@@ -738,7 +737,6 @@
 		border-radius: 16px;
 		background: color-mix(in srgb, var(--surface) 97%, transparent);
 		backdrop-filter: blur(20px);
-		-webkit-backdrop-filter: blur(20px);
 		box-shadow:
 			0 30px 60px -10px rgba(0, 0, 0, 0.6),
 			inset 0 1px 0 rgba(255, 255, 255, 0.1),

@@ -16,7 +16,7 @@
 		"format": "prettier --write .",
 		"lint": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
 		"format:check": "prettier --check .",
-		"budget": "node scripts/budget.js"
+		"budget": "node scripts/budget.js && node scripts/css-guard.js"
 	},
 	"devDependencies": {
 		"@fontsource/figtree": "^5.3.0",

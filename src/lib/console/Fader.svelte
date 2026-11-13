@@ -295,7 +295,6 @@
 		overflow: hidden;
 		background: color-mix(in srgb, var(--ink) 7%, transparent);
 		backdrop-filter: blur(20px);
-		-webkit-backdrop-filter: blur(20px);
 		box-shadow:
 			inset 0 1px 0 rgba(255, 255, 255, 0.12),
 			inset 0 0 0 1px rgba(255, 255, 255, 0.04),

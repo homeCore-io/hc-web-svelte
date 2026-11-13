@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'vitest';
 import { session } from './me.svelte.js';
-import { adminKeyOnly, notAdmin } from './notAdmin.js';
+import { adminKeyOnly, notAdmin } from './refusals.js';
 
 const as = (role: string, scopes: string[]) => {
 	session.me = { username: 'x', role, scopes };

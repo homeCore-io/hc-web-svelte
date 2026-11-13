@@ -4,7 +4,7 @@
 	The house always keeps an admin.
 -->
 <script lang="ts">
-	import { notAdmin } from '#lib/notAdmin.js';
+	import { notAdmin } from '#lib/refusals.js';
 	import Avatar from '#lib/components/Avatar.svelte';
 	import { fullDateOf } from '#lib/when.js';
 	import { onMount } from 'svelte';

@@ -5,7 +5,7 @@
 	Its name is homeCore's, and can be changed from homeCore 0.1.81.
 -->
 <script lang="ts">
-	import { notAdmin } from '#lib/notAdmin.js';
+	import { listOf, notAdmin, refusal } from '#lib/refusals.js';
 	import { agoOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { onReturn } from '#lib/refresh.js';
@@ -32,9 +32,17 @@
 
 	let list = $state<Display[] | null>(null);
 	let trouble = $state<string | null>(null);
+	/** Why the list couldn't be read: while this and `list` are both null, it's loading. */
+	let unlisted = $state<string | null>(null);
 	async function reload() {
-		const res = await fetch('/api/v1/displays').catch(() => null);
-		list = res?.ok ? ((await res.json()) as Display[]).filter((d) => !d.revoked) : null;
+		const got = await listOf<Display[]>('/displays');
+		if (!got.ok) {
+			// A list already shown stays; a refusal or no answer is said, not left loading.
+			if (list === null) unlisted = refusal(got.status, 'displays', '0.1.77');
+			return;
+		}
+		list = got.value.filter((d) => !d.revoked);
+		unlisted = null;
 		// Settings of displays deleted before theirs went with them: only from a list
 		// homeCore gave, never from none.
 		if (list)
@@ -163,14 +171,17 @@
 			unlock it for a few minutes (set a PIN on Me).
 		</p>
 
-		<form class="new" onsubmit={create}>
-			<input
-				bind:value={name}
-				placeholder="A name — Hall tablet, say"
-				aria-label="New display's name"
-			/>
-			<button type="submit" disabled={name.trim() === ''}>Make a display</button>
-		</form>
+		<!-- Not offered when homeCore wouldn't list them: it would refuse a new one too. -->
+		{#if !unlisted}
+			<form class="new" onsubmit={create}>
+				<input
+					bind:value={name}
+					placeholder="A name — Hall tablet, say"
+					aria-label="New display's name"
+				/>
+				<button type="submit" disabled={name.trim() === ''}>Make a display</button>
+			</form>
+		{/if}
 
 		{#if made}
 			<div class="key" role="status">
@@ -186,7 +197,7 @@
 		{/if}
 
 		{#if list === null}
-			<p class="quiet">Loading displays… (this needs homeCore v0.1.77 or later)</p>
+			<p class="quiet" role={unlisted ? 'alert' : 'status'}>{unlisted ?? 'Loading displays…'}</p>
 		{:else if list.length === 0}
 			<p class="quiet">No displays yet.</p>
 		{:else}

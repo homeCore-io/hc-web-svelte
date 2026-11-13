@@ -5,7 +5,7 @@
 	doesn't know about stay exactly as written.
 -->
 <script lang="ts">
-	import { notAdmin } from '#lib/notAdmin.js';
+	import { notAdmin } from '#lib/refusals.js';
 	import { onMount } from 'svelte';
 	import LocationHelp from '#lib/components/admin/LocationHelp.svelte';
 	import WhitelistHint from '#lib/components/admin/WhitelistHint.svelte';

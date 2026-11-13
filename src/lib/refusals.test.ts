@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { listOf, refusal } from './listing.js';
+import { listOf, refusal } from './refusals.js';
 
 describe('refusal', () => {
 	test('names the reason a person can act on', () => {

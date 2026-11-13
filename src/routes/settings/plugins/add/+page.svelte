@@ -7,7 +7,7 @@
 	It does nothing until it has its settings, so its settings come next.
 -->
 <script lang="ts">
-	import { notAdmin } from '#lib/notAdmin.js';
+	import { notAdmin } from '#lib/refusals.js';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';

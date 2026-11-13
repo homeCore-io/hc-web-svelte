@@ -1,9 +1,11 @@
 /**
- * Reading a list from homeCore for a settings page, and saying why it didn't
- * come in a way a person can act on: still loading, not allowed, a homeCore
- * too old to have it, or not answering. Kept apart so that no page leaves
- * "Loading…" up for a list that was refused.
+ * What homeCore refuses, said so a person can act on it: a list that didn't
+ * come (still loading, not allowed, a homeCore too old to have it, or not
+ * answering), and an admin page this sign-in can't open. Kept out of Home's
+ * code, for settings pages, so that none leaves "Loading…" up for a list that
+ * was refused.
  */
+import { session } from './me.svelte.js';
 
 export type Listed<T> = { ok: true; value: T } | { ok: false; status: number | null };
 
@@ -33,4 +35,17 @@ export function refusal(status: number | null, what: string, since?: string): st
 	if (status === 404 && since)
 		return `This homeCore doesn’t have ${what} yet. It needs v${since} or later.`;
 	return `homeCore couldn’t list ${what} (error ${status}).`;
+}
+
+/** An admin's sign-in that homeCore won't treat as one: a key without `users:write`. */
+export const adminKeyOnly = () => session.me?.role === 'admin' && !session.isAdmin;
+
+/**
+ * Why an admin page isn't shown: `plain` for someone who isn't an admin, and
+ * for an admin's limited key, that this sign-in can't `verb` and why.
+ */
+export function notAdmin(plain: string, verb: string): string {
+	return adminKeyOnly()
+		? `This sign-in can’t ${verb}. It uses a key without admin rights; sign in with your password, or use a key that has the users:write scope.`
+		: plain;
 }

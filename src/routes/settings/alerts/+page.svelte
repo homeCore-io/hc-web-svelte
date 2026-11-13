@@ -55,7 +55,7 @@
 		unignore
 	} from '#lib/admin.js';
 	import { core } from '#lib/core.svelte.js';
-	import { listOf, refusal } from '#lib/listing.js';
+	import { listOf, refusal } from '#lib/refusals.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { loadConfig } from '#lib/config.js';
 	import { channelsOf } from '#lib/notify.js';

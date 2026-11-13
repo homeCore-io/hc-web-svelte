@@ -4,7 +4,7 @@
 	versions, and restarting it.
 -->
 <script lang="ts">
-	import { notAdmin } from '#lib/notAdmin.js';
+	import { notAdmin } from '#lib/refusals.js';
 	import { dateOf, fullDateOf, momentOf, timeOf } from '#lib/when.js';
 	import { page } from '$app/state';
 	import { deviceHref } from '#lib/popup.js';

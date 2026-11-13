@@ -4,7 +4,7 @@
 	they set it on Me.
 -->
 <script lang="ts">
-	import { notAdmin } from '#lib/notAdmin.js';
+	import { notAdmin } from '#lib/refusals.js';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { session } from '#lib/me.svelte.js';

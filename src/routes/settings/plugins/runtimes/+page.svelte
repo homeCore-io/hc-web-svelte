@@ -4,7 +4,7 @@
 	the code it shows. A token lets one join without asking.
 -->
 <script lang="ts">
-	import { notAdmin } from '#lib/notAdmin.js';
+	import { notAdmin } from '#lib/refusals.js';
 	import { momentOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { ask } from '#lib/confirm.svelte.js';

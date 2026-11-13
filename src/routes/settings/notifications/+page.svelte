@@ -4,7 +4,7 @@
 	a test send and the automations that use each.
 -->
 <script lang="ts">
-	import { notAdmin } from '#lib/notAdmin.js';
+	import { notAdmin } from '#lib/refusals.js';
 	import { timeOf } from '#lib/when.js';
 	import { onMount, untrack } from 'svelte';
 	import { liveRules } from '#lib/rules.svelte.js';

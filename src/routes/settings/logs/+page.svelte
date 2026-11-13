@@ -8,7 +8,7 @@
 	session's token); if that won't open, asked for every two seconds.
 -->
 <script lang="ts">
-	import { notAdmin } from '#lib/notAdmin.js';
+	import { notAdmin } from '#lib/refusals.js';
 	import { timeOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { session } from '#lib/me.svelte.js';

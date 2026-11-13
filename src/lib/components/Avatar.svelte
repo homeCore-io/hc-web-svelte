@@ -3,6 +3,9 @@
 	initials or an icon on their color. Theirs as they choose it, for the
 	person signed in; everyone else's as the app server hands them out. Found
 	by their id, or by their name where that's all history gives.
+
+	Until whose picture it is has been read, a quiet circle, and a photo
+	fades in as it arrives, so nobody sees the wrong picture first.
 -->
 <script lang="ts">
 	import { AVATAR_ICONS, avatarView } from '#lib/avatar.js';
@@ -19,6 +22,8 @@
 	$effect(() => {
 		if (!me) avatars.want();
 	});
+	const ready = $derived(me ? personal.loaded : avatars.loaded);
+	let shown = $state<string | undefined>(undefined);
 	const view = $derived.by(() => {
 		if (me) {
 			const photo = personal.doc.photo;
@@ -35,12 +40,17 @@
 
 <span
 	class="avatar"
+	class:wait={!ready}
 	aria-hidden="true"
 	style:--size={`${size}px`}
-	style:background={view.kind === 'photo' ? undefined : view.color}
+	style:background={!ready || view.kind === 'photo' ? undefined : view.color}
 >
-	{#if view.kind === 'photo'}<img src={view.photo} alt="" />{:else if view.kind === 'icon'}<svg
-			viewBox="0 0 24 24"
+	{#if !ready}{:else if view.kind === 'photo'}<img
+			src={view.photo}
+			alt=""
+			class:in={shown === view.photo}
+			onload={() => (shown = view.photo)}
+		/>{:else if view.kind === 'icon'}<svg viewBox="0 0 24 24"
 			><!-- The app's own drawings (avatar.ts), never a person's words. -->{@html AVATAR_ICONS[
 				view.icon
 			]}</svg
@@ -64,10 +74,20 @@
 		align-items: center;
 		justify-content: center;
 	}
+	/* Not known yet, or a photo on its way: a quiet circle. */
+	.wait,
+	.avatar:has(img) {
+		background: color-mix(in srgb, var(--ink) 12%, transparent);
+	}
 	img {
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
+		opacity: 0;
+		transition: opacity 0.2s;
+	}
+	img.in {
+		opacity: 1;
 	}
 	svg {
 		width: 58%;

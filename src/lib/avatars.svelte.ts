@@ -15,6 +15,8 @@ export interface AvatarEntry {
 
 class Avatars {
 	people = $state<AvatarEntry[]>([]);
+	/** Whether they've been read (or couldn't be), so a picture knows it isn't coming. */
+	loaded = $state(false);
 	#asked = false;
 
 	/** Read them, once, when a picture first needs them. */
@@ -29,9 +31,11 @@ class Avatars {
 
 	async load(): Promise<void> {
 		const res = await fetch('/ui/avatars').catch(() => null);
-		if (!res?.ok) return;
-		const body = (await res.json().catch(() => ({}))) as { people?: AvatarEntry[] };
+		const body = res?.ok
+			? ((await res.json().catch(() => ({}))) as { people?: AvatarEntry[] })
+			: {};
 		if (Array.isArray(body.people)) this.people = body.people;
+		this.loaded = true;
 	}
 
 	/** A person's, by their id, else by the name history gives them. */

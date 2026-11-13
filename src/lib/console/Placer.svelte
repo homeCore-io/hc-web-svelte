@@ -28,7 +28,9 @@
 	const room = $derived(d ? roomOf(d, rooms.list) : undefined);
 	const list = $derived(room ? devicesIn(devices.byId, room) : []);
 	const chosen = $derived(tabChoicesOf(household.doc.console?.tabs));
-	const own = $derived(ownTab(list, id, chosen, p.width()));
+	// Where it lands by itself is told as a laptop sorts it, as Settings tells
+	// it, so the household's choice means the same from every screen.
+	const own = $derived(ownTab(list, id, chosen));
 	const now = $derived(tabIn(list, id, chosen, p.width()));
 	const roomNames = $derived([...rooms.list].sort((a, b) => a.name.localeCompare(b.name)));
 	const mayMove = $derived(session.can('devices:write'));

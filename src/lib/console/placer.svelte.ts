@@ -18,7 +18,7 @@ export interface Placing {
 
 export class Placer {
 	open = $state.raw<Placing | null>(null);
-	/** The Lights tab's width, as the room lays it out (room.ts). */
+	/** The Lights tab's width, as the room lays it out (room.ts), for the tab it is on now. */
 	width: () => number;
 	constructor(width: () => number) {
 		this.width = width;

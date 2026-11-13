@@ -42,7 +42,7 @@
 	import { pillWord } from '../cameras.js';
 	import { isPlayer } from '../media.js';
 	import { RoomNow } from '../roomNow.svelte.js';
-	import type { TabId } from '../room.js';
+	import { STACKED_WIDTH, type TabId } from '../room.js';
 	import { tabToShow } from '../layout.js';
 	import PhoneLights from './PhoneLights.svelte';
 	import Sheet from './Sheet.svelte';
@@ -51,11 +51,10 @@
 
 	let { id }: { id: string } = $props();
 
-	// The tab's width, as the room lays its Lights out for it.
-	let across = $state(0);
+	// The room's tabs as a phone's: Lights in one column, as long as it needs.
 	const r = new RoomNow(
 		() => id,
-		() => across
+		() => STACKED_WIDTH
 	);
 	const tab = $derived(tabToShow(r.arranged, page.url.searchParams.get('tab')));
 	// The tabs' columns, one under another.
@@ -288,13 +287,7 @@
 						>
 					{/each}
 				</div>
-				<div
-					class="panel"
-					id="room-panel"
-					role="tabpanel"
-					bind:clientWidth={across}
-					aria-labelledby={`tab-${tab}`}
-				>
+				<div class="panel" id="room-panel" role="tabpanel" aria-labelledby={`tab-${tab}`}>
 					{#if tab === 'lights'}
 						<PhoneLights
 							tab={r.model.lights}

@@ -411,6 +411,11 @@ export const fadersIn = (c: LightColumn): number =>
 
 /** The width the Lights tab has, in pixels, on a laptop's screen. */
 export const LIGHTS_WIDTH = 1120;
+/**
+ * A phone's Lights tab: its columns stack one under another, so any number
+ * of them fits, and only the switches' count can crowd it.
+ */
+export const STACKED_WIDTH = Number.POSITIVE_INFINITY;
 /** At most this many switches sit in the Lights tab as a column. */
 export const SWITCHES_IN_LIGHTS = 7;
 

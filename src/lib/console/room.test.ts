@@ -13,6 +13,7 @@ import {
 	placeOf,
 	roomSlugOf,
 	layOut,
+	STACKED_WIDTH,
 	shortName,
 	tabChoicesOf,
 	tabOf,
@@ -399,6 +400,16 @@ describe('a room in tabs', () => {
 		expect(layOut(wide, 2, 750)).toEqual({ tight: true, crowd: false });
 		expect(layOut(wide, 2, 600)).toEqual({ tight: true, crowd: true });
 		expect(layOut(wide, 0, 10)).toEqual({ tight: true, crowd: false });
+	});
+
+	it("keeps switches on a phone's Lights tab while they fit down its one column", () => {
+		const wide = { columns: lightColumns(lamps, [], []).columns, keypads: [], scenes: [] };
+		expect(layOut(wide, 7, STACKED_WIDTH)).toEqual({ tight: false, crowd: false });
+		expect(layOut(wide, 8, STACKED_WIDTH)).toEqual({ tight: false, crowd: true });
+		const seven = Array.from({ length: 7 }, (_, i) => dev(`s${i}`, 'switch'));
+		const r = consoleRoom([...lamps, ...seven], STACKED_WIDTH);
+		expect(r.lights.switches).toHaveLength(7);
+		expect(r.tabs.map((t) => t.id)).toEqual(['lights']);
 	});
 
 	it('puts every device in one tab only', () => {

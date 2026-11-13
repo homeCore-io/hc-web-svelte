@@ -251,7 +251,7 @@
 		font-weight: 500;
 	}
 	.what small.playing {
-		color: #b9a3ff;
+		color: var(--media-ink, #b9a3ff);
 	}
 	.vol {
 		flex: none;

@@ -4,8 +4,9 @@
 	what to do about it; then every room's locks and doors as its header
 	shows them, green when locked or closed and red when not. A lock's pill
 	locks it at once, or asks before unlocking; a door's, or an offline
-	one's, opens the room's Doors tab. "Lock everything" asks first. Leak
-	sensors are in Water, not here.
+	one's, opens the room's Doors tab. "Lock everything" asks first; on a
+	phone (`phone`) it comes after what needs attention. Leak sensors are
+	in Water, not here.
 -->
 <script lang="ts">
 	import { page } from '$app/state';
@@ -25,7 +26,7 @@
 	import { doorName } from './doors.js';
 	import { issuesOf, secRows, type Place, type SecItem } from './everywhere.js';
 
-	let { places }: { places: Place[] } = $props();
+	let { places, phone = false }: { places: Place[]; phone?: boolean } = $props();
 
 	const rows = $derived(secRows(places, commands.pending));
 	const issues = $derived(issuesOf(rows));
@@ -101,9 +102,11 @@
 	{summary}
 	glow={issues.length > 0 ? 'var(--alert)' : 'var(--good, #4fe0a0)'}
 >
-	<button type="button" class="hbtn" disabled={!may || unlocked.length === 0} onclick={lockAll}
-		>Lock everything</button
-	>
+	{#if !phone}
+		<button type="button" class="hbtn" disabled={!may || unlocked.length === 0} onclick={lockAll}
+			>Lock everything</button
+		>
+	{/if}
 </EvHead>
 
 <section class="evlist" aria-label="Security in every room">
@@ -121,6 +124,11 @@
 				>
 			{/each}
 		</div>
+	{/if}
+	{#if phone && locks.length > 0}
+		<button type="button" class="wideact" disabled={!may || unlocked.length === 0} onclick={lockAll}
+			>Lock everything</button
+		>
 	{/if}
 	{#if rows.length === 0}
 		<p class="quiet">No locks or door sensors in the house yet.</p>

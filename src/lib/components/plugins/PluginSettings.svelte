@@ -42,10 +42,13 @@
 		const [c, d] = await Promise.all([loadConfig(pluginId), loadDescriptor(pluginId)]);
 		if (!c.ok)
 			// homeCore reads an installed plugin's file itself; one that keeps its
-			// settings to itself can only say them while it runs.
-			return void (trouble = running
-				? c.error
-				: `${name} is turned off — turn it on to see its settings.`);
+			// settings to itself can only say them while it runs, and homeCore
+			// answers that it has no file (404) or can't reach it (503, 504). A
+			// refusal or no answer at all is said as it is.
+			return void (trouble =
+				!running && (c.status === 404 || c.status === 503 || c.status === 504)
+					? `${name} is turned off. Turn it on to see its settings.`
+					: c.error);
 		config = c.data;
 		// Its own descriptor; failing that, a form made from its schema.
 		let described = d.ok && d.data.descriptor?.sections?.length ? d.data.descriptor : null;

@@ -298,9 +298,9 @@
 {:else}
 	<div class="page">
 		<div class="tools">
-			<a class="plain" href="/settings/logs">Logs</a>
-			<a class="plain" href="/settings/events">Events</a>
-			<a class="plain" href="/settings/audit">Audit</a>
+			<a class="plain" href="/settings/logs?from=system">Logs</a>
+			<a class="plain" href="/settings/events?from=system">Events</a>
+			<a class="plain" href="/settings/audit?from=system">Audit</a>
 			<span class="grow"></span>
 			<button class="plain" onclick={restartNow} disabled={restarting === 'Restarting…'}
 				>Restart homeCore…</button
@@ -321,7 +321,7 @@
 		<section class="card">
 			<div class="head">
 				<h2>How much homeCore writes to its log</h2>
-				<a href="/settings/logs">Open the live log</a>
+				<a href="/settings/logs?from=system">Open the live log</a>
 			</div>
 			{#if levelMissing}
 				<p class="sub">This homeCore can’t change its log level while running.</p>

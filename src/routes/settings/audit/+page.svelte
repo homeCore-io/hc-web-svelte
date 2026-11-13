@@ -32,7 +32,15 @@
 	import { loadPeople } from '#lib/peopleAdmin.js';
 	import type { Person } from '#lib/people.js';
 
-	$effect(() => heading.show('Audit', { href: '/settings/system', label: 'System' }));
+	// Back to System when opened from it; otherwise to Settings, which lists it too.
+	$effect(() =>
+		heading.show(
+			'Audit',
+			page.url.searchParams.get('from') === 'system'
+				? { href: '/settings/system', label: 'System' }
+				: { href: '/settings', label: 'Settings' }
+		)
+	);
 
 	const PAGE = 500;
 	let entries = $state<AuditEntry[]>([]);

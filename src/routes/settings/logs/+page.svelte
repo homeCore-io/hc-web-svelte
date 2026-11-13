@@ -8,6 +8,7 @@
 	session's token); if that won't open, asked for every two seconds.
 -->
 <script lang="ts">
+	import { page } from '$app/state';
 	import { notAdmin } from '#lib/refusals.js';
 	import { timeOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
@@ -17,7 +18,15 @@
 	import { LOG_LEVELS, atLeast, detailOf, sourceOf, type LogLine } from '#lib/system.js';
 	import { loadLogs } from '#lib/systemAdmin.js';
 
-	$effect(() => heading.show('Logs', { href: '/settings/system', label: 'System' }));
+	// Back to System when opened from it; otherwise to Settings, which lists it too.
+	$effect(() =>
+		heading.show(
+			'Logs',
+			page.url.searchParams.get('from') === 'system'
+				? { href: '/settings/system', label: 'System' }
+				: { href: '/settings', label: 'Settings' }
+		)
+	);
 
 	const KEEP = 2000;
 	let lines = $state<LogLine[]>([]);

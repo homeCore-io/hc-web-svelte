@@ -5,6 +5,7 @@
 	and a device that keeps re-declaring its controls says so once.
 -->
 <script lang="ts">
+	import { page } from '$app/state';
 	import { timeOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { session } from '#lib/me.svelte.js';
@@ -16,7 +17,15 @@
 	import { eventRow, folded, onlyNoise, type EventHouse, type EventRow } from '#lib/system.js';
 	import { loadEvents } from '#lib/systemAdmin.js';
 
-	$effect(() => heading.show('Events', { href: '/settings/system', label: 'System' }));
+	// Back to System when opened from it; otherwise to Settings, which lists it too.
+	$effect(() =>
+		heading.show(
+			'Events',
+			page.url.searchParams.get('from') === 'system'
+				? { href: '/settings/system', label: 'System' }
+				: { href: '/settings', label: 'Settings' }
+		)
+	);
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	type Json = any;

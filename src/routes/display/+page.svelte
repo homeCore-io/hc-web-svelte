@@ -60,7 +60,11 @@
 		</label>
 		{#if error !== null}<p class="error" role="alert">{error}</p>{/if}
 		<button type="submit" disabled={busy}>{busy ? 'Checking…' : 'Make this a display'}</button>
-		<a href="/login">Sign in as a person instead</a>
+		{#if session.me !== null && !session.isDisplay}
+			<a href="/">Back to homeCore</a>
+		{:else}
+			<a href="/login">Sign in as a person instead</a>
+		{/if}
 	</form>
 </main>
 

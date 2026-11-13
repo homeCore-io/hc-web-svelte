@@ -12,6 +12,7 @@ import { displayName, unitOf, type CoreDevice, type Devices } from './devices.js
 import { numbersOf, sourceOf, type NumberId, type Options, type Source } from './options.js';
 import { allOffTargets } from './summary.js';
 import { isCameraLight } from './cameraLights.js';
+import { playingNow } from './playing.js';
 import { shownUnit, toShown, type Units } from './units.js';
 
 /** Readings in homeCore's own units, to compare against a fixed °C. */
@@ -255,7 +256,11 @@ export function roomBox(
 		if (unlocked.length === 1) said(`${unlocked[0]!.name} unlocked`, 'unlocked');
 		else if (unlocked.length > 1) said(`${unlocked.length} unlocked`, 'unlocked');
 	}
-	const playing = cards.filter((c) => c.available && c.stateLine.startsWith('Playing'));
+	// Playing as every place counts it (playing.ts): a grouped speaker by its leader.
+	const playing = cards.filter((c) => {
+		const d = devices.find((x) => x.device_id === c.id);
+		return d ? playingNow(d, all) : c.available && c.stateLine.startsWith('Playing');
+	});
 	if (o.music && playing.length > 0)
 		said(
 			playing.length === 1 ? `${playing[0]!.name} playing` : `${playing.length} playing`,

@@ -3,6 +3,7 @@
  * playing, a weather device's readings and forecast. Plain data from the
  * house's devices, so each can be tested without drawing anything.
  */
+import { playingNow as playsNow } from './playing.js';
 import { isOpen, reading, skyIcon, type CardView, type CardSymbol, type IconName } from './card.js';
 import { displayName, type AttributeSchema, type CoreDevice, type Devices } from './devices.js';
 import type { Room } from './house.js';
@@ -31,7 +32,11 @@ const item = (c: CardView, all: Devices, rooms: Room[], alert = false): Item => 
 	alert
 });
 
-export const isPlaying = (c: CardView) => c.available && c.stateLine.startsWith('Playing');
+/** A card's player playing now, as every place counts it (playing.ts); `all` is the house. */
+export const isPlaying = (c: CardView, all: Devices = {}) => {
+	const d = all[c.id];
+	return d ? playsNow(d, all) : c.available && c.stateLine.startsWith('Playing');
+};
 
 /** 10 minutes, 3 hours, 10 days — said in full, for a sentence. */
 export function longFor(ms: number): string {
@@ -107,23 +112,25 @@ export interface Playing {
 
 /** Every speaker or TV playing now: what it's playing, where (mockup A). */
 export const playingNow = (cards: CardView[], all: Devices, rooms: Room[]): Playing[] =>
-	cards.filter(isPlaying).map((c) => {
-		const room = roomName(all[c.id], rooms);
-		const title = c.nowPlaying ?? c.name;
-		const named = title === c.name || room === c.name;
-		return {
-			id: c.id,
-			icon: c.icon,
-			title,
-			where: named
-				? room && room !== title
-					? room
-					: 'Playing'
-				: [room, c.name].filter(Boolean).join(' · '),
-			...(c.control?.kind === 'play' ? { pause: c.control.action } : {}),
-			...(c.art ? { art: c.art, artLogo: c.artLogo } : {})
-		};
-	});
+	cards
+		.filter((c) => isPlaying(c, all))
+		.map((c) => {
+			const room = roomName(all[c.id], rooms);
+			const title = c.nowPlaying ?? c.name;
+			const named = title === c.name || room === c.name;
+			return {
+				id: c.id,
+				icon: c.icon,
+				title,
+				where: named
+					? room && room !== title
+						? room
+						: 'Playing'
+					: [room, c.name].filter(Boolean).join(' · '),
+				...(c.control?.kind === 'play' ? { pause: c.control.action } : {}),
+				...(c.art ? { art: c.art, artLogo: c.artLogo } : {})
+			};
+		});
 
 // ---- weather (G21) ----
 

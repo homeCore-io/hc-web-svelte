@@ -67,7 +67,7 @@ describe('worth knowing (G-c)', () => {
 		};
 		const card = cardFor(lineIn, FIXTURE_NOW);
 		expect(card.stateLine).not.toContain('RINCON');
-		expect(card.nowPlaying).toBeUndefined();
+		expect(card.nowPlaying).toBe('TV or line-in');
 		expect(idLike('HDMI 1')).toBe(false);
 		expect(idLike('YouTube')).toBe(false);
 	});

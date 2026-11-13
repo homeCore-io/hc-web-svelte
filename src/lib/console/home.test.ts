@@ -12,6 +12,7 @@ import {
 	issuesOf,
 	ISSUES_SHOWN,
 	playingOf,
+	dockCount,
 	tileOf
 } from './home.js';
 
@@ -251,8 +252,6 @@ describe('favorites', () => {
 
 describe('what’s playing', () => {
 	const rooms = [room('o', 'Office', 'office'), room('f', 'Family Room', 'family_room')];
-	const now = (d: CoreDevice) =>
-		typeof d.attributes.media_title === 'string' ? d.attributes.media_title : undefined;
 
 	it('lists a speaker group once, by its leader, and a screen in an app', () => {
 		const list = [
@@ -291,7 +290,7 @@ describe('what’s playing', () => {
 				{ plugin_id: 'plugin.roku', area: 'office' }
 			)
 		];
-		expect(playingOf(list, rooms, now)).toEqual([
+		expect(playingOf(list, rooms)).toEqual([
 			{
 				id: 'r',
 				title: 'YouTube',
@@ -317,6 +316,50 @@ describe('what’s playing', () => {
 			dev('b', 'media_player', 'B', { media_title: 'x' }, { available: false }),
 			dev('c', 'media_player', 'C', {}, { plugin_id: 'plugin.sonos' })
 		];
-		expect(playingOf(list, rooms, now)).toEqual([]);
+		expect(playingOf(list, rooms)).toEqual([]);
+	});
+
+	it('lists a Sonos playing its line-in or a TV as playing, never as nothing queued', () => {
+		const list = [
+			dev(
+				'lr',
+				'media_player',
+				'Living Room',
+				{
+					state: 'playing',
+					media_title: 'RINCON_542A1B8710A901400',
+					group_members: ['lr'],
+					group_coordinator: 'lr'
+				},
+				{ plugin_id: 'plugin.sonos' }
+			),
+			dev(
+				'b',
+				'media_player',
+				'Bathroom',
+				{ state: 'paused', media_title: 'ALT Radio' },
+				{ plugin_id: 'plugin.sonos', area: 'office' }
+			)
+		];
+		const out = playingOf(list, rooms);
+		expect(out.map((p) => [p.title, p.playing])).toEqual([
+			['TV or line-in', true],
+			['ALT Radio', false]
+		]);
+		expect(dockCount(out)).toBe('1 playing · 1 paused');
+	});
+
+	it('counts the dock in words that add up', () => {
+		const p = (playing: boolean, screen: boolean) => ({
+			id: 'x',
+			title: 't',
+			sub: '',
+			playing,
+			screen
+		});
+		expect(dockCount([p(true, true), p(true, false), p(false, false), p(false, true)])).toBe(
+			'2 playing · 1 paused · 1 open'
+		);
+		expect(dockCount([p(false, false)])).toBe('Nothing playing now · 1 paused');
 	});
 });

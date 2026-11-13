@@ -1,7 +1,8 @@
 /**
  * The house as every look counts it now, kept once for every page: its
  * lights (lights.ts, `houseLights`), so Home's chips, a room's box, the
- * sidebar and a Lit room's header count the same lights the console does.
+ * sidebar and a Lit room's header count the same lights the console does,
+ * and its players playing (playing.ts).
  *
  * What knows a room's drawing (pictures.ts) loads after Home's own code, so
  * Home stays within its budget; until it has (before the house has loaded,
@@ -10,6 +11,8 @@
 import { devices } from './devices.svelte.js';
 import { rooms } from './rooms.svelte.js';
 import { household } from './household.svelte.js';
+import { commands } from './commands.svelte.js';
+import { playingIds } from './playing.js';
 
 type Counting = typeof import('./houseLights.js');
 
@@ -29,6 +32,8 @@ class HouseNow {
 		const m = this.#load();
 		return m?.houseLightsNow(devices.byId, rooms.list, household.doc.console);
 	});
+	/** The ids of every player playing now, as every place counts them (playing.ts). */
+	playingIds: ReadonlySet<string> = $derived(playingIds(devices.byId, commands.pending));
 	/** The ids of every light in the house; missing while loading. */
 	lightIds: ReadonlySet<string> | undefined = $derived(
 		this.lights && new Set(this.lights.flatMap((g) => g.lights.map((d) => d.device_id)))

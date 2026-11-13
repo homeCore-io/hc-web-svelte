@@ -22,7 +22,8 @@ import type { Room } from '../house.js';
 import { thermostatOf } from '../thermostat.js';
 import { units, type Units } from '../units.js';
 import { climateTab } from './climate.js';
-import { isPlaying, orderPlayers } from './media.js';
+import { orderPlayers } from './media.js';
+import { playNow } from '../playing.js';
 import { brandOf, consoleRoom, type ConsoleRoom, type TabChoices } from './room.js';
 import { roomLights } from './pictures.js';
 import { isLit, lightsCount as countLights, whereLit, type LightsCount } from '../lights.js';
@@ -159,8 +160,16 @@ export function playerRows(places: Place[]): PlayerRow[] {
 export const silentRooms = (places: Place[]): Place[] =>
 	places.filter((p) => p.room && p.model.byTab.media.length === 0);
 
-export const playingNow = (rows: PlayerRow[], wants: Wants = {}): PlayerRow[] =>
-	rows.filter((r) => r.device.available && isPlaying(r.device, wants[r.device.device_id]?.want));
+/**
+ * The rows playing now, as every place counts them (playing.ts): a speaker
+ * that follows another in a group is counted once, by its leader.
+ */
+export function playingNow(rows: PlayerRow[], wants: Wants = {}): PlayerRow[] {
+	const all = rows.map((r) => r.device);
+	return rows.filter(
+		(r) => playNow(r.device, all, wants[r.device.device_id]?.want).state === 'playing'
+	);
+}
 
 // ---- Climate ----
 

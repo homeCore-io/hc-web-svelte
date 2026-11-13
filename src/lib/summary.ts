@@ -27,6 +27,12 @@ const LIGHTS = new Set(['light']);
  * place counts them (lights.ts, `houseNow.lightIds`); without it, lights
  * that aren't a camera's spotlight.
  */
+/** The cards playing: those in `playingIds` (playing.ts); without them, those that say so. */
+const playingCards = (cards: CardView[], playingIds?: ReadonlySet<string>): CardView[] =>
+	cards.filter((c) =>
+		playingIds ? playingIds.has(c.id) : c.available && c.stateLine.startsWith('Playing')
+	);
+
 function lightCards(cards: CardView[], lights?: ReadonlySet<string>): CardView[] {
 	if (lights) return cards.filter((c) => lights.has(c.id));
 	const spot = cameraLightCards(cards);
@@ -40,13 +46,17 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 /**
  * The chips at the top of Home, in a fixed order; only those with something
  * to say. `cards` are the house's; `lights`, the ids of its lights
- * (`houseNow.lightIds`).
+ * (`houseNow.lightIds`); `playingIds`, its players playing (playing.ts).
  */
-export function houseChips(cards: CardView[], lights?: ReadonlySet<string>): Chip[] {
+export function houseChips(
+	cards: CardView[],
+	lights?: ReadonlySet<string>,
+	playingIds?: ReadonlySet<string>
+): Chip[] {
 	const lit = lightCards(cards, lights).filter((c) => c.available && c.tone === 'on');
 	const open = cards.filter((c) => c.available && isOpen(c));
 	const unlocked = cards.filter((c) => c.available && c.icon === 'unlock');
-	const playing = cards.filter((c) => c.available && c.stateLine.startsWith('Playing'));
+	const playing = playingCards(cards, playingIds);
 	const wet = cards.filter((c) => c.alarm === 'wet');
 	const chips: Chip[] = [];
 	if (wet.length > 0)
@@ -109,7 +119,8 @@ export function houseChips(cards: CardView[], lights?: ReadonlySet<string>): Chi
 export function roomSummary(
 	cards: CardView[],
 	temperature?: string,
-	lights?: ReadonlySet<string>
+	lights?: ReadonlySet<string>,
+	playingIds?: ReadonlySet<string>
 ): string {
 	const parts: string[] = [];
 	const wet = cards.filter((c) => c.alarm === 'wet').length;
@@ -133,7 +144,7 @@ export function roomSummary(
 	const open = cards.filter((c) => c.available && isOpen(c));
 	if (open.length === 1) parts.push(`${open[0]!.name} open`);
 	else if (open.length > 1) parts.push(`${open.length} open`);
-	const playing = cards.filter((c) => c.available && c.stateLine.startsWith('Playing'));
+	const playing = playingCards(cards, playingIds);
 	if (playing.length === 1) parts.push(`${playing[0]!.name} playing`);
 	else if (playing.length > 1) parts.push(`${playing.length} playing`);
 	return parts.length > 0 ? parts.join(' · ') : 'All quiet';

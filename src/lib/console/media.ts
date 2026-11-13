@@ -24,28 +24,11 @@ import { actionBody, actionView, withoutAction } from '../details.js';
 import type { CoreDevice, Devices } from '../devices.js';
 import { brandOf, shortName } from './room.js';
 import type { FaderStyle } from './style.js';
+import { currentApp, isOn, isPlayer, isPlaying, playerKind, type PlayerKind } from '../playing.js';
+
+export { currentApp, isOn, isPlayer, isPlaying, playerKind, type PlayerKind };
 
 // ---- which players ----
-
-const MEDIA_KINDS = new Set(['media_player', 'tv', 'speaker', 'receiver']);
-
-/** Whether a device plays something: a TV, a Roku, a speaker. */
-export const isPlayer = (d: CoreDevice): boolean => MEDIA_KINDS.has(kindOf(d));
-
-/** A screen (a Roku, a TV) or a speaker (a Sonos). */
-export type PlayerKind = 'screen' | 'speaker';
-
-export function playerKind(d: CoreDevice): PlayerKind {
-	const k = kindOf(d);
-	const plugin = d.plugin_id ?? '';
-	if (k === 'speaker' || plugin.includes('sonos')) return 'speaker';
-	if (k === 'tv' || plugin.includes('roku')) return 'screen';
-	const a = d.attributes ?? {};
-	// A player that names the app it's in, or says it's a TV, has a screen.
-	if (a.is_tv === true || Array.isArray(a.available_apps) || typeof a.app_name === 'string')
-		return 'screen';
-	return 'speaker';
-}
 
 const nameOf = (d: CoreDevice) => d.name_override ?? d.name;
 const byName = (a: CoreDevice, b: CoreDevice) =>
@@ -171,27 +154,6 @@ export function withRoomAudio<D extends { roomAudio?: RoomAudioChoices }>(
 
 const str = (v: unknown): string | undefined =>
 	typeof v === 'string' && v.trim() !== '' ? v : undefined;
-
-/** Whether a player is on: a Roku in standby is off. */
-export function isOn(d: CoreDevice): boolean {
-	const a = d.attributes ?? {};
-	if (a.on === false) return false;
-	if (typeof a.power_mode === 'string' && a.power_mode !== 'PowerOn') return false;
-	return true;
-}
-
-/** The app a screen is in, by name; the home screen and ids aren't apps. */
-export function currentApp(d: CoreDevice): string | undefined {
-	const a = d.attributes ?? {};
-	const name = str(a.app_name) ?? str(a.source);
-	if (!name || name === 'Home' || /^[A-Z0-9_:.-]{12,}$/.test(name)) return undefined;
-	return name;
-}
-
-/** Whether a player says it's playing. */
-export const isPlaying = (d: CoreDevice, want?: Record<string, unknown>): boolean =>
-	({ ...d.attributes, ...want }).state === 'playing' ||
-	{ ...d.attributes, ...want }.player_state === 'play';
 
 /** A speaker's artist, as it reports one. */
 export const artistOf = (d: CoreDevice): string | undefined =>

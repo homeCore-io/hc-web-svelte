@@ -83,6 +83,7 @@ export class HomeNow {
 
 	// ---- every room, as a tile ----
 	#order = $derived(homeRoomOrder(rooms.list, (r) => ref.room(r.id), view.changes('home')).shown);
+	#all = $derived(Object.values(devices.byId));
 	// The house's lights, as every place counts them (lights.ts): every room's,
 	// shown on Home or not, and those in no room, as Everywhere › Lights has them.
 	#lightRows = $derived(
@@ -124,7 +125,8 @@ export class HomeNow {
 					cards,
 					box,
 					this.#lightRows.find((r) => r.room?.id === room.id)?.lights ?? [],
-					wants
+					wants,
+					this.#all
 				),
 				...lit,
 				plain,
@@ -135,7 +137,6 @@ export class HomeNow {
 	);
 
 	// ---- the house in a line ----
-	#all = $derived(Object.values(devices.byId));
 	lights = $derived(lightsCount(this.#lightRows, commands.pending));
 	lightsOn = $derived(this.lights.on);
 	issues = $derived(
@@ -146,7 +147,7 @@ export class HomeNow {
 			rooms.list
 		)
 	);
-	playing = $derived(playingOf(this.#all, rooms.list, (d) => cardFor(d, clock.now).nowPlaying));
+	playing = $derived(playingOf(this.#all, rooms.list, wants));
 	line = $derived(
 		houseLine({
 			lights: this.lights,

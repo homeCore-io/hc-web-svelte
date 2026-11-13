@@ -33,6 +33,7 @@ import { camEvents } from './camEvents.svelte.js';
 import { allEvents, camerasOf, pillPrefsOf, pillsOf } from './cameras.js';
 import { roomLights, roomPicture } from './pictures.js';
 import { isLit } from '#lib/lights.js';
+import { playingNow } from '#lib/playing.js';
 import { photoGlow, photoSpots } from './photo.js';
 import {
 	audioChoices,
@@ -167,9 +168,10 @@ export class RoomNow {
 					? '1 light on'
 					: `${this.#lampsOn} lights on`
 	);
+	// As every place counts it (playing.ts): a grouped speaker by its leader.
 	playing = $derived(
-		this.model.byTab.media.filter(
-			(d) => d.available && this.card(d).stateLine.startsWith('Playing')
+		this.model.byTab.media.filter((d) =>
+			playingNow(d, devices.byId, commands.pending[d.device_id]?.want)
 		).length
 	);
 

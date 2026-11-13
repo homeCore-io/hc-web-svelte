@@ -502,23 +502,25 @@ function media(d: CoreDevice, a: Record<string, unknown>, s: Schema, v: CardView
 	// can be its address (`hls.m3u8?rj-ttl=5&…`). Never say that; the station
 	// shows in its logo, and the line just says it's playing.
 	// A Sonos playing its line-in or TV gives its own id ("RINCON_542A…") as the title.
-	const title = raw && !streamAddress(raw) && !idLike(raw) ? raw : undefined;
+	const title = raw && !streamAddress(raw) && !lineInTitle(raw) ? raw : undefined;
 	const source = str(a.app_name) ?? (a.source !== 'Home' ? str(a.source) : undefined);
 	const app = source && !idLike(source) ? source : undefined;
 	const isSpeaker = (d.plugin_id ?? '').includes('sonos') || d.ui_hint === 'speaker';
 	v.icon = isSpeaker ? 'speaker' : 'tv';
 	const playing = state === 'playing';
+	// Playing its own id: a Sonos playing its line-in or a TV (playing.ts says the same).
+	const lineIn = playing && !title && !app && raw && lineInTitle(raw) ? 'TV or line-in' : undefined;
 	v.tone = !on ? 'off' : playing ? 'on' : 'neutral';
 	v.stateLine = !on
 		? 'Off'
 		: playing
-			? `Playing${title ? ` — ${title}` : app ? ` — ${app}` : ''}`
+			? `Playing${title ? ` — ${title}` : app ? ` — ${app}` : lineIn ? ` — ${lineIn}` : ''}`
 			: state === 'paused'
 				? `Paused${title ? ` — ${title}` : ''}`
 				: app
 					? `On · ${app}`
 					: 'On';
-	if (on && (playing || state === 'paused')) v.nowPlaying = title ?? app;
+	if (on && (playing || state === 'paused')) v.nowPlaying = title ?? app ?? lineIn;
 	const ids = new Set((s.actions ?? []).map((x) => x.id));
 	const toggle = ids.has('play_pause') ? 'play_pause' : playing ? 'pause' : 'play';
 	if (on && ids.has(toggle)) v.control = { kind: 'play', playing, action: toggle };
@@ -547,6 +549,13 @@ export const streamAddress = (t: string) =>
 
 /** A device's or input's id rather than its name: long, no spaces, capitals, digits and "_". */
 export const idLike = (t: string) => t.length >= 12 && /^[A-Z0-9_:.-]+$/.test(t) && /\d/.test(t);
+
+/**
+ * A Sonos playing its line-in or a TV: its title is its own id ("RINCON_542A…")
+ * or the stream's address ("x-rincon-stream:RINCON_…").
+ */
+export const lineInTitle = (t: string) =>
+	idLike(t) || /^x-(rincon|sonos)/i.test(t) || /RINCON_/.test(t);
 
 /** homeCore's artwork for a player, keyed by the track's own art address. */
 export function artUrl(deviceId: string, published: string): string {

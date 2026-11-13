@@ -37,7 +37,8 @@ export function homeDocument(): Page {
 		alerts: alerts.list.length,
 		chips: houseChips(
 			Object.values(devices.byId).map((d) => cardFor(d, clock.now)),
-			houseNow.lightIds
+			houseNow.lightIds,
+			houseNow.playingIds
 		),
 		mode: view.mode(HOME)
 	});

@@ -19,16 +19,8 @@ import type { CoreScene } from '../scenes.svelte.js';
 import type { Alert } from '../alerts.js';
 import type { Room } from '../house.js';
 import type { Box } from '../roomBox.js';
-import {
-	artistOf,
-	currentApp,
-	groupOf,
-	isOn,
-	isPlayer,
-	isPlaying,
-	playerKind,
-	playerName
-} from './media.js';
+import { artistOf, groupOf, isPlayer, playerName } from './media.js';
+import { playingNow, playNow } from '../playing.js';
 import { roomOf } from './cameras.js';
 import { guards, levelOf, shortName } from './room.js';
 import { isLamp, type Wants } from './pictures.js';
@@ -101,7 +93,8 @@ export function tileOf(
 	cards: CardView[],
 	box: Box,
 	lamps: CoreDevice[] = devices.filter(isLamp),
-	wants: Wants = () => undefined
+	wants: Wants = () => undefined,
+	all: readonly CoreDevice[] = devices
 ): Tile {
 	const short = (name: string) => shortName(name.replace(/\s+sensor$/i, ''), room.name);
 	const on = lamps.filter((d) => d.available && levelOf(d, wants(d.device_id)) > 0).length;
@@ -116,7 +109,7 @@ export function tileOf(
 	};
 	const wrong = box.lines.filter((l) => l.alert).map((l) => tidy(l.text));
 	const unlocked = cards.filter((c) => c.available && c.icon === 'unlock');
-	const playing = devices.filter((d) => d.available && isPlayer(d) && isPlaying(d));
+	const playing = devices.filter((d) => playingNow(d, all, wants(d.device_id)));
 	const work = devices.flatMap((d) => working(d) ?? []);
 	const fans = cards.filter((c) => c.available && c.kind === 'fan' && c.tone === 'on');
 	const words = [
@@ -269,25 +262,25 @@ export interface Playing {
 
 /**
  * What's playing in the house, playing first: each screen in an app, each
- * speaker with something on, a group of speakers once (by its leader).
- * `now` gives a player's card's words: its title and artwork.
+ * speaker with something on (a TV or line-in too), a group of speakers once
+ * (by its leader), as every place says it (playing.ts).
  */
 export function playingOf(
 	all: CoreDevice[],
 	rooms: Room[],
-	nowOf: (d: CoreDevice) => string | undefined
+	wants: Wants = () => undefined
 ): Playing[] {
 	const out: Playing[] = [];
 	for (const d of all) {
-		if (!d.available || !isPlayer(d) || !isOn(d)) continue;
-		const lead = d.attributes.group_coordinator;
-		if (typeof lead === 'string' && lead !== d.device_id && all.some((x) => x.device_id === lead))
-			continue;
-		const screen = playerKind(d) === 'screen';
-		const playing = isPlaying(d);
-		const title = screen ? currentApp(d) : nowOf(d);
-		if (!title) continue;
+		if (!isPlayer(d)) continue;
+		const now = playNow(d, all, wants(d.device_id));
+		if (now.state !== 'playing' && now.state !== 'paused' && now.state !== 'open') continue;
+		const { screen } = now;
+		const playing = now.state === 'playing';
 		const r = roomOf(d, rooms);
+		// Something playing is listed, its player's name for a title when it names nothing.
+		const title = now.what ?? (playing ? playerName(d, r?.name) : undefined);
+		if (!title) continue;
 		const names = [playerName(d, r?.name), ...groupOf(d, all)].join(' + ');
 		out.push({
 			id: d.device_id,
@@ -304,4 +297,19 @@ export function playingOf(
 		});
 	}
 	return out.sort((a, b) => Number(b.playing) - Number(a.playing));
+}
+
+/**
+ * The dock's count of what `playingOf` lists: "3 playing · 1 paused",
+ * "2 playing · 1 paused · 1 open", "Nothing playing now · 1 paused".
+ */
+export function dockCount(list: Playing[]): string {
+	const playing = list.filter((p) => p.playing).length;
+	const paused = list.filter((p) => !p.playing && !p.screen).length;
+	const open = list.filter((p) => !p.playing && p.screen).length;
+	return join([
+		playing === 0 ? 'Nothing playing now' : `${playing} playing`,
+		paused > 0 && `${paused} paused`,
+		open > 0 && `${open} open`
+	]);
 }

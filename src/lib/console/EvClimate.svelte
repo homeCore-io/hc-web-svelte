@@ -217,7 +217,7 @@
 		font-size: 10.5px;
 	}
 	.trd .evname small.noroom {
-		color: #ffc46b;
+		color: var(--warm-ink, #ffc46b);
 	}
 	.tval {
 		width: 52px;
@@ -239,7 +239,7 @@
 		width: 36px;
 		flex: none;
 		font: 500 12px var(--font-num);
-		color: #8fb8e6;
+		color: var(--cool-ink, #8fb8e6);
 		text-align: right;
 	}
 	.fans {

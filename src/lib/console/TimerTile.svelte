@@ -81,6 +81,9 @@
 		color: var(--ink-muted);
 		opacity: 0.7;
 	}
+	:global(:root[data-theme='light']) .fig.dim {
+		opacity: 1;
+	}
 	.nm {
 		max-width: 100%;
 		border: 0;

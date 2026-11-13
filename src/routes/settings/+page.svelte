@@ -256,40 +256,36 @@
 
 		<div class="groups">
 			{#each groups as g (g.id)}
-				{#if g.items.length > 0 || query !== ''}
+				{#if g.items.length > 0}
 					<section>
 						<h2>{g.title}</h2>
-						{#if g.items.length > 0}
-							<ul>
-								{#each g.items as item (item.slug)}
-									{@const Icon = ICONS[item.slug]}
-									<li>
-										<a href={`/settings/${item.slug}`}>
-											<span class="icon"
-												>{#if Icon}<Icon
-														size={18}
-														strokeWidth={1.8}
-														aria-hidden="true"
-													/>{/if}</span
-											>
-											<span class="text">
-												<span class="label">{item.label}</span>
-												<span class="detail" class:warn={warn[item.slug]}>
-													{shownStatus(item)}
-												</span>
+						<ul>
+							{#each g.items as item (item.slug)}
+								{@const Icon = ICONS[item.slug]}
+								<li>
+									<a href={`/settings/${item.slug}`}>
+										<span class="icon"
+											>{#if Icon}<Icon size={18} strokeWidth={1.8} aria-hidden="true" />{/if}</span
+										>
+										<span class="text">
+											<span class="label">{item.label}</span>
+											<span class="detail" class:warn={warn[item.slug]}>
+												{shownStatus(item)}
 											</span>
-											<ChevronRight size={18} aria-hidden="true" />
-										</a>
-									</li>
-								{/each}
-							</ul>
-						{:else}
-							<p class="quiet">Nothing here matches “{query}”.</p>
-						{/if}
+										</span>
+										<ChevronRight size={18} aria-hidden="true" />
+									</a>
+								</li>
+							{/each}
+						</ul>
 					</section>
 				{/if}
 			{/each}
 		</div>
+		{#if query !== '' && groups.every((g) => g.items.length === 0) && configHits.length === 0}
+			<!-- Said once, not under each group. -->
+			<p class="quiet">Nothing in Settings matches “{query}”.</p>
+		{/if}
 
 		{#if configHits.length > 0}
 			<section>

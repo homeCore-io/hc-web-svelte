@@ -26,6 +26,11 @@ describe('settings', () => {
 		expect(found('Pushover, email', 'push em')).toBe(true);
 		expect(found('Pushover', 'push telegram')).toBe(false);
 		expect(matches(settingsItem('notifications')!, 'pushover')).toBe(true);
+		// Units and the time zone are on System; updates on Plugins.
+		for (const q of ['units', 'temperature', 'fahrenheit', 'time zone', 'timezone'])
+			expect(matches(settingsItem('system')!, q)).toBe(true);
+		for (const q of ['update', 'updates', 'upgrade'])
+			expect(matches(settingsItem('plugins')!, q)).toBe(true);
 		expect(matches(settingsItem('data')!, 'last backup', 'Last backup today')).toBe(true);
 	});
 

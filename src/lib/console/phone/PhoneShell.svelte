@@ -75,19 +75,38 @@
 	};
 </script>
 
+<!-- A page on its way: a quiet line, shown only if it takes a moment. -->
+{#snippet opening()}
+	<p class="opening" role="status">Opening…</p>
+{/snippet}
+<!-- A page that could not be fetched (offline, or the app was updated): say so, and offer to load it again. -->
+{#snippet failed()}
+	<div class="failed" role="alert">
+		<p>This page didn’t load. The connection may have dropped, or homeCore was updated.</p>
+		<button type="button" onclick={() => location.reload()}>Load it again</button>
+	</div>
+{/snippet}
+
 <div class="phone">
 	<UnlockedBar />
 	<main class="scr">
 		{#if here?.kind === 'home'}
-			{#await pages.home() then m}<m.default />{/await}
+			{#await pages.home()}{@render opening()}{:then m}<m.default
+				/>{:catch}{@render failed()}{/await}
 		{:else if here?.kind === 'rooms'}
-			{#await pages.rooms() then m}<m.default />{/await}
+			{#await pages.rooms()}{@render opening()}{:then m}<m.default
+				/>{:catch}{@render failed()}{/await}
 		{:else if here?.kind === 'room'}
-			{#await pages.room() then m}<m.default id={here.id} />{/await}
+			{#await pages.room()}{@render opening()}{:then m}<m.default
+					id={here.id}
+				/>{:catch}{@render failed()}{/await}
 		{:else if here?.kind === 'everywhere'}
-			{#await pages.everywhere() then m}<m.default view={here.view} />{/await}
+			{#await pages.everywhere()}{@render opening()}{:then m}<m.default
+					view={here.view}
+				/>{:catch}{@render failed()}{/await}
 		{:else if here?.kind === 'cameras'}
-			{#await pages.cameras() then m}<m.default />{/await}
+			{#await pages.cameras()}{@render opening()}{:then m}<m.default
+				/>{:catch}{@render failed()}{/await}
 		{:else}
 			<div class="plain">
 				{#if back}<a class="back" href={back.href}
@@ -155,6 +174,43 @@
 		padding-bottom: var(--tabbar-h);
 		padding-left: env(safe-area-inset-left);
 		padding-right: env(safe-area-inset-right);
+	}
+
+	/* ---- a page on its way, or one that didn't come ---- */
+	.opening {
+		margin: 0;
+		padding: 24px 16px;
+		color: var(--ink-muted);
+		font-size: 14px;
+		opacity: 0;
+		animation: show-late 0.2s 0.4s forwards;
+	}
+	@keyframes show-late {
+		to {
+			opacity: 1;
+		}
+	}
+	.failed {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 12px;
+		padding: 24px 16px;
+	}
+	.failed p {
+		margin: 0;
+		color: var(--ink-muted);
+		font-size: 15px;
+	}
+	.failed button {
+		min-height: 44px;
+		padding: 0 18px;
+		border: none;
+		border-radius: 12px;
+		background: var(--accent);
+		color: var(--accent-ink);
+		font: 600 15px var(--font);
+		cursor: pointer;
 	}
 
 	/* ---- a page drawn as it is ---- */

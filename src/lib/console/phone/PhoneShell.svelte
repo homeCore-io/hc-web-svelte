@@ -132,14 +132,18 @@
 	{#if you}
 		<Sheet label="You" onclose={() => (you = false)}>
 			<div class="you">
-				<YouMenu close={() => (you = false)} />
-				{#if houseList.length > 0}
-					<a class="house" href="/settings" onclick={() => (you = false)}
-						><span class="mic"><Settings size={15} strokeWidth={1.9} aria-hidden="true" /></span
-						><span>Household settings<small>Rooms, devices, plugins, people, system</small></span
-						></a
-					>
-				{/if}
+				<YouMenu phone close={() => (you = false)}>
+					{#snippet more()}
+						{#if houseList.length > 0}
+							<a class="house" href="/settings" onclick={() => (you = false)}
+								><span class="mic"><Settings size={15} strokeWidth={1.9} aria-hidden="true" /></span
+								><span
+									>Household settings<small>Rooms, devices, plugins, people, system</small></span
+								></a
+							>
+						{/if}
+					{/snippet}
+				</YouMenu>
 			</div>
 		</Sheet>
 	{/if}

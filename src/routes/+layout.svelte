@@ -24,7 +24,7 @@
 	import { houseUnits } from '#lib/houseUnits.svelte.js';
 	import { alerts } from '#lib/alerts.svelte.js';
 	import { lookOf, looksOf, paletteOf } from '#lib/layers.js';
-	import { consoleHere, findLook, reachesHere, shellOf } from '#lib/looks/model.js';
+	import { consoleHere, findLook, phoneOwnPage, reachesHere, shellOf } from '#lib/looks/model.js';
 	import { look } from '#lib/look.svelte.js';
 	import { phone } from '#lib/console/phone/phone.svelte.js';
 
@@ -87,8 +87,14 @@
 					: lookOf(personal.doc, household.doc, all)
 		};
 	});
+	// Until the documents load, the look this browser last showed.
+	const framed = $derived(personal.loaded && household.loaded ? shown.look : look.def);
+	// On a phone, Me and the person's picture stay in the console's phone frame.
+	const ownOnPhone = $derived(
+		phone.current && shellOf(framed) === 'console' && phoneOwnPage(page.url.pathname)
+	);
 	// Settings and the admin screens keep Classic's feel, unless the look reaches them (S9).
-	const reaches = $derived(reachesHere(shown.look, page.url.pathname));
+	const reaches = $derived(reachesHere(shown.look, page.url.pathname) || ownOnPhone);
 	$effect(() => {
 		if (personal.loaded && household.loaded) look.show(shown.look, shown.all, reaches);
 	});
@@ -101,9 +107,8 @@
 	// browser last showed decides, so the frame doesn't change as they arrive.
 	// The console's code is loaded only for those who see it: on a phone's
 	// screen, its phone layout (PhonePlan), and only that.
-	const framed = $derived(personal.loaded && household.loaded ? shown.look : look.def);
 	const desk = $derived(consoleHere(framed, page.url.pathname));
-	const small = $derived(desk && phone.current);
+	const small = $derived((desk && phone.current) || ownOnPhone);
 	let ConsoleShell = $state<Component<{ children: Snippet }> | null>(null);
 	let PhoneShell = $state<Component<{ children: Snippet }> | null>(null);
 	$effect(() => {

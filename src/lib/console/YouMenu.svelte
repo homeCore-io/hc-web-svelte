@@ -7,8 +7,13 @@
 	room, Customize for it (Customize.svelte). Only
 	theirs, on every screen they sign in to; except which room this screen
 	opens on, which is the screen's own (opensOn.ts).
+
+	On a phone (`phone`), only what the phone draws: no sidebar, no room to
+	open on, and Customize needs a larger screen. The frame's own links
+	(`more`) come before Sign out, which stays last.
 -->
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
@@ -46,7 +51,11 @@
 		type Choice
 	} from './style.js';
 
-	let { close }: { close: () => void } = $props();
+	let {
+		close,
+		phone = false,
+		more
+	}: { close: () => void; phone?: boolean; more?: Snippet } = $props();
 
 	// ---- look: their own, else the house's ----
 	const looks = $derived(looksOf(personal.doc, household.doc));
@@ -181,32 +190,33 @@
 	{@render seg('Switches and timers as', SET_LOOKS, together, (id) => choose({ switchesAs: id }))}
 </div>
 
-<div class="row">
-	<span class="mic"><PanelLeft size={15} strokeWidth={1.9} aria-hidden="true" /></span>
-	<span class="mt">Sidebar<small>Open, or folded to icons</small></span>
-	{@render seg(
-		'Sidebar',
-		[
-			{ id: 'open', name: 'Open' },
-			{ id: 'folded', name: 'Folded' }
-		],
-		sidebar,
-		(id) => choose({ sidebar: id === 'folded' ? 'folded' : undefined })
-	)}
-</div>
+{#if !phone}
+	<div class="row">
+		<span class="mic"><PanelLeft size={15} strokeWidth={1.9} aria-hidden="true" /></span>
+		<span class="mt">Sidebar<small>Open, or folded to icons</small></span>
+		{@render seg(
+			'Sidebar',
+			[
+				{ id: 'open', name: 'Open' },
+				{ id: 'folded', name: 'Folded' }
+			],
+			sidebar,
+			(id) => choose({ sidebar: id === 'folded' ? 'folded' : undefined })
+		)}
+	</div>
 
-<div class="row">
-	<span class="mic"><DoorOpen size={15} strokeWidth={1.9} aria-hidden="true" /></span>
-	<label class="mt" for="console-opens"
-		>This screen opens on<small>Just this screen, for a wall panel</small></label
-	>
-	<select id="console-opens" value={opens} onchange={(e) => openOn(e.currentTarget.value)}>
-		<option value="">Home</option>
-		{#each order as r (r.id)}<option value={r.id}>{r.name}</option>{/each}
-	</select>
-</div>
-
-{#if here}
+	<div class="row">
+		<span class="mic"><DoorOpen size={15} strokeWidth={1.9} aria-hidden="true" /></span>
+		<label class="mt" for="console-opens"
+			>This screen opens on<small>Just this screen, for a wall panel</small></label
+		>
+		<select id="console-opens" value={opens} onchange={(e) => openOn(e.currentTarget.value)}>
+			<option value="">Home</option>
+			{#each order as r (r.id)}<option value={r.id}>{r.name}</option>{/each}
+		</select>
+	</div>
+{/if}
+{#if here && !phone}
 	<a class="row link" href={`/rooms/${here.id}?customize`} onclick={close}>
 		<span class="mic"><SlidersHorizontal size={15} strokeWidth={1.9} aria-hidden="true" /></span>
 		<span class="mt"
@@ -218,6 +228,7 @@
 	<span class="mic"><UserRound size={15} strokeWidth={1.9} aria-hidden="true" /></span>
 	<span class="mt">Everything else about you<small>Theme, PIN, password</small></span>
 </a>
+{@render more?.()}
 <button class="row link out" onclick={signOut}>
 	<span class="mic"><LogOut size={15} strokeWidth={1.9} aria-hidden="true" /></span>
 	<span class="mt">Sign out</span>

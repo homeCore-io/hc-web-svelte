@@ -9,10 +9,20 @@
  * tabs to stack their columns, each as wide as the phone.
  */
 import { getContext, setContext } from 'svelte';
-import { MediaQuery } from 'svelte/reactivity';
 import { PHONE_QUERY } from './width.js';
 
-export const phone = new MediaQuery(PHONE_QUERY, false);
+/** Whether the screen is a phone's now, following it as it turns or a window is resized. */
+class Phone {
+	current = $state(false);
+	constructor() {
+		if (typeof matchMedia === 'undefined') return;
+		const m = matchMedia(PHONE_QUERY);
+		this.current = m.matches;
+		m.addEventListener('change', (e) => (this.current = e.matches));
+	}
+}
+
+export const phone = new Phone();
 
 const KEY = Symbol('phone-you');
 

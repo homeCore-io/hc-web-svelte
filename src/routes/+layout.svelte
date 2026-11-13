@@ -26,6 +26,7 @@
 	import { lookOf, looksOf, paletteOf } from '#lib/layers.js';
 	import { consoleHere, findLook, reachesHere, shellOf } from '#lib/looks/model.js';
 	import { look } from '#lib/look.svelte.js';
+	import { phone } from '#lib/console/phone/phone.svelte.js';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -98,13 +99,18 @@
 	// The frame: the console's where a look that puts the app in it reaches,
 	// the standard one elsewhere. Until the documents load, the look this
 	// browser last showed decides, so the frame doesn't change as they arrive.
-	// The console's code is loaded only for those who see it.
+	// The console's code is loaded only for those who see it: on a phone's
+	// screen, its phone layout (PhonePlan), and only that.
 	const framed = $derived(personal.loaded && household.loaded ? shown.look : look.def);
 	const desk = $derived(consoleHere(framed, page.url.pathname));
+	const small = $derived(desk && phone.current);
 	let ConsoleShell = $state<Component<{ children: Snippet }> | null>(null);
+	let PhoneShell = $state<Component<{ children: Snippet }> | null>(null);
 	$effect(() => {
-		if (desk && ConsoleShell === null)
+		if (desk && !small && ConsoleShell === null)
 			void import('#lib/console/ConsoleShell.svelte').then((m) => (ConsoleShell = m.default));
+		if (small && PhoneShell === null)
+			void import('#lib/console/phone/PhoneShell.svelte').then((m) => (PhoneShell = m.default));
 	});
 	// The theme: the person's own, else the house's, else the look's where it reaches (D9a).
 	$effect(() => {
@@ -118,7 +124,9 @@
 {:else if session.isDisplay}
 	<Kiosk>{@render children()}</Kiosk>
 {:else if session.me !== null}
-	{#if desk}
+	{#if small}
+		{#if PhoneShell}<PhoneShell>{@render children()}</PhoneShell>{/if}
+	{:else if desk}
 		{#if ConsoleShell}<ConsoleShell>{@render children()}</ConsoleShell>{/if}
 	{:else}
 		<Shell>{@render children()}</Shell>

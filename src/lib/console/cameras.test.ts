@@ -7,9 +7,11 @@ import {
 	areasOf,
 	badgeOf,
 	camerasOf,
+	camerasWord,
 	camOf,
 	cardsAcross,
 	eventsOf,
+	eventsWord,
 	gridOf,
 	pageOf,
 	pickedOf,
@@ -358,5 +360,17 @@ describe('paging the events', () => {
 		expect(cardsAcross(1000, 130, 10)).toBe(7);
 		expect(cardsAcross(1130, 130, 10)).toBe(8);
 		expect(cardsAcross(50, 130, 10)).toBe(1);
+	});
+});
+
+describe('counts while they load', () => {
+	it('never says 0 cameras or 0 events before they are read', () => {
+		expect(camerasWord(0, false)).toBe('Loading cameras…');
+		expect(camerasWord(6, true)).toBe('6 cameras');
+		expect(camerasWord(1, true)).toBe('1 camera');
+		expect(eventsWord(0, true)).toBe('Reading…');
+		expect(eventsWord(3, true)).toBe('3 events so far');
+		expect(eventsWord(0, false)).toBe('0 events');
+		expect(eventsWord(1, false)).toBe('1 event');
 	});
 });

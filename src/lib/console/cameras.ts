@@ -475,3 +475,19 @@ export function pageOf(total: number, fits: number, first: number): EventPage {
 export function cardsAcross(room: number, width: number, gap: number): number {
 	return Math.max(1, Math.floor((room + gap) / (width + gap)));
 }
+
+// ---- counts, while they load ----
+
+/** How many cameras, or that they are still loading: never "0 cameras" before the house is in. */
+export const camerasWord = (n: number, loaded: boolean): string =>
+	!loaded ? 'Loading cameras…' : n === 1 ? '1 camera' : `${n} cameras`;
+
+/**
+ * How many events today, while some camera's are still being read: "Reading…",
+ * "3 events so far", then "3 events". Never "0 events" before they are read.
+ */
+export function eventsWord(n: number, reading: boolean): string {
+	if (reading && n === 0) return 'Reading…';
+	const word = n === 1 ? '1 event' : `${n} events`;
+	return reading ? `${word} so far` : word;
+}

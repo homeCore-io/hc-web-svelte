@@ -35,6 +35,7 @@
 		allEvents,
 		badgeOf,
 		camerasOf,
+		eventsWord,
 		kindName,
 		latestOf,
 		pageOf,
@@ -157,11 +158,11 @@
 			<div class="ch">
 				<span class="ttl">Here today</span>
 				<span class="cn"
-					>{pg.word || (events.length === 1 ? '1 event' : `${events.length} events`)}{cams.some(
-						(c) => camEvents.failed[c.id]
-					)
-						? ' · history unread'
-						: ''}</span
+					>{pg.word ||
+						eventsWord(
+							events.length,
+							cams.some((c) => !camEvents.ready[c.id])
+						)}{cams.some((c) => camEvents.failed[c.id]) ? ' · history unread' : ''}</span
 				>
 				{#if pg.word}
 					<div class="pager" role="group" aria-label="Page through today’s events">

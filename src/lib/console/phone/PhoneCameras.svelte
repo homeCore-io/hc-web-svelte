@@ -4,7 +4,7 @@
 -->
 <script lang="ts">
 	import { devices } from '#lib/devices.svelte.js';
-	import { camerasOf } from '../cameras.js';
+	import { camerasOf, camerasWord } from '../cameras.js';
 	import CamPhone from './CamPhone.svelte';
 	import PhoneTop from './PhoneTop.svelte';
 
@@ -14,7 +14,7 @@
 
 <PhoneTop title="Cameras">
 	<p class="sub">
-		{n === 1 ? '1 camera' : `${n} cameras`} · live plays while it’s on screen
+		{camerasWord(n, devices.loaded)}{devices.loaded ? ' · live plays while it’s on screen' : ''}
 	</p>
 </PhoneTop>
 <div class="pad"><CamPhone list={all} /></div>

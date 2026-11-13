@@ -33,6 +33,8 @@
 		areasOf,
 		badgeOf,
 		camerasOf,
+		camerasWord,
+		eventsWord,
 		cardsAcross,
 		gridOf,
 		kindName,
@@ -144,7 +146,9 @@
 		<div>
 			<h1>Cameras</h1>
 			<p class="cn">
-				{cams.length === 1 ? '1 camera' : `${cams.length} cameras`} · live plays while it’s on screen
+				{camerasWord(cams.length, devices.loaded)}{devices.loaded
+					? ' · live plays while it’s on screen'
+					: ''}
 			</p>
 		</div>
 		<span class="grow"></span>
@@ -269,7 +273,11 @@
 					{/each}
 				</div>
 				<span class="cn"
-					>{pg.word || (today.length === 1 ? '1 event' : `${today.length} events`)}{failed > 0
+					>{pg.word ||
+						eventsWord(
+							today.length,
+							cams.some((c) => !camEvents.ready[c.id])
+						)}{failed > 0
 						? ` · ${failed === 1 ? 'one camera’s' : `${failed} cameras’`} history couldn’t be read`
 						: ''}</span
 				>

@@ -3,6 +3,7 @@
 	open, what's playing — as cards, so they can be dealt with from here.
 -->
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { cardFor } from '#lib/card.js';
 	import { houseChips } from '#lib/summary.js';
@@ -15,9 +16,18 @@
 	const chip = $derived(chips.find((c) => c.key === page.params.key));
 	// Kept on the page while it is open: a light turned off here stays listed,
 	// so the switch doesn't vanish from under the finger.
+	// Read without tracking: the effect writes `shown`, so tracking it would loop.
 	let shown = $state<string[]>([]);
+	let keyShown: string | undefined;
 	$effect(() => {
-		if (chip) shown = [...new Set([...shown, ...chip.ids])];
+		const key = page.params.key;
+		const ids = chip?.ids ?? [];
+		untrack(() => {
+			const before = key === keyShown ? shown : [];
+			keyShown = key;
+			const next = [...new Set([...before, ...ids])];
+			if (next.length !== shown.length || next.some((id, i) => id !== shown[i])) shown = next;
+		});
 	});
 	const list = $derived(shown.map((id) => devices.byId[id]).filter((d) => d !== undefined));
 

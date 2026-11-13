@@ -324,6 +324,19 @@ describe('a room in tabs', () => {
 		expect(ids(r.byTab.lights)).toContain('other_spotlight');
 	});
 
+	it('puts a spotlight with Cameras when its camera is in another room', () => {
+		const house = [dev('cam', 'camera')];
+		const r = consoleRoom(
+			[...lamps, dev('cam_spotlight', 'light', { on: true })],
+			undefined,
+			undefined,
+			undefined,
+			[...house, ...lamps]
+		);
+		expect(ids(r.byTab.cameras)).toEqual(['cam_spotlight']);
+		expect(ids(r.byTab.lights)).not.toContain('cam_spotlight');
+	});
+
 	it('shows Doors first where something opens', () => {
 		const r = consoleRoom([...lamps, dev('door', 'garage_door'), dev('fan', 'fan')]);
 		expect(r.tabs.map((t) => t.id)).toEqual(['doors', 'lights', 'climate']);

@@ -52,7 +52,7 @@
 			])
 		)
 	);
-	const lit = $derived(litRoom(cards, views));
+	const lit = $derived(litRoom(cards, views, {}, {}, devices.byId));
 	const box = $derived(
 		roomBox(
 			live,

@@ -25,6 +25,7 @@
  */
 import { kindOf } from '../card.js';
 import type { CoreDevice, Devices } from '../devices.js';
+import { isCamera, isCameraLight } from '../cameraLights.js';
 import type { Room } from '../house.js';
 import { isHelper } from '../helpers.js';
 import { slugOf } from '../summary.js';
@@ -227,12 +228,6 @@ function chosenPlace(d: CoreDevice, tab: TabId): Exclude<Place, null> {
 	const own = placeOf(d);
 	if (own?.tab === 'lights') return own;
 	return dims(d) ? { tab: 'lights', as: 'light' } : { tab: 'switch' };
-}
-
-/** Whether a light is the spotlight of one of these cameras: `<camera>_spotlight`. */
-function spotlightOf(d: CoreDevice, cameras: Set<string>): boolean {
-	const m = /^(.+)_spotlight$/.exec(d.device_id);
-	return !!m && cameras.has(m[1]!);
 }
 
 /** Whether a device opens and closes something: a cover, a garage door opener, a gate. */
@@ -469,12 +464,15 @@ export function runByThermostats(devices: CoreDevice[]): Set<string> {
  * Sort a room's devices into the console's tabs, for a Lights tab `width`
  * pixels across, with the household's choices of tab (`chosen`). Lights
  * and switches in `off` were hidden from the room (layout.ts): left out.
+ * `all` is the house, so a camera's spotlight goes with Cameras even when
+ * its camera is in another room.
  */
 export function consoleRoom(
 	devices: CoreDevice[],
 	width = LIGHTS_WIDTH,
 	chosen: TabChoices = {},
-	off: ReadonlySet<string> = new Set()
+	off: ReadonlySet<string> = new Set(),
+	all: Devices | readonly CoreDevice[] = devices
 ): ConsoleRoom {
 	const byTab: Record<TabId, CoreDevice[]> = {
 		doors: [],
@@ -494,11 +492,7 @@ export function consoleRoom(
 	const switches: CoreDevice[] = [];
 	const run = runByThermostats(devices);
 	// A camera's spotlight goes with it, in Cameras.
-	const cameras = new Set(
-		devices
-			.filter((d) => kindOf(d) === 'camera' || kindOf(d) === 'doorbell')
-			.map((d) => d.device_id)
-	);
+	const cameras = new Set(devices.filter(isCamera).map((d) => d.device_id));
 	const placed: CoreDevice[] = [];
 	for (const d of [...devices].sort(byName)) {
 		const choice = chosen[d.device_id];
@@ -507,7 +501,7 @@ export function consoleRoom(
 		if (off.has(d.device_id) && (p.tab === 'switch' || (p.tab === 'lights' && p.as === 'light')))
 			continue;
 		placed.push(d);
-		if (!choice && p.tab === 'lights' && p.as === 'light' && spotlightOf(d, cameras)) {
+		if (!choice && p.tab === 'lights' && p.as === 'light' && isCameraLight(d, all)) {
 			byTab.cameras.push(d);
 			continue;
 		}

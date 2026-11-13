@@ -23,6 +23,7 @@ import { roomPower } from '#lib/admin.js';
 import { homeRoomOrder, ref } from '#lib/layers.js';
 import { cardFor, kindOf, type CardView } from '#lib/card.js';
 import type { CoreDevice } from '#lib/devices.js';
+import { roomPowerLights } from '#lib/cameraLights.js';
 import { openDevice } from '#lib/popup.js';
 import { kindOptions } from '#lib/kindOptions.svelte.js';
 import { ROOM_BUILT_IN } from '#lib/options.js';
@@ -94,7 +95,8 @@ export class RoomNow {
 			this.list,
 			this.width(),
 			tabChoicesOf(household.doc.console?.tabs),
-			new Set(this.lay.off)
+			new Set(this.lay.off),
+			devices.byId
 		)
 	);
 	arranged = $derived(arrangeTabs(this.model.tabs, this.lay));
@@ -133,7 +135,8 @@ export class RoomNow {
 			this.list,
 			clock.now,
 			(d) => commands.pending[d]?.want,
-			this.lay.links
+			this.lay.links,
+			devices.byId
 		)
 	);
 	// The household's photo, if it chose one and it's still there, lit by its spots.
@@ -189,6 +192,8 @@ export class RoomNow {
 	openings = $derived(this.model.openings.filter((d) => !this.lay.pillsOff.includes(d.device_id)));
 
 	// ---- Room on, Room off ----
+	/** Whether Room on and Room off would reach anything: a light, not a camera's spotlight. */
+	hasPower = $derived(roomPowerLights(this.list, devices.byId).length > 0);
 	busy = $state<'on' | 'off' | null>(null);
 	trouble = $state<string | null>(null);
 	async power(on: boolean): Promise<void> {

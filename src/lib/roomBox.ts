@@ -11,6 +11,7 @@ import { isOpen, kindOf, type CardView, type IconName } from './card.js';
 import { displayName, unitOf, type CoreDevice, type Devices } from './devices.js';
 import { numbersOf, sourceOf, type NumberId, type Options, type Source } from './options.js';
 import { allOffTargets } from './summary.js';
+import { isCameraLight } from './cameraLights.js';
 import { shownUnit, toShown, type Units } from './units.js';
 
 /** Readings in homeCore's own units, to compare against a fixed °C. */
@@ -209,7 +210,10 @@ function wrong(cards: CardView[]): { lines: Line[]; alarm: boolean } {
  */
 export function roomBox(devices: CoreDevice[], cards: CardView[], all: Devices, o: Options): Box {
 	const { lines, alarm } = wrong(cards);
-	const lights = cards.filter((c) => c.available && LIGHT(c));
+	// A camera's spotlight is its camera's, not one of the room's lights.
+	const lights = cards.filter(
+		(c) => c.available && LIGHT(c) && !isCameraLight({ device_id: c.id }, all)
+	);
 	const on = lights.filter((c) => c.tone === 'on');
 	const temperature = degrees(sourced(sourceOf(o.temperature), 'temperature', all, devices));
 	const humidity = percent(sourced(sourceOf(o.humidity), 'humidity', all, devices));
@@ -498,7 +502,8 @@ export function bigNumbers(h: HouseIn, o: Options): BigNumber[] {
 			};
 		},
 		lights: () => {
-			const on = (c: CardView) => c.available && LIGHT(c) && c.tone === 'on';
+			const on = (c: CardView) =>
+				c.available && LIGHT(c) && c.tone === 'on' && !isCameraLight({ device_id: c.id }, h.all);
 			const n = h.cards.filter(on).length;
 			const rooms = roomsWith((r) => r.cards.some(on)).length;
 			return {

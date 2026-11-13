@@ -226,20 +226,21 @@
 			</div>
 		{:else}
 			{#if r.trouble}<p class="trouble" role="alert">{r.trouble}</p>{/if}
-			<div class="pair" role="group" aria-label={`${room.name} lights`}>
-				<button
-					type="button"
-					disabled={!r.may || r.busy !== null}
-					aria-busy={r.busy === 'on' || undefined}
-					onclick={() => r.power(true)}>{r.busy === 'on' ? 'Turning on…' : 'Room on'}</button
-				>
-				<button
-					type="button"
-					disabled={!r.may || r.busy !== null}
-					aria-busy={r.busy === 'off' || undefined}
-					onclick={() => r.power(false)}>{r.busy === 'off' ? 'Turning off…' : 'Room off'}</button
-				>
-			</div>
+			<!-- Only where they would reach a light: not over cameras' spotlights alone. -->
+			{#if r.hasPower}<div class="pair" role="group" aria-label={`${room.name} lights`}>
+					<button
+						type="button"
+						disabled={!r.may || r.busy !== null}
+						aria-busy={r.busy === 'on' || undefined}
+						onclick={() => r.power(true)}>{r.busy === 'on' ? 'Turning on…' : 'Room on'}</button
+					>
+					<button
+						type="button"
+						disabled={!r.may || r.busy !== null}
+						aria-busy={r.busy === 'off' || undefined}
+						onclick={() => r.power(false)}>{r.busy === 'off' ? 'Turning off…' : 'Room off'}</button
+					>
+				</div>{/if}
 
 			{#if r.favs.length > 0}
 				<div class="favs" role="group" aria-label={`${room.name} favorites`}>

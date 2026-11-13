@@ -94,7 +94,15 @@
 	const name = $derived(room?.name ?? '');
 	const list = $derived(room ? devicesIn(devices.byId, room) : []);
 	// Everything in the room, hidden lights too, so they can be shown again.
-	const full = $derived(consoleRoom(list, LIGHTS_WIDTH, tabChoicesOf(household.doc.console?.tabs)));
+	const full = $derived(
+		consoleRoom(
+			list,
+			LIGHTS_WIDTH,
+			tabChoicesOf(household.doc.console?.tabs),
+			undefined,
+			devices.byId
+		)
+	);
 	const short = (d: CoreDevice) => shortName(d.name_override ?? d.name, name);
 	/** As the header's pill names it: "Door", not "Door Sensor". */
 	const pillName = (d: CoreDevice) =>
@@ -110,7 +118,7 @@
 	const stars = $derived((personal.doc.favourites ?? []).filter((r) => inRoom.has(r)));
 	// What the layer being changed shows: the household's alone, or the person's over it.
 	const view = $derived(resolve(forAll ? undefined : mine, house, stars));
-	const lit = $derived(roomPicture(name, list, clock.now, undefined, view.links));
+	const lit = $derived(roomPicture(name, list, clock.now, undefined, view.links, devices.byId));
 
 	// ---- every change can be undone: what it changed, as it was ----
 	type HouseSnap = Pick<HouseDoc, 'console' | 'roomAudio' | 'photos'>;

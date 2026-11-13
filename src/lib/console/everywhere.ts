@@ -64,7 +64,8 @@ export function placesOf(
 	order: Room[],
 	chosen: TabChoices = {}
 ): Place[] {
-	const model = (list: CoreDevice[]) => consoleRoom(list, undefined, chosen);
+	const house = [...grouped.values()].flat();
+	const model = (list: CoreDevice[]) => consoleRoom(list, undefined, chosen, undefined, house);
 	const places: Place[] = order.map((r) => ({
 		key: r.id,
 		name: r.name,

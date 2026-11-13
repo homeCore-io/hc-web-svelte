@@ -9,6 +9,8 @@
 	import { allOffTargets, roomSummary } from '#lib/summary.js';
 	import { allOff } from '#lib/allOff.js';
 	import type { CoreDevice } from '#lib/devices.js';
+	import { devices as house } from '#lib/devices.svelte.js';
+	import { cameraLightIds } from '#lib/cameraLights.js';
 	import Icon from './Icon.svelte';
 	import RoomIcon from './RoomIcon.svelte';
 
@@ -30,7 +32,7 @@
 		temperature?: string;
 	} = $props();
 
-	const summary = $derived(roomSummary(cards, temperature));
+	const summary = $derived(roomSummary(cards, temperature, cameraLightIds(house.byId)));
 	const targets = $derived(allOffTargets(cards));
 	const alert = $derived(cards.some((c) => c.alarm === 'wet'));
 

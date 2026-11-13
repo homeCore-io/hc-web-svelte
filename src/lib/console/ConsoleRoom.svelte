@@ -262,20 +262,22 @@
 							title="Arrange this room: favorites, tabs, lights, its picture and pills"
 							><SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />Customize</a
 						>
-						<div class="pair" role="group" aria-label={`${room.name} lights`}>
-							<button
-								type="button"
-								disabled={!may || busy !== null}
-								aria-busy={busy === 'on' || undefined}
-								onclick={() => power(true)}>{busy === 'on' ? 'Turning on…' : 'Room on'}</button
-							>
-							<button
-								type="button"
-								disabled={!may || busy !== null}
-								aria-busy={busy === 'off' || undefined}
-								onclick={() => power(false)}>{busy === 'off' ? 'Turning off…' : 'Room off'}</button
-							>
-						</div>
+						<!-- Only where they would reach a light: not over cameras' spotlights alone. -->
+						{#if r.hasPower}<div class="pair" role="group" aria-label={`${room.name} lights`}>
+								<button
+									type="button"
+									disabled={!may || busy !== null}
+									aria-busy={busy === 'on' || undefined}
+									onclick={() => power(true)}>{busy === 'on' ? 'Turning on…' : 'Room on'}</button
+								>
+								<button
+									type="button"
+									disabled={!may || busy !== null}
+									aria-busy={busy === 'off' || undefined}
+									onclick={() => power(false)}
+									>{busy === 'off' ? 'Turning off…' : 'Room off'}</button
+								>
+							</div>{/if}
 					</div>
 				</div>
 			</div>

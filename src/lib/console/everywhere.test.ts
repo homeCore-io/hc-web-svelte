@@ -101,6 +101,23 @@ describe('Lights', () => {
 		expect(ids(rows[0]!.lights.map((device) => ({ device })))).toEqual(['desk', 'lamp']);
 	});
 
+	it('leaves out a spotlight whose camera is in another room, in the No room row too', () => {
+		const rows = lightRows(
+			placesOf(
+				house({
+					garage: [dev('deck', 'camera'), dev('bulb', 'light', { on: false })],
+					office: [dev('porch', 'camera'), dev('deck_spotlight', 'light', { on: true })],
+					'': [dev('porch_spotlight', 'light', { on: true }), dev('wled', 'light')]
+				}),
+				[office, garage]
+			)
+		);
+		expect(rows.map((r) => [r.place.name, ids(r.lights.map((device) => ({ device })))])).toEqual([
+			['Garage', ['bulb']],
+			['No room', ['wled']]
+		]);
+	});
+
 	it('leaves out a virtual switch named as a light', () => {
 		const glue = { plugin_id: 'core.glue' };
 		const rows = lightRows(

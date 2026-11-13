@@ -19,7 +19,8 @@
  * Pure: the drawings draw what this decides.
  */
 import { cardFor, isOpen, kindOf } from '../card.js';
-import type { CoreDevice } from '../devices.js';
+import type { CoreDevice, Devices } from '../devices.js';
+import { isCameraLight } from '../cameraLights.js';
 import { isHelper } from '../helpers.js';
 import { isOn, isPlayer, playerKind } from './media.js';
 import { levelOf, shortName } from './room.js';
@@ -434,15 +435,19 @@ export const shade = (v: number | undefined): string => (v && v > 0 ? '#fff1d6' 
 /**
  * A room's drawing, how it's lit now, and its lights: those `isLamp` takes
  * and anything else the drawing lights by its name (a "Zone 03" in the Garage).
- * `links` are the household's fixed spots (`spotsOf`).
+ * `links` are the household's fixed spots (`spotsOf`). `house` is every
+ * device, so a camera's spotlight is left out wherever its camera is.
  */
 export function roomPicture(
 	room: string,
-	devices: CoreDevice[],
+	all: CoreDevice[],
 	now: number,
 	wants?: Wants,
-	links?: Record<string, string>
+	links?: Record<string, string>,
+	house: Devices | readonly CoreDevice[] = all
 ): { picture: PictureId; spots: Map<string, CoreDevice[]>; g: Glow; lamps: CoreDevice[] } {
+	// A camera's spotlight is its camera's, never one of the room's lamps.
+	const devices = all.filter((d) => !isCameraLight(d, house));
 	const picture = pictureOf(room);
 	const spots = spotsOf(picture, devices, room, links);
 	const lit = PICTURES[picture].spots

@@ -9,6 +9,7 @@
 import { cardFor, INFRASTRUCTURE, isOpen, SENSORS, type CardView } from './card.js';
 import { roomSlug, type CoreDevice, type Devices } from './devices.js';
 import type { Room } from './house.js';
+import { cameraLightCards } from './cameraLights.js';
 
 export interface Chip {
 	key: string;
@@ -25,9 +26,15 @@ const ALL_OFF = new Set(['light', 'switch', 'outlet', 'fan', 'media_player', 'tv
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-/** The chips at the top of Home, in a fixed order; only those with something to say. */
+/**
+ * The chips at the top of Home, in a fixed order; only those with something
+ * to say. `cards` are the house's; a camera's spotlight is not a light.
+ */
 export function houseChips(cards: CardView[]): Chip[] {
-	const lights = cards.filter((c) => c.available && LIGHTS.has(c.kind) && c.tone === 'on');
+	const spot = cameraLightCards(cards);
+	const lights = cards.filter(
+		(c) => c.available && LIGHTS.has(c.kind) && c.tone === 'on' && !spot.has(c.id)
+	);
 	const open = cards.filter((c) => c.available && isOpen(c));
 	const unlocked = cards.filter((c) => c.available && c.icon === 'unlock');
 	const playing = cards.filter((c) => c.available && c.stateLine.startsWith('Playing'));
@@ -87,13 +94,20 @@ export function houseChips(cards: CardView[]): Chip[] {
 /**
  * A room's one line: lights on, the temperature, anything open, anything
  * playing. `temperature` is the room's, as its box says it (`roomBox.ts`),
- * so the line and the box never show two numbers for one room.
+ * so the line and the box never show two numbers for one room. `spotlights`
+ * are the house's camera spotlights (`cameraLightIds`), not counted as lights.
  */
-export function roomSummary(cards: CardView[], temperature?: string): string {
+export function roomSummary(
+	cards: CardView[],
+	temperature?: string,
+	spotlights: ReadonlySet<string> = cameraLightCards(cards)
+): string {
 	const parts: string[] = [];
 	const wet = cards.filter((c) => c.alarm === 'wet').length;
 	if (wet > 0) parts.push(wet === 1 ? 'Leak' : `${wet} leaks`);
-	const lights = cards.filter((c) => c.available && LIGHTS.has(c.kind) && c.tone === 'on').length;
+	const lights = cards.filter(
+		(c) => c.available && LIGHTS.has(c.kind) && c.tone === 'on' && !spotlights.has(c.id)
+	).length;
 	if (lights > 0) parts.push(plural(lights, 'light on', 'lights on'));
 	// Everything else "All off" would turn off, so the button never sits beside
 	// a summary that says nothing is on.

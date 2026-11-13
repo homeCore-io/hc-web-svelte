@@ -7,6 +7,7 @@
  */
 import { unitOf, type CoreDevice, type Devices } from '../devices.js';
 import { toShown } from '../units.js';
+import { cameraLightCards, cameraLightIds } from '../cameraLights.js';
 import { INFRASTRUCTURE, isOpen, kindOf, type CardView } from '../card.js';
 import type { Card } from '../page.js';
 
@@ -195,6 +196,11 @@ export function litRoom(
 	const rest: Card[] = [];
 	const more: Card[] = [];
 	const problems: Problem[] = [];
+	// A camera's spotlight is its camera's, not one of the room's lights.
+	const spotlights = new Set([
+		...cameraLightIds(devices),
+		...cameraLightCards(Object.values(views))
+	]);
 
 	for (const card of cards) {
 		if (card.kind === 'scene') {
@@ -252,7 +258,7 @@ export function litRoom(
 				});
 			continue;
 		}
-		const lamp = lampOf(card, view, name);
+		const lamp = spotlights.has(d.device_id) ? null : lampOf(card, view, name);
 		if (lamp) {
 			lamps.push(lamp);
 			continue;

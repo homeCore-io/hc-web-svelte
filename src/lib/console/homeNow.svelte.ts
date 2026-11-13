@@ -90,7 +90,7 @@ export class HomeNow {
 				kindOptions.of('home', 'room', ref.room(room.id), ROOM_BUILT_IN)
 			);
 			const lay = roomIn(household.doc.console?.rooms, room.id);
-			const lit = roomPicture(room.name, list, clock.now, wants, lay.links);
+			const lit = roomPicture(room.name, list, clock.now, wants, lay.links, devices.byId);
 			// The household may have chosen the room plain, with no drawing, or its photo (layout.ts).
 			const plain = lay.picture === 'plain';
 			const photo = lay.picture === 'photo' ? household.photoOf(room.id) : undefined;

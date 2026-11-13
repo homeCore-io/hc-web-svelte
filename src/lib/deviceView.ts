@@ -19,6 +19,35 @@ export interface Reading {
 
 const EMPTY: Schema = { attributes: {} };
 
+/**
+ * Whole seconds as a person says them: 7200 → "2 h", 90 → "1 min 30 s".
+ * The rules' own `duration` says the same; this page doesn't load their code.
+ */
+function seconds(s: number): string {
+	if (s < 60) return `${s} s`;
+	if (s < 3600) return s % 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s / 60} min`;
+	const m = Math.round((s % 3600) / 60);
+	return `${Math.floor(s / 3600)} h${m ? ` ${m} min` : ''}`;
+}
+
+/**
+ * A yes or no whose name is one of its own states: "Switch online" says
+ * "Switch online" when it is, and "No current reading" says "Reading" when it
+ * isn't, which reads as the label echoed or contradicted. Said as Yes or No.
+ */
+function answerOf(
+	raw: unknown,
+	label: string,
+	spec: Schema['attributes'][string] | undefined
+): string | undefined {
+	if (typeof raw !== 'boolean' || !spec?.states) return undefined;
+	const named = label.trim().toLowerCase();
+	const yes = spec.states.when_true.label?.trim().toLowerCase() === named;
+	const no = spec.states.when_false.label?.trim().toLowerCase() === named;
+	if (!yes && !no) return undefined;
+	return raw === yes ? 'Yes' : 'No';
+}
+
 /** Everything it reports, primary readings first, diagnostics last. */
 export function readingsOf(
 	d: CoreDevice,
@@ -37,13 +66,18 @@ export function readingsOf(
 			const spec = schema.attributes[attr];
 			const raw = d.attributes[attr];
 			const said = sayValue(raw, nameOf);
+			const label = spec?.display_name ?? cap(words(attr));
 			const value =
 				said?.value ??
+				answerOf(raw, label, spec) ??
+				(spec?.unit === 's' && typeof raw === 'number' && Number.isInteger(raw)
+					? seconds(Math.max(0, raw))
+					: undefined) ??
 				reading(d.attributes, schema, attr) ??
 				(raw === null || raw === undefined ? '—' : JSON.stringify(raw));
 			return {
 				attr,
-				label: spec?.display_name ?? cap(words(attr)),
+				label,
 				value,
 				...(said?.detail ? { detail: said.detail } : {}),
 				...(said?.swatch ? { swatch: said.swatch } : {}),

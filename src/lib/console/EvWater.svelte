@@ -220,6 +220,31 @@
 	.word.shut {
 		color: #ffb38a;
 	}
+	/* On a phone: the pipe and its name, then how it is and its button. */
+	:global(.ev.phone) .valve {
+		display: grid;
+		grid-template-columns: 80px minmax(0, 1fr);
+		grid-template-areas:
+			'pipe name'
+			'word btn';
+		gap: 6px 12px;
+		align-items: center;
+	}
+	:global(.ev.phone) .pipe {
+		grid-area: pipe;
+	}
+	:global(.ev.phone) .wide {
+		grid-area: name;
+		width: auto;
+	}
+	:global(.ev.phone) .word {
+		grid-area: word;
+		font-size: 14px;
+	}
+	:global(.ev.phone) .rbtn {
+		grid-area: btn;
+		justify-self: end;
+	}
 	.rbtn.close {
 		background: color-mix(in srgb, var(--alert) 85%, transparent);
 		color: #1a0605;

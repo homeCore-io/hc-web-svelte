@@ -28,21 +28,11 @@
 	import DoorClosed from '@lucide/svelte/icons/door-closed';
 	import DoorOpen from '@lucide/svelte/icons/door-open';
 	import { devices } from '#lib/devices.svelte.js';
-	import { rooms } from '#lib/rooms.svelte.js';
-	import { personal } from '#lib/personal.svelte.js';
-	import { household } from '#lib/household.svelte.js';
 	import { heading } from '#lib/heading.svelte.js';
-	import { session } from '#lib/me.svelte.js';
-	import { view } from '#lib/view.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { commands } from '#lib/commands.svelte.js';
-	import { withPending } from '#lib/pending.js';
-	import { goAhead } from '#lib/ask.js';
-	import { roomPower } from '#lib/admin.js';
-	import { homeRoomOrder, ref } from '#lib/layers.js';
-	import { cardFor, isOpen, kindOf, type CardView } from '#lib/card.js';
+	import { isOpen } from '#lib/card.js';
 	import type { CoreDevice } from '#lib/devices.js';
-	import { openDevice } from '#lib/popup.js';
 	import Icon from '#lib/components/Icon.svelte';
 	import LightsTab from './LightsTab.svelte';
 	import MediaTab from './MediaTab.svelte';
@@ -55,67 +45,31 @@
 	import Placer from './Placer.svelte';
 	import { Placer as Placing, providePlacer } from './placer.svelte.js';
 	import { camEvents } from './camEvents.svelte.js';
-	import { allEvents, camerasOf, pillPrefsOf, pillsOf, pillWord } from './cameras.js';
+	import { pillWord } from './cameras.js';
 	import AudioBar from './AudioBar.svelte';
 	import RoomPicture from './RoomPicture.svelte';
 	import RoomPhoto from './RoomPhoto.svelte';
-	import { roomPicture } from './pictures.js';
-	import { photoGlow, photoSpots } from './photo.js';
-	import {
-		audioChoices,
-		isPlayer,
-		muteCmd,
-		orderPlayers,
-		playerName,
-		roomAudioOf,
-		stepCmd,
-		volumeCmd,
-		volumeOf,
-		withRoomAudio
-	} from './media.js';
-	import { send } from './send.js';
-	import { kindOptions } from '#lib/kindOptions.svelte.js';
-	import { ROOM_BUILT_IN } from '#lib/options.js';
-	import { roomBox } from '#lib/roomBox.js';
-	import {
-		consoleRoom,
-		devicesIn,
-		levelOf,
-		LIGHTS_WIDTH,
-		shortName,
-		brandOf,
-		tabChoicesOf,
-		type TabId
-	} from './room.js';
-	import { faderStyle, switchStyle } from './style.js';
-	import { arrangeTabs, resolve, roomIn, tabToShow } from './layout.js';
+	import { isPlayer } from './media.js';
+	import { RoomNow } from './roomNow.svelte.js';
+	import type { TabId } from './room.js';
+	import { tabToShow } from './layout.js';
 	import type { Component } from 'svelte';
 	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 
 	let { id }: { id: string } = $props();
 
-	const room = $derived(rooms.list.find((r) => r.id === id));
-	const list = $derived(room ? devicesIn(devices.byId, room) : []);
-	// ---- the room as the person and the household arranged it (layout.ts) ----
-	const inRoom = $derived(new Set(list.map((d) => ref.device(d.device_id))));
-	const lay = $derived(
-		resolve(
-			roomIn(personal.doc.console?.rooms, id),
-			roomIn(household.doc.console?.rooms, id),
-			(personal.doc.favourites ?? []).filter((r) => inRoom.has(r))
-		)
-	);
 	// The Lights tab is laid out for the width the panel has (room.ts), once it's known.
 	let across = $state(0);
-	const model = $derived(
-		consoleRoom(
-			list,
-			across > 0 ? across - 4 : LIGHTS_WIDTH,
-			tabChoicesOf(household.doc.console?.tabs),
-			new Set(lay.off)
-		)
+	// The room as it is now, arranged as the person and the household chose (roomNow.svelte.ts).
+	const r = new RoomNow(
+		() => id,
+		() => across
 	);
-	const arranged = $derived(arrangeTabs(model.tabs, lay));
+	const room = $derived(r.room);
+	const list = $derived(r.list);
+	const lay = $derived(r.lay);
+	const model = $derived(r.model);
+	const arranged = $derived(r.arranged);
 	const tab = $derived(tabToShow(arranged, page.url.searchParams.get('tab')));
 
 	// ---- Customize, in the address; loaded the first time it's asked for ----
@@ -130,11 +84,11 @@
 		url.searchParams.set('customize', '');
 		return url.pathname + url.search.replace(/customize=(&|$)/, 'customize$1');
 	});
-	const fader = $derived(faderStyle(personal.doc.console, household.doc.console));
-	const sw = $derived(switchStyle(personal.doc.console, household.doc.console));
-	const may = $derived(session.mayUse);
+	const fader = $derived(r.fader);
+	const sw = $derived(r.sw);
+	const may = $derived(r.may);
 	// Each device's "⋯": where it shows, for the household (Placer).
-	const placing = providePlacer(new Placing(() => (across > 0 ? across - 4 : LIGHTS_WIDTH)));
+	const placing = providePlacer(new Placing(r.width));
 	$effect(() => {
 		void id;
 		return () => placing.close();
@@ -143,202 +97,42 @@
 	// The page draws its own title, in the header.
 	$effect(() => heading.ownTitle());
 
-	const card = (d: CoreDevice): CardView =>
-		withPending(cardFor(d, clock.now), commands.pending[d.device_id]);
-	const nameOf = (d: CoreDevice) => d.name_override ?? d.name;
+	const card = r.card;
+	const nameOf = (d: CoreDevice) => r.nameOf(d);
 
-	// ---- the rooms either side, in Home's order ----
-	const order = $derived(
-		homeRoomOrder(rooms.list, (r) => ref.room(r.id), view.changes('home')).shown
-	);
-	const at = $derived(order.findIndex((r) => r.id === id));
-	const prev = $derived(at > 0 ? order[at - 1] : undefined);
-	const next = $derived(at >= 0 && at < order.length - 1 ? order[at + 1] : undefined);
+	// ---- the rooms either side, and what the room is like now ----
+	const prev = $derived(r.prev);
+	const next = $derived(r.next);
+	const temperature = $derived(r.temperature);
+	const lit = $derived(r.lit);
+	const photo = $derived(r.photo);
+	const glow = $derived(r.glow);
+	const lightsWord = $derived(r.lightsWord);
+	const playing = $derived(r.playing);
 
-	// ---- what the room is like now ----
-	// The room's number, as its box on Home and the sidebar show it: its temperature.
-	const box = $derived(
-		roomBox(
-			list,
-			list.map((d) => cardFor(d, clock.now)),
-			devices.byId,
-			kindOptions.of('home', 'room', ref.room(id), ROOM_BUILT_IN)
-		)
-	);
-	const temperature = $derived(box.bigIs === 'lights' ? undefined : box.big);
-	// The room's drawing, lit as its lights are, with commands on their way.
-	const lit = $derived(
-		roomPicture(room?.name ?? '', list, clock.now, (d) => commands.pending[d]?.want, lay.links)
-	);
-	// The household's photo, if it chose one and it's still there, lit by its spots.
-	const photo = $derived(lay.picture === 'photo' ? household.photoOf(id) : undefined);
-	const glow = $derived(
-		photo
-			? photoGlow(
-					photoSpots(lay.spots, lit.picture, lit.spots),
-					devices.byId,
-					clock.now,
-					(d) => commands.pending[d]?.want
-				)
-			: []
-	);
-	// The faders, then the switches named as lights, as Home and Everywhere count them.
-	const lamps = $derived.by(() => {
-		const faders = model.lights.columns.flatMap((c) => c.lights);
-		return [...faders, ...lit.lamps.filter((d) => !faders.includes(d))];
-	});
-	// Counted as the faders and switches show them, with commands on their way.
-	const lampsOn = $derived(
-		lamps.filter((d) => d.available && levelOf(d, commands.pending[d.device_id]?.want) > 0).length
-	);
-	const lightsWord = $derived(
-		lamps.length === 0
-			? undefined
-			: lampsOn === 0
-				? 'Lights off'
-				: lampsOn === 1
-					? '1 light on'
-					: `${lampsOn} lights on`
-	);
-	const playing = $derived(
-		model.byTab.media.filter((d) => d.available && card(d).stateLine.startsWith('Playing')).length
-	);
-
-	// ---- locks and doors ----
-	const short = (s: string) => shortName(s.replace(/\s+sensor$/i, ''), room?.name ?? '');
-	async function lockPill(d: CoreDevice) {
-		const c = card(d);
-		if (c.control?.kind !== 'lock' || !may) return openDevice(d.device_id, page.url);
-		if (c.control.locked) {
-			if (!(await goAhead(d.device_id, c.kind, `Unlock ${nameOf(d)}?`))) return;
-			return void commands.set(d.device_id, c.kind, { locked: false }, d.attributes);
-		}
-		void commands.set(d.device_id, c.kind, { locked: true }, d.attributes);
-	}
-
-	// ---- Room on, Room off ----
-	let busy = $state<'on' | 'off' | null>(null);
-	let trouble = $state<string | null>(null);
-	async function power(on: boolean) {
-		if (!room || busy) return;
-		busy = on ? 'on' : 'off';
-		trouble = null;
-		const { error, lights } = await roomPower(room.id, on);
-		busy = null;
-		if (error) {
-			trouble = error;
-			return;
-		}
-		// Each light it sent a command to waits for its answer, as a fader would.
-		for (const lid of lights) {
-			const d = devices.byId[lid];
-			if (d) commands.expect(lid, kindOf(d), { on }, d.attributes);
-		}
-	}
-
-	// ---- favorites from this room ----
-	const favs = $derived.by(() => {
-		const here = new Map(list.map((d) => [ref.device(d.device_id), d]));
-		return lay.favs.map((r) => here.get(r)).filter((d): d is CoreDevice => d !== undefined);
-	});
-	// Locks and doors as pills, but those the household left out.
-	const locks = $derived(model.locks.filter((d) => !lay.pillsOff.includes(d.device_id)));
-	const openings = $derived(model.openings.filter((d) => !lay.pillsOff.includes(d.device_id)));
-	function useFav(d: CoreDevice) {
-		const c = card(d);
-		if (c.kind === 'scene' && d.schema?.actions?.some((a) => a.id === 'activate'))
-			return void commands.act(d.device_id, 'activate');
-		if (c.control?.kind === 'switch' && may && d.available)
-			return void commands.set(
-				d.device_id,
-				c.kind,
-				{ [c.control.attr]: !c.control.on },
-				d.attributes
-			);
-		openDevice(d.device_id, page.url);
-	}
+	// ---- locks and doors, Room on and off, favorites ----
+	const short = r.short;
+	const lockPill = (d: CoreDevice) => r.lockPill(d);
+	const busy = $derived(r.busy);
+	const trouble = $derived(r.trouble);
+	const power = (on: boolean) => r.power(on);
+	const favs = $derived(r.favs);
+	const locks = $derived(r.locks);
+	const openings = $derived(r.openings);
+	const useFav = (d: CoreDevice) => r.useFav(d);
 
 	// ---- the room's audio ----
-	// The one device the room plays through (media.ts): chosen for the house,
-	// or by a person for themselves, else the room's first screen or speaker.
-	const players = $derived(orderPlayers(model.byTab.media));
-	const audio = $derived(
-		roomAudioOf(
-			id,
-			model.byTab.media,
-			devices.byId,
-			household.doc.roomAudio,
-			personal.doc.roomAudio
-		).device
-	);
-	const audioWant = $derived(audio ? commands.pending[audio.device_id]?.want : undefined);
-	const choices = $derived(audioChoices(model.byTab.media, devices.byId));
-	/** Kept for the house by people who may change it; else for the person alone. */
-	function playThrough(choice: string) {
-		const edit = <D extends { roomAudio?: Record<string, string> }>(d: D) =>
-			withRoomAudio(d, id, choice);
-		if (session.can('content:write')) void household.change(edit);
-		else void personal.change(edit);
-	}
-	// A device that reports no level (a Roku) only steps: the bar counts the
-	// presses since the room's audio was last chosen, as its own remote would feel.
-	let pressed = $state<{ id?: string; by: number; muted: boolean }>({ by: 0, muted: false });
-	const presses = $derived(
-		pressed.id === audio?.device_id ? pressed : { id: audio?.device_id, by: 0, muted: false }
-	);
-	function volStep(by: 1 | -1) {
-		if (!audio) return;
-		void send(audio, stepCmd(audio, by, audioWant));
-		if (!volumeOf(audio, audioWant).level)
-			pressed = { id: audio.device_id, by: presses.by + by, muted: false };
-	}
-	function volMute() {
-		if (!audio) return;
-		void send(audio, muteCmd(audio, audioWant));
-		if (volumeOf(audio, audioWant).muted === undefined)
-			pressed = { ...presses, id: audio.device_id, muted: !presses.muted };
-	}
-	const volLevel = (v: number) => {
-		if (audio) void send(audio, volumeCmd(audio, v));
-	};
-	const stepNote = $derived(
-		presses.muted
-			? 'Muted'
-			: presses.by > 0
-				? `Up ${presses.by}`
-				: presses.by < 0
-					? `Down ${-presses.by}`
-					: `No level from the ${brandOf(audio?.plugin_id)}`
-	);
-	const audioNote = $derived(
-		!audio
-			? 'Choose the room’s audio below for the volume keys'
-			: volumeOf(audio, audioWant).level || (presses.by === 0 && !presses.muted)
-				? `Volume keys drive the room’s audio: ${playerName(audio)}`
-				: `${playerName(audio)}: ${stepNote.toLowerCase()}`
-	);
+	const players = $derived(r.players);
+	const audio = $derived(r.audio);
+	const choices = $derived(r.choices);
+	const { playThrough, volStep, volMute, volLevel } = r;
+	const stepNote = $derived(r.stepNote);
+	const audioNote = $derived(r.audioNote);
 
 	// ---- what the room's cameras saw lately, as pills ----
-	const roomCams = $derived(camerasOf(model.byTab.cameras, devices.byId));
-	$effect(() => camEvents.follow(roomCams));
-	const pillPrefs = $derived(pillPrefsOf(household.doc.console?.pills));
-	const pillsHere = $derived(!pillPrefs.off.includes(id));
-	const camPills = $derived(
-		pillsHere
-			? pillsOf(
-					allEvents(
-						camEvents.byCam,
-						roomCams.map((c) => c.id)
-					),
-					clock.now,
-					pillPrefs.kinds
-				)
-			: []
-	);
-	const camName = (cam: string) =>
-		roomCams.length > 1
-			? shortName(roomCams.find((c) => c.id === cam)?.name ?? '', room?.name ?? '')
-			: undefined;
+	$effect(() => camEvents.follow(r.roomCams));
+	const camPills = $derived(r.camPills);
+	const camName = r.camName;
 	function showEvent(key: string) {
 		const url = new URL(page.url.href);
 		url.searchParams.set('tab', 'cameras');

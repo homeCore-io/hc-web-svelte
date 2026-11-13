@@ -17,7 +17,6 @@
 	import type { CoreDevice } from '#lib/devices.js';
 	import { commands } from '#lib/commands.svelte.js';
 	import { openDevice } from '#lib/popup.js';
-	import { colourOf } from '#lib/lit/room.js';
 	import Fader from './Fader.svelte';
 	import Switch from './Switch.svelte';
 	import SwitchSet from './SwitchSet.svelte';
@@ -26,25 +25,25 @@
 	import { flips } from './switches.js';
 	import { isTimer } from './timer.js';
 	import Keypad from './Keypad.svelte';
-	import {
-		dims,
-		levelOf,
-		levelWant,
-		SCENES_MIN,
-		shortName,
-		type LightColumn,
-		type LightsTab
-	} from './room.js';
+	import { dims, SCENES_MIN, shortName, type LightColumn, type LightsTab } from './room.js';
 	import type { FaderStyle, SwitchStyle } from './style.js';
 	import { blocksOf } from './layout.js';
+	import { appliesTo, lampSceneNote, onLabel, swatchOf, takesScenes } from './hueScenes.js';
 	import {
-		appliesTo,
-		lampSceneNote,
-		onLabel,
-		onScene,
-		swatchOf,
-		takesScenes
-	} from './hueScenes.js';
+		activeIn,
+		allLevel,
+		colour,
+		isOn,
+		level,
+		noteOf,
+		sending,
+		setAll,
+		setLevel,
+		setOn,
+		show,
+		showIn,
+		waiting
+	} from './lamps.js';
 
 	let {
 		tab,
@@ -70,12 +69,7 @@
 	const blocks = $derived(blocksOf(tab, order));
 
 	const nameOf = (d: CoreDevice) => shortName(d.name_override ?? d.name, room);
-	const want = (d: CoreDevice) => commands.pending[d.device_id]?.want;
-	const waiting = (d: CoreDevice) => commands.pending[d.device_id] !== undefined;
-	const level = (d: CoreDevice) => levelOf(d, want(d));
-	const isOn = (d: CoreDevice) => ({ ...d.attributes, ...want(d) }).on === true;
 	const open = (d: CoreDevice) => openDevice(d.device_id, page.url);
-	const colour = (d: CoreDevice) => (isOn(d) ? `rgb(${colourOf(d)})` : undefined);
 	// A timer, or anything else that doesn't switch, put here by the household: below the switches.
 	const flipped = $derived(tab.switches.filter((d) => flips(d) && !isTimer(d)));
 	const unflipped = $derived(tab.switches.filter((d) => !flipped.includes(d)));
@@ -131,45 +125,11 @@
 		return { destroy: () => seen.disconnect() };
 	}
 
-	function setLevel(d: CoreDevice, v: number) {
-		void commands.set(d.device_id, 'light', levelWant(v), d.attributes);
-	}
-	function setOn(d: CoreDevice, on: boolean) {
-		void commands.set(d.device_id, 'switch', { on }, d.attributes);
-	}
-
-	/** The column's "All": its group's own level, else the brightest of its lamps. */
-	const allLevel = (c: LightColumn) =>
-		c.group ? level(c.group) : Math.max(0, ...c.lights.map(level));
-	function setAll(c: LightColumn, v: number) {
-		if (c.group) return setLevel(c.group, v);
-		for (const l of c.lights) setLevel(l, v);
-	}
-
 	// ---- picking a lamp as the scenes' target, per column ----
 	let picked = $state<Record<string, string | undefined>>({});
 	const pick = (c: LightColumn, id: string | undefined) =>
 		(picked = { ...picked, [c.key]: picked[c.key] === id ? undefined : id });
 	const pickedIn = (c: LightColumn) => c.lights.find((l) => l.device_id === picked[c.key]);
-
-	/** The chip that is on: the picked lamp's scene, else the group's. */
-	const activeIn = (c: LightColumn, lamp?: CoreDevice) =>
-		lamp ? onScene(c.scenes, lamp, true) : onScene(c.scenes, c.group);
-	const show = (s: CoreDevice) => void commands.act(s.device_id, 'activate');
-	/** Only the lamp's part of the scene, waited for until the lamp reports showing it. */
-	const showIn = (l: CoreDevice, s: CoreDevice) =>
-		void commands.actFor(
-			l.device_id,
-			'light',
-			'apply_scene',
-			{ scene_id: s.device_id },
-			{ scene: s.device_id },
-			l.attributes
-		);
-	const sending = (l: CoreDevice | undefined, s: CoreDevice) =>
-		!!l && commands.pending[l.device_id]?.want.scene === s.device_id;
-	const noteOf = (c: LightColumn) =>
-		[c.group, ...c.lights].map((d) => d && commands.notes[d.device_id]).find((n) => !!n);
 </script>
 
 <svelte:window bind:innerHeight={viewH} />

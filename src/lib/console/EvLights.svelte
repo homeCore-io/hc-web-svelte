@@ -3,7 +3,8 @@
 	lights, in Home's order, each light a bulb lit to its level. Tapping a
 	bulb turns that light on or off; On and Off do the room, as Room on and
 	Room off in its header do (homeCore remembers which lights were on).
-	"Turn every light off" asks first.
+	"Turn every light off" asks first. On a phone (`phone`), each bulb is
+	named, under the room's name.
 -->
 <script lang="ts">
 	import { commands } from '#lib/commands.svelte.js';
@@ -17,7 +18,7 @@
 	import { levelOf } from './room.js';
 	import { lightRows, lightsCount, lit, onWord, type LightRow, type Place } from './everywhere.js';
 
-	let { places }: { places: Place[] } = $props();
+	let { places, phone = false }: { places: Place[]; phone?: boolean } = $props();
 
 	const rows = $derived(lightRows(places));
 	const count = $derived(lightsCount(rows, commands.pending));
@@ -109,7 +110,7 @@
 					<b>{r.place.name}</b><small>{onWord(r.lights, commands.pending)}</small>
 				</div>
 			{/if}
-			<div class="bulbs" role="group" aria-label={`${r.place.name} lights`}>
+			<div class="bulbs" class:named={phone} role="group" aria-label={`${r.place.name} lights`}>
 				{#each r.lights as d (d.device_id)}
 					{@const level = d.available ? levelOf(d, want(d)) : 0}
 					<button
@@ -123,7 +124,9 @@
 						title={commands.notes[d.device_id] ?? nameOf(d)}
 						disabled={!may || !d.available}
 						onclick={() => flip(d)}
-						><i style:height={level > 0 ? `${Math.max(18, level)}%` : '0'}></i></button
+						>{#if phone}<i></i><span>{nameOf(d)}</span>{:else}<i
+								style:height={level > 0 ? `${Math.max(18, level)}%` : '0'}
+							></i>{/if}</button
 					>
 				{/each}
 			</div>
@@ -194,6 +197,50 @@
 	.bulb:focus-visible {
 		outline: 2px solid var(--accent);
 		outline-offset: 2px;
+	}
+	/* On a phone: a chip each, its name beside a lamp that's lit while it's on. */
+	.named {
+		order: 3;
+		flex-basis: 100%;
+		padding: 0;
+	}
+	.named .bulb {
+		width: auto;
+		max-width: 100%;
+		height: 44px;
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+		padding: 0 12px 0 11px;
+		border-radius: 999px;
+		box-shadow: none;
+		color: var(--ink-muted);
+		font: 600 12.5px var(--font);
+	}
+	.named .bulb span {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.named .bulb i {
+		position: static;
+		flex: none;
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: color-mix(in srgb, var(--ink) 25%, transparent);
+	}
+	.named .bulb.on {
+		background: rgba(255, 196, 107, 0.14);
+		color: #ffd48a;
+	}
+	:global(:root[data-theme='light']) .named .bulb.on {
+		color: #8a5a10;
+	}
+	.named .bulb.on i {
+		background: #ffc46b;
+		box-shadow: 0 0 8px #ffc46b;
 	}
 	.pair {
 		flex: none;

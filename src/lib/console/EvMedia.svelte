@@ -291,6 +291,37 @@
 	.quietrow {
 		min-height: 40px;
 	}
+	/* On a phone: the player and its room, what's playing under, the volume across. */
+	:global(.ev.phone) .evrow.player {
+		display: grid;
+		grid-template-columns: 48px minmax(0, 1fr) 44px;
+		grid-template-areas:
+			'art name play'
+			'what what what'
+			'vol vol vol';
+		gap: 6px 12px;
+		align-items: center;
+	}
+	:global(.ev.phone) .art {
+		grid-area: art;
+	}
+	:global(.ev.phone) .evname.wide {
+		grid-area: name;
+		width: auto;
+	}
+	:global(.ev.phone) .evname.what {
+		grid-area: what;
+		min-height: 0;
+	}
+	:global(.ev.phone) .vol {
+		grid-area: vol;
+		width: 100%;
+	}
+	:global(.ev.phone) .play {
+		grid-area: play;
+		width: 44px;
+		height: 44px;
+	}
 	@media (max-width: 1280px) {
 		.evname.wide {
 			width: 200px;

@@ -2,7 +2,8 @@
 	A column of a console tab, as the Lights and Media tabs draw theirs: a
 	heading with the system's tag (Hue, Lutron, YoLink), the thing's name and
 	a short note, then what's in it. Columns sit side by side with a rule
-	between. The Climate, Doors, Water and Sensors tabs share it. A column of
+	between; on a phone (phone.svelte.ts), one under another, each as wide as
+	the phone. The Climate, Doors, Water and Sensors tabs share it. A column of
 	one device has its "⋯" (`place`) in the gutter at the heading's end, so
 	its note keeps the room it had, and "moved here" after the note.
 -->
@@ -12,6 +13,7 @@
 	import Place from './Place.svelte';
 	import Moved from './Moved.svelte';
 	import { brandOf } from './room.js';
+	import { stacked } from './phone/phone.svelte.js';
 
 	let {
 		title,
@@ -46,9 +48,18 @@
 
 	const brand = $derived(plugin === undefined ? undefined : brandOf(plugin));
 	const tagOf = $derived((plugin ?? '').split('.').pop());
+	const stack = stacked();
 </script>
 
-<section class="col" class:grow class:placed={!!place} style:width style:flex aria-label={title}>
+<section
+	class="col"
+	class:grow
+	class:stack
+	class:placed={!!place}
+	style:width={stack ? undefined : width}
+	style:flex={stack ? undefined : flex}
+	aria-label={title}
+>
 	<div class="ch">
 		{#if brand}<span class="tag" data-brand={tagOf}>{brand}</span>{/if}
 		{#if onopen}
@@ -72,6 +83,18 @@
 	}
 	.col:first-child {
 		border-left: 0;
+	}
+	.col.stack {
+		flex: none;
+		width: 100%;
+		box-sizing: border-box;
+		padding: 0;
+		border-left: 0;
+	}
+	.col.stack:not(:first-child) {
+		margin-top: 4px;
+		padding-top: 18px;
+		border-top: 1px solid var(--con-edge-strong);
 	}
 	/* As wide as its rows need, at least: past that, the columns wrap. */
 	.col.grow {

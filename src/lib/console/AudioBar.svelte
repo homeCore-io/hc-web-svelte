@@ -7,6 +7,10 @@
 
 	Which device is the room's is chosen here ("Plays through"), and kept
 	with the house's layout (media.ts).
+
+	On a phone it comes in two parts (`as`): a slim bar pinned over the
+	page, with what's playing and play or pause, that opens the rest in a
+	sheet, the whole bar stacked.
 -->
 <script lang="ts">
 	import Music from '@lucide/svelte/icons/music';
@@ -47,7 +51,9 @@
 		onchoose,
 		onstep,
 		onmute,
-		onlevel
+		onlevel,
+		as = 'dock',
+		onopen
 	}: {
 		room: string;
 		/** The device the room plays through; none when someone chose none. */
@@ -62,6 +68,10 @@
 		onstep: (by: 1 | -1) => void;
 		onmute: () => void;
 		onlevel: (v: number) => void;
+		/** Along a room's bottom; a phone's slim bar; or the whole of it, in a phone's sheet. */
+		as?: 'dock' | 'compact' | 'sheet';
+		/** The slim bar's: opens the rest. */
+		onopen?: () => void;
 	} = $props();
 
 	const want = $derived(audio ? commands.pending[audio.device_id]?.want : undefined);
@@ -97,7 +107,7 @@
 	const muted = $derived(vol?.muted === true);
 </script>
 
-<footer class="dock" aria-label={`${room} audio`}>
+{#snippet art()}
 	{#if now.art}
 		<img class="art" src={now.art} alt="" />
 	{:else}
@@ -108,24 +118,26 @@
 				/>{/if}</span
 		>
 	{/if}
-	<div class="np" aria-live="polite">
-		<b>{now.title}</b>
-		<small>{now.sub}</small>
-	</div>
-	{#if audio && t && (t.toggle || t.previous || t.next)}
-		<div class="tp" role="group" aria-label="Playing">
-			<button
-				type="button"
-				class="rb"
-				aria-label="Previous"
-				disabled={!live || !t.previous}
-				onclick={() => send(audio, t.previous)}><SkipBack size={15} strokeWidth={2.2} /></button
-			>
+{/snippet}
+
+{#if as === 'compact'}
+	<footer class="dock compact" aria-label={`${room} audio`}>
+		<button
+			type="button"
+			class="open"
+			aria-haspopup="dialog"
+			aria-label={`${room} audio: ${now.title}. More`}
+			onclick={onopen}
+		>
+			{@render art()}
+			<span class="np" aria-live="polite"><b>{now.title}</b><small>{now.sub}</small></span>
+		</button>
+		{#if audio && t?.toggle}
 			<button
 				type="button"
 				class="rb big"
 				aria-label={t.playing ? 'Pause' : 'Play'}
-				disabled={!live || !t.toggle}
+				disabled={!live}
 				onclick={() => send(audio, t.toggle)}
 				>{#if t.playing}<Pause fill="currentColor" size={17} strokeWidth={2.4} />{:else}<Play
 						fill="currentColor"
@@ -133,90 +145,121 @@
 						strokeWidth={2.4}
 					/>{/if}</button
 			>
+		{/if}
+	</footer>
+{:else}
+	<footer class="dock" class:sheet={as === 'sheet'} aria-label={`${room} audio`}>
+		{@render art()}
+		<div class="np" aria-live="polite">
+			<b>{now.title}</b>
+			<small>{now.sub}</small>
+		</div>
+		{#if audio && t && (t.toggle || t.previous || t.next)}
+			<div class="tp" role="group" aria-label="Playing">
+				<button
+					type="button"
+					class="rb"
+					aria-label="Previous"
+					disabled={!live || !t.previous}
+					onclick={() => send(audio, t.previous)}><SkipBack size={15} strokeWidth={2.2} /></button
+				>
+				<button
+					type="button"
+					class="rb big"
+					aria-label={t.playing ? 'Pause' : 'Play'}
+					disabled={!live || !t.toggle}
+					onclick={() => send(audio, t.toggle)}
+					>{#if t.playing}<Pause fill="currentColor" size={17} strokeWidth={2.4} />{:else}<Play
+							fill="currentColor"
+							size={17}
+							strokeWidth={2.4}
+						/>{/if}</button
+				>
+				<button
+					type="button"
+					class="rb"
+					aria-label="Next"
+					disabled={!live || !t.next}
+					onclick={() => send(audio, t.next)}><SkipForward size={15} strokeWidth={2.2} /></button
+				>
+			</div>
+		{/if}
+		<span class="gap"></span>
+		<label class="via">
+			<small>Plays through</small>
+			<select
+				aria-label={`${room}'s audio device`}
+				value={choice}
+				disabled={!may}
+				onchange={(e) => onchoose(e.currentTarget.value)}
+			>
+				{#each choices.filter((c) => c.here) as c (c.id)}
+					<option value={c.id}>{c.label}</option>
+				{/each}
+				<option value="">None</option>
+				{#if choices.some((c) => !c.here)}
+					<optgroup label="Elsewhere in the house">
+						{#each choices.filter((c) => !c.here) as c (c.id)}
+							<option value={c.id}>{c.label}</option>
+						{/each}
+					</optgroup>
+				{/if}
+			</select>
+		</label>
+		<div class="vol" role="group" aria-label={`${room} volume`}>
 			<button
 				type="button"
 				class="rb"
-				aria-label="Next"
-				disabled={!live || !t.next}
-				onclick={() => send(audio, t.next)}><SkipForward size={15} strokeWidth={2.2} /></button
+				class:mute={muted}
+				aria-label={vol?.muted === undefined
+					? 'Mute or unmute'
+					: muted
+						? `Unmute ${room}`
+						: `Mute ${room}`}
+				aria-pressed={vol?.muted}
+				disabled={!live || !vol?.canMute}
+				onclick={onmute}
+				>{#if muted}<VolumeX size={16} strokeWidth={2.2} />{:else}<Volume2
+						size={16}
+						strokeWidth={2.2}
+					/>{/if}</button
 			>
-		</div>
-	{/if}
-	<span class="gap"></span>
-	<label class="via">
-		<small>Plays through</small>
-		<select
-			aria-label={`${room}'s audio device`}
-			value={choice}
-			disabled={!may}
-			onchange={(e) => onchoose(e.currentTarget.value)}
-		>
-			{#each choices.filter((c) => c.here) as c (c.id)}
-				<option value={c.id}>{c.label}</option>
-			{/each}
-			<option value="">None</option>
-			{#if choices.some((c) => !c.here)}
-				<optgroup label="Elsewhere in the house">
-					{#each choices.filter((c) => !c.here) as c (c.id)}
-						<option value={c.id}>{c.label}</option>
-					{/each}
-				</optgroup>
+			<button
+				type="button"
+				class="rb"
+				aria-label="Volume down"
+				disabled={!live || (!vol?.steps && !vol?.level)}
+				onclick={() => onstep(-1)}><Minus size={16} strokeWidth={2.4} /></button
+			>
+			{#if vol?.level}
+				<Level
+					label={`${room} volume`}
+					value={vol.level.value}
+					min={vol.level.min}
+					max={vol.level.max}
+					{muted}
+					width={as === 'sheet' ? 120 : 150}
+					disabled={!live}
+					waiting={want?.volume !== undefined}
+					oncommit={onlevel}
+				/>
+			{:else}
+				<span class="steps">{audio ? stepNote : ''}</span>
 			{/if}
-		</select>
-	</label>
-	<div class="vol" role="group" aria-label={`${room} volume`}>
-		<button
-			type="button"
-			class="rb"
-			class:mute={muted}
-			aria-label={vol?.muted === undefined
-				? 'Mute or unmute'
-				: muted
-					? `Unmute ${room}`
-					: `Mute ${room}`}
-			aria-pressed={vol?.muted}
-			disabled={!live || !vol?.canMute}
-			onclick={onmute}
-			>{#if muted}<VolumeX size={16} strokeWidth={2.2} />{:else}<Volume2
-					size={16}
-					strokeWidth={2.2}
-				/>{/if}</button
-		>
-		<button
-			type="button"
-			class="rb"
-			aria-label="Volume down"
-			disabled={!live || (!vol?.steps && !vol?.level)}
-			onclick={() => onstep(-1)}><Minus size={16} strokeWidth={2.4} /></button
-		>
-		{#if vol?.level}
-			<Level
-				label={`${room} volume`}
-				value={vol.level.value}
-				min={vol.level.min}
-				max={vol.level.max}
-				{muted}
-				width={150}
-				disabled={!live}
-				waiting={want?.volume !== undefined}
-				oncommit={onlevel}
-			/>
-		{:else}
-			<span class="steps">{audio ? stepNote : ''}</span>
+			<button
+				type="button"
+				class="rb"
+				aria-label="Volume up"
+				disabled={!live || (!vol?.steps && !vol?.level)}
+				onclick={() => onstep(1)}><Plus size={16} strokeWidth={2.4} /></button
+			>
+			<span class="num">{vol?.level ? (muted ? 'mute' : Math.round(vol.level.value)) : ''}</span>
+		</div>
+		{#if audio && commands.notes[audio.device_id]}
+			<span class="warn" role="status">{commands.notes[audio.device_id]}</span>
 		{/if}
-		<button
-			type="button"
-			class="rb"
-			aria-label="Volume up"
-			disabled={!live || (!vol?.steps && !vol?.level)}
-			onclick={() => onstep(1)}><Plus size={16} strokeWidth={2.4} /></button
-		>
-		<span class="num">{vol?.level ? (muted ? 'mute' : Math.round(vol.level.value)) : ''}</span>
-	</div>
-	{#if audio && commands.notes[audio.device_id]}
-		<span class="warn" role="status">{commands.notes[audio.device_id]}</span>
-	{/if}
-</footer>
+	</footer>
+{/if}
 
 <style>
 	.dock {
@@ -374,6 +417,91 @@
 	.warn {
 		font-size: 11.5px;
 		color: var(--alert);
+	}
+
+	/* ---- on a phone: the slim bar, over the page, and the whole of it in a sheet ---- */
+	.dock.compact {
+		position: fixed;
+		left: max(10px, env(safe-area-inset-left));
+		right: max(10px, env(safe-area-inset-right));
+		bottom: calc(var(--tabbar-h, 0px) + 8px);
+		z-index: 15;
+		min-height: 60px;
+		gap: 8px;
+		padding: 0 8px 0 0;
+		border-radius: 18px;
+		margin: 0;
+	}
+	.open {
+		flex: 1;
+		min-width: 0;
+		min-height: 60px;
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 0 0 0 9px;
+		border: 0;
+		background: none;
+		color: inherit;
+		font: inherit;
+		text-align: left;
+	}
+	.compact .art {
+		width: 42px;
+		height: 42px;
+		border-radius: 10px;
+	}
+	.compact .np {
+		flex: 1;
+	}
+	.compact .rb.big {
+		width: 44px;
+		height: 44px;
+	}
+	.dock.sheet {
+		position: static;
+		flex-wrap: wrap;
+		gap: 14px 12px;
+		min-height: 0;
+		padding: 4px 0 0;
+		background: none;
+		backdrop-filter: none;
+		-webkit-backdrop-filter: none;
+		box-shadow: none;
+		color: inherit;
+	}
+	.sheet .np {
+		flex: 1 1 180px;
+	}
+	.sheet .gap {
+		display: none;
+	}
+	.sheet .tp {
+		width: 100%;
+		justify-content: center;
+		gap: 18px;
+	}
+	.sheet .rb {
+		width: 44px;
+		height: 44px;
+	}
+	.sheet .rb.big {
+		width: 56px;
+		height: 56px;
+	}
+	.sheet .via {
+		width: 100%;
+		padding-left: 0;
+		border-left: 0;
+	}
+	.sheet .via select {
+		max-width: none;
+		height: 44px;
+		font-size: 14px;
+	}
+	.sheet .vol {
+		width: 100%;
+		justify-content: space-between;
 	}
 
 	@media (max-width: 1100px) {

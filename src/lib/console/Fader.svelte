@@ -6,7 +6,8 @@
 	on release, as BigBar does.
 
 	Under it, the label: a pill the same size for every fader (104 by 42, or 92
-	in a tight row), so a row of faders always lines up. Given `onpick`, the
+	in a tight row), so a row of faders always lines up; on a phone (`fit`),
+	as wide as its share of the row. Given `onpick`, the
 	pill is a button that selects the fader (a lamp for a scene); given
 	`onopen` instead, it opens the thing's details.
 -->
@@ -27,6 +28,7 @@
 		style = 'machined',
 		height = 200,
 		tight = false,
+		fit = false,
 		color,
 		selected = false,
 		onpick,
@@ -55,6 +57,8 @@
 		height?: number;
 		/** A narrower pill, for a crowded row. */
 		tight?: boolean;
+		/** Its share of the row, the pill as wide as that: a phone's. */
+		fit?: boolean;
 		/** The light's own color, in place of the theme's. */
 		color?: string;
 		/** Whether the pill is selected, when it can be. */
@@ -89,6 +93,7 @@
 	class:waiting
 	class:disabled
 	class:tight
+	class:fit
 	style:--h={`${height}px`}
 	style:--c={color}
 	aria-busy={waiting || undefined}
@@ -417,6 +422,16 @@
 			background 0.2s,
 			box-shadow 0.2s,
 			color 0.2s;
+	}
+	.fit {
+		flex: 1 1 0;
+		min-width: 0;
+	}
+	.fit .lab {
+		width: 100%;
+		max-width: 104px;
+		min-height: 44px;
+		box-sizing: border-box;
 	}
 	.tight .lab {
 		width: 92px;

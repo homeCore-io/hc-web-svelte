@@ -6,7 +6,9 @@
 	scrolls inside the page when the house has more than fits, so the page
 	itself doesn't.
 
-	The rows' common parts are styled here, for every view.
+	The rows' common parts are styled here, for every view. On a phone
+	(`phone`, phone/PhoneEverywhere), the page scrolls instead, the header
+	keeps its line and its action, across, and each row wraps.
 -->
 <script lang="ts">
 	import { devices } from '#lib/devices.svelte.js';
@@ -24,7 +26,7 @@
 	import { tabChoicesOf } from './room.js';
 	import { household } from '#lib/household.svelte.js';
 
-	let { view }: { view: string } = $props();
+	let { view, phone = false }: { view: string; phone?: boolean } = $props();
 
 	$effect(() => heading.ownTitle());
 
@@ -40,17 +42,17 @@
 	);
 </script>
 
-<div class="ev">
+<div class="ev" class:phone>
 	{#if !devices.loaded}
 		<p class="quiet pad">Loading the house…</p>
 	{:else if which === 'lights'}
-		<EvLights {places} />
+		<EvLights {places} {phone} />
 	{:else if which === 'media'}
 		<EvMedia {places} />
 	{:else if which === 'climate'}
 		<EvClimate {places} />
 	{:else if which === 'security'}
-		<EvSecurity {places} />
+		<EvSecurity {places} {phone} />
 	{:else if which === 'water'}
 		<EvWater {places} />
 	{:else}
@@ -296,6 +298,92 @@
 	}
 	:where(.ev) :global(.rbtn[aria-busy='true']) {
 		opacity: 0.7;
+	}
+
+	/* ---- on a phone: one page that scrolls, each row wrapping under its name ---- */
+	.ev.phone {
+		height: auto;
+	}
+	.ev.phone :global(.evhead) {
+		padding: 10px 16px 14px;
+	}
+	.ev.phone :global(.evhead .glow) {
+		height: 200px;
+	}
+	.ev.phone :global(.evhead .kick),
+	.ev.phone :global(.evhead h1) {
+		display: none;
+	}
+	.ev.phone :global(.evhead .sum) {
+		margin: 0;
+	}
+	.ev.phone :global(.evhead .side),
+	.ev.phone :global(.evhead .acts),
+	.ev.phone :global(.evhead .hbtn) {
+		width: 100%;
+		align-items: stretch;
+	}
+	.ev.phone :global(.evhead .trouble) {
+		max-width: none;
+		text-align: left;
+	}
+	.ev.phone :global(.hbtn),
+	.ev.phone :global(.wideact) {
+		min-height: 48px;
+		border-radius: 14px;
+		font-size: 14px;
+	}
+	.ev.phone :global(.wideact) {
+		width: 100%;
+		margin: 0 0 14px;
+		border: 0;
+		background: color-mix(in srgb, var(--ink) 8%, transparent);
+		color: var(--ink);
+		font-weight: 700;
+	}
+	.ev.phone :global(.wideact:disabled) {
+		opacity: 0.5;
+	}
+	:where(.ev.phone) :global(.evlist) {
+		overflow: visible;
+		padding: 0 16px 20px;
+	}
+	:where(.ev.phone) :global(.evrow) {
+		flex-wrap: wrap;
+		gap: 6px 12px;
+		padding: 10px 0;
+	}
+	:where(.ev.phone) :global(.evname) {
+		width: auto;
+		flex: 1 1 0;
+		min-height: 44px;
+		justify-content: center;
+	}
+	:where(.ev.phone) :global(.pills),
+	:where(.ev.phone) :global(.issues) {
+		flex-basis: 100%;
+	}
+	:where(.ev.phone) :global(.ipill) {
+		min-height: 44px;
+		height: auto;
+		max-width: 100%;
+		text-align: left;
+	}
+	:where(.ev.phone) :global(.pair button) {
+		height: 44px;
+	}
+	:where(.ev.phone) :global(.spill) {
+		height: 44px;
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	:where(.ev.phone) :global(.xbtn) {
+		width: 44px;
+		height: 44px;
+	}
+	:where(.ev.phone) :global(.rbtn) {
+		height: 44px;
 	}
 
 	@media (max-width: 1100px) {

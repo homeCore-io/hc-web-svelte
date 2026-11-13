@@ -12,7 +12,6 @@
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
 	import Sun from '@lucide/svelte/icons/sun';
 	import Moon from '@lucide/svelte/icons/moon';
 	import Cloud from '@lucide/svelte/icons/cloud';
@@ -23,50 +22,19 @@
 	import Tv from '@lucide/svelte/icons/tv';
 	import { devices } from '#lib/devices.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
-	import { scenes, type CoreScene } from '#lib/scenes.svelte.js';
-	import { personal } from '#lib/personal.svelte.js';
-	import { alerts } from '#lib/alerts.svelte.js';
 	import { heading } from '#lib/heading.svelte.js';
-	import { session } from '#lib/me.svelte.js';
-	import { view } from '#lib/view.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { commands } from '#lib/commands.svelte.js';
-	import { kindOptions } from '#lib/kindOptions.svelte.js';
-	import { ask } from '#lib/confirm.svelte.js';
-	import { goAhead } from '#lib/ask.js';
-	import { roomPower } from '#lib/admin.js';
-	import { homeRoomOrder, ref } from '#lib/layers.js';
-	import { cardFor, kindOf } from '#lib/card.js';
-	import { displayName, type CoreDevice } from '#lib/devices.js';
-	import { ROOM_BUILT_IN } from '#lib/options.js';
-	import {
-		degrees,
-		outdoorStation,
-		outsideTemperature,
-		percent,
-		readingOf,
-		roomBox
-	} from '#lib/roomBox.js';
-	import { openDevice } from '#lib/popup.js';
+	import { cardFor } from '#lib/card.js';
+	import { displayName } from '#lib/devices.js';
 	import Icon from '#lib/components/Icon.svelte';
 	import RoomPicture from './RoomPicture.svelte';
 	import HomePills from './HomePills.svelte';
-	import { anyLit, roomPicture } from './pictures.js';
+	import { anyLit } from './pictures.js';
 	import RoomPhoto from './RoomPhoto.svelte';
-	import { photoGlow, photoLit, photoSpots } from './photo.js';
-	import { roomIn } from './layout.js';
-	import { household } from '#lib/household.svelte.js';
-	import { devicesIn, levelOf } from './room.js';
-	import {
-		favoritesOf,
-		greetingOf,
-		houseLine,
-		issuesOf,
-		playingOf,
-		tileOf,
-		working,
-		type Issue
-	} from './home.js';
+	import { photoLit } from './photo.js';
+	import { greetingOf } from './home.js';
+	import { HomeNow } from './homeNow.svelte.js';
 	import { openingRoom } from './opensOn.js';
 
 	// The page draws its own title, the greeting.
@@ -82,150 +50,35 @@
 		void goto(`/rooms/${to}`, { replaceState: true });
 	});
 
-	const may = $derived(session.mayUse);
-	const wants = (id: string) => commands.pending[id]?.want;
+	// Home as it is now (homeNow.svelte.ts).
+	const h = new HomeNow();
+	const may = $derived(h.may);
 
-	// ---- the greeting ----
-	const at = $derived(new Date(clock.now));
-	const day = $derived(
-		at.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
-	);
-	const time = $derived(at.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }));
-	const night = $derived(at.getHours() < 6 || at.getHours() >= 19);
+	// ---- the greeting, and the weather outside ----
+	const at = $derived(h.at);
+	const day = $derived(h.day);
+	const time = $derived(h.time);
+	const night = $derived(h.night);
+	const outside = $derived(h.outside);
+	const station = $derived(h.station);
+	const humidity = $derived(h.humidity);
+	const condition = $derived(h.condition);
+	const cloudy = $derived(h.cloudy);
+	const partly = $derived(h.partly);
 
-	// ---- the weather outside: the house's station, and a weather plugin's words ----
-	const outside = $derived(degrees(outsideTemperature(devices.byId)));
-	const station = $derived(outdoorStation(devices.byId));
-	const humidity = $derived(station ? percent(readingOf(station, 'humidity')) : undefined);
-	const forecast = $derived(
-		Object.values(devices.byId).find(
-			(d) => kindOf(d) === 'weather' && typeof d.attributes.condition === 'string'
-		)
-	);
-	const condition = $derived(forecast?.attributes.condition as string | undefined);
-	const cloudy = $derived(/cloud|overcast|rain|snow|fog|drizzle|storm|mist/i.test(condition ?? ''));
-	const partly = $derived(/partly|mostly sunny|few/i.test(condition ?? ''));
-
-	// ---- every room, as a tile ----
-	const order = $derived(
-		homeRoomOrder(rooms.list, (r) => ref.room(r.id), view.changes('home')).shown
-	);
-	const tiles = $derived(
-		order.map((room) => {
-			const list = devicesIn(devices.byId, room);
-			const cards = list.map((d) => cardFor(d, clock.now));
-			const box = roomBox(
-				list,
-				cards,
-				devices.byId,
-				kindOptions.of('home', 'room', ref.room(room.id), ROOM_BUILT_IN)
-			);
-			const lay = roomIn(household.doc.console?.rooms, room.id);
-			const lit = roomPicture(room.name, list, clock.now, wants, lay.links);
-			// The household may have chosen the room plain, with no drawing, or its photo (layout.ts).
-			const plain = lay.picture === 'plain';
-			const photo = lay.picture === 'photo' ? household.photoOf(room.id) : undefined;
-			const glow = photo
-				? photoGlow(photoSpots(lay.spots, lit.picture, lit.spots), devices.byId, clock.now, wants)
-				: [];
-			return {
-				room,
-				list,
-				cards,
-				...tileOf(room, list, cards, box, lit.lamps, wants),
-				...lit,
-				plain,
-				photo,
-				glow
-			};
-		})
-	);
-
-	// ---- the house in a line ----
-	const all = $derived(Object.values(devices.byId));
-	const lightsOn = $derived(tiles.reduce((n, t) => n + t.lightsOn, 0));
-	const litRooms = $derived(tiles.filter((t) => t.lightsOn > 0));
-	const issues = $derived(
-		issuesOf(
-			tiles.map((t) => ({ room: t.room, cards: t.cards })),
-			alerts.list,
-			all,
-			rooms.list
-		)
-	);
-	const playing = $derived(playingOf(all, rooms.list, (d) => cardFor(d, clock.now).nowPlaying));
-	const line = $derived(
-		houseLine({
-			lightsOn,
-			litRooms: litRooms.length,
-			playing: playing.filter((p) => p.playing).length,
-			working: all.filter((d) => working(d) !== undefined).length,
-			issues: issues.filter((i) => i.key !== 'rest').length
-		})
-	);
-
-	// ---- what needs attention ----
-	async function fix(i: Issue) {
-		if ('href' in i.fix) return void goto(i.fix.href);
-		const d = devices.byId[i.fix.lock];
-		if (!d || !may) return;
-		void commands.set(d.device_id, kindOf(d), { locked: true }, d.attributes);
-	}
+	// ---- every room as a tile, the house in a line, what needs attention ----
+	const tiles = $derived(h.tiles);
+	const lightsOn = $derived(h.lightsOn);
+	const issues = $derived(h.issues);
+	const playing = $derived(h.playing);
+	const line = $derived(h.line);
+	const fix = h.fix;
 
 	// ---- favorites ----
-	const favs = $derived(favoritesOf(personal.doc.favourites ?? [], devices.byId, scenes.list));
-	let busy = $state(false);
-	let trouble = $state<string | null>(null);
-	/** Room off in each room with a light on, after asking. */
-	async function everyLightOff() {
-		if (busy || litRooms.length === 0) return;
-		const ok = await ask({
-			title: 'Turn every light off?',
-			body: `${lightsOn === 1 ? 'The light' : `All ${lightsOn} lights`} on in ${litRooms
-				.map((t) => t.room.name)
-				.join(', ')}. Room on brings each room back as it was.`,
-			go: 'Turn them off'
-		});
-		if (!ok) return;
-		busy = true;
-		trouble = null;
-		const done = await Promise.all(litRooms.map((t) => roomPower(t.room.id, false)));
-		busy = false;
-		trouble = done.find((r) => r.error)?.error ?? null;
-		for (const lid of done.flatMap((r) => r.lights)) {
-			const d = devices.byId[lid];
-			if (d) commands.expect(lid, kindOf(d), { on: false }, d.attributes);
-		}
-		// A switch named as a light that Room off doesn't cover is sent its own.
-		const sent = new Set(done.flatMap((r) => r.lights));
-		for (const d of litRooms.flatMap((t) => t.lamps))
-			if (d.available && !sent.has(d.device_id) && levelOf(d, wants(d.device_id)) > 0)
-				void commands.set(d.device_id, kindOf(d), { on: false }, d.attributes);
-	}
-	async function useDevice(d: CoreDevice) {
-		const c = cardFor(d, clock.now);
-		if (c.kind === 'scene' && d.schema?.actions?.some((a) => a.id === 'activate'))
-			return void commands.act(d.device_id, 'activate');
-		if (c.control?.kind === 'lock' && may && d.available) {
-			if (c.control.locked) {
-				if (!(await goAhead(d.device_id, c.kind, `Unlock ${displayName(d)}?`))) return;
-				return void commands.set(d.device_id, c.kind, { locked: false }, d.attributes);
-			}
-			return void commands.set(d.device_id, c.kind, { locked: true }, d.attributes);
-		}
-		if (c.control?.kind === 'switch' && may && d.available)
-			return void commands.set(
-				d.device_id,
-				c.kind,
-				{ [c.control.attr]: !c.control.on },
-				d.attributes
-			);
-		openDevice(d.device_id, page.url);
-	}
-	async function runScene(s: CoreScene) {
-		const done = await scenes.run(s.id);
-		trouble = done === true ? null : `${s.name} didn’t run: ${done}.`;
-	}
+	const favs = $derived(h.favs);
+	const busy = $derived(h.busy);
+	const trouble = $derived(h.trouble);
+	const { everyLightOff, useDevice, runScene } = h;
 
 	// ---- what's playing ----
 	const DOCK_SHOWN = 2;

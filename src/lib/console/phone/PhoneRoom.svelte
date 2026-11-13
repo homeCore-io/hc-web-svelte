@@ -330,6 +330,8 @@
 						<SensorsTab list={r.model.byTab.sensors} all={r.list} room={room.name} />
 					{:else if tab === 'switches'}
 						<SwitchesTab list={r.model.byTab.switches} room={room.name} may={r.may} />
+					{:else if tab === 'timers'}
+						<SwitchesTab list={r.model.byTab.timers} room={room.name} may={r.may} />
 					{:else if tab === 'cameras'}
 						<CamPhone list={r.model.byTab.cameras} />
 						{#if camSwitches.length > 0}<div class="also">

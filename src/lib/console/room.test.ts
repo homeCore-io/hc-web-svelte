@@ -181,10 +181,10 @@ describe('the household’s choice of tab', () => {
 		expect(r.tabs.find((t) => t.id === 'switches')).toBeUndefined();
 	});
 
-	it('without a choice, leaves the switch with the switches and the timer on Switches', () => {
+	it('without a choice, leaves the switch with the switches and puts the timer on Timers', () => {
 		const r = consoleRoom(room);
 		expect(whereIs(r, 'switch_auto_garage_door')).toEqual(['lights', 'lights.switches']);
-		expect(whereIs(r, 'timer_garage_close')).toEqual(['switches']);
+		expect(whereIs(r, 'timer_garage_close')).toEqual(['timers']);
 	});
 
 	it('puts what dims on Lights as a light, and what doesn’t with its switches', () => {

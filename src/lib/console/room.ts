@@ -6,7 +6,8 @@
  * contacts, covers and openers; Cameras, cameras and doorbells with their
  * spotlights and sirens; Lights, lights, keypads and lighting scenes; Media, players;
  * Climate, what you set (thermostats, fans, humidifiers); Water, leak
- * sensors and valves; Sensors, every reading. A switch a thermostat in the
+ * sensors and valves; Sensors, every reading; Timers, timers with their
+ * clocks. A switch a thermostat in the
  * room runs goes with it, in Climate. Plain on/off switches sit in Lights as
  * a column of their own, and get a tab of their own only when Lights would be
  * too crowded for them. homeCore's own switches (virtual switches, groups,
@@ -29,13 +30,22 @@ import { isHelper } from '../helpers.js';
 import { slugOf } from '../summary.js';
 
 export type TabId =
-	'doors' | 'lights' | 'switches' | 'media' | 'climate' | 'water' | 'sensors' | 'cameras';
+	| 'doors'
+	| 'lights'
+	| 'switches'
+	| 'timers'
+	| 'media'
+	| 'climate'
+	| 'water'
+	| 'sensors'
+	| 'cameras';
 
 /** Every tab, in the order shown when something in the room opens; else Lights comes first. */
 export const TABS: readonly { id: TabId; name: string }[] = [
 	{ id: 'doors', name: 'Doors' },
 	{ id: 'lights', name: 'Lights' },
 	{ id: 'switches', name: 'Switches' },
+	{ id: 'timers', name: 'Timers' },
 	{ id: 'media', name: 'Media' },
 	{ id: 'climate', name: 'Climate' },
 	{ id: 'water', name: 'Water' },
@@ -165,8 +175,10 @@ export function placeOf(d: CoreDevice): Place {
 	if (CLIMATE_KINDS.has(k)) return { tab: 'climate' };
 	if (WATER_KINDS.has(k)) return { tab: 'water' };
 	if (SENSOR_KINDS.has(k)) return { tab: 'sensors' };
-	// Anything else that does something (a timer, a button) goes with the switches' tab.
-	if (d.schema?.actions?.length || k === 'timer' || k === 'button') return { tab: 'switches' };
+	// Timers have a tab of their own, with their clocks.
+	if (k === 'timer') return { tab: 'timers' };
+	// Anything else that does something (a button) goes with the switches' tab.
+	if (d.schema?.actions?.length || k === 'button') return { tab: 'switches' };
 	return { tab: 'sensors' };
 }
 
@@ -468,6 +480,7 @@ export function consoleRoom(
 		doors: [],
 		lights: [],
 		switches: [],
+		timers: [],
 		media: [],
 		climate: [],
 		water: [],

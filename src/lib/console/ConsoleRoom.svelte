@@ -360,6 +360,8 @@
 					<SensorsTab list={model.byTab.sensors} all={list} room={room.name} />
 				{:else if tab === 'switches'}
 					<SwitchesTab list={model.byTab.switches} room={room.name} {may} />
+				{:else if tab === 'timers'}
+					<SwitchesTab list={model.byTab.timers} room={room.name} {may} />
 				{:else if tab === 'cameras'}
 					<CamerasTab list={model.byTab.cameras} room={room.name} {may} {sw} />
 				{/if}

@@ -29,7 +29,7 @@
 	const views = $derived(
 		Object.fromEntries(cards.map((c): [string, CardView] => [c.ref, cardFor(c.device, clock.now)]))
 	);
-	const problems = $derived(litRoom(cards, views).problems);
+	const problems = $derived(litRoom(cards, views, {}, {}, devices.byId).problems);
 	const arranging = $derived(view.mode(page) !== null);
 	function fix(f: { device: string; want: Record<string, unknown> }) {
 		const d = devices.byId[f.device];

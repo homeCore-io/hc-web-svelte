@@ -168,4 +168,19 @@ describe('cameras', () => {
 		const p = groupRoom('r-outdoor', withCam, rules);
 		expect(where(p, 'device:reolink_porch')).toBe('things');
 	});
+	it('keep their spotlights, even with the camera in another room', () => {
+		const spot = {
+			...cam,
+			device_id: 'reolink_porch_spotlight',
+			name: 'Porch spotlight',
+			device_type: 'light',
+			area: undefined,
+			attributes: { on: false }
+		} as unknown as Devices[string];
+		const house = { ...withCam, devices: { ...withCam.devices, [spot.device_id]: spot } };
+		const here = groupRoom('r-outdoor', house, LIT.grouping.room!);
+		expect(where(here, 'device:reolink_porch_spotlight')).toBeUndefined();
+		const p = groupRoom('none', house, LIT.grouping.room!);
+		expect(where(p, 'device:reolink_porch_spotlight')).toBe('cameras');
+	});
 });

@@ -37,6 +37,8 @@
 	import { extensions } from '#lib/extensions.svelte.js';
 	import { optionValues } from '#lib/drawingOptions.js';
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
+	import { isCameraLight } from '#lib/cameraLights.js';
+	import { devices } from '#lib/devices.svelte.js';
 	import { deviceScene, isDoorKind, isWatchKind, lampOf, readingOf } from './room.js';
 
 	const look = lookHere();
@@ -64,7 +66,10 @@
 	$effect(() => {
 		if (d.attributes?.state === 'running' && kindOf(d) === 'timer') return clock.hold();
 	});
-	const lamp = $derived(card.scene ? null : lampOf(card, view, name));
+	// A camera's spotlight is its camera's, never drawn as one of the room's lamps.
+	const lamp = $derived(
+		card.scene || isCameraLight(d, devices.byId) ? null : lampOf(card, view, name)
+	);
 	const reading = $derived(card.scene ? null : readingOf(card, view, name));
 	// Which family it is, and how the look draws that family (13 §6): Lit's
 	// way, a drawing made in the editor (§6.4), or today's card.

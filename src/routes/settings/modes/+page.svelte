@@ -415,7 +415,7 @@
 								>
 							</div>
 						{/if}
-						{#if !sunSettable}
+						{#if core.older('0.1.82')}
 							<p class="sub">
 								Which sun event it follows is set in modes.toml; this homeCore can’t change it from
 								here.
@@ -451,7 +451,7 @@
 					{#if !builtIn(c.id)}
 						<div class="foot">
 							<button type="button" class="danger" onclick={remove}>Delete…</button>
-							{#if !core.since('0.1.81')}<span class="sub">This homeCore can’t rename a mode.</span
+							{#if core.older('0.1.81')}<span class="sub">This homeCore can’t rename a mode.</span
 								>{/if}
 						</div>
 					{/if}

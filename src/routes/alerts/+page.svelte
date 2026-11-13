@@ -23,7 +23,11 @@
 
 <div class="stack">
 	{#if !alerts.known}
-		<p class="quiet">This homeCore doesn't report alerts yet — it needs v0.1.76 or later.</p>
+		<p class="quiet">
+			{core.older('0.1.76')
+				? 'This homeCore doesn’t report alerts yet. It needs v0.1.76 or later.'
+				: 'Loading…'}
+		</p>
 	{:else if alerts.list.length === 0}
 		<p class="calm">Nothing needs attention.</p>
 	{:else}

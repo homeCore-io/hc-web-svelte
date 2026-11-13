@@ -6,6 +6,7 @@ import {
 	dangerous,
 	isRunning,
 	compareVersions,
+	versionAtLeast,
 	latestOf,
 	needsCore,
 	notInstalled,
@@ -47,6 +48,12 @@ const REGISTRY = [
 ];
 
 describe('versions', () => {
+	test('a version not known yet is neither new enough nor too old', () => {
+		expect(versionAtLeast(null, '0.1.81')).toBeNull();
+		expect(versionAtLeast('0.1.102', '0.1.81')).toBe(true);
+		expect(versionAtLeast('0.1.81', '0.1.81')).toBe(true);
+		expect(versionAtLeast('0.1.80', '0.1.81')).toBe(false);
+	});
 	test('by number, not by letter', () => {
 		expect(compareVersions('0.1.10', '0.1.9')).toBeGreaterThan(0);
 		expect(compareVersions('v1.2.0', '1.2')).toBe(0);

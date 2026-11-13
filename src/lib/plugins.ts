@@ -145,6 +145,14 @@ export function compareVersions(a: string, b: string): number {
 	return 0;
 }
 
+/**
+ * Whether `version` is `min` or newer: `null` while it isn't known yet, so a
+ * page can wait instead of saying its homeCore is too old.
+ */
+export function versionAtLeast(version: string | null, min: string): boolean | null {
+	return version === null ? null : compareVersions(version, min) >= 0;
+}
+
 type Version = RegistryPlugin['versions'][number];
 
 /**

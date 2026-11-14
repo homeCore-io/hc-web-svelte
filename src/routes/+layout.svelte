@@ -41,11 +41,13 @@
 	afterNavigate((nav) => {
 		if (nav.type === 'enter' || !nav.from || nav.from.url.pathname === nav.to?.url.pathname) return;
 		// After the page has drawn and anything over the old one (search) has closed.
-		void tick().then(() => {
-			const at = document.activeElement;
-			if (!at || at === document.body || !document.getElementById('main')?.contains(at))
-				focusMain(undefined, false);
-		});
+		void tick().then(() =>
+			setTimeout(() => {
+				const at = document.activeElement;
+				if (!at || at === document.body || !document.getElementById('main')?.contains(at))
+					focusMain(undefined, false);
+			})
+		);
 	});
 
 	// Pages that stand alone: signing in, and making this screen a display.

@@ -20,9 +20,15 @@ export function nextItem(key: string, at: number, count: number): number | null 
 	}
 }
 
+/** A menu's items that are shown: one may be hidden at some widths. */
+const itemsOf = (box: HTMLElement): HTMLElement[] =>
+	[...box.querySelectorAll<HTMLElement>('[role="menuitem"]')].filter(
+		(el) => el.getClientRects().length > 0
+	);
+
 /** Moves focus among `box`'s menu items for an arrow, Home or End key; true when it did. */
 export function moveInMenu(e: KeyboardEvent, box: HTMLElement): boolean {
-	const items = [...box.querySelectorAll<HTMLElement>('[role="menuitem"]')];
+	const items = itemsOf(box);
 	const to = nextItem(e.key, items.indexOf(document.activeElement as HTMLElement), items.length);
 	if (to === null) return false;
 	e.preventDefault();
@@ -32,7 +38,7 @@ export function moveInMenu(e: KeyboardEvent, box: HTMLElement): boolean {
 
 /** Use on a menu as it opens: puts focus on its first item. */
 export function focusFirst(box: HTMLElement): void {
-	box.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+	itemsOf(box)[0]?.focus();
 }
 
 /** Where a row of tabs (role="tablist") goes from tab `at` of `count` for `key`, or null. */

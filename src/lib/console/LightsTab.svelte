@@ -114,15 +114,33 @@
 	// ---- a group's scenes: two lines of chips, and the rest behind "All" ----
 	let allScenes = $state<Record<string, boolean>>({});
 	let clipped = $state<Record<string, boolean>>({});
-	function clips(node: HTMLElement, key: string) {
+	// The chips below the two lines are out of reach too, not only out of
+	// sight: inert, so Tab skips them and never scrolls the clipped box,
+	// until "All" opens them.
+	function clips(node: HTMLElement, arg: { key: string; open: boolean }) {
+		let { key, open } = arg;
 		const check = () => {
 			const over = node.scrollHeight > node.clientHeight + 1;
 			if (over !== !!clipped[key]) clipped = { ...clipped, [key]: over };
+			const bottom = node.getBoundingClientRect().top + node.clientHeight - 1;
+			for (const el of node.children)
+				(el as HTMLElement).inert = !open && el.getBoundingClientRect().top >= bottom;
 		};
 		const seen = new ResizeObserver(check);
 		seen.observe(node);
+		const added = new MutationObserver(check);
+		added.observe(node, { childList: true });
 		check();
-		return { destroy: () => seen.disconnect() };
+		return {
+			update(next: { key: string; open: boolean }) {
+				({ key, open } = next);
+				check();
+			},
+			destroy: () => {
+				seen.disconnect();
+				added.disconnect();
+			}
+		};
 	}
 
 	// ---- picking a lamp as the scenes' target, per column ----
@@ -235,7 +253,11 @@
 								>
 							{/if}
 						</p>
-						<div class="chips" class:open={allScenes[c.key]} use:clips={c.key}>
+						<div
+							class="chips"
+							class:open={allScenes[c.key]}
+							use:clips={{ key: c.key, open: !!allScenes[c.key] }}
+						>
 							{#each c.scenes as s (s.device_id)}
 								<span class="cw"
 									><button

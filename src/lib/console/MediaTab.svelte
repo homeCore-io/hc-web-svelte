@@ -804,13 +804,19 @@
 	.app:hover:not(:disabled) .ico {
 		transform: translateY(-2px);
 	}
+	/* Inside its own cell, on up to two lines: "The Roku Channel" never runs into the next. */
 	.an {
-		max-width: 72px;
+		max-width: 100%;
 		font-size: 11px;
 		font-weight: 500;
-		white-space: nowrap;
+		line-height: 1.2;
+		text-align: center;
 		overflow: hidden;
-		text-overflow: ellipsis;
+		overflow-wrap: break-word;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
 	}
 	.app.on {
 		background: rgba(160, 123, 255, 0.16);

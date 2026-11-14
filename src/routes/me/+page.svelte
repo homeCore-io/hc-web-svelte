@@ -206,33 +206,46 @@
 
 	<section>
 		<h2 class="section-label">Look</h2>
-		<LookPicker label="Your look" {looks} current={myLook} house={houseLook} pick={setLook} />
-		<LookShelf
-			label="Your own looks"
-			own={mine}
-			all={looks}
-			chosen={myLook ? findLook(looks, myLook) : houseLook}
-			save={(next) => void personal.change((d) => ({ ...d, looks: next }))}
-			pick={setLook}
-			admin={session.isAdmin || session.can('plugins:write')}
-			editHref={(id) => `/me/looks/${id}`}
-		/>
+		<!-- Until the person's own choice has loaded, nothing to pick: a tap would overwrite it. -->
+		{#if personal.loaded && household.loaded && !personal.missing}
+			<LookPicker label="Your look" {looks} current={myLook} house={houseLook} pick={setLook} />
+			<LookShelf
+				label="Your own looks"
+				own={mine}
+				all={looks}
+				chosen={myLook ? findLook(looks, myLook) : houseLook}
+				save={(next) => void personal.change((d) => ({ ...d, looks: next }))}
+				pick={setLook}
+				admin={session.isAdmin || session.can('plugins:write')}
+				editHref={(id) => `/me/looks/${id}`}
+			/>
+		{:else}
+			<p class="note">Loading your look…</p>
+		{/if}
 	</section>
 
 	<section>
 		<h2 class="section-label" id="palette">Theme</h2>
-		<div class="swatches" role="radiogroup" aria-labelledby="palette">
-			<button role="radio" aria-checked={myTheme === undefined} onclick={() => setTheme(undefined)}>
-				<span class="swatch" style:background={houseTheme?.swatch}></span>
-				Same as the house
-			</button>
-			{#each PALETTES as p (p.id)}
-				<button role="radio" aria-checked={myTheme === p.id} onclick={() => setTheme(p.id)}>
-					<span class="swatch" style:background={p.swatch}></span>
-					{p.name}
+		{#if personal.loaded && household.loaded && !personal.missing}
+			<div class="swatches" role="radiogroup" aria-labelledby="palette">
+				<button
+					role="radio"
+					aria-checked={myTheme === undefined}
+					onclick={() => setTheme(undefined)}
+				>
+					<span class="swatch" style:background={houseTheme?.swatch}></span>
+					Same as the house
 				</button>
-			{/each}
-		</div>
+				{#each PALETTES as p (p.id)}
+					<button role="radio" aria-checked={myTheme === p.id} onclick={() => setTheme(p.id)}>
+						<span class="swatch" style:background={p.swatch}></span>
+						{p.name}
+					</button>
+				{/each}
+			</div>
+		{:else}
+			<p class="note">Loading your theme…</p>
+		{/if}
 	</section>
 
 	<section>

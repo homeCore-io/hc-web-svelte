@@ -22,6 +22,7 @@
 -->
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { moveInRadios } from '#lib/menuKeys.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import LayoutGrid from '@lucide/svelte/icons/layout-grid';
@@ -443,6 +444,16 @@
 		url.searchParams.delete('customize');
 		void goto(url.pathname + url.search, { replace: true, reset: false });
 	}
+
+	// Arriving puts the keyboard on the heading, so the next Tab goes into Customize.
+	let title = $state<HTMLElement>();
+	$effect(() => {
+		void tick().then(() => title?.focus({ preventScroll: true }));
+	});
+	// Escape with nothing open over Customize, and not while typing, is Done.
+	const over = (e: KeyboardEvent) =>
+		(e.target as Element).closest?.('input, textarea, select') ||
+		document.querySelector('dialog[open], .placer, [role="menu"], .menu[role="dialog"]');
 </script>
 
 <svelte:window
@@ -450,6 +461,9 @@
 		if (e.key === 'Escape' && picking) {
 			e.preventDefault();
 			closePicker();
+		} else if (e.key === 'Escape' && !e.defaultPrevented && !choosingPhoto && !over(e)) {
+			e.preventDefault();
+			done();
 		}
 	}}
 />
@@ -461,12 +475,20 @@
 	pick: (id: string) => void,
 	off = false
 )}
-	<div class="seg" style:--n={options.length} role="radiogroup" aria-label={label}>
-		{#each options as o (o.id)}
+	<div
+		class="seg"
+		style:--n={options.length}
+		role="radiogroup"
+		aria-label={label}
+		tabindex="-1"
+		onkeydown={moveInRadios}
+	>
+		{#each options as o, i (o.id)}
 			<button
 				type="button"
 				role="radio"
 				aria-checked={current === o.id}
+				tabindex={current === o.id || (i === 0 && !options.some((x) => x.id === current)) ? 0 : -1}
 				disabled={off}
 				onclick={() => pick(o.id)}>{o.name}</button
 			>
@@ -500,7 +522,7 @@
 	<header class="czbar">
 		<LayoutGrid size={18} strokeWidth={2} aria-hidden="true" />
 		<div class="czh">
-			<h1>Customizing the {name}</h1>
+			<h1 tabindex="-1" bind:this={title}>Customizing the {name}</h1>
 			<p>
 				{#if !forAll}<Avatar
 						person={session.me?.id}
@@ -793,12 +815,24 @@
 
 			<div class="sec">
 				<p class="sh">ROOM PICTURE <span class="scope">everyone</span></p>
-				<div class="seg" style:--n={3} role="radiogroup" aria-label="Room picture">
+				<div
+					class="seg"
+					style:--n={3}
+					role="radiogroup"
+					aria-label="Room picture"
+					tabindex="-1"
+					onkeydown={moveInRadios}
+				>
 					{#each PICTURE_CHOICES as o (o.id)}
 						<button
 							type="button"
 							role="radio"
 							aria-checked={view.picture === o.id}
+							tabindex={view.picture === o.id ||
+							(o.id === PICTURE_CHOICES[0]!.id &&
+								!PICTURE_CHOICES.some((x) => x.id === view.picture))
+								? 0
+								: -1}
 							disabled={!forAll}
 							onclick={() => pickPicture(o.id)}>{o.name}</button
 						>

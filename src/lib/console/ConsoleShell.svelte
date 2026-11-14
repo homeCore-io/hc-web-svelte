@@ -201,7 +201,7 @@
 			onclick={() => (finder.open = true)}
 		>
 			<Search size={14} strokeWidth={2} aria-hidden="true" />
-			<span class="words">Search devices, scenes, rooms</span>
+			<span class="words">Search devices, rooms, scenes</span>
 			<kbd aria-hidden="true">Ctrl K</kbd>
 		</button>
 		<a

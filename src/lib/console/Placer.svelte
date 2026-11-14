@@ -92,12 +92,19 @@
 		const to = e.relatedTarget as Node | null;
 		if (to && !box?.contains(to) && !p.open?.from.contains(to)) p.close();
 	}
+	// Focus that left for the browser's own bar, then came back elsewhere on
+	// the page, never passed through it: closing waits for where it lands.
+	function landed(e: FocusEvent) {
+		const t = e.target as Node;
+		if (p.open && !box?.contains(t) && !p.open.from.contains(t)) p.close();
+	}
 </script>
 
 <svelte:window
 	bind:innerWidth={vw}
 	bind:innerHeight={vh}
 	onpointerdown={away}
+	onfocusin={landed}
 	onkeydown={(e) => {
 		if (e.key === 'Escape' && p.open) {
 			e.preventDefault();

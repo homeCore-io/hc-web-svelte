@@ -154,6 +154,14 @@
 		if (menuBox?.contains(t) || opener?.contains(t)) return;
 		closeMenu();
 	}
+	// The keyboard leaving a menu (Tab past its end, or back into the page from
+	// the browser's own bar) closes it, as a click elsewhere does.
+	function focusElsewhere(e: FocusEvent) {
+		if (menu === null) return;
+		const t = e.target as Node;
+		if (menuBox?.contains(t) || opener?.contains(t)) return;
+		closeMenu();
+	}
 	afterNavigate(() => {
 		if (menu !== null) closeMenu();
 	});
@@ -169,7 +177,7 @@
 	const me = $derived(session.me?.username ?? '');
 </script>
 
-<svelte:window onkeydown={keys} onpointerdown={outside} />
+<svelte:window onkeydown={keys} onpointerdown={outside} onfocusin={focusElsewhere} />
 
 <div class="console" class:folded class:customizing>
 	<a class="skip" href="#main" onclick={(e) => focusMain(e)}>Skip to content</a>

@@ -41,6 +41,7 @@
 	import CamPhone from './CamPhone.svelte';
 	import { provideStacked } from './phone.svelte.js';
 	import { household } from '#lib/household.svelte.js';
+	import { heading } from '#lib/heading.svelte.js';
 
 	let { id }: { id: string } = $props();
 
@@ -64,6 +65,8 @@
 	const placedOut = $derived(!!placing.open && !placing.open.from.closest('dialog'));
 
 	$effect(() => camEvents.follow(r.roomCams));
+	// The shell draws this page in place of the route's, so the browser tab's title comes from here.
+	$effect(() => heading.show(r.room?.name ?? null));
 	// On the Cameras tab, a switch or timer the household put there, as with the switches.
 	const camSwitches = $derived.by(() => {
 		const owned = new Set(

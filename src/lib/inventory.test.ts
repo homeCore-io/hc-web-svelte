@@ -54,6 +54,8 @@ describe('the device list', () => {
 
 	it('names plugins and kinds as a person would', () => {
 		expect(pluginLabel('plugin.zwave')).toBe('Z-Wave');
+		expect(pluginLabel('plugin.nuheat')).toBe('NuHeat');
+		expect(pluginLabel('sbx.standin')).toBe('Stand-in');
 		expect(pluginLabel('core.mode')).toBe('homeCore modes');
 		expect(pluginLabel('core.glue')).toBe('homeCore helpers');
 		expect(pluginLabel('plugin.new_thing')).toBe('New thing');

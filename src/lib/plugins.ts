@@ -428,7 +428,7 @@ export function runAfter(run: Run, e: StreamEvent, key = 'id'): Run {
 				)
 			};
 		case 'canceled':
-			return { ...run, state: 'canceled', prompt: undefined, lines: line('Cancelled.') };
+			return { ...run, state: 'canceled', prompt: undefined, lines: line('Canceled.') };
 		case 'timeout':
 			return {
 				...run,

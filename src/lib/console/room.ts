@@ -30,6 +30,7 @@ import type { Room } from '../house.js';
 import { isHelper } from '../helpers.js';
 import { isLamp, lightLevel } from '../lights.js';
 import { slugOf } from '../summary.js';
+import { knownPluginName } from '../inventory.js';
 
 export type TabId =
 	| 'doors'
@@ -295,19 +296,17 @@ const nameOf = (d: CoreDevice) => d.name_override ?? d.name;
 const byName = (a: CoreDevice, b: CoreDevice) =>
 	nameOf(a).localeCompare(nameOf(b), undefined, { numeric: true });
 
-/** Brands spelled their own way. */
+/** Brands spelled their own way, beyond the plugins Settings names (`knownPluginName`). */
 const BRANDS: Record<string, string> = {
-	yolink: 'YoLink',
-	nuheat: 'NuHeat',
-	zwave: 'Z-Wave',
 	glue: 'homeCore'
 };
 
-/** "plugin.hue" → "Hue"; "sbx.standin" → "Standin"; "plugin.yolink" → "YoLink". */
+/** "plugin.hue" → "Hue"; "sbx.standin" → "Stand-in"; "plugin.yolink" → "YoLink", as Settings says them. */
 export function brandOf(plugin: string | undefined): string {
 	const last = (plugin ?? '').split('.').pop() ?? '';
 	if (last === '') return 'Other';
-	if (BRANDS[last]) return BRANDS[last];
+	const known = BRANDS[last] ?? knownPluginName(last);
+	if (known) return known;
 	return last.charAt(0).toUpperCase() + last.slice(1);
 }
 

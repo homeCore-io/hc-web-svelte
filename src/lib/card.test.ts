@@ -5,9 +5,12 @@ import {
 	judgeBatteriesBy,
 	momentText,
 	reading,
+	seconds,
 	textReading,
+	timerWord,
 	type CardView
 } from './card.js';
+import { hhmmOf } from './when.js';
 import { followUnits } from './units.js';
 import { HOUSE, FIXTURE_NOW } from './fixtures/house.js';
 import type { CoreDevice, Schema } from './devices.js';
@@ -329,5 +332,21 @@ describe('a reading sent as text', () => {
 		expect(textReading('reolink_nvr_1_hd')).toBe('reolink_nvr_1_hd');
 		expect(textReading('rtsp://cam.local/main')).toBe('rtsp://cam.local/main');
 		expect(textReading('HDMI1')).toBe('HDMI1');
+	});
+});
+
+describe('timers and times of day, said as people say them', () => {
+	it('capitalizes a timer state, in American spelling', () => {
+		expect(timerWord('idle')).toBe('Idle');
+		expect(timerWord('finished')).toBe('Finished');
+		expect(timerWord('cancelled')).toBe('Canceled');
+	});
+	it('says seconds as minutes and hours', () => {
+		expect(seconds(600)).toBe('10 min');
+		expect(seconds(90)).toBe('1 min 30 s');
+		expect(seconds(5400)).toBe('1 h 30 min');
+	});
+	it('says a time of day in the person’s clock', () => {
+		expect(textReading('16:56')).toBe(hhmmOf('16:56'));
 	});
 });

@@ -41,19 +41,24 @@ const PLUGIN_NAMES: Record<string, string> = {
 	wled: 'WLED',
 	matter: 'Matter',
 	isy: 'ISY',
-	thermostat: 'Thermostat'
+	thermostat: 'Thermostat',
+	nuheat: 'NuHeat',
+	mysa: 'Mysa',
+	reolink: 'Reolink',
+	standin: 'Stand-in'
 };
 
 /** The house's own spelling of a plugin it knows ("WLED", not "Wled"). */
 export const knownPluginName = (id: string): string | undefined =>
-	PLUGIN_NAMES[id.replace(/^plugin\./, '')];
+	PLUGIN_NAMES[id.split('.').pop() ?? id];
 
 /** "plugin.zwave" → "Z-Wave"; homeCore's own (core.*) → "homeCore". */
 export function pluginLabel(id: string | undefined): string {
 	if (!id) return 'Unknown';
 	if (id === 'core.mode') return 'homeCore modes';
 	if (id.startsWith('core.')) return 'homeCore helpers';
-	const bare = id.replace(/^plugin\./, '');
+	// The last part names it: "sbx.standin" is the stand-in plugin.
+	const bare = id.split('.').pop() ?? id;
 	return PLUGIN_NAMES[bare] ?? bare.replace(/[_-]/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 }
 

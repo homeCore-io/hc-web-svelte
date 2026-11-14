@@ -464,5 +464,7 @@ describe('a light’s level', () => {
 		expect(brandOf('plugin.hue')).toBe('Hue');
 		expect(brandOf(undefined)).toBe('Other');
 		expect(brandOf('plugin.yolink')).toBe('YoLink');
+		expect(brandOf('plugin.nuheat')).toBe('NuHeat');
+		expect(brandOf('sbx.standin')).toBe('Stand-in');
 	});
 });

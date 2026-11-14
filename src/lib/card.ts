@@ -12,7 +12,7 @@
 import { remaining } from './helpers.js';
 import { isTemperature, numberText, readingUnit, shown, shownRange, toShown } from './units.js';
 import { displayName, type AttributeSchema, type CoreDevice, type Schema } from './devices.js';
-import { momentOf } from './when.js';
+import { hhmmOf, momentOf } from './when.js';
 import { targetWords, thermostatOf } from './thermostat.js';
 
 export type IconName =
@@ -390,7 +390,7 @@ function describe(
 					? `Running · ${clock(left)} left`
 					: state === 'paused'
 						? `Paused · ${clock(left)} left`
-						: words(state);
+						: timerWord(state);
 			// homeCore's own timers take commands rather than declaring actions.
 			if (d.plugin_id === 'core.glue') {
 				// Its own length (`default_secs`, core 0.1.84); `duration_secs` is
@@ -799,10 +799,27 @@ export function reading(a: Record<string, unknown>, s: Schema, name: string): st
 		if (name === 'temperature' || name.endsWith('_temperature') || isTemperature(r.unit))
 			return `${n}°${unitLetter(r.unit)}`;
 		if (r.unit === '%') return `${Math.round(r.value)}%`;
+		if (r.unit === 's' && Number.isInteger(r.value)) return seconds(Math.max(0, r.value));
 		return r.unit ? `${n} ${r.unit}` : n;
 	}
 	if (typeof value === 'string') return textReading(value);
 	return undefined;
+}
+
+/**
+ * Whole seconds as a person says them: 7200 → "2 h", 90 → "1 min 30 s".
+ * The rules' own `duration` says the same; a device's page doesn't load their code.
+ */
+export function seconds(s: number): string {
+	if (s < 60) return `${s} s`;
+	if (s < 3600) return s % 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s / 60} min`;
+	const m = Math.round((s % 3600) / 60);
+	return `${Math.floor(s / 3600)} h${m ? ` ${m} min` : ''}`;
+}
+
+/** A timer's state, as a word: Idle, Finished, Canceled. */
+export function timerWord(state: string): string {
+	return state === 'cancelled' ? 'Canceled' : cap(words(state));
 }
 
 /**
@@ -819,6 +836,8 @@ export function textReading(value: string): string {
 		const t = new Date(y!, mo! - 1, d!, h!, mi!, s || 0).getTime();
 		if (Number.isFinite(t)) return momentText(t);
 	}
+	// A time of day (a mode's "16:56"), in the person's clock.
+	if (/^([01]?\d|2[0-3]):[0-5]\d$/.test(value.trim())) return hhmmOf(value.trim());
 	return /^[A-Za-z][A-Za-z _-]*$/.test(value) ? cap(words(uncamel(value))) : value;
 }
 

@@ -20,17 +20,6 @@ export interface Reading {
 const EMPTY: Schema = { attributes: {} };
 
 /**
- * Whole seconds as a person says them: 7200 → "2 h", 90 → "1 min 30 s".
- * The rules' own `duration` says the same; this page doesn't load their code.
- */
-function seconds(s: number): string {
-	if (s < 60) return `${s} s`;
-	if (s < 3600) return s % 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s / 60} min`;
-	const m = Math.round((s % 3600) / 60);
-	return `${Math.floor(s / 3600)} h${m ? ` ${m} min` : ''}`;
-}
-
-/**
  * A yes or no whose name is one of its own states: "Switch online" says
  * "Switch online" when it is, and "No current reading" says "Reading" when it
  * isn't, which reads as the label echoed or contradicted. Said as Yes or No.
@@ -70,9 +59,6 @@ export function readingsOf(
 			const value =
 				said?.value ??
 				answerOf(raw, label, spec) ??
-				(spec?.unit === 's' && typeof raw === 'number' && Number.isInteger(raw)
-					? seconds(Math.max(0, raw))
-					: undefined) ??
 				reading(d.attributes, schema, attr) ??
 				(raw === null || raw === undefined ? '—' : JSON.stringify(raw));
 			return {

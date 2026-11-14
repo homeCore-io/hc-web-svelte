@@ -98,17 +98,48 @@ export function sourced(
 	return mean(from.flatMap((d) => readingOf(d, attr) ?? []));
 }
 
-/** The house's own weather station, else a weather plugin's place: what reads outside. */
-export function outdoorStation(all: Devices): CoreDevice | undefined {
+/** A reading outside older than this is no longer the weather: an hour. */
+export const OUTSIDE_FRESH_MS = 3600_000;
+
+/**
+ * When a device last reported `attr`: its last report, or the reading's last
+ * change, whichever is later; undefined when it doesn't say.
+ */
+function reportedAt(d: CoreDevice, attr: string): number | undefined {
+	const at = [d.last_seen, d.attributes_changed_at?.[attr]]
+		.map((t) => (t ? Date.parse(t) : NaN))
+		.filter((t) => Number.isFinite(t));
+	return at.length > 0 ? Math.max(...at) : undefined;
+}
+
+/**
+ * The house's own weather station, else a weather plugin's place: what reads
+ * outside. Given `now` (ms), one that hasn't reported its temperature in
+ * the last hour isn't, so Home never shows a days-old temperature as today's.
+ */
+export function outdoorStation(all: Devices, now?: number): CoreDevice | undefined {
+	const fresh = (d: CoreDevice) => {
+		const at = now === undefined ? undefined : reportedAt(d, 'temperature');
+		return at === undefined || now! - at <= OUTSIDE_FRESH_MS;
+	};
 	const outdoors = (kind: string) =>
-		Object.values(all).find((d) => kindOf(d) === kind && readingOf(d, 'temperature') !== undefined);
+		Object.values(all).find(
+			(d) => kindOf(d) === kind && readingOf(d, 'temperature') !== undefined && fresh(d)
+		);
 	return outdoors('weather_station') ?? outdoors('weather');
 }
 
-/** The temperature outside, in the person's units: from `source`, or (`auto`) the station's. */
-export function outsideTemperature(all: Devices, source: Source = 'auto'): number | undefined {
+/**
+ * The temperature outside, in the person's units: from `source`, or
+ * (`auto`) the station's, one that reported in the last hour when `now` is given.
+ */
+export function outsideTemperature(
+	all: Devices,
+	source: Source = 'auto',
+	now?: number
+): number | undefined {
 	if (source !== 'auto') return sourced(source, 'temperature', all, []);
-	const station = outdoorStation(all);
+	const station = outdoorStation(all, now);
 	return station ? readingOf(station, 'temperature') : undefined;
 }
 
@@ -484,6 +515,8 @@ export interface HouseIn {
 	/** Each room's name and devices, rooms only (not "No room"). */
 	rooms: { name: string; devices: CoreDevice[]; cards: CardView[] }[];
 	cards: CardView[];
+	/** Now (ms): outside, a station that hasn't reported in an hour is passed over. */
+	now?: number;
 }
 
 /** The big numbers, in the order chosen. A number with nothing to say reads "—". */
@@ -491,7 +524,7 @@ export function bigNumbers(h: HouseIn, o: Options): BigNumber[] {
 	const temps = h.rooms.flatMap((r) => sourced('auto', 'temperature', h.all, r.devices) ?? []);
 	const humids = h.rooms.flatMap((r) => sourced('auto', 'humidity', h.all, r.devices) ?? []);
 	// Outside: the house's own station, measured; else a weather plugin's place.
-	const station = outdoorStation(h.all);
+	const station = outdoorStation(h.all, h.now);
 	const inside = sourceOf(o.inside);
 	const outside = sourceOf(o.outside);
 	const humid = sourceOf(o.humid);
@@ -518,13 +551,19 @@ export function bigNumbers(h: HouseIn, o: Options): BigNumber[] {
 			};
 		},
 		outside: () => {
-			const v = outsideTemperature(h.all, outside);
+			const v = outsideTemperature(h.all, outside, h.now);
 			const hum =
 				outside === 'auto' && station ? percent(readingOf(station, 'humidity')) : undefined;
 			return {
 				value: v === undefined ? '—' : String(Math.round(v)),
 				unit: v === undefined ? undefined : shownUnit('°C'),
-				sub: chosen(outside) ?? (station ? (hum ?? displayName(station)) : 'no weather station')
+				sub:
+					chosen(outside) ??
+					(station
+						? (hum ?? displayName(station))
+						: outdoorStation(h.all)
+							? 'no recent reading'
+							: 'no weather station')
 			};
 		},
 		lights: () => {

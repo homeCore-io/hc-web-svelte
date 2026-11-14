@@ -43,7 +43,7 @@
 		})
 	);
 	// Under the day, when the house can tell: "Sunday, November 8 · 56° outside".
-	const outside = $derived(degrees(outsideTemperature(devices.byId)));
+	const outside = $derived(degrees(outsideTemperature(devices.byId, 'auto', clock.now)));
 	const line = $derived(outside ? `${day} · ${outside} outside` : day);
 </script>
 

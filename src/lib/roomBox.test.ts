@@ -16,6 +16,7 @@ import {
 	bigNumbers,
 	fieldPlan,
 	fieldText,
+	outdoorStation,
 	outsideTemperature,
 	readingOf,
 	roomBox,
@@ -415,5 +416,27 @@ describe('the temperature outside', () => {
 		expect(outsideTemperature({ ...all, ws: station })).toBe(13);
 		expect(outsideTemperature(all)).toBeUndefined();
 		expect(outsideTemperature({ ...all, ws: station }, ['far'])).toBe(30);
+	});
+
+	it('passes over a station that hasn’t reported in an hour', () => {
+		const at = (iso: string) => ({ ...station, last_seen: iso });
+		const now = Date.parse('2026-11-13T12:00:00Z');
+		const fresh = at('2026-11-13T11:15:00Z');
+		const old = at('2026-10-31T16:08:05Z');
+		expect(outsideTemperature({ ws: fresh }, 'auto', now)).toBe(13);
+		expect(outsideTemperature({ ws: old }, 'auto', now)).toBeUndefined();
+		expect(outdoorStation({ ws: old }, now)).toBeUndefined();
+		// Without a time, or with a station that doesn't say when, it's the station's.
+		expect(outsideTemperature({ ws: old })).toBe(13);
+		expect(outsideTemperature({ ws: station }, 'auto', now)).toBe(13);
+		// A reading that changed lately counts, though the last report was long ago.
+		const changed = { ...old, attributes_changed_at: { temperature: '2026-11-13T11:30:00Z' } };
+		expect(outsideTemperature({ ws: changed }, 'auto', now)).toBe(13);
+		// Home's big number says why there's none.
+		const n = bigNumbers({ all: { ws: old }, rooms: [], cards: [], now }, SUMMARY_BUILT_IN);
+		expect(n.find((x) => x.id === 'outside')).toMatchObject({
+			value: '—',
+			sub: 'no recent reading'
+		});
 	});
 });

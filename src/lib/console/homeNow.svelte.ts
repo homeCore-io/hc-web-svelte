@@ -69,8 +69,9 @@ export class HomeNow {
 	night = $derived(this.at.getHours() < 6 || this.at.getHours() >= 19);
 
 	// ---- the weather outside: the house's station, and a weather plugin's words ----
-	outside = $derived(degrees(outsideTemperature(devices.byId)));
-	station = $derived(outdoorStation(devices.byId));
+	// A station that hasn't reported in an hour isn't the weather now.
+	station = $derived(outdoorStation(devices.byId, clock.now));
+	outside = $derived(degrees(outsideTemperature(devices.byId, 'auto', clock.now)));
 	humidity = $derived(this.station ? percent(readingOf(this.station, 'humidity')) : undefined);
 	#forecast = $derived(
 		Object.values(devices.byId).find(

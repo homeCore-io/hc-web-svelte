@@ -27,7 +27,8 @@
 					const list = grouped.get(r.id) ?? [];
 					return { name: r.name, devices: list, cards: list.map((d) => cardFor(d, now)) };
 				}),
-				cards: all.map((d) => cardFor(d, now))
+				cards: all.map((d) => cardFor(d, now)),
+				now
 			},
 			options ?? kindOptions.of(page, 'summary', card.ref, SUMMARY_BUILT_IN)
 		);

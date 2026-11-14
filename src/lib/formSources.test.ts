@@ -21,7 +21,7 @@ test('a source as options, by name and room', () => {
 			all,
 			rooms
 		)
-	).toEqual([{ value: 'zz_air', label: 'Den Air — Den' }]);
+	).toEqual([{ value: 'zz_air', label: 'Den Air · Den' }]);
 	expect(sourceOptions({ kind: 'core_resource', ref: 'areas' }, all, rooms)).toEqual([
 		{ value: 'den', label: 'Den' }
 	]);

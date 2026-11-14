@@ -204,7 +204,7 @@
 		} else
 			levelNote =
 				keep && !bare
-					? 'Set until homeCore restarts — it doesn’t say one level for everything, so it can’t be kept.'
+					? 'Set until homeCore restarts. It doesn’t say one level for everything, so it can’t be kept.'
 					: 'Set until homeCore restarts.';
 	}
 	const pick = (p: Preset) => choose(directiveOf(p), PRESETS.find((x) => x.id === p)!.level);
@@ -252,7 +252,7 @@
 		)
 			return;
 		fwNote = (await commands.act(d.device_id, 'install_firmware', { version: v }))
-			? `Installing ${v} on ${displayName(d)} — its alert says when it's done.`
+			? `Installing ${v} on ${displayName(d)}. Its alert says when it's done.`
 			: "It couldn't be asked.";
 	}
 	async function skipFirmware(d: CoreDevice) {
@@ -406,7 +406,7 @@
 			<section class="card connected">
 				<h2>Connected now</h2>
 				<p class="sub">
-					Screens following the house live — each tab of the app, each display — and anyone reading
+					Screens following the house live (each tab of the app, each display) and anyone reading
 					the log.
 				</p>
 				{#if connections.length === 0}<p class="sub">Nobody.</p>{/if}
@@ -441,11 +441,11 @@
 		{#if coreNew || appNew}
 			<p class="banner info" role="status">
 				{#if coreNew}<span
-						>homeCore <strong class="mono">{coreNew.version}</strong> is out —
+						>homeCore <strong class="mono">{coreNew.version}</strong> is out:
 						<a href={coreNew.url} target="_blank" rel="noreferrer">what’s new</a>.</span
 					>{/if}
 				{#if appNew}<span
-						>This app <strong class="mono">{appNew.version}</strong> is out —
+						>This app <strong class="mono">{appNew.version}</strong> is out:
 						<a href={appNew.url} target="_blank" rel="noreferrer">what’s new</a>.</span
 					>{/if}
 				<span class="sub">Updating is done where homeCore runs, not from here.</span>

@@ -378,7 +378,7 @@
 		<section>
 			<h2 class="section-label" id="keys">API keys</h2>
 			<p class="note">
-				Keys let a program — a script, another app — use homeCore as you, with no more than you may. <a
+				Keys let a program (a script, another app) use homeCore as you, with no more than you may. <a
 					href="/settings/people/keys">Your keys</a
 				>
 			</p>

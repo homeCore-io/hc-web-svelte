@@ -85,7 +85,7 @@
 
 		<section>
 			<h2 class="section-label">For one device</h2>
-			<p class="quiet">Wins over its kind — always ask before unlocking the front door, say.</p>
+			<p class="quiet">Wins over its kind: always ask before unlocking the front door, say.</p>
 			{#if overridden.length > 0}
 				<ul>
 					{#each overridden as d (d.device_id)}

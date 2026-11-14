@@ -292,7 +292,7 @@
 					{:else if steps}
 						{@const list = stepsOf(st)}
 						<p class="quiet">
-							Each is sent when the one before has gone — for a speaker to join a group before it
+							Each is sent when the one before has gone, for a speaker to join a group before it
 							plays, say.
 						</p>
 						<ol class="steps">

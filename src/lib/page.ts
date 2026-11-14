@@ -339,7 +339,7 @@ export function homePage(h: HomeInput): Page {
 				cards: edit ? [] : h.favourites.flatMap((r) => cardOf(r, h) ?? []),
 				hint: edit
 					? 'Each person’s favorites show here.'
-					: 'Star anything — here or in a room — and it appears in Favorites at the top of Home.'
+					: 'Star anything, here or in a room, and it appears in Favorites at the top of Home.'
 			},
 			// Beside the rooms in the room field (mockup A); not drawn in other styles.
 			{

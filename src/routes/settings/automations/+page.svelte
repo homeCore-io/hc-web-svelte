@@ -446,7 +446,7 @@
 		if (n > 0) {
 			const yes = await ask({
 				title: `Add ${n === 1 ? 'one rule' : `${n} rules`} from ${f.name}?`,
-				body: 'Each is added as a new rule, as it is in the file — on or off. Rules already here that are the same aren’t replaced: you’ll have both.',
+				body: 'Each is added as a new rule, as it is in the file, on or off. Rules already here that are the same aren’t replaced: you’ll have both.',
 				go: 'Add'
 			});
 			if (!yes) return;
@@ -674,8 +674,8 @@
 				</header>
 				{#if groups.length === 0 && editing !== 'new'}
 					<p class="quiet">
-						A set is rules you turn on and off together — for when you’re away, say. Select rules
-						and make one, or make it empty and add rules later.
+						A set is rules you turn on and off together, for when you’re away, say. Select rules and
+						make one, or make it empty and add rules later.
 					</p>
 				{/if}
 				{#each groups as g (g.id)}

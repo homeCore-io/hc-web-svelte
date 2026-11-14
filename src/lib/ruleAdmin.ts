@@ -165,11 +165,11 @@ export async function importRules(text: string): Promise<Imported> {
 	try {
 		list = JSON.parse(text);
 	} catch {
-		return { imported: 0, error: 'That file isn’t rules — it isn’t JSON.' };
+		return { imported: 0, error: 'That file isn’t rules. It isn’t JSON.' };
 	}
 	if (!Array.isArray(list)) list = [list];
 	if (!(list as unknown[]).every((r) => r && typeof r === 'object' && 'trigger' in (r as object)))
-		return { imported: 0, error: 'That file isn’t rules — they each need a trigger.' };
+		return { imported: 0, error: 'That file isn’t rules. They each need a trigger.' };
 	// homeCore gives every imported rule a new id but won't read one without.
 	const rules = (list as Record<string, unknown>[]).map((r) => ({
 		...r,

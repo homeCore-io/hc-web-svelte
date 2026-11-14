@@ -128,7 +128,7 @@ export class Synced<D extends { version: number }> {
 				body: JSON.stringify(next)
 			});
 		} catch {
-			this.trouble = "Couldn't save — this change is only on this screen for now.";
+			this.trouble = "Couldn't save. This change is only on this screen for now.";
 			return 'failed';
 		}
 		if (res.status === 409 && tries < 3) {
@@ -137,11 +137,11 @@ export class Synced<D extends { version: number }> {
 			return this.#save(edit, tries + 1);
 		}
 		if (res.status === 403) {
-			this.trouble = "You can't change this — ask an admin.";
+			this.trouble = "You can't change this. Ask an admin.";
 			return 'refused';
 		}
 		if (!res.ok) {
-			this.trouble = "Couldn't save — this change is only on this screen for now.";
+			this.trouble = "Couldn't save. This change is only on this screen for now.";
 			return 'failed';
 		}
 		this.trouble = null;

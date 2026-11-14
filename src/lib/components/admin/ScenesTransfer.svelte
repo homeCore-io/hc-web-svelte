@@ -69,7 +69,7 @@
 			<label class="pick"
 				><input type="checkbox" bind:checked={x.take} />
 				{x.scene.name}{#if x.here}<span class="sub">
-						— one by this name is here already</span
+						(one by this name is here already)</span
 					>{/if}</label
 			>
 		{/each}

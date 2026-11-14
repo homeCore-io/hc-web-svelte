@@ -202,7 +202,7 @@
 		const at = timeOf(Date.now());
 		tested = err
 			? { ok: false, text: err }
-			: { ok: true, text: `A test went to ${current.name} at ${at} — check that it arrived.` };
+			: { ok: true, text: `A test went to ${current.name} at ${at}. Check that it arrived.` };
 	}
 	// Every channel at once, from the list.
 	let testedAll = $state<{ ok: boolean; text: string } | null>(null);
@@ -214,14 +214,14 @@
 		const at = timeOf(Date.now());
 		testedAll = err
 			? { ok: false, text: err }
-			: { ok: true, text: `A test went to every channel at ${at} — check that each arrived.` };
+			: { ok: true, text: `A test went to every channel at ${at}. Check that each arrived.` };
 	}
 
 	async function restartNow() {
 		const yes = await ask({
 			title: 'Restart homeCore?',
 			lost: [
-				'Every screen in the house disconnects until it is back — usually under a minute.',
+				'Every screen in the house disconnects until it is back, usually under a minute.',
 				'Plugins restart and reconnect to their devices.',
 				'Automations don’t run while it is down.'
 			],
@@ -314,7 +314,7 @@
 				<section class="card">
 					<h2>{current?.name}</h2>
 					<p class="quiet">
-						A “{type}” channel — not one this app knows how to edit. Change it in homecore.toml.
+						A “{type}” channel this app doesn’t know how to edit. Change it in homecore.toml.
 					</p>
 				</section>
 			{:else if type !== undefined}

@@ -189,7 +189,7 @@ describe('the whole rule', () => {
 		expect(problemsOf(blankRule(''), has)).toEqual([
 			'It needs a name.',
 			'A part still needs its device chosen.',
-			'It doesn’t do anything yet — add a step.'
+			'It doesn’t do anything yet. Add a step.'
 		]);
 		const ok = {
 			...blankRule('Lamp'),
@@ -456,7 +456,7 @@ describe('times, and buttons by name', () => {
 		};
 		expect(buttonsOf(keypad).find((b) => b.value === '1')).toEqual({
 			value: '1',
-			label: '1 — Lights'
+			label: '1: Lights'
 		});
 		expect(buttonsOf(keypad).map((b) => b.value)).toContain('3');
 		const lists: Lists = {
@@ -487,7 +487,7 @@ describe('a webhook', () => {
 	test('a name homeCore wouldn’t match, or the app wouldn’t pass on, is said so', () => {
 		expect(webhookProblem('')).toBe('It needs a name.');
 		expect(webhookProblem('/garage-door-opener')).toMatch(/Leave out the “\/”/);
-		expect(webhookProblem('garage door')).toMatch(/no spaces/);
+		expect(webhookProblem('garage door')).toMatch(/No spaces/);
 		expect(webhookProblem('.hidden-name-here')).toMatch(/only/);
 		expect(webhookProblem('garage')).toMatch(/easy to guess/);
 	});
@@ -507,7 +507,7 @@ describe('a webhook', () => {
 				actions: [{ action: { Comment: { text: 'x' } } }]
 			}) as never;
 		expect(problemsOf(rule('/doorbell-ring-x'), () => true)).toEqual([
-			'A webhook’s name: Leave out the “/” — homeCore matches the name exactly.'
+			'A webhook’s name: Leave out the “/”. homeCore matches the name exactly.'
 		]);
 		expect(problemsOf(rule('doorbell'), () => true)).toEqual([]);
 	});

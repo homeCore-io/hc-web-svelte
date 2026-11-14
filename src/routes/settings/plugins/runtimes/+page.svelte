@@ -133,7 +133,7 @@
 												href={`/settings/plugins/${encodeURIComponent(p.plugin_id)}`}
 												>{pluginLabel(p.plugin_id)}</a
 											>
-											{p.version}{/each}{:else}Runs nothing yet — add a plugin written for it from
+											{p.version}{/each}{:else}Runs nothing yet. Add a plugin written for it from
 										<a href="/settings/plugins/add">the registry</a>.{/if}
 								</span>
 							{/if}

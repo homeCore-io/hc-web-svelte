@@ -250,8 +250,8 @@
 				...(fromPlugin
 					? [
 							core.since('0.1.82')
-								? `If ${pluginLabel(device.plugin_id)} still reports it, it stays out — Devices lists it under Deleted, to bring back.`
-								: `If ${pluginLabel(device.plugin_id)} still reports it, it comes back as a new device on the next report — remove it there first.`
+								? `If ${pluginLabel(device.plugin_id)} still reports it, it stays out: Devices lists it under Deleted, to bring back.`
+								: `If ${pluginLabel(device.plugin_id)} still reports it, it comes back as a new device on the next report. Remove it there first.`
 						]
 					: [])
 			],
@@ -396,7 +396,7 @@
 					{#if symbolNote}<p class="hint" role="status">{symbolNote}</p>{/if}
 					{#if buttons.length}
 						<p class="hint">
-							Its buttons, by number — a name here wins over what the bridge calls it.
+							Its buttons, by number. A name here wins over what the bridge calls it.
 						</p>
 						{#each buttons as b (b)}
 							<label class="row">
@@ -560,7 +560,7 @@
 					{#if fromPlugin && core.since('0.1.82')}If {pluginLabel(device.plugin_id)} still reports it,
 						it stays out: Devices lists it under Deleted, to bring back.{:else if fromPlugin}If {pluginLabel(
 							device.plugin_id
-						)} still reports it, it comes back on the next report — remove it there first.{/if}
+						)} still reports it, it comes back on the next report. Remove it there first.{/if}
 				</p>
 				<button type="button" class="danger" onclick={remove}>Delete…</button>
 			</section>

@@ -33,7 +33,7 @@ export const PROVIDERS: Record<Provider, { label: string; mark: string; fields: 
 				kind: 'secret',
 				key: 'user_key',
 				label: 'User key',
-				help: 'From your Pushover account — a user or a group.',
+				help: 'From your Pushover account: a user or a group.',
 				required: true,
 				secret: true
 			},
@@ -58,11 +58,11 @@ export const PROVIDERS: Record<Provider, { label: string; mark: string; fields: 
 				render: 'dropdown',
 				default: 0,
 				options: [
-					{ value: -2, label: 'Lowest — no alert' },
-					{ value: -1, label: 'Low — quiet' },
+					{ value: -2, label: 'Lowest (no alert)' },
+					{ value: -1, label: 'Low (quiet)' },
 					{ value: 0, label: 'Normal' },
-					{ value: 1, label: 'High — through quiet hours' },
-					{ value: 2, label: 'Emergency — repeats until acknowledged' }
+					{ value: 1, label: 'High (through quiet hours)' },
+					{ value: 2, label: 'Emergency (repeats until acknowledged)' }
 				]
 			},
 			// Pushover refuses an emergency without these (homeCore 0.1.84 sends them).
@@ -253,7 +253,7 @@ export async function sendTest(channel: string, message?: string): Promise<strin
 		const err = typeof body.error === 'string' ? body.error : `homeCore said no (${res.status}).`;
 		// homeCore builds its channels when it starts; a new one isn't there yet.
 		if (channel !== 'all' && (res.status === 503 || /not configured/i.test(err)))
-			return `homeCore doesn’t have “${channel}” running — it reads channels when it starts. Restart it, then test.`;
+			return `homeCore doesn’t have “${channel}” running. It reads channels when it starts. Restart it, then test.`;
 		return err;
 	} catch {
 		return 'homeCore is not answering.';

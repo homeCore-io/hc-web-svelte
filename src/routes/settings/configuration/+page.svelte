@@ -72,7 +72,7 @@
 	const plan = $derived(writes(form.changes));
 	const blocked = $derived(
 		plan.cannot.length > 0
-			? `${plan.cannot.map((c) => c.field.label ?? c.key).join(', ')} can’t be emptied here — remove ${plan.cannot.length === 1 ? 'it' : 'them'} in homecore.toml.`
+			? `${plan.cannot.map((c) => c.field.label ?? c.key).join(', ')} can’t be emptied here. Remove ${plan.cannot.length === 1 ? 'it' : 'them'} in homecore.toml.`
 			: form.blocked
 				? 'Fix the settings marked in red first.'
 				: null
@@ -124,7 +124,7 @@
 		const yes = await ask({
 			title: 'Restart homeCore?',
 			lost: [
-				'Every screen in the house disconnects until it is back — usually under a minute.',
+				'Every screen in the house disconnects until it is back, usually under a minute.',
 				'Plugins restart and reconnect to their devices.',
 				'Automations don’t run while it is down.'
 			],

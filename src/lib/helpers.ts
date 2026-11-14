@@ -63,7 +63,7 @@ const datetime = [
 const group = (devices: { value: string; label: string }[]): Field[] => [
 	f('member_ids', 'list', 'Members', { item: 'text', options: devices, required: true }),
 	f('attribute', 'text', 'Reading', {
-		help: 'What each member reports — on, open, motion.',
+		help: 'What each member reports: on, open, motion.',
 		default: 'on'
 	}),
 	f('mode', 'enum', 'On when', {
@@ -123,7 +123,7 @@ export function helperKinds(
 			type: 'switch',
 			label: 'Switch',
 			plural: 'Switches',
-			what: 'On or off, set by people or rules — Vacation, Guests.',
+			what: 'On or off, set by people or rules (Vacation, Guests).',
 			create: [],
 			edit: []
 		},
@@ -131,7 +131,7 @@ export function helperKinds(
 			type: 'timer',
 			label: 'Timer',
 			plural: 'Timers',
-			what: 'Counts down; rules act when it finishes — the bathroom fan.',
+			what: 'Counts down; rules act when it finishes (the bathroom fan).',
 			create: timer,
 			edit: timer
 		},
@@ -139,7 +139,7 @@ export function helperKinds(
 			type: 'counter',
 			label: 'Counter',
 			plural: 'Counters',
-			what: 'Counts up or down — how often the deck door opened.',
+			what: 'Counts up or down (how often the deck door opened).',
 			create: counter,
 			edit: counter
 		},
@@ -147,7 +147,7 @@ export function helperKinds(
 			type: 'number',
 			label: 'Number',
 			plural: 'Numbers',
-			what: 'A value people set within limits — target humidity.',
+			what: 'A value people set within limits (target humidity).',
 			create: [f('value', 'number', 'Starts at', { default: 0 }), ...number],
 			edit: number
 		},
@@ -155,7 +155,7 @@ export function helperKinds(
 			type: 'select',
 			label: 'Select',
 			plural: 'Selects',
-			what: 'One of a list — Home, Away, Vacation, Guest.',
+			what: 'One of a list: Home, Away, Vacation, Guest.',
 			create: select,
 			edit: select
 		},
@@ -179,7 +179,7 @@ export function helperKinds(
 			type: 'datetime',
 			label: 'Date & time',
 			plural: 'Dates & times',
-			what: 'A moment people set — the wake-up time.',
+			what: 'A moment people set (the wake-up time).',
 			create: datetime,
 			edit: datetime
 		},
@@ -187,7 +187,7 @@ export function helperKinds(
 			type: 'group',
 			label: 'Group',
 			plural: 'Groups',
-			what: 'Several devices as one — “a deck door is open” if any is.',
+			what: 'Several devices as one: “a deck door is open” if any is.',
 			create: group(devices),
 			edit: group(devices)
 		},
@@ -195,7 +195,7 @@ export function helperKinds(
 			type: 'threshold',
 			label: 'Threshold',
 			plural: 'Thresholds',
-			what: 'On while a reading is past a value — office humidity high.',
+			what: 'On while a reading is past a value (office humidity high).',
 			create: threshold(devices),
 			edit: threshold(devices)
 		},
@@ -203,7 +203,7 @@ export function helperKinds(
 			type: 'schedule',
 			label: 'Schedule',
 			plural: 'Schedules',
-			what: 'On during blocks of the week — weekdays 8 to 5.',
+			what: 'On during blocks of the week (weekdays 8 to 5).',
 			create: schedule,
 			// Before 0.1.82 homeCore couldn't change a schedule's blocks once made.
 			edit: scheduleEditable ? schedule : schedule.map((x) => ({ ...x, read_only: true }))

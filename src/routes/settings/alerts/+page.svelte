@@ -123,7 +123,7 @@
 			.sort((a, b) => displayName(a).localeCompare(displayName(b)))
 	);
 	const label = (d: (typeof all)[number]) =>
-		`${displayName(d)} — ${roomOf(d, rooms.list)?.name ?? 'no room'}`;
+		`${displayName(d)} · ${roomOf(d, rooms.list)?.name ?? 'no room'}`;
 	const nameOf = (id: string) => (devices.byId[id] ? displayName(devices.byId[id]) : id);
 
 	/** A rule's state, in the device's words. */
@@ -440,7 +440,7 @@
 	<div class="stack">
 		<p class="quiet">
 			Something wet, smoke, a device offline, a lock jammed or a battery low is always an alert.
-			Rules add the ones that depend on the time or a reading — a door open at night, a lock left
+			Rules add the ones that depend on the time or a reading: a door open at night, a lock left
 			open{newer ? `, a freezer warmer than ${readingText(-10, '°C').replace('-', '−')}` : ''}.
 		</p>
 
@@ -580,13 +580,13 @@
 						>
 					</div>
 					<label class="check"
-						><input type="checkbox" bind:checked={critical} /> Urgent — show it first, in red</label
+						><input type="checkbox" bind:checked={critical} /> Urgent: show it first, in red</label
 					>
 					{#if newer}
 						<label>
 							<span>Tell</span>
 							<select bind:value={notify}>
-								<option value="">No one — just show it</option>
+								<option value="">No one, just show it</option>
 								<option value="all">Every channel</option>
 								{#each channels as c (c)}<option value={c}>{c}</option>{/each}
 								{#if notify && notify !== 'all' && !channels.includes(notify)}<option value={notify}
@@ -646,7 +646,7 @@
 									class="do"
 									onclick={() =>
 										(doing = {
-											title: `${OWN[k].label} — homeCore’s own`,
+											title: `${OWN[k].label} (homeCore’s own)`,
 											scopes: scopesForKind(k, names),
 											tie: 'own',
 											href: `/settings/alerts#kind-${k}`
@@ -677,7 +677,7 @@
 												? 'Information'
 												: k.severity === 'error'
 													? 'Error'
-													: 'Warning'}{k.description ? ` — ${k.description}` : ''}</span
+													: 'Warning'}{k.description ? `: ${k.description}` : ''}</span
 										>
 									</span>
 									<label class="mini">
@@ -748,8 +748,8 @@
 					<h2 class="section-label">Ignored</h2>
 					{#if ignores.length === 0}
 						<p class="quiet">
-							Nothing. On Alerts, “Ignore…” stops showing an alert — just that one, every one like
-							it, or a device’s — for good or a while.
+							Nothing. On Alerts, “Ignore…” stops showing an alert (just that one, every one like
+							it, or a device’s) for good or a while.
 						</p>
 					{/if}
 					<ul>
@@ -760,7 +760,7 @@
 									<span class="name"
 										>{describeIgnore(i, nameOf, ruleNameOf, day, (p, t) =>
 											alertKinds.label(p, t)
-										)}{out ? ' — ran out' : ''}</span
+										)}{out ? ' (ran out)' : ''}</span
 									>
 									<span class="what"
 										>{[i.note, i.by ? `by ${i.by}` : '', i.created_at ? day(i.created_at) : '']

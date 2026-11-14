@@ -157,7 +157,7 @@ describe('making the automation', () => {
 		const [one] = scopesForAlert(alert({}), names);
 		const s = startOf(one!, 'raised', 10, 'own', placeOf(alert({})));
 		expect(s.name).toBe('When Dishwasher Leak Sensor is wet');
-		expect(s.banner).toBe('wet — Dishwasher Leak Sensor');
+		expect(s.banner).toBe('wet · Dishwasher Leak Sensor');
 		expect(s.href).toBe('/settings/alerts#kind-wet');
 		expect(startOf(one!, 'still', 10, 'own', '').name).toBe(
 			'When the wet alert for Dishwasher Leak Sensor is still on after 10 min'

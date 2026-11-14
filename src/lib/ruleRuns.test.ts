@@ -50,11 +50,11 @@ test('a skipped run says which check said no, and what it found', () => {
 	const run = runOf(h, rule('r-music-am'), skipped);
 	expect(run.outcome).toBe('Skipped');
 	expect(plain(run.summary)).toBe(
-		'Porch Door closed (was open) — a check said no: it’s between 06:00 and 12:00'
+		'Porch Door closed (was open), but a check said no: it’s between 06:00 and 12:00'
 	);
 	expect(run.lines.map((l) => [l.label, plain(l.words), l.mark])).toEqual([
 		['When', 'Porch Door closed (was open)', ''],
-		['Check', 'it’s between 06:00 and 12:00', 'no — it was 05:04'],
+		['Check', 'it’s between 06:00 and 12:00', 'no, it was 05:04'],
 		['', 'Nothing done.', '']
 	]);
 });
@@ -93,7 +93,7 @@ test('a moment with no device reads as the rule says it', () => {
 		outcome: { type: 'cooldown', remaining_secs: 40 },
 		conditions: []
 	});
-	expect(plain(run.summary)).toBe('homeCore starts — resting after its last run (40 s left).');
+	expect(plain(run.summary)).toBe('homeCore starts: resting after its last run (40 s left).');
 });
 
 test('a test against the house as it is now', () => {
@@ -102,8 +102,8 @@ test('a test against the house as it is now', () => {
 		would_fire: false,
 		conditions: [{ passed: false, actual: '20:14:08.08' }]
 	});
-	expect(no.headline).toBe('It wouldn’t run now — a check says no.');
-	expect(no.lines.map((l) => l.mark)).toEqual(['no — it’s 20:14']);
+	expect(no.headline).toBe('It wouldn’t run now: a check says no.');
+	expect(no.lines.map((l) => l.mark)).toEqual(['no, it’s 20:14']);
 	const yes = tested(h, rule('r-door'), {
 		conditions_pass: true,
 		would_fire: true,

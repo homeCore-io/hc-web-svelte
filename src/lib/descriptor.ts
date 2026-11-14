@@ -235,7 +235,7 @@ export function problem(f: Field, v: unknown, required = !!f.required): string |
 	if (f.kind === 'map' && v !== null && typeof v === 'object' && !Array.isArray(v)) {
 		for (const [k, x] of Object.entries(v)) {
 			if (!MAP_NAME.test(k))
-				return `“${k}”: a name has no spaces — like hc_core or hc_core::engine.`;
+				return `“${k}”: a name has no spaces, like hc_core or hc_core::engine.`;
 			if (f.options && !f.options.some((o) => same(o.value, x)))
 				return `${k}: ${entry(x)} isn’t one of ${f.options.map((o) => o.label).join(', ')}.`;
 		}

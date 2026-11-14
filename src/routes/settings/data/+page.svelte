@@ -65,14 +65,14 @@
 		!status
 			? ''
 			: status.last_backup_at
-				? `Last backup: ${fullDateOf(status.last_backup_at)} — ${daysAgo(status.last_backup_at, clock.now)}`
+				? `Last backup: ${fullDateOf(status.last_backup_at)}, ${daysAgo(status.last_backup_at, clock.now)}`
 				: 'No backup is recorded.'
 	);
 
 	// ---- back up ----
 	let backing = $state<string | null>(null);
 	async function backupNow() {
-		backing = 'Making the backup — this can take a minute with a lot of history…';
+		backing = 'Making the backup. This can take a minute with a lot of history…';
 		const r = await backUp();
 		backing = r.ok
 			? `Saved ${r.data.filename} (${size(r.data.bytes)}) to your downloads. Keep it somewhere other than this machine.`
@@ -160,7 +160,7 @@
 		const r = await restartAndWait((secs) => (restoreNote = `Waiting for homeCore… ${secs} s`));
 		restoring = false;
 		restoreNote = r.ok
-			? `Done — homeCore is back after ${r.data.secs} seconds, as the backup has it.`
+			? `Done. homeCore is back after ${r.data.secs} seconds, as the backup has it.`
 			: `${r.error} The backup is waiting and goes in place when homeCore next starts.`;
 		file = null;
 		plan = null;
@@ -208,7 +208,7 @@
 		if (name && !(await replaces(name))) return;
 		calNote = 'Fetching it…';
 		const r = await addCalendar(url.trim(), calName.trim() || undefined, refresh || undefined);
-		calNote = r.ok ? `Added “${r.data.calendar_id}” — ${r.data.event_count} events.` : r.error;
+		calNote = r.ok ? `Added “${r.data.calendar_id}”: ${r.data.event_count} events.` : r.error;
 		if (r.ok) url = calName = '';
 		await load();
 	}
@@ -222,7 +222,7 @@
 		if (!(await replaces(name))) return;
 		const r = await uploadCalendar(await f.text(), name);
 		if (r.ok) calName = '';
-		calNote = r.ok ? `Added “${r.data.calendar_id}” — ${r.data.event_count} events.` : r.error;
+		calNote = r.ok ? `Added “${r.data.calendar_id}”: ${r.data.event_count} events.` : r.error;
 		await load();
 	}
 	async function remove(c: Calendar) {
@@ -263,7 +263,7 @@
 		busyCal = c.id;
 		const r = await addCalendar(c.source_url, c.id, hours);
 		busyCal = null;
-		calNote = r.ok ? `Fetched “${c.id}” — ${r.data.event_count} events.` : r.error;
+		calNote = r.ok ? `Fetched “${c.id}”: ${r.data.event_count} events.` : r.error;
 		if (r.ok) {
 			everyFor = null;
 			delete coming[c.id];
@@ -334,15 +334,15 @@
 				{#if backing}<p class="sub" role="status">{backing}</p>{/if}
 				<p class="sub">
 					This app’s own pages, displays, everyone’s Home and the pictures library are kept apart
-					from homeCore —
+					from homeCore, so
 					<button class="link" onclick={backupApp}>save them too</button>.
 				</p>
 				{#if appBacking}<p class="sub" role="status">{appBacking}</p>{/if}
 				{#if kept?.every_hours}
 					<p class="sub">
 						homeCore also makes one {everySaid(kept.every_hours)}, keeping the newest {kept.keep}
-						on the house<span class="path">{kept.dir ? ` in ${kept.dir}` : ''}</span> —
-						<a href="/settings/configuration?s=backup">change</a>.
+						on the house<span class="path">{kept.dir ? ` in ${kept.dir}` : ''}</span>.
+						<a href="/settings/configuration?s=backup">Change</a>.
 					</p>
 				{:else if kept}
 					<p class="sub">
@@ -395,7 +395,7 @@
 							{#each counts as c (c)}<li>{c}</li>{/each}
 						</ul>
 						{#if plan.skipped.length}<span class="sub"
-								>Left out: {plan.skipped.join(', ')} — not for this homeCore.</span
+								>Left out: {plan.skipped.join(', ')} (not for this homeCore).</span
 							>{/if}
 					</div>
 					<div class="acts">
@@ -424,7 +424,7 @@
 			<section class="card">
 				<h2>Rules and scenes, on their own</h2>
 				<p class="sub">
-					As JSON — to keep a copy, move them to another homeCore, or look through them.
+					As JSON, to keep a copy, move them to another homeCore, or look through them.
 				</p>
 				<ScenesTransfer>
 					<a class="plain" href="/settings/automations">Export or import rules</a>
@@ -435,7 +435,7 @@
 		<section class="card">
 			<h2>Calendars</h2>
 			<p class="sub">
-				Holidays, bin days, school terms — rules can check whether there’s an event now.
+				Holidays, bin days, school terms. Rules can check whether there’s an event now.
 			</p>
 			{#if calendars?.length}
 				<ul class="cals">
@@ -485,7 +485,7 @@
 											min="0"
 											bind:value={every}
 											aria-label="Hours"
-										/> hours — 0 for never</label
+										/> hours (0 for never)</label
 									>
 									<button class="go" type="submit" disabled={busyCal === c.id}>Save</button>
 								</form>
@@ -527,7 +527,7 @@
 				/>
 				<input
 					bind:value={calName}
-					placeholder="Name (optional — for an upload too)"
+					placeholder="Name (optional, for an upload too)"
 					aria-label="Calendar name"
 				/>
 				<label class="sub refresh"

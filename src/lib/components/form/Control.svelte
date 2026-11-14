@@ -144,7 +144,7 @@
 		const k = newName.trim();
 		if (!k) return;
 		if (!MAP_NAME.test(k))
-			return void (mapProblem = 'A name has no spaces — like hc_core or hc_core::engine.');
+			return void (mapProblem = 'A name has no spaces, like hc_core or hc_core::engine.');
 		if (pairs.some(([n]) => n === k)) return void (mapProblem = `${k} is there already.`);
 		const v = opts ? (opts[0] && !newValue ? opts[0].value : newValue) : newValue;
 		mapProblem = null;
@@ -299,7 +299,7 @@
 			<option value="null" disabled>Choose…</option>
 		{:else if value !== undefined && !(opts ?? []).some((o) => same(o.value, value))}
 			<option value={JSON.stringify(value)}
-				>{entry(value)}{fromHouse ? ' — not in the house' : ''}</option
+				>{entry(value)}{fromHouse ? ' (not in the house)' : ''}</option
 			>
 		{/if}
 		{#each opts ?? [] as o (String(o.value))}
@@ -390,7 +390,7 @@
 				<span class="mono name">{k}</span>
 				{#if opts}
 					<select
-						aria-label={`${k} — ${label}`}
+						aria-label={`${k}, ${label}`}
 						value={JSON.stringify(x)}
 						{disabled}
 						onchange={(e) => setPair(k, JSON.parse(e.currentTarget.value))}
@@ -404,7 +404,7 @@
 					</select>
 				{:else}
 					<input
-						aria-label={`${k} — ${label}`}
+						aria-label={`${k}, ${label}`}
 						value={entry(x)}
 						{disabled}
 						oninput={(e) => setPair(k, e.currentTarget.value)}
@@ -470,7 +470,7 @@
 								(c.kind === 'text' && c.render === 'multiline')}
 						>
 							<span
-								>{c.label ?? c.key}{#if wants(row, c)}<em class="ask"> — wants one</em>{/if}</span
+								>{c.label ?? c.key}{#if wants(row, c)}<em class="ask"> (wants one)</em>{/if}</span
 							>
 							<Self
 								field={c}

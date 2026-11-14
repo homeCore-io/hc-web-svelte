@@ -261,7 +261,7 @@
 					<div class="kinds">
 						<div class="kind on">
 							<strong>On or off by hand and by rules</strong>
-							<span>Guests, Vacation, Movie — people and rules switch it.</span>
+							<span>Guests, Vacation, Movie: people and rules switch it.</span>
 							<label class="name">
 								<span>Name</span>
 								<input bind:value={name} placeholder="Guests" />
@@ -309,14 +309,14 @@
 								>
 							{:else}
 								<span class="gap"
-									>This homeCore can’t give a new mode its sun events from here — only by editing
+									>This homeCore can’t give a new mode its sun events from here, only by editing
 									modes.toml. Night and Day already follow the sun, and their offsets can be moved.</span
 								>
 							{/if}
 						</div>
 						<div class="kind">
 							<strong>On while something is true</strong>
-							<span>Everyone’s away, it’s raining — checked as it changes.</span>
+							<span>Everyone’s away, it’s raining: checked as it changes.</span>
 							<span class="gap"
 								>Make it here as “by hand and by rules”, then choose what turns it on and off.</span
 							>

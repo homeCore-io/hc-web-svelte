@@ -92,8 +92,8 @@
 				<b>Nothing on this page yet.</b>
 				{#if canChange}
 					<p>
-						Add a card — a device, a scene, a room’s box, weather, a chart, a note — or make a
-						section first. It’s the same Add as on Home.
+						Add a card (a device, a scene, a room’s box, weather, a chart, a note) or make a section
+						first. It’s the same Add as on Home.
 					</p>
 					<span class="go">
 						<button class="add" onclick={() => start('add')}

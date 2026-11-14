@@ -45,7 +45,7 @@
 		const summary = typeof out.summary === 'string' ? ` ${out.summary}` : '';
 		note = {
 			ok: true,
-			text: `Added ${counts.join(' and ') || 'nothing'} — look them over, then save.${summary}`
+			text: `Added ${counts.join(' and ') || 'nothing'}. Look them over, then save.${summary}`
 		};
 	}
 

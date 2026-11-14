@@ -52,8 +52,7 @@ export function combine(members: Rule[], name: string, f: Features): Combined {
 	const extras = members.map((m) => key(moreOf(m)));
 	if (new Set(extras).size > 1)
 		return {
-			reason:
-				'They differ in how they run (cooldowns, run modes or logging) — combine them by hand.'
+			reason: 'They differ in how they run (cooldowns, run modes or logging). Combine them by hand.'
 		};
 
 	const momentsOf = (r: Rule) => [r.trigger, ...(r.triggers ?? [])];
@@ -143,7 +142,7 @@ export const PATTERNS: Pattern[] = [
 	{
 		id: 'follow',
 		name: 'Keep in step',
-		what: 'One device follows another — on while it’s on, off when it’s off.',
+		what: 'One device follows another: on while it’s on, off when it’s off.',
 		example: 'A keypad LED follows a lamp',
 		like: /led sync|follow|in step/i,
 		draft: () =>

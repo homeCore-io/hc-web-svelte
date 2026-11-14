@@ -75,7 +75,7 @@
 			{/each}
 			{#if rest.length && shown.length < roles.length}
 				<button type="button" class="more" onclick={() => (more = true)}
-					>More roles — {rest.map((r) => roleName(r.role).toLowerCase()).join(', ')}</button
+					>More roles: {rest.map((r) => roleName(r.role).toLowerCase()).join(', ')}</button
 				>
 			{/if}
 		</fieldset>
@@ -97,14 +97,14 @@
 				<!-- Said as it's typed, not after homeCore refuses it (#91). -->
 				<span class="sub" class:short={password.length > 0 && password.length < 8}
 					>At least 8 characters{password.length > 0 && password.length < 8
-						? ` — ${8 - password.length} more`
+						? ` (${8 - password.length} more)`
 						: ''}. Give it to them in person; they can change it on Me.</span
 				>
 			</label>
 			<div class="aside">
 				<strong>PIN for displays</strong>
 				<span class="sub"
-					>They set their own on Me — a PIN is theirs alone, and only they should know it.</span
+					>They set their own on Me. A PIN is theirs alone, and only they should know it.</span
 				>
 			</div>
 			{#if note}<p class="note bad" role="alert">{note}</p>{/if}

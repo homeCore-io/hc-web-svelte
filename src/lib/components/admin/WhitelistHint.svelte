@@ -26,8 +26,9 @@
 
 {#if ip}
 	<p class="hint">
-		homeCore sees this app at <strong>{ip}</strong> — its own server, not your device. Don’t list that
-		address (or a network holding it): everyone using the app would be let in without signing in.
+		homeCore sees this app at <strong>{ip}</strong>. That’s its own server, not your device. Don’t
+		list that address (or a network holding it): everyone using the app would be let in without
+		signing in.
 	</p>
 {/if}
 

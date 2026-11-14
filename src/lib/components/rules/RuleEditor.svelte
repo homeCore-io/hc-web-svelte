@@ -201,7 +201,7 @@
 				onclick={showJson}>JSON</button
 			>
 		</div>
-		<span class="state">{changed ? 'Draft — not saved yet.' : pressed ? 'Saved.' : ''}</span>
+		<span class="state">{changed ? 'Draft, not saved yet.' : pressed ? 'Saved.' : ''}</span>
 		{#if features.testAt}
 			<label class="at-label"
 				>Test as if at
@@ -296,7 +296,7 @@
 		</section>
 
 		<section class="part">
-			<h2>Only if <span>— checked at that moment</span></h2>
+			<h2>Only if <span>(checked at that moment)</span></h2>
 			{#each draft.conditions ?? [] as c, i (i)}
 				<CheckEdit
 					value={c}
@@ -341,8 +341,7 @@
 		</section>
 
 		<details class="more" bind:open={moreOpen}>
-			<summary>More — if it runs again while running, rests, priority, logging, expressions</summary
-			>
+			<summary>More: if it runs again while running, rests, priority, logging, expressions</summary>
 			{#if moreOf(draft).length === 0}<p class="quiet">
 					None set. A rule that uses any of these opens with this section open.
 				</p>{/if}

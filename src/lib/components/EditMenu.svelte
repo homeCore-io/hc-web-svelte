@@ -55,7 +55,7 @@
 			<div class="menu" role="menu">
 				<button type="button" role="menuitem" onclick={mine}>
 					<strong>Just for me</strong>
-					<span>Star, add, hide, order and size cards — only you see it</span>
+					<span>Star, add, hide, order and size cards. Only you see it.</span>
 				</button>
 				<button type="button" role="menuitem" onclick={everyone}>
 					<strong>For everyone</strong>

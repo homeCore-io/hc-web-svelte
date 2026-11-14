@@ -153,7 +153,7 @@ export function runOf(h: House, rule: Rule, r: Record_): Run {
 			words: cond !== undefined ? checkPhrase(h, cond) : [{ t: c.reason }],
 			mark: c.passed
 				? 'yes'
-				: `no${c.actual !== undefined ? ` — it was ${actualText(c.actual)}` : ''}`,
+				: `no${c.actual !== undefined ? `, it was ${actualText(c.actual)}` : ''}`,
 			tone: c.passed ? 'good' : 'bad'
 		});
 	});
@@ -174,7 +174,7 @@ export function runOf(h: House, rule: Rule, r: Record_): Run {
 					: a.outcome.status === 'skipped'
 						? 'skipped'
 						: gone
-							? 'sent — to no such device'
+							? 'sent to no such device'
 							: 'done',
 			tone:
 				a.outcome.status === 'error' || gone
@@ -187,8 +187,8 @@ export function runOf(h: House, rule: Rule, r: Record_): Run {
 	const failedCheck = r.outcome.type === 'condition_failed' ? r.outcome.at_index : undefined;
 	const summary: Phrase = [...cause(h, rule, r)];
 	if (failedCheck !== undefined && rule.conditions?.[failedCheck] !== undefined)
-		summary.push({ t: ' — a check said no: ' }, ...checkPhrase(h, rule.conditions[failedCheck]));
-	else if (!ran) summary.push({ t: ` — ${notRun(r).toLowerCase()}` });
+		summary.push({ t: ', but a check said no: ' }, ...checkPhrase(h, rule.conditions[failedCheck]));
+	else if (!ran) summary.push({ t: `: ${notRun(r).toLowerCase()}` });
 	const bad = r.actions.some((a) => a.outcome.status === 'error');
 	return {
 		at: r.timestamp,
@@ -274,10 +274,10 @@ export function tested(h: House, rule: Rule, res: TestResult, when?: string): Te
 				? checkPhrase(h, rule.conditions[i])
 				: [{ t: c.reason ?? '' }],
 		mark: c.reason?.startsWith(CANT_TELL)
-			? 'can’t tell in a test — the running rule keeps this'
+			? 'can’t tell in a test: the running rule keeps this'
 			: (c.passed
 					? 'yes'
-					: `no${c.actual !== undefined && c.actual !== null ? ` — it’s ${actualText(c.actual)}` : whyNot(c)}`) +
+					: `no${c.actual !== undefined && c.actual !== null ? `, it’s ${actualText(c.actual)}` : whyNot(c)}`) +
 				(c.reason?.startsWith(JUDGED_NOW) ? ' (a script reads the clock now)' : ''),
 		tone: c.reason?.startsWith(CANT_TELL) ? 'muted' : c.passed ? 'good' : 'bad'
 	}));
@@ -303,7 +303,7 @@ export function tested(h: House, rule: Rule, res: TestResult, when?: string): Te
 				: 'It has no checks, so it would run.'
 			: unsure && res.conditions.every((c) => c.passed || c.reason?.startsWith(CANT_TELL))
 				? `It can’t be told ${then}: a check depends on what the running rule keeps.`
-				: `It wouldn’t run ${then} — a check says no.`,
+				: `It wouldn’t run ${then}: a check says no.`,
 		lines
 	};
 }

@@ -134,7 +134,7 @@
 			</div>
 		{:else}
 			<p class="sub">
-				People and rules switch it. It can switch itself instead — on while something is true:
+				People and rules switch it. It can switch itself instead, on while something is true:
 				everyone’s away, it’s raining, the TV is on after dark.
 			</p>
 			<button
@@ -148,7 +148,7 @@
 		{/if}
 	{:else}
 		<div class="part">
-			<h4>On when <span>— all of these</span></h4>
+			<h4>On when <span>(all of these)</span></h4>
 			{#each draft.on as c, i (i)}
 				<CheckEdit
 					value={c}
@@ -193,7 +193,7 @@
 							off: draft.off.length ? draft.off : [newCheck('device')]
 						})}
 				/>
-				Something else is true — it stays on until then</label
+				Something else is true. It stays on until then</label
 			>
 			{#if draft.explicit}
 				{#each draft.off as c, i (i)}

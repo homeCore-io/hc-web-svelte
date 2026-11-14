@@ -260,7 +260,7 @@ export function descriptorFromSchema(schema: unknown, pluginId?: string): Descri
 	if (leftOut)
 		first.fields.push({
 			kind: 'note',
-			text: `${leftOut} more setting${leftOut === 1 ? ' is' : 's are'} more than this form can show — they’re in the file.`
+			text: `${leftOut} more setting${leftOut === 1 ? ' is' : 's are'} more than this form can show. They’re in the file.`
 		});
 	return {
 		...(pluginId ? { plugin_id: pluginId } : {}),

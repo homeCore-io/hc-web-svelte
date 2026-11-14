@@ -34,7 +34,7 @@ export function sourceOptions(
 	};
 	const label = (d: CoreDevice) => {
 		const r = room(d);
-		return r ? `${displayName(d)} — ${r}` : displayName(d);
+		return r ? `${displayName(d)} · ${r}` : displayName(d);
 	};
 	switch (source.ref) {
 		case 'all_devices':

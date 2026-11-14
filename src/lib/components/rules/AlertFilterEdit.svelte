@@ -99,7 +99,7 @@
 		>
 			<option value="">Any device</option>
 			{#if deviceId && !ctx.house.device(deviceId)}<option value={deviceId}
-					>{deviceId} — not in the house</option
+					>{deviceId} (not in the house)</option
 				>{/if}
 			{#each groups as g (g.room)}
 				<optgroup label={g.room}>

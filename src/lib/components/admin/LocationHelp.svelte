@@ -17,7 +17,7 @@
 			(p) => {
 				form.set('location.latitude', Number(p.coords.latitude.toFixed(4)));
 				form.set('location.longitude', Number(p.coords.longitude.toFixed(4)));
-				note = 'Filled in from this device — save to keep it.';
+				note = 'Filled in from this device. Save to keep it.';
 			},
 			() => (note = 'This device wouldn’t say where it is.'),
 			{ timeout: 10_000 }
@@ -41,7 +41,7 @@
 		<p>
 			homeCore has today’s sunrise at <strong>{String(sun.sunrise_today ?? '—')}</strong> and sunset
 			at <strong>{String(sun.sunset_today ?? '—')}</strong>. If those are wrong for the house, so is
-			its location — and every rule that follows the sun.
+			its location, and so is every rule that follows the sun.
 		</p>
 	{/if}
 </div>

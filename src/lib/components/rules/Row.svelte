@@ -38,7 +38,7 @@
 	<div class="head">
 		{#if number !== undefined}<span class="n">{number}</span>{/if}
 		<button type="button" class="say" aria-expanded={open} onclick={() => (open = !open)}>
-			<Words {words} />{#if off}<em> — turned off</em>{/if}
+			<Words {words} />{#if off}<em> (turned off)</em>{/if}
 		</button>
 		{#if badge}<span class="badge">{badge}</span>{/if}
 		<span class="tools">

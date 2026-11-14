@@ -62,7 +62,7 @@ export const ROLE_WORDS: Record<string, RoleWords> = {
 	read_only: {
 		name: 'Read only',
 		who: 'Sees the house',
-		what: 'Sees the house and presses nothing — a guest screen, say.'
+		what: 'Sees the house and presses nothing. A guest screen, say.'
 	},
 	device_operator: {
 		name: 'Device operator',
@@ -77,7 +77,7 @@ export const ROLE_WORDS: Record<string, RoleWords> = {
 	service_operator: {
 		name: 'Service operator',
 		who: 'For a program: everything but plugins and people',
-		what: 'What a user can do, and reads the audit — the shape for a service account.'
+		what: 'What a user can do, and reads the audit. The shape for a service account.'
 	},
 	observer: {
 		name: 'Observer',
@@ -162,7 +162,7 @@ export function advice(people: Person[], roles: RoleInfo[]): string | null {
 	const all = people.length === 2 ? 'Both people' : `All ${people.length} people`;
 	return member
 		? `${all} are admins. Give family members “Household member”: they use the house, and can’t change it.`
-		: `${all} are admins. This homeCore has no household-member role yet — family members can be “User”, who can also change rules and rooms.`;
+		: `${all} are admins. This homeCore has no household-member role yet. Family members can be “User”, who can also change rules and rooms.`;
 }
 
 /** Whether removing `p`, or giving them `role`, would leave the house without an admin. */
@@ -178,11 +178,11 @@ export const initialOf = (name: string) => [...name.trim()][0]?.toUpperCase() ??
 export type KeyLevel = 'read' | 'use' | 'admin' | 'custom';
 
 export const LEVEL_WORDS: Record<KeyLevel, { name: string; what: string }> = {
-	read: { name: 'See the house', what: 'Devices, rooms, scenes, rules — reading only.' },
+	read: { name: 'See the house', what: 'Devices, rooms, scenes, rules: reading only.' },
 	use: { name: 'Use the house', what: 'See it, and command devices and run scenes.' },
 	admin: {
 		name: 'Everything you can do',
-		what: 'Every permission you hold — for an admin, people, plugins and keys too.'
+		what: 'Every permission you hold. For an admin, that’s people, plugins and keys too.'
 	},
 	custom: { name: 'Choose exactly…', what: 'Pick from homeCore’s permissions, one by one.' }
 };

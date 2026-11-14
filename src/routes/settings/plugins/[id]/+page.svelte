@@ -277,7 +277,7 @@
 		// Closing this keeps them: losing credentials is the step to take on purpose.
 		const drop = await ask({
 			title: `Delete ${name}’s settings too?`,
-			body: 'Kept, they’re there if you add it again — credentials included.',
+			body: 'Kept, they’re there if you add it again, credentials included.',
 			go: 'Delete them',
 			stay: 'Keep them',
 			danger: true
@@ -563,7 +563,7 @@
 						{#if level === ''}<option value="">As its settings say</option>{/if}
 						<!-- A finer rule ("hc_sonos=debug,info") is shown as it is, not as a blank box. -->
 						{#if level !== '' && !(LEVELS as readonly string[]).includes(level)}<option
-								value={level}>Custom — {level}</option
+								value={level}>Custom: {level}</option
 							>{/if}
 						{#each LEVELS as l (l)}<option value={l}>{l}</option>{/each}
 					</select>
@@ -582,7 +582,7 @@
 						{#if plugin.enabled}Turning it off keeps its settings and stays off through restarts{mine.length
 								? `; ${its(mine.length, 'goes', 'go')} quiet`
 								: ''}.
-						{/if}{' '}Uninstalling it deletes its program and its devices — rules that use them are
+						{/if}{' '}Uninstalling it deletes its program and its devices; rules that use them are
 						turned off.
 					</p>
 					<div class="buttons">

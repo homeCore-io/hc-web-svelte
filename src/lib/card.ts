@@ -514,9 +514,9 @@ function media(d: CoreDevice, a: Record<string, unknown>, s: Schema, v: CardView
 	v.stateLine = !on
 		? 'Off'
 		: playing
-			? `Playing${title ? ` — ${title}` : app ? ` — ${app}` : lineIn ? ` — ${lineIn}` : ''}`
+			? `Playing${title ? `: ${title}` : app ? `: ${app}` : lineIn ? `: ${lineIn}` : ''}`
 			: state === 'paused'
-				? `Paused${title ? ` — ${title}` : ''}`
+				? `Paused${title ? `: ${title}` : ''}`
 				: app
 					? `On · ${app}`
 					: 'On';

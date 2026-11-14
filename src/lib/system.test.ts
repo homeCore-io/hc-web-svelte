@@ -69,7 +69,7 @@ describe('events, in words', () => {
 			},
 			house
 		)!;
-		expect(text(r.words)).toBe('Exhaust Fan — on · by Exhaust On at Close');
+		expect(text(r.words)).toBe('Exhaust Fan: on · by Exhaust On at Close');
 		expect(r.room).toBe('Bathroom');
 		expect(
 			text(eventRow({ type: 'rule_fired', rule_id: 'x', rule_name: 'Door Opened' }, house)!.words)
@@ -121,7 +121,7 @@ describe('events, in words', () => {
 		const out = folded(rows, (r) => r.key.startsWith('d:plug'));
 		expect(out).toHaveLength(3);
 		expect(out[0]!.count).toBe(3);
-		expect(text(out[0]!.words)).toBe('Office AC — Power changed 3 times');
+		expect(text(out[0]!.words)).toBe('Office AC: Power changed 3 times');
 		expect(text(out[1]!.words)).toBe('Exhaust Fan re-declared its controls 2 times');
 		expect(out[1]!.kind).toBe('warn');
 		// "Media position updated at changed 66 times" said the position moved.
@@ -135,7 +135,7 @@ describe('events, in words', () => {
 			[1, 2].map(() => eventRow({ ...pos, timestamp: 't' }, house)!),
 			() => true
 		);
-		expect(text(moved[0]!.words)).toBe('Office AC — Media position changed 2 times');
+		expect(text(moved[0]!.words)).toBe('Office AC: Media position changed 2 times');
 	});
 });
 
@@ -197,7 +197,7 @@ describe('the audit, in words', () => {
 					})
 				)
 			)
-		).toBe('someone as “bob” couldn’t sign in — wrong password');
+		).toBe('someone as “bob” couldn’t sign in: wrong password');
 		expect(
 			text(
 				auditWords(entry({ event_type: 'api_key.revoked', actor_label: 'api_key:nas', detail: {} }))

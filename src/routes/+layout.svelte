@@ -6,7 +6,7 @@
 	import '@fontsource/ibm-plex-mono/400.css';
 	import '@fontsource/ibm-plex-mono/500.css';
 	import '../app.css';
-	import type { Component, Snippet } from 'svelte';
+	import { tick, type Component, type Snippet } from 'svelte';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import Shell from '#lib/components/Shell.svelte';
@@ -40,7 +40,12 @@
 	// (a tab, a device's panel, Customize) leaves it where it was.
 	afterNavigate((nav) => {
 		if (nav.type === 'enter' || !nav.from || nav.from.url.pathname === nav.to?.url.pathname) return;
-		if (document.activeElement === document.body) focusMain(undefined, false);
+		// After the page has drawn and anything over the old one (search) has closed.
+		void tick().then(() => {
+			const at = document.activeElement;
+			if (!at || at === document.body || !document.getElementById('main')?.contains(at))
+				focusMain(undefined, false);
+		});
 	});
 
 	// Pages that stand alone: signing in, and making this screen a display.

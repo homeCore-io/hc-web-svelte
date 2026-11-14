@@ -442,7 +442,10 @@
 	function done() {
 		const url = new URL(page.url.href);
 		url.searchParams.delete('customize');
-		void goto(url.pathname + url.search, { replace: true, reset: false });
+		// The keyboard goes back to the Customize link it came from.
+		void goto(url.pathname + url.search, { replace: true, reset: false })
+			.then(tick)
+			.then(() => document.querySelector<HTMLElement>('a[href*="customize"]')?.focus());
 	}
 
 	// Arriving puts the keyboard on the heading, so the next Tab goes into Customize.

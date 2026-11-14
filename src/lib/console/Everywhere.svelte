@@ -304,6 +304,15 @@
 	.ev.phone {
 		height: auto;
 	}
+	/* In the standard frame (Classic, Lit) the page scrolls as one, so the list
+	   doesn't scroll again inside it. */
+	:global(html:not([data-shell='console'])) .ev {
+		height: auto;
+	}
+	:global(html:not([data-shell='console'])) .ev :global(.evlist) {
+		flex: none;
+		overflow: visible;
+	}
 	.ev.phone :global(.evhead) {
 		padding: 10px 16px 14px;
 	}

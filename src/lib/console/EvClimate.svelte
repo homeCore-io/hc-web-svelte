@@ -242,9 +242,10 @@
 		color: var(--cool-ink, #8fb8e6);
 		text-align: right;
 	}
+	/* The fans share the row's width, so a long name has room instead of empty columns beside it. */
 	.fans {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
 		gap: 0 22px;
 	}
 	.fanrow {

@@ -313,6 +313,7 @@ describe('the weather outside, which is read and never set', () => {
 		expect(v.controls).toEqual([]);
 		expect(v.readings).toEqual([]);
 		expect(v.empty).toBe('No weather from the service yet.');
+		expect(v.chart).toBeUndefined();
 	});
 });
 

@@ -170,6 +170,8 @@ export function detailsFor(d: CoreDevice, all: CoreDevice[] = [], now = Date.now
 	const claimed = new Set((s.actions ?? []).map((x) => x.writes).filter(Boolean));
 	const covered = onCard(card);
 	const readOnly = READ_ONLY.has(card.kind);
+	// A weather service that has sent nothing yet: no readings, and no flat chart of none.
+	const nothing = readOnly && Object.values(a).every((v) => v === null || v === undefined);
 
 	const names = ordered(s);
 	const controls: DetailControl[] = [];
@@ -214,13 +216,12 @@ export function detailsFor(d: CoreDevice, all: CoreDevice[] = [], now = Date.now
 		groups: groupsOf(d, s, all),
 		readings: once(readings),
 		more: once(more),
-		chart: chartFor(d, s),
-		empty:
-			readOnly && names.every((n) => a[n] === null || a[n] === undefined)
-				? card.kind === 'weather'
-					? 'No weather from the service yet.'
-					: 'No readings from it yet.'
-				: undefined
+		chart: nothing ? undefined : chartFor(d, s),
+		empty: nothing
+			? card.kind === 'weather'
+				? 'No weather from the service yet.'
+				: 'No readings from it yet.'
+			: undefined
 	};
 }
 

@@ -156,7 +156,7 @@
 				{#each batteries as b (b.id)}
 					{@const d = byId.get(b.id)}
 					<button type="button" class="batt" onclick={() => d && open(d)}>
-						<span class="bn">{d ? nameOf(d) : b.name}</span>
+						<span class="bn" title={d ? nameOf(d) : b.name}>{d ? nameOf(d) : b.name}</span>
 						<span class="cell" class:low={b.low} aria-hidden="true"
 							><i style:width={`${b.pct}%`}></i></span
 						>

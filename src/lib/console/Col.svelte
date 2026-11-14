@@ -63,9 +63,9 @@
 	<div class="ch">
 		{#if brand}<span class="tag" data-brand={tagOf}>{brand}</span>{/if}
 		{#if onopen}
-			<button type="button" class="ttl" onclick={onopen}>{title}</button>
-		{:else}<span class="ttl">{title}</span>{/if}
-		{#if note}<span class="cn" class:alert>{note}</span>{/if}
+			<button type="button" class="ttl" {title} onclick={onopen}>{title}</button>
+		{:else}<span class="ttl" {title}>{title}</span>{/if}
+		{#if note}<span class="cn" class:alert title={note}>{note}</span>{/if}
 		{#if place}<Moved d={place} /><span class="pl"><Place d={place} tag={false} /></span>{/if}
 	</div>
 	{@render children()}

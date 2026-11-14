@@ -222,7 +222,7 @@
 	<Col
 		title={runsName ?? ''}
 		plugin={runs.plugin_id}
-		note="the switch it runs"
+		note="its switch"
 		width="calc(190px + 50px * var(--k, 1))"
 		onopen={() => open(runs)}
 		place={runs}

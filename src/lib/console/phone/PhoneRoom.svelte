@@ -50,6 +50,8 @@
 	import { provideStacked } from './phone.svelte.js';
 	import { nextTab } from '#lib/menuKeys.js';
 	import { household } from '#lib/household.svelte.js';
+	import { apart } from '../apart.js';
+	import type { CoreDevice } from '#lib/devices.js';
 
 	let { id }: { id: string } = $props();
 
@@ -95,6 +97,11 @@
 		void goto(url.pathname + url.search, { replace: true, reset: false });
 	}
 	let tabBox = $state<HTMLElement>();
+	// Two pills with one name ("Test Door: Closed" twice) say which is which.
+	const pillApart = $derived(apart([...r.locks, ...r.openings], (d) => r.short(r.nameOf(d))));
+	const pillName = (d: CoreDevice) =>
+		r.short(r.nameOf(d)) + (pillApart.has(d.device_id) ? ` (${pillApart.get(d.device_id)})` : '');
+
 	function keys(e: KeyboardEvent) {
 		const shown = r.arranged.shown;
 		const i = shown.findIndex((t) => t.id === tab);
@@ -183,7 +190,7 @@
 									strokeWidth={2.2}
 									aria-hidden="true"
 								/>{:else}<LockOpen size={13} strokeWidth={2.2} aria-hidden="true" />{/if}
-							{r.short(r.nameOf(d))}: {d.available ? (locked ? 'Locked' : 'Unlocked') : 'Offline'}
+							{pillName(d)}: {d.available ? (locked ? 'Locked' : 'Unlocked') : 'Offline'}
 						</button>
 					{/each}
 					{#each r.openings as d (d.device_id)}
@@ -194,7 +201,7 @@
 							class:ok={d.available && !open}
 							class:bad={!d.available || open}
 							title={r.openingHint(d)}
-							aria-label={`${r.short(r.nameOf(d))}: ${d.available ? (open ? 'Open' : 'Closed') : 'Offline'}. ${r.openingHint(d)}`}
+							aria-label={`${pillName(d)}: ${d.available ? (open ? 'Open' : 'Closed') : 'Offline'}. ${r.openingHint(d)}`}
 							onclick={() => r.openingPill(d, choose)}
 						>
 							{#if open}<DoorOpen
@@ -202,7 +209,7 @@
 									strokeWidth={2.2}
 									aria-hidden="true"
 								/>{:else}<DoorClosed size={13} strokeWidth={2.2} aria-hidden="true" />{/if}
-							{r.short(r.nameOf(d))}: {d.available ? (open ? 'Open' : 'Closed') : 'Offline'}
+							{pillName(d)}: {d.available ? (open ? 'Open' : 'Closed') : 'Offline'}
 						</button>
 					{/each}
 					{#each r.camPills as e (e.key)}

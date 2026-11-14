@@ -58,8 +58,16 @@ export class Synced<D extends { version: number }> {
 	}
 
 	#wait = 0;
-	/** Asks for the document; failing, says so and asks again a little later each time. */
+	#retry: ReturnType<typeof setTimeout> | undefined;
+	/**
+	 * Asks for the document; failing, says so and asks again a little later each time.
+	 * Only one ask waits at a time, and a refusal (a 4xx other than a timeout or too
+	 * many asks) isn't asked again: it won't change until the sign-in does.
+	 */
 	async #fetch(): Promise<void> {
+		clearTimeout(this.#retry);
+		this.#retry = undefined;
+		let status = 0;
 		try {
 			const res = await fetch(this.#url);
 			if (res.ok) {
@@ -68,12 +76,15 @@ export class Synced<D extends { version: number }> {
 				this.#wait = 0;
 				return;
 			}
+			status = res.status;
 		} catch {
 			// Shown as generated until the server answers.
 		}
 		this.missing = true;
+		if (status >= 400 && status < 500 && status !== 408 && status !== 429) return;
 		this.#wait = Math.min(30_000, this.#wait === 0 ? 2_000 : this.#wait * 2);
-		setTimeout(() => void this.#fetch(), this.#wait);
+		clearTimeout(this.#retry);
+		this.#retry = setTimeout(() => void this.#fetch(), this.#wait);
 	}
 
 	/** Hear the document whenever it is loaded afresh. */

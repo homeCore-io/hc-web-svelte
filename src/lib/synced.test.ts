@@ -89,4 +89,25 @@ describe('loading the document', () => {
 		expect(get).toHaveBeenCalledTimes(3);
 		vi.useRealTimers();
 	});
+	it('keeps one ask waiting however often it is loaded, and stops at a refusal', async () => {
+		vi.useFakeTimers();
+		const answers: number[] = [500, 500, 500, 403];
+		const get = vi.fn(async () => new Response('{}', { status: answers.shift() ?? 403 }));
+		vi.stubGlobal('fetch', get);
+		const s = new Synced<Doc>('/ui/household', 'household');
+
+		await s.load();
+		await s.load();
+		expect(get).toHaveBeenCalledTimes(2);
+		// Both loads failed, but only one ask waits: the second load's.
+		await vi.advanceTimersByTimeAsync(4_000);
+		expect(get).toHaveBeenCalledTimes(3);
+		await vi.advanceTimersByTimeAsync(8_000);
+		expect(get).toHaveBeenCalledTimes(4);
+		// Refused: no more asks.
+		await vi.advanceTimersByTimeAsync(120_000);
+		expect(get).toHaveBeenCalledTimes(4);
+		expect(s.missing).toBe(true);
+		vi.useRealTimers();
+	});
 });

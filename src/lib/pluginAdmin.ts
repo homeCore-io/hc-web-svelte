@@ -270,3 +270,35 @@ export const reinterview = (node_id: string) =>
 	call<unknown>('POST', '/plugins/matter/reinterview', { node_id });
 export const removeNode = (node_id: string) =>
 	call<unknown>('DELETE', `/plugins/matter/nodes/${encodeURIComponent(node_id)}`);
+
+/** One plugin to bring up to a newer version. */
+export interface Pending {
+	id: string;
+	name: string;
+	version: string;
+}
+/** How one update went: the answer from homeCore, or why it didn't. */
+export interface Updated {
+	plugin: Pending;
+	error?: string;
+}
+/**
+ * Every plugin with a newer version, one after another, so the house never
+ * restarts them all at once. One that fails doesn't stop the rest. A plugin on
+ * a runtime stays on that runtime, as its own Update keeps it.
+ */
+export async function updateAll(
+	list: Pending[],
+	step: (at: number, p: Pending) => void = () => {}
+): Promise<Updated[]> {
+	const placed = await loadPlacements();
+	const on = (id: string) =>
+		placed.ok ? placed.data.find((x) => x.plugin_id === id)?.runtime_id : undefined;
+	const done: Updated[] = [];
+	for (const [i, p] of list.entries()) {
+		step(i, p);
+		const r = await install(p.id, p.version, on(p.id));
+		done.push(r.ok ? { plugin: p } : { plugin: p, error: r.error });
+	}
+	return done;
+}

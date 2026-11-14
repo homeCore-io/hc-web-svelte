@@ -12,6 +12,7 @@
 	import { heading } from '#lib/heading.svelte.js';
 	import { isLibrary, sized } from '#lib/pictures.svelte.js';
 	import { roleName } from '#lib/people.js';
+	import { radioKeys, radioTab } from '#lib/radios.js';
 	import {
 		AVATAR_COLORS,
 		AVATAR_ICONS,
@@ -100,13 +101,18 @@
 <div class="pic">
 	<p class="lead">How you show wherever homeCore shows or names a person. Just you.</p>
 
-	<div class="opts" role="radiogroup" aria-label="Your picture">
-		{#each OPTIONS as o (o.id)}
+	<div class="opts" role="radiogroup" aria-label="Your picture" tabindex="-1" onkeydown={radioKeys}>
+		{#each OPTIONS as o, i (o.id)}
 			<button
 				type="button"
 				class="opt"
 				role="radio"
 				aria-checked={view.kind === o.id}
+				tabindex={radioTab(
+					view.kind === o.id,
+					i === 0,
+					OPTIONS.some((x) => x.id === view.kind)
+				)}
 				onclick={() => pick(o.id)}
 			>
 				<span class="face" style:background={o.id === 'photo' ? undefined : view.color}>
@@ -148,12 +154,13 @@
 				/>
 			{:else}
 				<h2>Icon</h2>
-				<div class="icons" role="radiogroup" aria-label="Icon">
-					{#each ICON_IDS as k (k)}
+				<div class="icons" role="radiogroup" aria-label="Icon" tabindex="-1" onkeydown={radioKeys}>
+					{#each ICON_IDS as k, i (k)}
 						<button
 							type="button"
 							role="radio"
 							aria-checked={view.icon === k}
+							tabindex={radioTab(view.icon === k, i === 0, ICON_IDS.includes(view.icon))}
 							aria-label={ICON_NAMES[k]}
 							onclick={() => choose({ icon: k })}
 							><svg viewBox="0 0 24 24" aria-hidden="true"
@@ -164,12 +171,17 @@
 				</div>
 			{/if}
 			<h2 class="next">Color</h2>
-			<div class="sw" role="radiogroup" aria-label="Color">
+			<div class="sw" role="radiogroup" aria-label="Color" tabindex="-1" onkeydown={radioKeys}>
 				{#each AVATAR_COLORS as c, i (c)}
 					<button
 						type="button"
 						role="radio"
 						aria-checked={view.color === c}
+						tabindex={radioTab(
+							view.color === c,
+							i === 0,
+							(AVATAR_COLORS as readonly string[]).includes(view.color)
+						)}
 						aria-label={COLOR_NAMES[i]}
 						style:background={c}
 						onclick={() => choose({ color: c })}

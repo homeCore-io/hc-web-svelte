@@ -95,11 +95,20 @@ describe('how it is, in words', () => {
 		// Settings and System count "running" the way this list says it.
 		for (const r of [rec({}), rec({ enabled: false }), rec({ status: 'offline' })])
 			expect(isRunning(r)).toBe(stateOf(r, NOW).word === 'Running');
-		expect(stateOf(rec({ enabled: false }), NOW)).toEqual({
+		expect(stateOf(rec({ enabled: false, status: 'stopped' }), NOW)).toEqual({
 			word: 'Turned off',
 			detail: '',
 			tone: 'quiet'
 		});
+		// Turned off, but not yet stopped: it says it's still running.
+		expect(stateOf(rec({ enabled: false }), NOW)).toEqual({
+			word: 'Turned off',
+			detail: 'but still running',
+			tone: 'quiet'
+		});
+		expect(stateOf(rec({ enabled: false, status: 'starting' }), NOW).detail).toBe(
+			'but still starting'
+		);
 		expect(
 			stateOf(rec({ status: 'offline', last_heartbeat: '2026-10-16T12:00:00Z' }), NOW)
 		).toEqual({

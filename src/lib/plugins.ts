@@ -196,7 +196,16 @@ export function stateOf(
 	p: PluginRecord,
 	now = Date.now()
 ): { word: string; detail: string; tone: Tone } {
-	if (!p.enabled) return { word: 'Turned off', detail: '', tone: 'quiet' };
+	// Turned off, but homeCore hasn't stopped it yet: it says so, rather than seeming stopped.
+	if (!p.enabled) {
+		const still =
+			p.status === 'active' || p.status === 'not_responding'
+				? 'but still running'
+				: p.status === 'starting'
+					? 'but still starting'
+					: '';
+		return { word: 'Turned off', detail: still, tone: 'quiet' };
+	}
 	const since = (iso?: string) => {
 		if (!iso) return '';
 		const at = new Date(iso);

@@ -101,6 +101,11 @@ export interface CoreDevice {
 	device_type?: string;
 	ui_hint?: string;
 	status_icon?: string;
+	/**
+	 * Whether it counts for security, as an admin set it for everyone: true
+	 * counts, false never does, missing follows its type (a lock, a door).
+	 */
+	security?: boolean;
 	available: boolean;
 	attributes: Record<string, unknown>;
 	last_seen?: string;

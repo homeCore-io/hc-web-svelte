@@ -11,7 +11,8 @@
  * room. Media: every player, screens before speakers in each room. Climate:
  * every thermostat and fan, and every temperature and humidity reading in
  * the house (motion sensors and weather stations too). Security: what needs
- * attention (unlocked, open, offline) first, then each room's locks and doors. Water:
+ * attention (unlocked, open, offline, a watched device active) first, then
+ * each room's locks, doors and what else counts for security. Water:
  * the valves, and the leak sensors by room; leaks are only here.
  *
  * Pure: the pages draw what this decides.
@@ -24,7 +25,14 @@ import { units, type Units } from '../units.js';
 import { climateTab } from './climate.js';
 import { orderPlayers } from './media.js';
 import { playNow } from '../playing.js';
-import { brandOf, consoleRoom, type ConsoleRoom, type TabChoices } from './room.js';
+import {
+	brandOf,
+	consoleRoom,
+	watchActive,
+	watchWord,
+	type ConsoleRoom,
+	type TabChoices
+} from './room.js';
 import { roomLights } from './pictures.js';
 import { isLit, lightsCount as countLights, whereLit, type LightsCount } from '../lights.js';
 import { readingOf, type Reading } from './sensors.js';
@@ -257,10 +265,11 @@ export function working(d: CoreDevice): boolean {
 
 export interface SecItem {
 	device: CoreDevice;
-	kind: 'lock' | 'door';
-	/** Locked, or closed. */
+	/** A lock, a door, or something else the household put in security (`securityKind`). */
+	kind: 'lock' | 'door' | 'watch';
+	/** Locked, closed, or a watched device at rest. */
 	ok: boolean;
-	/** "Locked", "Unlocked", "Open", "Closed", "Offline". */
+	/** "Locked", "Unlocked", "Open", "Closed", "Offline"; a watched one's own: "Motion", "Off". */
 	word: string;
 }
 
@@ -279,38 +288,41 @@ export function secItem(d: CoreDevice, kind: SecItem['kind'], wants: Wants = {})
 		const ok = locked(d, wants);
 		return { device: d, kind, ok, word: ok ? 'Locked' : 'Unlocked' };
 	}
+	if (kind === 'watch') return { device: d, kind, ok: !watchActive(d), word: watchWord(d) };
 	const open = isOpen(cardFor(d, 0));
 	return { device: d, kind, ok: !open, word: open ? 'Open' : 'Closed' };
 }
 
-/** Each room's locks, then its doors and windows, as its header's pills show them. */
+/**
+ * Each room's locks, then its doors and windows, then what else is watched,
+ * as its header's pills show them.
+ */
 export const secRows = (places: Place[], wants: Wants = {}): SecRow[] =>
 	places
 		.map((place) => ({
 			place,
 			items: [
 				...place.model.locks.map((d) => secItem(d, 'lock', wants)),
-				...place.model.openings.map((d) => secItem(d, 'door', wants))
+				...place.model.openings.map((d) => secItem(d, 'door', wants)),
+				...place.model.watched.map((d) => secItem(d, 'watch', wants))
 			]
 		}))
 		.filter((r) => r.items.length > 0);
 
-/** What needs attention: a lock unlocked, a door open, either one offline. */
+/** What needs attention: a lock unlocked, a door open, a watched device active, any one offline. */
 export const issuesOf = (rows: SecRow[]): { place: Place; item: SecItem }[] =>
 	rows.flatMap((r) => r.items.filter((i) => !i.ok).map((item) => ({ place: r.place, item })));
 
 /**
  * What needs attention, each kind counted apart: "2 open", "1 open · 1
- * unlocked", "1 open · 1 unlocked · 1 offline".
+ * unlocked", "1 open · 1 unlocked · 1 offline"; a watched device by its own
+ * word, after the locks: "1 unlocked · 1 motion".
  */
 export function issuesFull(issues: { item: SecItem }[]): string {
-	const count = (word: SecItem['word']) => issues.filter((i) => i.item.word === word).length;
-	const parts: [number, string][] = [
-		[count('Open'), 'open'],
-		[count('Unlocked'), 'unlocked'],
-		[count('Offline'), 'offline']
-	];
-	return parts
+	const words = ['Open', 'Unlocked', ...issues.map((i) => i.item.word), 'Offline'];
+	const order = [...new Set(words.filter((w) => w !== 'Offline')), 'Offline'];
+	return order
+		.map((w) => [issues.filter((i) => i.item.word === w).length, w.toLowerCase()] as const)
 		.filter(([n]) => n > 0)
 		.map(([n, w]) => `${n} ${w}`)
 		.join(' · ');

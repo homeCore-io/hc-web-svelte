@@ -321,7 +321,7 @@
 	// ---- the household's alone: the picture and the header pills ----
 	const pillPrefs = $derived(pillPrefsOf(household.doc.console?.pills));
 	const pillsHere = $derived(!pillPrefs.off.includes(id));
-	const guards = $derived([...full.locks, ...full.openings]);
+	const guards = $derived([...full.locks, ...full.openings, ...full.watched]);
 	const hasCams = $derived(
 		full.byTab.cameras.some((d) => ['camera', 'doorbell'].includes(kindOf(d)))
 	);

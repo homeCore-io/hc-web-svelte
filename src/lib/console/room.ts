@@ -23,7 +23,7 @@
  *
  * Pure: the page draws what this decides.
  */
-import { kindOf } from '../card.js';
+import { cardFor, kindOf } from '../card.js';
 import type { CoreDevice, Devices } from '../devices.js';
 import { isCamera, isCameraLight } from '../cameraLights.js';
 import type { Room } from '../house.js';
@@ -249,6 +249,57 @@ export function guards(kind: string): 'lock' | 'door' | undefined {
 	return OPENING_KINDS.has(kind) ? 'door' : undefined;
 }
 
+// ---- security ----
+
+/**
+ * How a device counts for security, as everywhere in the app counts it: a
+ * lock, a door (or window, or cover), something else watched, or not at all.
+ * Its own choice (`security`) wins: false leaves it out, true puts it in;
+ * missing, it goes by its type, as `guards` says.
+ */
+export function securityKind(d: CoreDevice): 'lock' | 'door' | 'watch' | undefined {
+	if (d.security === false) return undefined;
+	return guards(kindOf(d)) ?? (d.security === true ? 'watch' : undefined);
+}
+
+/** What says a watched device is active: something moving or there, open, wet, on. */
+const ACTIVE = [
+	'motion',
+	'occupied',
+	'occupancy',
+	'presence',
+	'present',
+	'open',
+	'contact_open',
+	'water_detected',
+	'leak',
+	'wet',
+	'on'
+];
+
+/**
+ * Whether a watched device needs a look: in its active state, by the words
+ * above, else its first yes-or-no reading (its schema's primary first) is yes.
+ * A `contact` reading is true when the contact is made, so false is open.
+ */
+export function watchActive(d: CoreDevice): boolean {
+	const a = d.attributes ?? {};
+	if (a.contact === false) return true;
+	const known = ACTIVE.filter((k) => typeof a[k] === 'boolean');
+	if (known.length > 0 || typeof a.contact === 'boolean') return known.some((k) => a[k] === true);
+	const s = d.schema?.attributes ?? {};
+	const first = [...(d.schema?.primary ?? []), ...Object.keys(s).sort()].find(
+		(n) => s[n]?.kind === 'bool' && typeof a[n] === 'boolean'
+	);
+	return first !== undefined && a[first] === true;
+}
+
+/** A watched device's state in a word or two, as its card says it: "Motion", "Off", "Wet". */
+export function watchWord(d: CoreDevice, now = Date.now()): string {
+	const said = cardFor(d, now).stateLine.split(' · ')[0];
+	return said && said !== '—' ? said : watchActive(d) ? 'On' : 'Off';
+}
+
 // ---- the Lights tab ----
 
 /** A column of the Lights tab: one group of one lighting system. */
@@ -288,6 +339,8 @@ export interface ConsoleRoom {
 	/** For the header: locks, and what opens and closes (doors, windows, covers), on any tab. */
 	locks: CoreDevice[];
 	openings: CoreDevice[];
+	/** Anything else the household put in security (a motion sensor, a light), on any tab. */
+	watched: CoreDevice[];
 	/** The tab shown when none was chosen. */
 	first: TabId | undefined;
 }
@@ -556,9 +609,10 @@ export function consoleRoom(
 		tabs,
 		lights: tab,
 		byTab,
-		// Its locks and doors, on whichever tab they are.
-		locks: placed.filter((d) => guards(kindOf(d)) === 'lock'),
-		openings: placed.filter((d) => guards(kindOf(d)) === 'door'),
+		// Its locks, doors and what else is watched, on whichever tab they are.
+		locks: placed.filter((d) => securityKind(d) === 'lock'),
+		openings: placed.filter((d) => securityKind(d) === 'door'),
+		watched: placed.filter((d) => securityKind(d) === 'watch'),
 		first: tabs[0]?.id
 	};
 }

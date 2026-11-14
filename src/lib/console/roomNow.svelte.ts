@@ -212,14 +212,17 @@ export class RoomNow {
 		const name = this.arranged.shown.find((x) => x.id === t)?.name;
 		return name ? `See it on ${name}` : `Open ${this.nameOf(d)}`;
 	}
-	// Locks and doors as pills, but those the household left out.
+	/** A watched device's pill: the device itself. */
+	watchPill = (d: CoreDevice): void => openDevice(d.device_id, page.url);
+	// Locks, doors and what else is watched as pills, but those the household left out.
 	locks = $derived(this.model.locks.filter((d) => !this.lay.pillsOff.includes(d.device_id)));
 	openings = $derived(this.model.openings.filter((d) => !this.lay.pillsOff.includes(d.device_id)));
+	watched = $derived(this.model.watched.filter((d) => !this.lay.pillsOff.includes(d.device_id)));
 	// Two pills with one name ("Test Door: Closed" twice) say which is which.
 	#pillApart = $derived(
-		apart([...this.locks, ...this.openings], (d) => this.short(this.nameOf(d)))
+		apart([...this.locks, ...this.openings, ...this.watched], (d) => this.short(this.nameOf(d)))
 	);
-	/** A lock's or door's name on its pill. */
+	/** A lock's, door's or watched device's name on its pill. */
 	pillName = (d: CoreDevice): string => {
 		const apartBy = this.#pillApart.get(d.device_id);
 		return this.short(this.nameOf(d)) + (apartBy ? ` (${apartBy})` : '');

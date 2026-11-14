@@ -9,6 +9,8 @@
  * Made while a page is set up; the page keeps the tab shown and what's open.
  */
 import { page } from '$app/state';
+import { goto } from '$app/navigation';
+import { nextTab } from '#lib/menuKeys.js';
 import { houseNow } from '#lib/houseNow.svelte.js';
 import { devices } from '#lib/devices.svelte.js';
 import { rooms } from '#lib/rooms.svelte.js';
@@ -47,6 +49,7 @@ import {
 	withRoomAudio
 } from './media.js';
 import { send } from './send.js';
+import { apart } from './apart.js';
 import {
 	brandOf,
 	consoleRoom,
@@ -212,6 +215,45 @@ export class RoomNow {
 	// Locks and doors as pills, but those the household left out.
 	locks = $derived(this.model.locks.filter((d) => !this.lay.pillsOff.includes(d.device_id)));
 	openings = $derived(this.model.openings.filter((d) => !this.lay.pillsOff.includes(d.device_id)));
+	// Two pills with one name ("Test Door: Closed" twice) say which is which.
+	#pillApart = $derived(
+		apart([...this.locks, ...this.openings], (d) => this.short(this.nameOf(d)))
+	);
+	/** A lock's or door's name on its pill. */
+	pillName = (d: CoreDevice): string => {
+		const apartBy = this.#pillApart.get(d.device_id);
+		return this.short(this.nameOf(d)) + (apartBy ? ` (${apartBy})` : '');
+	};
+
+	// ---- the tabs ----
+	/** Shows tab `t` in place of the one shown; the address keeps it. */
+	choose = (t: TabId): void => {
+		const url = new URL(page.url.href);
+		url.searchParams.set('tab', t);
+		url.searchParams.delete('event');
+		void goto(url.pathname + url.search, { replace: true, reset: false });
+	};
+	/** A camera's pill: the Cameras tab, at what it saw. */
+	showEvent = (key: string): void => {
+		const url = new URL(page.url.href);
+		url.searchParams.set('tab', 'cameras');
+		url.searchParams.set('event', key);
+		void goto(url.pathname + url.search, { replace: true, reset: false });
+	};
+	/** The tabs' arrow keys, from `tab`: the next one shown, focused in `box` once it is. */
+	tabKeys = (e: KeyboardEvent, tab: TabId | undefined, box: HTMLElement | undefined): void => {
+		const shown = this.arranged.shown;
+		const to = nextTab(
+			e.key,
+			shown.findIndex((t) => t.id === tab),
+			shown.length
+		);
+		const next = to === null ? undefined : shown[to];
+		if (!next) return;
+		e.preventDefault();
+		this.choose(next.id);
+		queueMicrotask(() => box?.querySelector<HTMLElement>(`[data-tab="${next.id}"]`)?.focus());
+	};
 
 	// ---- Room on, Room off ----
 	/** Whether Room on and Room off would reach anything: a light, not a camera's spotlight. */

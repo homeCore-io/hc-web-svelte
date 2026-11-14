@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import { houseNow } from '#lib/houseNow.svelte.js';
+	import { devices as house } from '#lib/devices.svelte.js';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import type { CardView } from '#lib/card.js';
 	import { allOffTargets, roomSummary } from '#lib/summary.js';
@@ -32,7 +33,7 @@
 	} = $props();
 
 	const summary = $derived(roomSummary(cards, temperature, houseNow.lightIds, houseNow.playingIds));
-	const targets = $derived(allOffTargets(cards));
+	const targets = $derived(allOffTargets(cards, house.byId));
 	const alert = $derived(cards.some((c) => c.alarm === 'wet'));
 
 	const off = () => allOff(targets, devices);

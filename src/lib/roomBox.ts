@@ -353,7 +353,7 @@ export function roomBox(
 		badges,
 		glow: o.lights && lights.length > 0 ? on.length / lights.length : 0,
 		alarm,
-		allOff: o.allOff ? allOffTargets(cards) : [],
+		allOff: o.allOff ? allOffTargets(cards, all) : [],
 		bigIs:
 			o.big === 'temperature' || o.big === 'humidity' || o.big === 'lights' ? o.big : undefined,
 		temperature,

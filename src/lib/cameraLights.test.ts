@@ -8,7 +8,7 @@ import {
 	roomPowerLights,
 	spotlightCamera
 } from './cameraLights.js';
-import { houseChips, roomSummary } from './summary.js';
+import { allOffTargets, houseChips, roomSummary } from './summary.js';
 import { roomBox } from './roomBox.js';
 import { ROOM_BUILT_IN, resolve } from './options.js';
 import { fromList } from './devices.js';
@@ -73,5 +73,23 @@ describe('a camera’s spotlight', () => {
 		const box = roomBox(porch, porchCards, house, resolve([], ROOM_BUILT_IN));
 		expect(box.lines.some((l) => l.what === 'lights')).toBe(false);
 		expect(box.lights).toBeUndefined();
+	});
+
+	it('is never turned off by a room’s All off, so the button never sits beside All quiet', () => {
+		// Switchable, as Reolink's are.
+		const switchable = (d: CoreDevice): CoreDevice => ({
+			...d,
+			schema: { attributes: { on: { kind: 'bool', writable: true } } }
+		});
+		const porchCards = porch.map((d) => cardFor(switchable(d), NOW));
+		expect(allOffTargets(porchCards)).toEqual([]);
+		expect(allOffTargets(porchCards, house)).toEqual([]);
+		// Its camera is in another room: the house tells it.
+		const looseCards = loose.map((d) => cardFor(switchable(d), NOW));
+		expect(allOffTargets(looseCards, house)).toEqual([]);
+		const outsideCards = outside.map((d) => cardFor(switchable(d), NOW));
+		expect(allOffTargets(outsideCards, house).map((c) => c.id)).toEqual(['flood']);
+		const box = roomBox(porch, porchCards, house, resolve([], ROOM_BUILT_IN));
+		expect(box.allOff).toEqual([]);
 	});
 });

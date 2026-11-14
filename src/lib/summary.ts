@@ -9,7 +9,7 @@
 import { cardFor, INFRASTRUCTURE, isOpen, SENSORS, type CardView } from './card.js';
 import { roomSlug, type CoreDevice, type Devices } from './devices.js';
 import type { Room } from './house.js';
-import { cameraLightCards } from './cameraLights.js';
+import { cameraLightCards, isCameraLight } from './cameraLights.js';
 
 export interface Chip {
 	key: string;
@@ -150,11 +150,17 @@ export function roomSummary(
 	return parts.length > 0 ? parts.join(' · ') : 'All quiet';
 }
 
-/** What "All off" would turn off in a room right now — empty hides the button. */
-export function allOffTargets(cards: CardView[]): CardView[] {
+/**
+ * What "All off" would turn off in a room right now — empty hides the button.
+ * Never a camera's spotlight, which isn't one of the room's lights: it is told
+ * by its camera in `all`, the house's devices, else among `cards`.
+ */
+export function allOffTargets(cards: CardView[], all?: Devices): CardView[] {
+	const spot = all ? undefined : cameraLightCards(cards);
 	return cards.filter(
 		(c) =>
 			c.available &&
+			!(all ? isCameraLight({ device_id: c.id }, all) : spot!.has(c.id)) &&
 			ALL_OFF.has(c.kind) &&
 			c.control !== null &&
 			((c.control.kind === 'switch' && c.control.on) ||

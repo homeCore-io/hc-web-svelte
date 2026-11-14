@@ -86,7 +86,8 @@
 			<span class="top"><span class="pct">{level > 0 ? `${level}%` : 'Off'}</span></span>
 			<span class="name">{one.name}</span>
 			<span class="sub" class:note
-				>{note ?? (level > 0 ? one.view.stateLine : 'Drag across to turn on')}</span
+				>{note ??
+					(level > 0 || !one.view.available ? one.view.stateLine : 'Drag across to turn on')}</span
 			>
 		</div>
 		<input

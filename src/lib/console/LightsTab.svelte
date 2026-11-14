@@ -306,7 +306,7 @@
 							</div>
 						{:else}
 							<div class="srow">
-								<button type="button" class="sname" onclick={() => open(s)}
+								<button type="button" class="sname" title={nameOf(s)} onclick={() => open(s)}
 									>{nameOf(s)}<Moved d={s} /></button
 								>
 								<Switch
@@ -621,13 +621,18 @@
 	.srow:first-child {
 		border-top: 0;
 	}
+	/* Up to two lines, so "Holiday Lights 1" and "Holiday Lights 2" stay told apart. */
 	.sname {
 		flex: 1;
 		min-width: 0;
 		font-size: 13px;
 		font-weight: 500;
+		line-height: 1.25;
 		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		overflow-wrap: anywhere;
 	}
 </style>

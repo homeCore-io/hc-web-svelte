@@ -149,8 +149,11 @@
 	const health = $derived(plugin ? stateOf(plugin, clock.now) : null);
 	const update = $derived(plugin ? updateOf(plugin, reg, core.version) : undefined);
 	const actions = $derived(
-		plugin?.capabilities?.actions?.filter((a) => a.requires_role !== 'admin' || session.isAdmin) ??
-			[]
+		plugin?.capabilities?.actions?.filter(
+			(a) =>
+				a.requires_role !== 'admin' ||
+				(session.me?.role === 'admin' && session.can('plugins:write'))
+		) ?? []
 	);
 	// One count everywhere on the page — the one its Devices tab shows.
 	const its = (n: number, one: string, many: string) =>

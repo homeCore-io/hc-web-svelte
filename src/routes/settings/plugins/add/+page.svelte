@@ -157,7 +157,7 @@
 	{#await import('#lib/components/CatalogExtensions.svelte') then { default: CatalogExtensions }}
 		<CatalogExtensions />
 	{/await}
-{:else if !session.isAdmin}
+{:else if !session.can('plugins:write')}
 	<p class="quiet">
 		{notAdmin('Plugins are for the house’s admins.', 'add plugins from the Catalog')}
 	</p>

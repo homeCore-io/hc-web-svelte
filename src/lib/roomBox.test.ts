@@ -356,6 +356,17 @@ describe('the big numbers', () => {
 		]);
 	});
 
+	it('average the house inside from what reads the air, never a leak sensor or a freezer', () => {
+		const odd = [
+			dev('sink', 'water_sensor', { temperature: 2, water_detected: false }),
+			dev('probe', 'temperature_sensor', { temperature: -14, temp_limit_high: -5 }),
+			dev('floor', 'thermostat', { temperature: 30, setpoint: 28 }, { plugin_id: 'plugin.nuheat' })
+		];
+		const cellar = { name: 'Cellar', devices: odd, cards: odd.map((d) => cardFor(d, NOW)) };
+		const inside = bigNumbers({ ...h, rooms: [...rooms, cellar] }, SUMMARY_BUILT_IN)[0];
+		expect([inside?.value, inside?.sub]).toEqual(['21', 'average of 1 room']);
+	});
+
 	it('say their temperatures in the person’s unit, as cards do', () => {
 		followUnits(() => ({ temperature: 'F', measures: 'us' }));
 		const us = bigNumbers(h, SUMMARY_BUILT_IN).find((x) => x.id === 'inside');

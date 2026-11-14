@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isAt, titleFor } from './nav.js';
+import { docTitle, isAt, titleFor } from './nav.js';
 import { humanise } from './text.js';
 
 describe('where the app is', () => {
@@ -12,6 +12,16 @@ describe('where the app is', () => {
 	it('titles a page it knows, and falls back for one it does not', () => {
 		expect(titleFor('/scenes')).toBe('Scenes');
 		expect(titleFor('/rooms/abc')).toBe('homeCore');
+	});
+	it('names the browser tab after the page, then its address, then the app', () => {
+		expect(docTitle('/rooms/abc', 'Office')).toBe('Office · homeCore');
+		expect(docTitle('/settings/devices')).toBe('Devices · homeCore');
+		expect(docTitle('/everywhere/lights')).toBe('Lights · Everywhere · homeCore');
+		expect(docTitle('/everywhere/nope')).toBe('Everywhere · homeCore');
+		expect(docTitle('/')).toBe('Home · homeCore');
+		expect(docTitle('/rooms')).toBe('Rooms · homeCore');
+		expect(docTitle('/rooms/abc', '  ')).toBe('homeCore');
+		expect(docTitle('/somewhere')).toBe('homeCore');
 	});
 });
 

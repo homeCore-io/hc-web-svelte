@@ -7,7 +7,7 @@
 	import '@fontsource/ibm-plex-mono/500.css';
 	import '../app.css';
 	import type { Component, Snippet } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import Shell from '#lib/components/Shell.svelte';
 	import Kiosk from '#lib/components/Kiosk.svelte';
@@ -27,8 +27,21 @@
 	import { consoleHere, findLook, phoneOwnPage, reachesHere, shellOf } from '#lib/looks/model.js';
 	import { look } from '#lib/look.svelte.js';
 	import { phone } from '#lib/console/phone/phone.svelte.js';
+	import { heading } from '#lib/heading.svelte.js';
+	import { docTitle, focusMain } from '#lib/nav.js';
 
 	let { children }: { children: Snippet } = $props();
+
+	// The browser tab's title names the page, so tabs, history and a screen
+	// reader's announcement of the new page say where this is.
+	const title = $derived(docTitle(page.url.pathname, heading.text));
+	// Arriving at another page puts the keyboard at the start of its content,
+	// where SvelteKit would leave it on the whole document; staying on the page
+	// (a tab, a device's panel, Customize) leaves it where it was.
+	afterNavigate((nav) => {
+		if (nav.type === 'enter' || !nav.from || nav.from.url.pathname === nav.to?.url.pathname) return;
+		if (document.activeElement === document.body) focusMain(undefined, false);
+	});
 
 	// Pages that stand alone: signing in, and making this screen a display.
 	const onLogin = $derived(page.url.pathname === '/login' || page.url.pathname === '/display');
@@ -133,6 +146,10 @@
 			theme.paint(paletteOf(personal.doc, household.doc, reaches ? shown.look : undefined));
 	});
 </script>
+
+<svelte:head>
+	{#if !onLogin}<title>{title}</title>{/if}
+</svelte:head>
 
 {#if onLogin}
 	{@render children()}

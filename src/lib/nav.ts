@@ -101,6 +101,34 @@ export function titleFor(pathname: string): string {
 	return known[pathname] ?? (setting ? settingsItem(setting[1]!)?.label : undefined) ?? 'homeCore';
 }
 
+/** The Everywhere views, by their address, for a tab's title. */
+const EVERYWHERE: Record<string, string> = {
+	lights: 'Lights',
+	media: 'Media',
+	climate: 'Climate',
+	security: 'Security',
+	water: 'Water'
+};
+
+/** What an address is called where neither the page nor `titleFor` names it. */
+function placeOf(pathname: string): string | null {
+	const ev = /^\/everywhere\/([^/]+)$/.exec(pathname);
+	if (ev) return EVERYWHERE[ev[1]!] ? `${EVERYWHERE[ev[1]!]} · Everywhere` : 'Everywhere';
+	if (pathname === '/rooms') return 'Rooms';
+	if (pathname.startsWith('/me/looks/')) return 'Look';
+	return null;
+}
+
+/**
+ * The browser tab's title, which history and a screen reader's page
+ * announcement also read: the page's own heading when it set one, else
+ * what its address says, then the app's name alone.
+ */
+export function docTitle(pathname: string, text: string | null = null): string {
+	const name = text?.trim() || placeOf(pathname) || titleFor(pathname);
+	return name === 'homeCore' ? 'homeCore' : `${name} · homeCore`;
+}
+
 /** Where the header's back link goes: a setting goes back to Settings. */
 export function backFor(pathname: string): { href: string; label: string } | null {
 	return /^\/settings\/[^/]+$/.test(pathname) ? { href: '/settings', label: 'Settings' } : null;
@@ -123,4 +151,16 @@ export function withEdit(url: { href: string }, on: boolean): string {
 	if (on) next.searchParams.set('edit', '1');
 	else next.searchParams.delete('edit');
 	return `${next.pathname}${next.search}${next.hash}`;
+}
+
+/**
+ * Puts the keyboard at the start of the page's own content (`<main id="main">`):
+ * the skip link does this, and so does arriving at another page, so the next
+ * Tab goes into the page instead of back through the header and sidebar.
+ */
+export function focusMain(e?: Event, scroll = true): void {
+	const main = document.getElementById('main');
+	if (!main) return;
+	e?.preventDefault();
+	main.focus({ preventScroll: !scroll });
 }

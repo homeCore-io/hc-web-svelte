@@ -89,7 +89,7 @@
 
 <div class="phone">
 	<UnlockedBar />
-	<main class="scr">
+	<main id="main" tabindex="-1" class="scr">
 		{#if here?.kind === 'home'}
 			{#await pages.home()}{@render opening()}{:then m}<m.default
 				/>{:catch}{@render failed()}{/await}

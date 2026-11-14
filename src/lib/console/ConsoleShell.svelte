@@ -27,7 +27,7 @@
 	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
-	import { backFor, titleFor } from '#lib/nav.js';
+	import { backFor, focusMain, titleFor } from '#lib/nav.js';
 	import { homeRoomOrder, ref } from '#lib/layers.js';
 	import { personal } from '#lib/personal.svelte.js';
 	import { household } from '#lib/household.svelte.js';
@@ -172,6 +172,7 @@
 <svelte:window onkeydown={keys} onpointerdown={outside} />
 
 <div class="console" class:folded class:customizing>
+	<a class="skip" href="#main" onclick={(e) => focusMain(e)}>Skip to content</a>
 	<header class="tb" bind:offsetHeight={barHeight}>
 		<button
 			class="collapse"
@@ -337,7 +338,12 @@
 					{#if key !== null}<EditMenu pageKey={key} />{/if}
 				</div>
 			{/if}
-			<main class:editing={editingHere} class:bleed={heading.owned && !editingHere}>
+			<main
+				id="main"
+				tabindex="-1"
+				class:editing={editingHere}
+				class:bleed={heading.owned && !editingHere}
+			>
 				{#if editingHere}<EditBar key={key!} />{/if}
 				{#if key !== null && !editingHere && household.trouble}<p class="trouble" role="alert">
 						{household.trouble}

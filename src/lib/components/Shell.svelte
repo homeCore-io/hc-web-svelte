@@ -16,7 +16,7 @@
 	import Search from '@lucide/svelte/icons/search';
 	import Bell from '@lucide/svelte/icons/bell';
 	import Settings from '@lucide/svelte/icons/settings';
-	import { SIDEBAR, backFor, barFor, isAt, titleFor } from '#lib/nav.js';
+	import { SIDEBAR, backFor, barFor, focusMain, isAt, titleFor } from '#lib/nav.js';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
@@ -117,6 +117,7 @@
 <svelte:window onkeydown={foldKey} />
 
 <div class="app">
+	<a class="skip" href="#main" onclick={(e) => focusMain(e)}>Skip to content</a>
 	<nav class="side" aria-label="Main">
 		<div class="top">
 			<a class="brand" href="/" title="Home">
@@ -226,7 +227,7 @@
 					>{/if}
 			</a>
 		</header>
-		<main class:editing={editingHere}>
+		<main id="main" tabindex="-1" class:editing={editingHere}>
 			{#if editingHere}<EditBar key={key!} />{/if}
 			<!-- Edit saves as it closes, so a save that fails is told here, once the bar has gone. -->
 			{#if key !== null && !editingHere && household.trouble}<p class="trouble" role="alert">

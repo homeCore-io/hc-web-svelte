@@ -296,6 +296,30 @@ a {
 	outline-offset: 2px;
 }
 
+/* "Skip to content": the first stop for a keyboard, seen only when it is focused. */
+.skip {
+	position: fixed;
+	top: 8px;
+	left: 8px;
+	z-index: 1000;
+	padding: 10px 14px;
+	border-radius: 8px;
+	background: var(--surface);
+	color: var(--ink);
+	font-weight: 600;
+	text-decoration: none;
+	box-shadow: 0 2px 12px rgb(0 0 0 / 0.3);
+	transform: translateY(-200%);
+}
+.skip:focus {
+	transform: none;
+}
+
+/* The page itself, focused after a skip or a move to another page: no ring round all of it. */
+main#main:focus {
+	outline: none;
+}
+
 .num {
 	font-family: var(--font-num);
 	font-variant-numeric: tabular-nums;

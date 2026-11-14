@@ -30,3 +30,18 @@ export function apart(list: CoreDevice[], shown: (d: CoreDevice) => string): Map
 	}
 	return out;
 }
+
+/**
+ * Each one's shown name, with what tells it apart from another of the same
+ * name in `list` after it: "Outlet - Living Room AC (41)".
+ */
+export function namesApart(
+	list: CoreDevice[],
+	shown: (d: CoreDevice) => string
+): (d: CoreDevice) => string {
+	const by = apart(list, shown);
+	return (d) => {
+		const w = by.get(d.device_id);
+		return w ? `${shown(d)} (${w})` : shown(d);
+	};
+}

@@ -23,6 +23,7 @@
 	import { dims, shortName, type LightColumn, type LightsTab } from '../room.js';
 	import type { FaderStyle, SwitchStyle } from '../style.js';
 	import { blocksOf } from '../layout.js';
+	import { namesApart } from '../apart.js';
 	import { lampSceneNote, onLabel, swatchOf } from '../hueScenes.js';
 	import {
 		activeIn,
@@ -58,7 +59,12 @@
 	} = $props();
 
 	const blocks = $derived(blocksOf(tab, order));
-	const nameOf = (d: CoreDevice) => shortName(d.name_override ?? d.name, room);
+	// Two with one name ("Outlet - Living Room AC" twice) say which is which.
+	const nameOf = $derived(
+		namesApart([...tab.columns.flatMap((c) => c.lights), ...tab.switches, ...tab.keypads], (d) =>
+			shortName(d.name_override ?? d.name, room)
+		)
+	);
 	const open = (d: CoreDevice) => openDevice(d.device_id, page.url);
 	const flipped = $derived(tab.switches.filter((d) => flips(d) && !isTimer(d)));
 	const unflipped = $derived(tab.switches.filter((d) => !flipped.includes(d)));
@@ -193,7 +199,13 @@
 							>{commands.notes[s.device_id]}</span
 						>{/if}
 				{/each}
-				{#if unflipped.length > 0}<SwitchSet list={unflipped} {room} {may} look="rows" />{/if}
+				{#if unflipped.length > 0}<SwitchSet
+						list={unflipped}
+						{room}
+						{may}
+						look="rows"
+						named={nameOf}
+					/>{/if}
 			</section>
 		{:else if b.kind === 'keypad'}
 			{@const k = tab.keypads[b.index]!}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { apart } from './apart.js';
+import { apart, namesApart } from './apart.js';
 import type { CoreDevice } from '../devices.js';
 
 const dev = (device_id: string, name: string, plugin_id: string) =>
@@ -37,5 +37,22 @@ describe('telling apart things shown with the same name', () => {
 		expect(m.get('ecowitt_temp_1')).toBe('temp 1');
 		expect(m.get('zwave_44')).toBe('44');
 		expect(m.get('zwave_45')).toBe('45');
+	});
+	it('names each, with the word after the ones that share a name', () => {
+		const name = namesApart(
+			[
+				dev('zwave_41', 'Outlet - Living Room AC', 'plugin.zwave'),
+				dev('zwave_43', 'Outlet - Living Room AC', 'plugin.zwave'),
+				dev('hue_lamp', 'Lamp', 'plugin.hue')
+			],
+			nameOf
+		);
+		expect(name(dev('zwave_41', 'Outlet - Living Room AC', 'plugin.zwave'))).toBe(
+			'Outlet - Living Room AC (41)'
+		);
+		expect(name(dev('zwave_43', 'Outlet - Living Room AC', 'plugin.zwave'))).toBe(
+			'Outlet - Living Room AC (43)'
+		);
+		expect(name(dev('hue_lamp', 'Lamp', 'plugin.hue'))).toBe('Lamp');
 	});
 });

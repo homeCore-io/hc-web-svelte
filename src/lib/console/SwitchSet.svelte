@@ -24,6 +24,7 @@
 	import SwitchTile from './SwitchTile.svelte';
 	import TimerTile from './TimerTile.svelte';
 	import { shortName } from './room.js';
+	import { namesApart } from './apart.js';
 	import { drawOf, partsOf } from './switches.js';
 	import { switchesAs, switchStyle, type SetLook } from './style.js';
 
@@ -31,13 +32,16 @@
 		list,
 		room,
 		may,
-		look
+		look,
+		named
 	}: {
 		list: CoreDevice[];
 		room: string;
 		may: boolean;
 		/** Rows or tiles; unset, as the person chose. */
 		look?: SetLook;
+		/** Their names, as the tab around them has them; else each set's own. */
+		named?: (d: CoreDevice) => string;
 	} = $props();
 
 	const as = $derived(look ?? switchesAs(personal.doc.console));
@@ -47,7 +51,10 @@
 		as === 'tiles' ? list.filter((d) => !parts.others.includes(d)) : parts.timers
 	);
 
-	const nameOf = (d: CoreDevice) => shortName(d.name_override ?? d.name, room);
+	// Two with one name say which is which.
+	const nameOf = $derived(
+		named ?? namesApart(list, (d) => shortName(d.name_override ?? d.name, room))
+	);
 	const waiting = (d: CoreDevice) => commands.pending[d.device_id] !== undefined;
 	const isOn = (d: CoreDevice) =>
 		({ ...d.attributes, ...commands.pending[d.device_id]?.want }).on === true;

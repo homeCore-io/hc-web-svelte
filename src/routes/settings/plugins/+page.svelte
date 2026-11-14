@@ -20,7 +20,8 @@
 		type PluginRecord,
 		type RegistryPlugin
 	} from '#lib/plugins.js';
-	import { loadRegistry, loadRuntimes, loadStatus } from '#lib/pluginAdmin.js';
+	import { ask } from '#lib/confirm.svelte.js';
+	import { loadRegistry, loadRuntimes, loadStatus, updateAll } from '#lib/pluginAdmin.js';
 
 	let list = $state<PluginRecord[] | null>(null);
 	let failed = $state<string | null>(null);
@@ -62,9 +63,42 @@
 		list ? withHeld(rowsOf(list, registry, clock.now, core.version), held) : []
 	);
 	const running = $derived(rows.filter((r) => r.state.word === 'Running').length);
-	const updates = $derived(rows.filter((r) => r.update).length);
+	const updatable = $derived(rows.filter((r) => r.update));
+	const updates = $derived(updatable.length);
 	const more = $derived(list ? notInstalled(registry, list) : []);
 	const href = (id: string) => `/settings/plugins/${encodeURIComponent(id)}`;
+
+	// ---- every update at once, one plugin at a time ----
+	let updating = $state(false);
+	let said = $state<{ ok: boolean; text: string } | null>(null);
+	async function updateEvery() {
+		const list = updatable.map((r) => ({ id: r.id, name: r.name, version: r.update! }));
+		const yes = await ask({
+			title: `Update ${list.length} plugins?`,
+			body: 'Each is downloaded from the registry, its signature checked, and restarted, one at a time. Their settings stay.',
+			lost: updatable.map((r) => `${r.name}${r.version ? ` ${r.version}` : ''} to ${r.update}`),
+			go: 'Update all'
+		});
+		if (!yes) return;
+		updating = true;
+		said = null;
+		const done = await updateAll(list, (i, p) => {
+			said = { ok: true, text: `Updating ${i + 1} of ${list.length}: ${p.name}…` };
+		});
+		updating = false;
+		const failed = done.filter((d) => d.error);
+		const ok = done.length - failed.length;
+		said = {
+			ok: failed.length === 0,
+			text: [
+				ok ? `${ok} updated.` : '',
+				...failed.map((d) => `${d.plugin.name} didn’t update: ${d.error}`)
+			]
+				.filter(Boolean)
+				.join(' ')
+		};
+		await load();
+	}
 </script>
 
 {#if !(session.isAdmin || session.can('plugins:read'))}
@@ -82,11 +116,19 @@
 						: ''}</a
 				>
 			{/if}
+			{#if updates > 1 && session.can('plugins:write')}
+				<button type="button" class="go" disabled={updating} onclick={updateEvery}
+					>Update all ({updates})</button
+				>
+			{/if}
 			{#if session.isAdmin || session.can('plugins:write')}
 				<a class="go" href="/settings/plugins/add">Catalog</a>
 			{/if}
 		</div>
 
+		{#if said}
+			<p class="said" class:bad={!said.ok} role="status">{said.text}</p>
+		{/if}
 		{#if failed}
 			<p class="note bad" role="alert">{failed}</p>
 		{:else if list === null}
@@ -190,6 +232,23 @@
 		border: none;
 		background: var(--accent);
 		color: var(--accent-ink);
+	}
+	button.go {
+		font: inherit;
+		font-weight: 700;
+		font-size: 13px;
+		cursor: pointer;
+	}
+	button.go:disabled {
+		opacity: 0.6;
+		cursor: default;
+	}
+	.said {
+		margin: 0;
+		font-weight: 600;
+	}
+	.said.bad {
+		color: var(--alert);
 	}
 	.table {
 		border-radius: var(--radius);

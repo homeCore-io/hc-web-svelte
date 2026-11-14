@@ -14,9 +14,7 @@
 	import RoomView from '#lib/components/rooms/RoomView.svelte';
 
 	const id = $derived(page.params.id ?? '');
-	const name = $derived(
-		id === 'none' ? 'Not in a room' : rooms.list.find((r) => r.id === id)?.name
-	);
+	const name = $derived(id === 'none' ? 'No room' : rooms.list.find((r) => r.id === id)?.name);
 	$effect(() => heading.show(name ?? null));
 </script>
 

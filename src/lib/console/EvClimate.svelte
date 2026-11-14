@@ -156,7 +156,7 @@
 						href={roomHref(r.place, 'sensors') ?? `/rooms/none`}
 						title={d.name_override ?? d.name}
 						><b>{nameOf(d, r.where ?? '')}</b><small class:noroom={r.where === undefined}
-							>{r.where ?? 'No room yet'} · {r.from}</small
+							>{r.where ?? 'No room'} · {r.from}</small
 						></a
 					>
 					<span class="tval" class:bad class:gone={!d.available}

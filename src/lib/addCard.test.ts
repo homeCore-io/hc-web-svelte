@@ -33,7 +33,7 @@ describe('rooms', () => {
 		const order = rooms.map((r) => r.id);
 		const ids = groups.map((g) => g.id).filter((id) => id !== '');
 		expect(ids).toEqual([...ids].sort((a, b) => order.indexOf(a) - order.indexOf(b)));
-		if (groups.some((g) => g.id === '')) expect(groups.at(-1)?.name).toBe('Not in a room');
+		if (groups.some((g) => g.id === '')) expect(groups.at(-1)?.name).toBe('No room');
 		expect(groups.every((g) => g.offers.length > 0)).toBe(true);
 	});
 

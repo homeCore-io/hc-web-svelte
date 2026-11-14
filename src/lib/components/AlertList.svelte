@@ -137,7 +137,7 @@
 
 	const where = (a: Alert) => {
 		const d = devices.byId[a.device_id];
-		// Its room; with none, where it comes from — never "Not in a room" on every alert.
+		// Its room; with none, where it comes from — never "No room" on every alert.
 		return d ? (roomOf(d, rooms.list)?.name ?? (d.plugin_id ? pluginLabel(d.plugin_id) : '')) : '';
 	};
 	function since(at: string): string {

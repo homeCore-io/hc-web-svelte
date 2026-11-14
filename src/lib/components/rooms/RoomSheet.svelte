@@ -13,9 +13,7 @@
 	let { id, close }: { id: string; close: () => void } = $props();
 	markSheet();
 
-	const name = $derived(
-		id === 'none' ? 'Not in a room' : rooms.list.find((r) => r.id === id)?.name
-	);
+	const name = $derived(id === 'none' ? 'No room' : rooms.list.find((r) => r.id === id)?.name);
 	let dialog = $state<HTMLDialogElement>();
 	$effect(() => {
 		if (dialog && !dialog.open) dialog.showModal();

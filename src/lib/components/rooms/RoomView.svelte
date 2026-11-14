@@ -23,7 +23,7 @@
 	let { id }: { id: string } = $props();
 	const sheet = inSheet();
 	const room = $derived(rooms.list.find((r) => r.id === id));
-	const name = $derived(id === 'none' ? 'Not in a room' : room?.name);
+	const name = $derived(id === 'none' ? 'No room' : room?.name);
 
 	const key = $derived(`room:${id}`);
 	// A look may group a room its own way (13 §8); grouping loads only then.

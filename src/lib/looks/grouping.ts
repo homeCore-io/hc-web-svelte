@@ -63,7 +63,7 @@ export function groupRoom(
 		);
 	const classic = roomPage(id, h);
 	const inRoom = byRoom(h.devices, h.rooms).get(id === 'none' ? '' : id) ?? [];
-	const name = id === 'none' ? 'Not in a room' : (h.rooms.find((r) => r.id === id)?.name ?? '');
+	const name = id === 'none' ? 'No room' : (h.rooms.find((r) => r.id === id)?.name ?? '');
 	const cards: (Card & { kind: 'device' })[] = inRoom.map((d) => ({
 		ref: ref.device(d.device_id),
 		kind: 'device',

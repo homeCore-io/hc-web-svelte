@@ -481,7 +481,7 @@ const names = (xs: string[]) =>
 
 export interface HouseIn {
 	all: Devices;
-	/** Each room's name and devices, rooms only (not "Not in a room"). */
+	/** Each room's name and devices, rooms only (not "No room"). */
 	rooms: { name: string; devices: CoreDevice[]; cards: CardView[] }[];
 	cards: CardView[];
 }

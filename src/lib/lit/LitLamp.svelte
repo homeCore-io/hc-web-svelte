@@ -63,6 +63,12 @@
 					m.card.device.attributes
 				);
 	}
+	// A command that failed says so where the state is said, as Classic's cards do.
+	const note = $derived(
+		one
+			? commands.notes[one.card.device.device_id]
+			: group?.members.map((m) => commands.notes[m.card.device.device_id]).find(Boolean)
+	);
 	const rgb = $derived(
 		group ? (group.members.find((m) => m.on)?.rgb ?? group.members[0]!.rgb) : one!.rgb
 	);
@@ -79,7 +85,9 @@
 		<div class="words">
 			<span class="top"><span class="pct">{level > 0 ? `${level}%` : 'Off'}</span></span>
 			<span class="name">{one.name}</span>
-			<span class="sub">{level > 0 ? one.view.stateLine : 'Drag across to turn on'}</span>
+			<span class="sub" class:note
+				>{note ?? (level > 0 ? one.view.stateLine : 'Drag across to turn on')}</span
+			>
 		</div>
 		<input
 			type="range"
@@ -121,12 +129,13 @@
 				>
 			</span>
 			<span class="name">{group.name}</span>
-			<span class="sub"
-				>{onCount === 0
-					? 'Off'
-					: onCount === group.members.length
-						? `All ${onCount} on`
-						: `${onCount} of ${group.members.length} on`}</span
+			<span class="sub" class:note
+				>{note ??
+					(onCount === 0
+						? 'Off'
+						: onCount === group.members.length
+							? `All ${onCount} on`
+							: `${onCount} of ${group.members.length} on`)}</span
 			>
 		</div>
 	</div>
@@ -199,6 +208,10 @@
 	.sub {
 		font-size: 12px;
 		color: var(--ink-muted);
+	}
+	.sub.note {
+		color: var(--alert);
+		font-weight: 600;
 	}
 	input {
 		position: absolute;

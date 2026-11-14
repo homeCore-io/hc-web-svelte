@@ -9,6 +9,8 @@
 	import type { Lamp } from './room.js';
 
 	let { l, power = false }: { l: Lamp; power?: boolean } = $props();
+	// A command that failed says so under the name, as Classic's cards do.
+	const note = $derived(commands.notes[l.card.device.device_id]);
 
 	async function flip() {
 		const d = l.card.device;
@@ -28,7 +30,9 @@
 >
 	<span class="plate" aria-hidden="true"><span class="paddle"></span></span>
 	<span class="name">{l.name}</span>
-	<span class="sub">{l.view.available ? (l.on ? 'On' : 'Off') : 'Not answering'}</span>
+	<span class="sub" class:note
+		>{note ?? (l.view.available ? (l.on ? 'On' : 'Off') : 'Not answering')}</span
+	>
 </button>
 
 <style>
@@ -86,6 +90,10 @@
 	.sub {
 		font-size: 11px;
 		color: var(--ink-muted);
+	}
+	.sub.note {
+		color: var(--alert);
+		font-weight: 600;
 	}
 	@media (max-width: 599px) {
 		.rocker {

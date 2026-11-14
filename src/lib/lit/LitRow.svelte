@@ -15,6 +15,7 @@
 		ink,
 		level = null,
 		bare = false,
+		alarm = false,
 		flip,
 		setLevel,
 		open
@@ -28,6 +29,8 @@
 		level?: number | null;
 		/** A line of a joined card: no card of its own around it. */
 		bare?: boolean;
+		/** Its words say something went wrong (a command that failed). */
+		alarm?: boolean;
 		flip: () => void;
 		/** Sent once, when the slider is let go. */
 		setLevel?: (v: number) => void;
@@ -39,7 +42,7 @@
 	const shown = $derived(held ?? (on ? (level ?? 0) : 0));
 </script>
 
-<div class="row" class:on class:bare style:--tint={ink}>
+<div class="row" class:on class:bare class:alarm style:--tint={ink}>
 	<span class="symbol"><Icon name={icon} size={16} /></span>
 	<button class="words" onclick={open}><b>{name}</b><small>{words}</small></button>
 	{#if level !== null && setLevel}
@@ -121,6 +124,10 @@
 	small {
 		font-size: 12px;
 		color: var(--ink-muted);
+	}
+	.alarm small {
+		color: var(--alert);
+		font-weight: 600;
 	}
 	input[type='range'] {
 		flex: 1;

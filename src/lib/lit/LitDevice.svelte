@@ -138,6 +138,8 @@
 	const ink = $derived(
 		lamp && look.def.ownColors && family === 'lights' ? `rgb(${lamp.rgb})` : 'var(--accent)'
 	);
+	// A command that failed says so in place of the state, as Classic's cards do.
+	const note = $derived(commands.notes[d.device_id]);
 	// A reading in a chip: its value, the first of its state's words ("44°F").
 	const readingWords = $derived(view.stateLine.split(' · ')[0] ?? view.stateLine);
 	const power = $derived(
@@ -149,7 +151,8 @@
 	<!-- A line of a joined card (13 §13.1): a row, whatever the look draws it as elsewhere. -->
 	<LitRow
 		{name}
-		words={view.stateLine}
+		words={note ?? view.stateLine}
+		alarm={!!note}
 		icon={view.icon}
 		on={lamp.on}
 		{ink}
@@ -209,11 +212,11 @@
 {:else if drawing === 'chip' && (lamp || reading)}
 	<LitChip
 		{name}
-		words={reading ? readingWords : view.stateLine}
+		words={note ?? (reading ? readingWords : view.stateLine)}
 		icon={view.icon}
 		on={lamp?.on ?? false}
 		{ink}
-		alarm={!!view.alarm}
+		alarm={!!view.alarm || !!note}
 		reading={!!reading}
 		flip={lamp ? flip : undefined}
 		{open}
@@ -221,7 +224,8 @@
 {:else if drawing === 'row' && lamp}
 	<LitRow
 		{name}
-		words={view.stateLine}
+		words={note ?? view.stateLine}
+		alarm={!!note}
 		icon={view.icon}
 		on={lamp.on}
 		{ink}

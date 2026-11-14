@@ -614,12 +614,18 @@
 		top: 8px;
 		right: 8px;
 	}
+	/* Settings and You stay in view at the bottom; the rooms scroll above them. */
 	.foot {
+		position: sticky;
+		bottom: -12px;
+		margin-bottom: -12px;
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
-		padding-top: 8px;
+		padding: 8px 0 12px;
 		border-top: 1px solid var(--con-edge);
+		background: var(--con-side);
+		backdrop-filter: blur(20px);
 	}
 
 	/* Folded: the rail of icons, the room list behind one button. */

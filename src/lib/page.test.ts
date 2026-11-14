@@ -76,7 +76,7 @@ describe('Home, generated (D1)', () => {
 		expect(r).not.toContain('room:none');
 	});
 
-	it('puts devices in no room last, under "Not in a room" — but not modes or scenes', () => {
+	it('puts devices in no room last, under "No room" — but not modes or scenes', () => {
 		const stray = { ...HOUSE[0]!, device_id: 'stray', area: undefined };
 		const r = refs(section(home({ devices: { ...devices, stray } }), 'rooms').cards);
 		expect(r.at(-1)).toBe('room:none');

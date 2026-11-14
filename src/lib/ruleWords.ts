@@ -201,7 +201,7 @@ const TIMER_BECOMES: Record<string, string> = {
 	running: 'starts',
 	paused: 'is paused',
 	idle: 'stops',
-	cancelled: 'is cancelled'
+	cancelled: 'is canceled'
 };
 
 /** Whether `attr` is what the device is mostly about, so needn't be named. */
@@ -279,6 +279,11 @@ function isNow(h: House, ids: string[], attr: string, op: string, value: Json): 
 	) {
 		const v = op === 'Eq' ? value : !value;
 		return [...who, t(` ${be('is')} ${valueText(spec, v)}`)];
+	}
+	// A scene's or mode's `active`: "Outside On is active", not "Outside On active is on".
+	if ((op === 'Eq' || op === 'Ne') && typeof value === 'boolean' && attr === 'active') {
+		const v = op === 'Eq' ? value : !value;
+		return [...who, t(` ${be('is')} ${v ? 'active' : 'not active'}`)];
 	}
 	const named = isMain(h, ids[0]!, attr) ? '' : ` ${attrName(spec, attr)}`;
 	return [...who, t(`${named} ${be(OP_IS[op] ?? `is ${op}`)} ${valueText(spec, value)}`)];

@@ -16,7 +16,15 @@
 	import Search from '@lucide/svelte/icons/search';
 	import Bell from '@lucide/svelte/icons/bell';
 	import Settings from '@lucide/svelte/icons/settings';
-	import { SIDEBAR, backFor, barFor, isAt, titleFor } from '#lib/nav.js';
+	import {
+		EVERYWHERE_VIEWS,
+		SIDEBAR,
+		backFor,
+		barFor,
+		focusMain,
+		isAt,
+		titleFor
+	} from '#lib/nav.js';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
@@ -31,6 +39,18 @@
 	import { alerts } from '#lib/alerts.svelte.js';
 	import { adding } from '#lib/adding.svelte.js';
 	import RoomIcon from './RoomIcon.svelte';
+	import Lightbulb from '@lucide/svelte/icons/lightbulb';
+	import Speaker from '@lucide/svelte/icons/speaker';
+	import Thermometer from '@lucide/svelte/icons/thermometer';
+	import Lock from '@lucide/svelte/icons/lock';
+	import Droplets from '@lucide/svelte/icons/droplets';
+	const EV_ICONS = {
+		light: Lightbulb,
+		speaker: Speaker,
+		thermometer: Thermometer,
+		lock: Lock,
+		water: Droplets
+	};
 	import Avatar from './Avatar.svelte';
 	import SideRoomStatus from './SideRoomStatus.svelte';
 	import { kindOptions } from '#lib/kindOptions.svelte.js';
@@ -117,6 +137,7 @@
 <svelte:window onkeydown={foldKey} />
 
 <div class="app">
+	<a class="skip" href="#main" onclick={(e) => focusMain(e)}>Skip to content</a>
 	<nav class="side" aria-label="Main">
 		<div class="top">
 			<a class="brand" href="/" title="Home">
@@ -149,6 +170,22 @@
 				<span class="label">{d.label}</span>
 			</a>
 		{/each}
+
+		<!-- Every room at once, as the console's sidebar offers it. -->
+		<div class="rooms">
+			<p class="section-label">Everywhere</p>
+			{#each EVERYWHERE_VIEWS as v (v.id)}
+				{@const Drawn = EV_ICONS[v.icon]}
+				<a
+					class="room"
+					href={`/everywhere/${v.id}`}
+					aria-current={pathname === `/everywhere/${v.id}` ? 'page' : undefined}
+					><Drawn size={16} strokeWidth={1.8} aria-hidden="true" /><span class="room-name"
+						>{v.label}</span
+					></a
+				>
+			{/each}
+		</div>
 
 		{#if rooms.list.length > 0 && !field}
 			<div class="rooms">
@@ -226,7 +263,7 @@
 					>{/if}
 			</a>
 		</header>
-		<main class:editing={editingHere}>
+		<main id="main" tabindex="-1" class:editing={editingHere}>
 			{#if editingHere}<EditBar key={key!} />{/if}
 			<!-- Edit saves as it closes, so a save that fails is told here, once the bar has gone. -->
 			{#if key !== null && !editingHere && household.trouble}<p class="trouble" role="alert">
@@ -305,6 +342,17 @@
 		font-size: 14px;
 		font-weight: 600;
 		text-decoration: none;
+	}
+	/* A finger's reach on a phone, the link drawn as it is. */
+	@media (pointer: coarse), (max-width: 699px) {
+		.back {
+			position: relative;
+		}
+		.back::after {
+			content: '';
+			position: absolute;
+			inset: -14px -8px;
+		}
 	}
 	/* Above Home's title in the room field: the day, and the house's mode (mockup A). */
 	.kicker {

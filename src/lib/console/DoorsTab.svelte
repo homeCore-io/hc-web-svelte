@@ -413,7 +413,7 @@
 		font-size: calc(24px + 8px * var(--k, 1));
 		font-weight: 700;
 		letter-spacing: -0.02em;
-		color: color-mix(in srgb, var(--good, #4fe0a0) 70%, var(--ink));
+		color: var(--good-ink, color-mix(in srgb, var(--good, #4fe0a0) 70%, var(--ink)));
 	}
 	.big b.bad {
 		color: #ffb38a;

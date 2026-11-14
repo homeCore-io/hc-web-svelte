@@ -10,6 +10,7 @@ import {
 	resolve,
 	roomIn,
 	tabToShow,
+	tabWith,
 	withoutRoom,
 	withRoomLayout,
 	withRoomStars
@@ -216,6 +217,16 @@ describe('a room’s tabs as its layout has them', () => {
 		expect(tabToShow(a, 'climate')).toBe('climate');
 		expect(tabToShow(a, 'sensors')).toBe('media');
 		expect(tabToShow(a, null)).toBe('media');
+	});
+
+	it('sends a door’s pill to the shown tab the door is on, else to none', () => {
+		const byTab = { doors: [{ device_id: 'lock' }], sensors: [{ device_id: 'door' }] };
+		const shown = arrangeTabs(tabs('doors', 'sensors'), { hidden: [] }).shown;
+		expect(tabWith(byTab, shown, 'door')).toBe('sensors');
+		expect(tabWith(byTab, shown, 'lock')).toBe('doors');
+		// Its tab hidden: no tab, so the pill opens the door itself.
+		const hidden = arrangeTabs(tabs('doors', 'sensors', 'lights'), { hidden: ['sensors'] }).shown;
+		expect(tabWith(byTab, hidden, 'door')).toBeUndefined();
 	});
 });
 

@@ -68,10 +68,16 @@
 		return [`On · ${shown}%`, scene].filter(Boolean).join(' · ');
 	});
 
-	/** A bar dragged across: `set` follows the finger, `done` gets where it was let go. */
-	function drag(set: (at: number) => void, done: () => void) {
+	/**
+	 * A bar dragged across: `set` follows the finger, `done` gets where it
+	 * was let go. A drag the phone takes back (a swipe home, a second finger,
+	 * the sheet closing) is `dropped`, and sends nothing. One finger at a time.
+	 */
+	let dragging = false;
+	function drag(set: (at: number) => void, done: () => void, dropped: () => void) {
 		return (e: PointerEvent) => {
-			if (!can) return;
+			if (!can || dragging) return;
+			dragging = true;
 			const bar = e.currentTarget as HTMLElement;
 			bar.setPointerCapture(e.pointerId);
 			const at = (ev: PointerEvent) => {
@@ -79,22 +85,28 @@
 				return levelAt(ev.clientX, r.left, r.width) / 100;
 			};
 			set(at(e));
-			const move = (ev: PointerEvent) => set(at(ev));
-			const up = () => {
+			const move = (ev: PointerEvent) => ev.pointerId === e.pointerId && set(at(ev));
+			const end = (send: boolean) => (ev: PointerEvent) => {
+				if (ev.pointerId !== e.pointerId) return;
 				bar.removeEventListener('pointermove', move);
 				bar.removeEventListener('pointerup', up);
-				bar.removeEventListener('pointercancel', up);
-				done();
+				bar.removeEventListener('pointercancel', cancel);
+				dragging = false;
+				if (send) done();
+				else dropped();
 			};
+			const up = end(true);
+			const cancel = end(false);
 			bar.addEventListener('pointermove', move);
 			bar.addEventListener('pointerup', up);
-			bar.addEventListener('pointercancel', up);
+			bar.addEventListener('pointercancel', cancel);
 		};
 	}
 	const brightDown = $derived(
 		drag(
 			(at) => (held = Math.round(at * 100)),
-			() => held !== null && commit(held)
+			() => held !== null && commit(held),
+			() => (held = null)
 		)
 	);
 	/** Arrows step by 5, Page Up and Down by 10, Home and End to the ends. */
@@ -138,7 +150,8 @@
 	const whiteDown = $derived(
 		drag(
 			(at) => (whiteHeld = at),
-			() => whiteHeld !== null && setWhite(whiteHeld)
+			() => whiteHeld !== null && setWhite(whiteHeld),
+			() => (whiteHeld = null)
 		)
 	);
 	function whiteKey(e: KeyboardEvent) {
@@ -174,7 +187,8 @@
 		if (!target) return;
 		const id = target.device_id;
 		onclose();
-		openDevice(id, page.url);
+		// In the sheet's place in history, so closing the details comes back to the room.
+		openDevice(id, page.url, true);
 	}
 </script>
 
@@ -276,11 +290,11 @@
 	}
 	.tag[data-brand='hue'] {
 		background: rgba(127, 184, 255, 0.15);
-		color: #a9cdff;
+		color: var(--cool-ink, #a9cdff);
 	}
 	.tag[data-brand='lutron'] {
 		background: rgba(255, 196, 107, 0.15);
-		color: #ffd48a;
+		color: var(--warm-ink, #ffd48a);
 	}
 	.st {
 		margin: 0;
@@ -331,7 +345,7 @@
 	}
 	.ct {
 		position: relative;
-		height: 36px;
+		height: 44px;
 		margin-top: 14px;
 		border-radius: 12px;
 		background: linear-gradient(90deg, #ff9a3c, #ffe1b0, #f4f7ff, #a9cdff);
@@ -342,7 +356,7 @@
 		position: absolute;
 		top: -4px;
 		width: 6px;
-		height: 44px;
+		height: 52px;
 		margin-left: -3px;
 		border-radius: 3px;
 		background: #fff;

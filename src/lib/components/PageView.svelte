@@ -13,6 +13,7 @@
 	follows the field, and the alerts are one line after the numbers.
 -->
 <script lang="ts">
+	import { houseNow } from '#lib/houseNow.svelte.js';
 	import {
 		applyPage,
 		drawn,
@@ -167,7 +168,8 @@
 								c.devices,
 								c.devices.map((d) => cardFor(d, clock.now)),
 								devices.byId,
-								kindOptions.of(key, 'room', c.ref, ROOM_BUILT_IN)
+								kindOptions.of(key, 'room', c.ref, ROOM_BUILT_IN),
+								houseNow.lightIds
 							)
 						: undefined
 			}))

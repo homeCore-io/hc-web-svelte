@@ -4,7 +4,7 @@
 	goes there.
 -->
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { liveRules } from '#lib/rules.svelte.js';
 	import { page } from '$app/state';
 	import SearchIcon from '@lucide/svelte/icons/search';
@@ -59,6 +59,10 @@
 		} else if (!finder.open && dialog.open) dialog.close();
 	});
 
+	// The page changing underneath (Back, Forward, a link elsewhere) closes the
+	// search, so it never sits over a page it wasn't opened on.
+	afterNavigate(() => (finder.open = false));
+
 	function keys(e: KeyboardEvent) {
 		if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
 			e.preventDefault();
@@ -109,6 +113,9 @@
 				onkeydown={move}
 				placeholder="Search devices, rooms, scenes"
 				aria-label="Search"
+				role="combobox"
+				aria-expanded={query.trim() !== '' && hits.length > 0}
+				aria-autocomplete="list"
 				aria-controls="search-results"
 				aria-activedescendant={hits[at] ? `hit-${at}` : undefined}
 				autocomplete="off"
@@ -117,7 +124,7 @@
 			<kbd>esc</kbd>
 		</label>
 		{#if query.trim() !== ''}
-			<ul id="search-results" role="listbox">
+			<ul id="search-results" role="listbox" tabindex="-1" aria-label="Results">
 				{#each hits as h, i (h.type + ('id' in h ? h.id : h.href))}
 					<li
 						id={`hit-${i}`}
@@ -135,10 +142,28 @@
 				{/each}
 			</ul>
 		{/if}
+		<p class="count" role="status">
+			{query.trim() === ''
+				? ''
+				: hits.length === 0
+					? 'No results'
+					: hits.length === 1
+						? '1 result'
+						: `${hits.length} results`}
+		</p>
 	</div>
 </dialog>
 
 <style>
+	/* Said, not seen: how many results there are, for a screen reader. */
+	.count {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
 	dialog {
 		margin: 12vh auto auto;
 		padding: 0;

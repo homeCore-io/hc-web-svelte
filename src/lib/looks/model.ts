@@ -784,6 +784,13 @@ export function readLook(raw: unknown, known: readonly Look[] = BUILT_IN): Look 
 export const householdPage = (path: string): boolean =>
 	path === '/' || /^\/(rooms|pages|scenes|alerts|cameras|everywhere)(\/|$)/.test(path);
 
+/**
+ * A person's own pages that a phone keeps in the console's phone frame, with
+ * its tab bar, as the You sheet opens them: Me and their picture. On a
+ * larger screen they keep the standard frame.
+ */
+export const phoneOwnPage = (path: string): boolean => /^\/me(\/picture)?\/?$/.test(path);
+
 /** Whether a look reaches this screen. */
 export const reachesHere = (l: Look, path: string): boolean =>
 	l.reaches === 'everywhere' || householdPage(path);

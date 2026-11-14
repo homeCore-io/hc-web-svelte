@@ -9,6 +9,7 @@
  * grouping can't lose a device (principle 6). Sections keep their rules' ids,
  * and each look keeps its own arrangements (§8.4).
  */
+import { isCameraLight } from '../cameraLights.js';
 import { batteryOf, cardFor, type CardView } from '../card.js';
 import type { Card, Page, Section } from '../page.js';
 import { roomPage, type RoomInput } from '../page.js';
@@ -62,7 +63,7 @@ export function groupRoom(
 		);
 	const classic = roomPage(id, h);
 	const inRoom = byRoom(h.devices, h.rooms).get(id === 'none' ? '' : id) ?? [];
-	const name = id === 'none' ? 'Not in a room' : (h.rooms.find((r) => r.id === id)?.name ?? '');
+	const name = id === 'none' ? 'No room' : (h.rooms.find((r) => r.id === id)?.name ?? '');
 	const cards: (Card & { kind: 'device' })[] = inRoom.map((d) => ({
 		ref: ref.device(d.device_id),
 		kind: 'device',
@@ -76,11 +77,15 @@ export function groupRoom(
 	const views: Record<string, CardView> = Object.fromEntries(
 		cards.map((c) => [c.ref, cardFor(c.device, h.now)])
 	);
-	const sorted = litRoom(cards, views);
+	// The house's devices, so a camera's spotlight is its camera's wherever each is.
+	const sorted = litRoom(cards, views, {}, {}, h.devices);
 
 	// Cameras have a place of their own where a look gives them one; else they're
 	// among everything else, as they were.
-	const isCamera = (c: Card) => c.kind === 'device' && c.device.device_type === 'camera';
+	// A camera's spotlight stays with its camera.
+	const isCamera = (c: Card) =>
+		c.kind === 'device' &&
+		(c.device.device_type === 'camera' || isCameraLight(c.device, h.devices));
 	const cameras = rules.some((r) => r.takes.includes('cameras'))
 		? sorted.rest.filter(isCamera)
 		: [];

@@ -49,13 +49,13 @@
 	} from '#lib/alerts.js';
 	import {
 		alertIgnores,
-		alertRules,
 		createAlertRule,
 		deleteAlertRule,
 		saveAlertRule,
 		unignore
 	} from '#lib/admin.js';
 	import { core } from '#lib/core.svelte.js';
+	import { listOf, refusal } from '#lib/refusals.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { loadConfig } from '#lib/config.js';
 	import { channelsOf } from '#lib/notify.js';
@@ -83,8 +83,21 @@
 	let rules = $state<AlertRule[] | null>(null);
 	let ignores = $state<AlertIgnore[] | null>(null);
 	let trouble = $state<string | null>(null);
+	/** Why the rules couldn't be read; while this and `rules` are both null, they're loading. */
+	let rulesTrouble = $state<string | null>(null);
 	const reload = async () => {
-		[rules, ignores] = await Promise.all([alertRules(), alertIgnores()]);
+		const [got, ig] = await Promise.all([listOf<AlertRule[]>('/alert-rules'), alertIgnores()]);
+		ignores = ig;
+		if (got.ok) {
+			rules = got.value;
+			rulesTrouble = null;
+		} else if (rules === null) {
+			// A homeCore before 0.1.76 has no rules at all; say so only when it's known.
+			rulesTrouble =
+				got.status === 404 || core.older('0.1.76')
+					? 'This homeCore doesn’t check alert rules yet. It needs v0.1.76 or later.'
+					: refusal(got.status, 'alert rules');
+		}
 	};
 	// Levels and channels are homeCore 0.1.81's; channel names are in its
 	// settings, which only an admin reads.
@@ -432,7 +445,7 @@
 		</p>
 
 		{#if rules === null}
-			<p class="quiet">This homeCore doesn't check alert rules yet — it needs v0.1.76 or later.</p>
+			<p class="quiet" role={rulesTrouble ? 'alert' : 'status'}>{rulesTrouble ?? 'Loading…'}</p>
 		{:else}
 			<section>
 				<h2 class="section-label">Your rules</h2>

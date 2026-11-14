@@ -6,8 +6,8 @@
 	import '@fontsource/ibm-plex-mono/400.css';
 	import '@fontsource/ibm-plex-mono/500.css';
 	import '../app.css';
-	import type { Component, Snippet } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { tick, type Component, type Snippet } from 'svelte';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import Shell from '#lib/components/Shell.svelte';
 	import Kiosk from '#lib/components/Kiosk.svelte';
@@ -24,11 +24,31 @@
 	import { houseUnits } from '#lib/houseUnits.svelte.js';
 	import { alerts } from '#lib/alerts.svelte.js';
 	import { lookOf, looksOf, paletteOf } from '#lib/layers.js';
-	import { consoleHere, findLook, reachesHere, shellOf } from '#lib/looks/model.js';
+	import { consoleHere, findLook, phoneOwnPage, reachesHere, shellOf } from '#lib/looks/model.js';
 	import { look } from '#lib/look.svelte.js';
 	import { phone } from '#lib/console/phone/phone.svelte.js';
+	import { heading } from '#lib/heading.svelte.js';
+	import { docTitle, focusMain } from '#lib/nav.js';
 
 	let { children }: { children: Snippet } = $props();
+
+	// The browser tab's title names the page, so tabs, history and a screen
+	// reader's announcement of the new page say where this is.
+	const title = $derived(docTitle(page.url.pathname, heading.text));
+	// Arriving at another page puts the keyboard at the start of its content,
+	// where SvelteKit would leave it on the whole document; staying on the page
+	// (a tab, a device's panel, Customize) leaves it where it was.
+	afterNavigate((nav) => {
+		if (nav.type === 'enter' || !nav.from || nav.from.url.pathname === nav.to?.url.pathname) return;
+		// After the page has drawn and anything over the old one (search) has closed.
+		void tick().then(() =>
+			setTimeout(() => {
+				const at = document.activeElement;
+				if (!at || at === document.body || !document.getElementById('main')?.contains(at))
+					focusMain(undefined, false);
+			})
+		);
+	});
 
 	// Pages that stand alone: signing in, and making this screen a display.
 	const onLogin = $derived(page.url.pathname === '/login' || page.url.pathname === '/display');
@@ -87,8 +107,14 @@
 					: lookOf(personal.doc, household.doc, all)
 		};
 	});
+	// Until the documents load, the look this browser last showed.
+	const framed = $derived(personal.loaded && household.loaded ? shown.look : look.def);
+	// On a phone, Me and the person's picture stay in the console's phone frame.
+	const ownOnPhone = $derived(
+		phone.current && shellOf(framed) === 'console' && phoneOwnPage(page.url.pathname)
+	);
 	// Settings and the admin screens keep Classic's feel, unless the look reaches them (S9).
-	const reaches = $derived(reachesHere(shown.look, page.url.pathname));
+	const reaches = $derived(reachesHere(shown.look, page.url.pathname) || ownOnPhone);
 	$effect(() => {
 		if (personal.loaded && household.loaded) look.show(shown.look, shown.all, reaches);
 	});
@@ -101,9 +127,8 @@
 	// browser last showed decides, so the frame doesn't change as they arrive.
 	// The console's code is loaded only for those who see it: on a phone's
 	// screen, its phone layout (PhonePlan), and only that.
-	const framed = $derived(personal.loaded && household.loaded ? shown.look : look.def);
 	const desk = $derived(consoleHere(framed, page.url.pathname));
-	const small = $derived(desk && phone.current);
+	const small = $derived((desk && phone.current) || ownOnPhone);
 	let ConsoleShell = $state<Component<{ children: Snippet }> | null>(null);
 	let PhoneShell = $state<Component<{ children: Snippet }> | null>(null);
 	$effect(() => {
@@ -112,12 +137,26 @@
 		if (small && PhoneShell === null)
 			void import('#lib/console/phone/PhoneShell.svelte').then((m) => (PhoneShell = m.default));
 	});
+	// The page app.html shows while the app starts stays until there's a frame
+	// to see: signing in, a display, or the person's frame once it's loaded.
+	const drawn = $derived(
+		onLogin ||
+			session.isDisplay ||
+			(session.me !== null && (small ? PhoneShell !== null : desk ? ConsoleShell !== null : true))
+	);
+	$effect(() => {
+		if (drawn) document.getElementById('hc-boot')?.remove();
+	});
 	// The theme: the person's own, else the house's, else the look's where it reaches (D9a).
 	$effect(() => {
 		if (personal.loaded && household.loaded)
 			theme.paint(paletteOf(personal.doc, household.doc, reaches ? shown.look : undefined));
 	});
 </script>
+
+<svelte:head>
+	{#if !onLogin}<title>{title}</title>{/if}
+</svelte:head>
 
 {#if onLogin}
 	{@render children()}

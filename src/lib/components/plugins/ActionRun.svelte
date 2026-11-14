@@ -141,7 +141,7 @@
 		waiting: 'Waiting for you',
 		done: 'Done',
 		failed: 'Didn’t work',
-		canceled: 'Cancelled',
+		canceled: 'Canceled',
 		'timed out': 'Took too long'
 	};
 </script>

@@ -11,7 +11,15 @@
 	import { wide } from '#lib/wide.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { live } from '#lib/live.svelte.js';
-	import { notInstalled, rowsOf, type PluginRecord, type RegistryPlugin } from '#lib/plugins.js';
+	import { devices } from '#lib/devices.svelte.js';
+	import {
+		heldBy,
+		notInstalled,
+		rowsOf,
+		withHeld,
+		type PluginRecord,
+		type RegistryPlugin
+	} from '#lib/plugins.js';
 	import { loadRegistry, loadRuntimes, loadStatus } from '#lib/pluginAdmin.js';
 
 	let list = $state<PluginRecord[] | null>(null);
@@ -29,13 +37,14 @@
 	onMount(() => {
 		void load();
 		void loadRegistry().then((r) => (r.ok ? (registry = r.data.plugins) : (noRegistry = r.error)));
-		void loadRuntimes().then((r) => {
-			if (r.ok)
-				runtimes = {
-					pending: r.data.runtimes.filter((x) => x.status === 'pending').length,
-					all: r.data.runtimes.length
-				};
-		});
+		if (session.can('plugins:write'))
+			void loadRuntimes().then((r) => {
+				if (r.ok)
+					runtimes = {
+						pending: r.data.runtimes.filter((x) => x.status === 'pending').length,
+						all: r.data.runtimes.length
+					};
+			});
 		// Status changes are announced; heartbeats aren't, so read again now and then.
 		const stop = live.listen((f) => {
 			if ((f as { type: string }).type === 'plugin_status_changed') void load();
@@ -47,7 +56,11 @@
 		};
 	});
 
-	const rows = $derived(list ? rowsOf(list, registry, clock.now, core.version) : []);
+	// The devices homeCore holds for each: the count its own page shows.
+	const held = $derived(devices.loaded ? heldBy(Object.values(devices.byId)) : null);
+	const rows = $derived(
+		list ? withHeld(rowsOf(list, registry, clock.now, core.version), held) : []
+	);
 	const running = $derived(rows.filter((r) => r.state.word === 'Running').length);
 	const updates = $derived(rows.filter((r) => r.update).length);
 	const more = $derived(list ? notInstalled(registry, list) : []);
@@ -62,13 +75,11 @@
 			<span class="sum">
 				{running} running{updates ? ` · ${updates} ${updates === 1 ? 'update' : 'updates'}` : ''}
 			</span>
-			{#if session.isAdmin}
+			{#if session.can('plugins:write')}
 				<a class="plain" href="/settings/plugins/runtimes"
-					>Plugin runtimes · {runtimes
-						? runtimes.pending
-							? `${runtimes.pending} waiting`
-							: runtimes.all || 'none'
-						: '…'}</a
+					>Plugin runtimes{runtimes
+						? ` · ${runtimes.pending ? `${runtimes.pending} waiting` : runtimes.all || 'none'}`
+						: ''}</a
 				>
 			{/if}
 			{#if session.isAdmin || session.can('plugins:write')}
@@ -115,7 +126,7 @@
 							<span class="text">
 								<strong>{r.name}</strong>
 								<span class="sub {r.state.tone}"
-									>{r.state.word} · {r.devices} devices · {r.version ?? '—'}</span
+									>{r.state.word} · {r.devices} devices{r.version ? ` · ${r.version}` : ''}</span
 								>
 								{#if r.notice}<span class="sub bad">{r.notice.message}</span>{/if}
 							</span>

@@ -33,7 +33,7 @@
 	import { anyLit } from './pictures.js';
 	import RoomPhoto from './RoomPhoto.svelte';
 	import { photoLit } from './photo.js';
-	import { greetingOf } from './home.js';
+	import { dockCount, greetingOf } from './home.js';
 	import { HomeNow } from './homeNow.svelte.js';
 	import { openingRoom } from './opensOn.js';
 
@@ -86,7 +86,7 @@
 		const d = devices.byId[id];
 		return d ? cardFor(d, clock.now).art : undefined;
 	};
-	const playingNow = $derived(playing.filter((p) => p.playing).length);
+	const dockWord = $derived(dockCount(playing));
 </script>
 
 {#if !devices.loaded}
@@ -230,15 +230,7 @@
 					</a>
 				{/each}
 				<span class="gap"></span>
-				<a class="count" href="/everywhere/media" title="Everywhere › Media"
-					>{playingNow === 0
-						? 'Nothing playing now'
-						: playingNow === 1
-							? '1 playing'
-							: `${playingNow} playing`}{playing.length > DOCK_SHOWN
-						? ` · ${playing.length - DOCK_SHOWN} more`
-						: ''}</a
-				>
+				<a class="count" href="/everywhere/media" title="Everywhere › Media">{dockWord}</a>
 			</footer>
 		{/if}
 	</div>
@@ -380,7 +372,7 @@
 		display: grid;
 		place-items: center;
 		background: var(--alert);
-		color: #1a0605;
+		color: var(--alert-ink);
 		font-size: 12px;
 	}
 	.ipill.rest {
@@ -451,7 +443,7 @@
 	}
 	.fav.bad .fi {
 		background: var(--alert);
-		color: #1a0605;
+		color: var(--alert-ink);
 	}
 	.ft small {
 		display: block;
@@ -637,7 +629,6 @@
 		margin-top: auto;
 		background: linear-gradient(180deg, rgba(28, 24, 40, 0.92), rgba(18, 16, 26, 0.95));
 		backdrop-filter: blur(30px);
-		-webkit-backdrop-filter: blur(30px);
 		box-shadow:
 			inset 0 1px 0 rgba(255, 255, 255, 0.08),
 			0 -12px 30px -16px rgba(0, 0, 0, 0.8);

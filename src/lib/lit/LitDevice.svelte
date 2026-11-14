@@ -37,6 +37,8 @@
 	import { extensions } from '#lib/extensions.svelte.js';
 	import { optionValues } from '#lib/drawingOptions.js';
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
+	import { isCameraLight } from '#lib/cameraLights.js';
+	import { devices } from '#lib/devices.svelte.js';
 	import { deviceScene, isDoorKind, isWatchKind, lampOf, readingOf } from './room.js';
 
 	const look = lookHere();
@@ -64,7 +66,10 @@
 	$effect(() => {
 		if (d.attributes?.state === 'running' && kindOf(d) === 'timer') return clock.hold();
 	});
-	const lamp = $derived(card.scene ? null : lampOf(card, view, name));
+	// A camera's spotlight is its camera's, never drawn as one of the room's lamps.
+	const lamp = $derived(
+		card.scene || isCameraLight(d, devices.byId) ? null : lampOf(card, view, name)
+	);
 	const reading = $derived(card.scene ? null : readingOf(card, view, name));
 	// Which family it is, and how the look draws that family (13 §6): Lit's
 	// way, a drawing made in the editor (§6.4), or today's card.
@@ -133,6 +138,8 @@
 	const ink = $derived(
 		lamp && look.def.ownColors && family === 'lights' ? `rgb(${lamp.rgb})` : 'var(--accent)'
 	);
+	// A command that failed says so in place of the state, as Classic's cards do.
+	const note = $derived(commands.notes[d.device_id]);
 	// A reading in a chip: its value, the first of its state's words ("44°F").
 	const readingWords = $derived(view.stateLine.split(' · ')[0] ?? view.stateLine);
 	const power = $derived(
@@ -144,7 +151,8 @@
 	<!-- A line of a joined card (13 §13.1): a row, whatever the look draws it as elsewhere. -->
 	<LitRow
 		{name}
-		words={view.stateLine}
+		words={note ?? view.stateLine}
+		alarm={!!note}
 		icon={view.icon}
 		on={lamp.on}
 		{ink}
@@ -204,11 +212,11 @@
 {:else if drawing === 'chip' && (lamp || reading)}
 	<LitChip
 		{name}
-		words={reading ? readingWords : view.stateLine}
+		words={note ?? (reading ? readingWords : view.stateLine)}
 		icon={view.icon}
 		on={lamp?.on ?? false}
 		{ink}
-		alarm={!!view.alarm}
+		alarm={!!view.alarm || !!note}
 		reading={!!reading}
 		flip={lamp ? flip : undefined}
 		{open}
@@ -216,7 +224,8 @@
 {:else if drawing === 'row' && lamp}
 	<LitRow
 		{name}
-		words={view.stateLine}
+		words={note ?? view.stateLine}
+		alarm={!!note}
 		icon={view.icon}
 		on={lamp.on}
 		{ink}

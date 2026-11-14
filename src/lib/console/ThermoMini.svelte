@@ -207,10 +207,10 @@
 		white-space: nowrap;
 	}
 	.doing.busy {
-		color: #ffb35c;
+		color: var(--warm-ink, #ffb35c);
 	}
 	.cool + .step .doing.busy {
-		color: #7fc4ff;
+		color: var(--cool-ink, #7fc4ff);
 	}
 	.nm {
 		max-width: 100%;

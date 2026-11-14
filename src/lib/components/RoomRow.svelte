@@ -4,6 +4,8 @@
 	own (D2).
 -->
 <script lang="ts">
+	import { houseNow } from '#lib/houseNow.svelte.js';
+	import { devices as house } from '#lib/devices.svelte.js';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import type { CardView } from '#lib/card.js';
 	import { allOffTargets, roomSummary } from '#lib/summary.js';
@@ -17,7 +19,8 @@
 		name,
 		icon,
 		cards,
-		devices
+		devices,
+		temperature
 	}: {
 		href: string;
 		name: string;
@@ -25,10 +28,12 @@
 		icon?: string;
 		cards: CardView[];
 		devices: CoreDevice[];
+		/** The room's temperature, as its box says it: "68°". */
+		temperature?: string;
 	} = $props();
 
-	const summary = $derived(roomSummary(cards));
-	const targets = $derived(allOffTargets(cards));
+	const summary = $derived(roomSummary(cards, temperature, houseNow.lightIds, houseNow.playingIds));
+	const targets = $derived(allOffTargets(cards, house.byId));
 	const alert = $derived(cards.some((c) => c.alarm === 'wet'));
 
 	const off = () => allOff(targets, devices);

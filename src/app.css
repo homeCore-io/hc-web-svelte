@@ -31,6 +31,15 @@
 	--fill: #f6c987;
 	/* A thermostat cooling, beside --track-on heating. */
 	--cool: #2f7fc1;
+	/*
+	 * Words in a status colour, dark enough to read on a light page: all is
+	 * well, cool or wet, warm or waiting, and playing. Dark leaves them unset,
+	 * so each place keeps its own brighter colour there.
+	 */
+	--good-ink: #1d6b48;
+	--cool-ink: #1b58a3;
+	--warm-ink: #8a5a10;
+	--media-ink: #5a3aa8;
 	--alert: #b42318;
 	--alert-ink: #ffffff;
 	--alert-bg: #fce9e6;
@@ -90,6 +99,10 @@
 		--track-off: #3a414d;
 		--fill: #b9862e;
 		--cool: #5aa9e6;
+		--good-ink: initial;
+		--cool-ink: initial;
+		--warm-ink: initial;
+		--media-ink: initial;
 		--alert: #ff7a6b;
 		--alert-ink: #1a0806;
 		--alert-bg: #33191a;
@@ -120,6 +133,10 @@
 	--track-off: #3a414d;
 	--fill: #b9862e;
 	--cool: #5aa9e6;
+	--good-ink: initial;
+	--cool-ink: initial;
+	--warm-ink: initial;
+	--media-ink: initial;
 	--alert: #ff7a6b;
 	--alert-ink: #1a0806;
 	--alert-bg: #33191a;
@@ -277,6 +294,30 @@ a {
 :focus-visible {
 	outline: 2px solid var(--accent);
 	outline-offset: 2px;
+}
+
+/* "Skip to content": the first stop for a keyboard, seen only when it is focused. */
+.skip {
+	position: fixed;
+	top: 8px;
+	left: 8px;
+	z-index: 1000;
+	padding: 10px 14px;
+	border-radius: 8px;
+	background: var(--surface);
+	color: var(--ink);
+	font-weight: 600;
+	text-decoration: none;
+	box-shadow: 0 2px 12px rgb(0 0 0 / 0.3);
+	transform: translateY(-200%);
+}
+.skip:focus {
+	transform: none;
+}
+
+/* The page itself, focused after a skip or a move to another page: no ring round all of it. */
+main#main:focus {
+	outline: none;
 }
 
 .num {

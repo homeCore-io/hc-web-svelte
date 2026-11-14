@@ -144,3 +144,57 @@ describe('values said for a person, not as JSON', () => {
 		expect(reading({ brightness_pct: 50.2 }, pct, 'brightness_pct')).toBe('50%');
 	});
 });
+
+it('says a yes or no named after one of its states as Yes or No, and seconds as a duration', () => {
+	const stat: CoreDevice = {
+		device_id: 'thermostat_office',
+		name: 'Office',
+		canonical_name: 'office',
+		available: true,
+		attributes: {
+			actuator_online: true,
+			sensors_stale: false,
+			sensor_timeout_secs: 7200,
+			min_off_secs: 300,
+			min_on_secs: 90,
+			override_secs: 5400,
+			battery_low: false
+		},
+		schema: {
+			attributes: {
+				actuator_online: {
+					kind: 'bool',
+					display_name: 'Switch online',
+					states: { when_true: { label: 'switch online' }, when_false: { label: 'switch offline' } }
+				},
+				sensors_stale: {
+					kind: 'bool',
+					display_name: 'No current reading',
+					states: { when_true: { label: 'no current reading' }, when_false: { label: 'reading' } }
+				},
+				sensor_timeout_secs: {
+					kind: 'integer',
+					display_name: 'A sensor goes quiet after',
+					unit: 's'
+				},
+				min_off_secs: { kind: 'integer', unit: 's' },
+				min_on_secs: { kind: 'integer', unit: 's' },
+				override_secs: { kind: 'integer', unit: 's' },
+				battery_low: {
+					kind: 'bool',
+					display_name: 'Battery',
+					states: { when_true: { label: 'Low' }, when_false: { label: 'OK' } }
+				}
+			}
+		}
+	};
+	const by = Object.fromEntries(readingsOf(stat).map((r) => [r.attr, r.value]));
+	expect(by.actuator_online).toBe('Yes');
+	expect(by.sensors_stale).toBe('No');
+	expect(by.sensor_timeout_secs).toBe('2 h');
+	expect(by.min_off_secs).toBe('5 min');
+	expect(by.min_on_secs).toBe('1 min 30 s');
+	expect(by.override_secs).toBe('1 h 30 min');
+	// A label that isn't one of its states keeps the state's own word.
+	expect(by.battery_low).toBe('OK');
+});

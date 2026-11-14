@@ -183,6 +183,9 @@
 	:global(:root[data-theme='light']) .st {
 		--well-a: #cfcac0;
 		--well-b: #e6e2d9;
+		/* A pale light, a warm white, would vanish into the cream well: its fill
+		   gets an edge in a deeper shade of its own color. */
+		--edge: color-mix(in srgb, var(--lo) 45%, var(--ink));
 	}
 	.val {
 		font: 600 14px var(--font-num);
@@ -257,6 +260,11 @@
 			0 0 30px 6px color-mix(in srgb, var(--lo) 25%, transparent);
 		transition: height 0.12s;
 	}
+	:global(:root[data-theme='light']) .pipe {
+		box-shadow:
+			inset 0 0 0 1.5px var(--edge),
+			0 0 12px 2px var(--glow);
+	}
 	.cap {
 		position: absolute;
 		left: 5px;
@@ -295,7 +303,6 @@
 		overflow: hidden;
 		background: color-mix(in srgb, var(--ink) 7%, transparent);
 		backdrop-filter: blur(20px);
-		-webkit-backdrop-filter: blur(20px);
 		box-shadow:
 			inset 0 1px 0 rgba(255, 255, 255, 0.12),
 			inset 0 0 0 1px rgba(255, 255, 255, 0.04),
@@ -312,6 +319,14 @@
 	}
 	.on .lit {
 		box-shadow: 0 -10px 30px var(--glow);
+	}
+	:global(:root[data-theme='light']) .lit {
+		box-shadow: inset 0 2px 0 var(--edge);
+	}
+	:global(:root[data-theme='light']) .on .lit {
+		box-shadow:
+			inset 0 2px 0 var(--edge),
+			0 -10px 30px var(--glow);
 	}
 	.lit::before {
 		content: '';
@@ -349,6 +364,11 @@
 		color: #fff;
 		text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 	}
+	/* The fill is always pale, so on a light page the figure stays in ink. */
+	:global(:root[data-theme='light']) .deep .pv {
+		color: var(--ink);
+		text-shadow: none;
+	}
 
 	/* ---- Light bar: a slim lit track and a bead with a halo ---- */
 	.lightbar .ctl {
@@ -373,6 +393,11 @@
 		background: linear-gradient(0deg, var(--lo), var(--hi));
 		box-shadow: 0 0 16px 3px var(--glow);
 		transition: height 0.12s;
+	}
+	:global(:root[data-theme='light']) .tr i {
+		box-shadow:
+			inset 0 0 0 1px var(--edge),
+			0 0 16px 3px var(--glow);
 	}
 	.bead {
 		position: absolute;

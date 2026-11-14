@@ -3,6 +3,7 @@
  * playing, a weather device's readings and forecast. Plain data from the
  * house's devices, so each can be tested without drawing anything.
  */
+import { playingNow as playsNow } from './playing.js';
 import { isOpen, reading, skyIcon, type CardView, type CardSymbol, type IconName } from './card.js';
 import { displayName, type AttributeSchema, type CoreDevice, type Devices } from './devices.js';
 import type { Room } from './house.js';
@@ -10,7 +11,7 @@ import { kindOf } from './card.js';
 import { sourceOf, type Options } from './options.js';
 import { readingOf } from './roomBox.js';
 import { roomOf } from './summary.js';
-import { shownUnit, toShown } from './units.js';
+import { readingUnit, shownUnit, toShown } from './units.js';
 
 export interface Item {
 	id: string;
@@ -31,7 +32,11 @@ const item = (c: CardView, all: Devices, rooms: Room[], alert = false): Item => 
 	alert
 });
 
-export const isPlaying = (c: CardView) => c.available && c.stateLine.startsWith('Playing');
+/** A card's player playing now, as every place counts it (playing.ts); `all` is the house. */
+export const isPlaying = (c: CardView, all: Devices = {}) => {
+	const d = all[c.id];
+	return d ? playsNow(d, all) : c.available && c.stateLine.startsWith('Playing');
+};
 
 /** 10 minutes, 3 hours, 10 days — said in full, for a sentence. */
 export function longFor(ms: number): string {
@@ -107,23 +112,25 @@ export interface Playing {
 
 /** Every speaker or TV playing now: what it's playing, where (mockup A). */
 export const playingNow = (cards: CardView[], all: Devices, rooms: Room[]): Playing[] =>
-	cards.filter(isPlaying).map((c) => {
-		const room = roomName(all[c.id], rooms);
-		const title = c.nowPlaying ?? c.name;
-		const named = title === c.name || room === c.name;
-		return {
-			id: c.id,
-			icon: c.icon,
-			title,
-			where: named
-				? room && room !== title
-					? room
-					: 'Playing'
-				: [room, c.name].filter(Boolean).join(' · '),
-			...(c.control?.kind === 'play' ? { pause: c.control.action } : {}),
-			...(c.art ? { art: c.art, artLogo: c.artLogo } : {})
-		};
-	});
+	cards
+		.filter((c) => isPlaying(c, all))
+		.map((c) => {
+			const room = roomName(all[c.id], rooms);
+			const title = c.nowPlaying ?? c.name;
+			const named = title === c.name || room === c.name;
+			return {
+				id: c.id,
+				icon: c.icon,
+				title,
+				where: named
+					? room && room !== title
+						? room
+						: 'Playing'
+					: [room, c.name].filter(Boolean).join(' · '),
+				...(c.control?.kind === 'play' ? { pause: c.control.action } : {}),
+				...(c.art ? { art: c.art, artLogo: c.artLogo } : {})
+			};
+		});
 
 // ---- weather (G21) ----
 
@@ -292,7 +299,12 @@ export function weatherOf(d: CoreDevice, now: number, max = 4): Weather {
 		if (label === 'UV') text = String(Math.round(num(d.attributes[name])!));
 		// Temperatures and wind in whole numbers, as the big temperature is: "58°F", "2 mph".
 		if (WHOLE.has(label)) {
-			const unit = spec?.unit ?? usual;
+			// The device's own unit where it names one: an Ecowitt says °F once, in
+			// temperature_unit, for its feels-like too.
+			const own =
+				d.attributes[`${name}_unit`] ??
+				(label === 'Feels like' ? d.attributes.temperature_unit : undefined);
+			const unit = readingUnit(spec?.unit ?? usual, own);
 			const shown = shownUnit(unit) ?? '';
 			const v = Math.round(toShown(num(d.attributes[name])!, unit));
 			text = shown.startsWith('°') ? `${v}${shown}` : `${v} ${shown}`;

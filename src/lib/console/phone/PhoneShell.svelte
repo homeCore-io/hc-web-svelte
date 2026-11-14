@@ -75,19 +75,38 @@
 	};
 </script>
 
+<!-- A page on its way: a quiet line, shown only if it takes a moment. -->
+{#snippet opening()}
+	<p class="opening" role="status">Opening…</p>
+{/snippet}
+<!-- A page that could not be fetched (offline, or the app was updated): say so, and offer to load it again. -->
+{#snippet failed()}
+	<div class="failed" role="alert">
+		<p>This page didn’t load. The connection may have dropped, or homeCore was updated.</p>
+		<button type="button" onclick={() => location.reload()}>Load it again</button>
+	</div>
+{/snippet}
+
 <div class="phone">
 	<UnlockedBar />
-	<main class="scr">
+	<main id="main" tabindex="-1" class="scr">
 		{#if here?.kind === 'home'}
-			{#await pages.home() then m}<m.default />{/await}
+			{#await pages.home()}{@render opening()}{:then m}<m.default
+				/>{:catch}{@render failed()}{/await}
 		{:else if here?.kind === 'rooms'}
-			{#await pages.rooms() then m}<m.default />{/await}
+			{#await pages.rooms()}{@render opening()}{:then m}<m.default
+				/>{:catch}{@render failed()}{/await}
 		{:else if here?.kind === 'room'}
-			{#await pages.room() then m}<m.default id={here.id} />{/await}
+			{#await pages.room()}{@render opening()}{:then m}<m.default
+					id={here.id}
+				/>{:catch}{@render failed()}{/await}
 		{:else if here?.kind === 'everywhere'}
-			{#await pages.everywhere() then m}<m.default view={here.view} />{/await}
+			{#await pages.everywhere()}{@render opening()}{:then m}<m.default
+					view={here.view}
+				/>{:catch}{@render failed()}{/await}
 		{:else if here?.kind === 'cameras'}
-			{#await pages.cameras() then m}<m.default />{/await}
+			{#await pages.cameras()}{@render opening()}{:then m}<m.default
+				/>{:catch}{@render failed()}{/await}
 		{:else}
 			<div class="plain">
 				{#if back}<a class="back" href={back.href}
@@ -113,14 +132,18 @@
 	{#if you}
 		<Sheet label="You" onclose={() => (you = false)}>
 			<div class="you">
-				<YouMenu close={() => (you = false)} />
-				{#if houseList.length > 0}
-					<a class="house" href="/settings" onclick={() => (you = false)}
-						><span class="mic"><Settings size={15} strokeWidth={1.9} aria-hidden="true" /></span
-						><span>Household settings<small>Rooms, devices, plugins, people, system</small></span
-						></a
-					>
-				{/if}
+				<YouMenu phone close={() => (you = false)}>
+					{#snippet more()}
+						{#if houseList.length > 0}
+							<a class="house" href="/settings" onclick={() => (you = false)}
+								><span class="mic"><Settings size={15} strokeWidth={1.9} aria-hidden="true" /></span
+								><span
+									>Household settings<small>Rooms, devices, plugins, people, system</small></span
+								></a
+							>
+						{/if}
+					{/snippet}
+				</YouMenu>
 			</div>
 		</Sheet>
 	{/if}
@@ -155,6 +178,43 @@
 		padding-bottom: var(--tabbar-h);
 		padding-left: env(safe-area-inset-left);
 		padding-right: env(safe-area-inset-right);
+	}
+
+	/* ---- a page on its way, or one that didn't come ---- */
+	.opening {
+		margin: 0;
+		padding: 24px 16px;
+		color: var(--ink-muted);
+		font-size: 14px;
+		opacity: 0;
+		animation: show-late 0.2s 0.4s forwards;
+	}
+	@keyframes show-late {
+		to {
+			opacity: 1;
+		}
+	}
+	.failed {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 12px;
+		padding: 24px 16px;
+	}
+	.failed p {
+		margin: 0;
+		color: var(--ink-muted);
+		font-size: 15px;
+	}
+	.failed button {
+		min-height: 44px;
+		padding: 0 18px;
+		border: none;
+		border-radius: 12px;
+		background: var(--accent);
+		color: var(--accent-ink);
+		font: 600 15px var(--font);
+		cursor: pointer;
 	}
 
 	/* ---- a page drawn as it is ---- */
@@ -199,8 +259,12 @@
 			max(8px, env(safe-area-inset-left));
 		background: color-mix(in srgb, var(--surface) 82%, transparent);
 		backdrop-filter: blur(24px);
-		-webkit-backdrop-filter: blur(24px);
 		box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 7%, transparent);
+	}
+	@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+		.tabbar {
+			background: color-mix(in srgb, var(--surface) 96%, transparent);
+		}
 	}
 	.tabbar a {
 		flex: 1;
@@ -222,6 +286,57 @@
 	}
 	:global(:root[data-theme='light']) .tabbar a.on {
 		color: var(--accent);
+	}
+
+	/* ---- a finger's reach, 44 pixels, for what the shared tabs draw smaller ---- */
+	/* Rows and segments a finger presses: as tall as one. */
+	.phone
+		:global(
+			:is(
+				.seg[role='radiogroup'] > button,
+				.speeds button,
+				.row button.nm,
+				button.batt,
+				button.kbtn,
+				button.tbtn,
+				button.dbtn
+			)
+		) {
+		min-height: 44px;
+	}
+	/* Small things drawn as they are, with a finger's place to tap around them. */
+	.phone
+		:global(
+			:is(.place:not(.corner) .dots, button.sw, button.sb, .tile button.tb, .kp button.more)
+		) {
+		position: relative;
+	}
+	.phone :global(:is(.place .dots, button.sw, button.sb, .tile button.tb, .kp button.more)::after) {
+		content: '';
+		position: absolute;
+		inset: min(0px, calc((100% - 44px) / 2));
+	}
+
+	/* A name that opens its page, as tall as a finger, its words where they were
+	   (a thermostat's under its buttons, a timer's over its own). */
+	.phone :global(a.nm) {
+		position: relative;
+		padding: 4px 0 26px;
+		margin: -4px 0 -26px;
+	}
+	.phone :global(.tile button.nm) {
+		position: relative;
+		padding-block: 15px;
+		margin-block: -15px;
+	}
+
+	/* ---- a page drawn as it is (Me, alerts, scenes): every control a finger's size ---- */
+	.plain
+		:global(:is(button, select, input:not([type='checkbox'], [type='radio'], [type='range']))) {
+		min-height: 44px;
+	}
+	.plain :global(:is(button, a.link)) {
+		min-width: 44px;
 	}
 
 	/* ---- the person's own settings ---- */

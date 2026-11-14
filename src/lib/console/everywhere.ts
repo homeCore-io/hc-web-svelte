@@ -22,9 +22,11 @@ import type { Room } from '../house.js';
 import { thermostatOf } from '../thermostat.js';
 import { units, type Units } from '../units.js';
 import { climateTab } from './climate.js';
-import { isPlaying, orderPlayers } from './media.js';
-import { brandOf, consoleRoom, levelOf, type ConsoleRoom, type TabChoices } from './room.js';
-import { roomPicture } from './pictures.js';
+import { orderPlayers } from './media.js';
+import { playNow } from '../playing.js';
+import { brandOf, consoleRoom, type ConsoleRoom, type TabChoices } from './room.js';
+import { roomLights } from './pictures.js';
+import { isLit, lightsCount as countLights, whereLit, type LightsCount } from '../lights.js';
 import { readingOf, type Reading } from './sensors.js';
 import { valveOpen, waterTab, wet } from './water.js';
 
@@ -52,27 +54,40 @@ export interface Place {
 	name: string;
 	room?: Room;
 	model: ConsoleRoom;
+	/** Its lights, as every place counts them (lights.ts, `roomLights`). */
+	lights: CoreDevice[];
 }
 
 /**
  * Every room in `order`, then what's in no room. `grouped` is the devices by
  * room id, those in no room under `''` (summary.ts's `byRoom`); `chosen`,
- * the household's choices of tab, so each view has what the rooms' tabs have.
+ * the household's choices of tab, so each view has what the rooms' tabs have;
+ * `linksOf`, a room's drawing's spots the household fixed (layout.ts).
  */
 export function placesOf(
 	grouped: Map<string, CoreDevice[]>,
 	order: Room[],
-	chosen: TabChoices = {}
+	chosen: TabChoices = {},
+	linksOf: (roomId: string) => Record<string, string> | undefined = () => undefined
 ): Place[] {
-	const model = (list: CoreDevice[]) => consoleRoom(list, undefined, chosen);
-	const places: Place[] = order.map((r) => ({
-		key: r.id,
-		name: r.name,
-		room: r,
-		model: model(grouped.get(r.id) ?? [])
-	}));
+	const house = [...grouped.values()].flat();
+	const place = (key: string, name: string, list: CoreDevice[], room?: Room): Place => {
+		const lights = roomLights(room ? name : '', list, house, {
+			links: room ? linksOf(room.id) : undefined,
+			chosen
+		});
+		const set = new Set(lights);
+		return {
+			key,
+			name,
+			room,
+			model: consoleRoom(list, undefined, chosen, undefined, house, (d) => set.has(d)),
+			lights
+		};
+	};
+	const places: Place[] = order.map((r) => place(r.id, r.name, grouped.get(r.id) ?? [], r));
 	const loose = grouped.get('') ?? [];
-	if (loose.length > 0) places.push({ key: '', name: 'No room', model: model(loose) });
+	if (loose.length > 0) places.push(place('', 'No room', loose));
 	return places;
 }
 
@@ -91,33 +106,32 @@ export interface LightRow {
 }
 
 /**
- * A row for each room with lights: its Lights tab's faders, then whatever else
- * Home counts as its lights (switches named as lights, a Garage's "Zone 03"),
- * so both say the same. Its camera spotlights stay with its cameras.
+ * A row for each room with lights, and one for the lights in no room: its
+ * Lights tab's faders, then its other lights (switches named as lights, a
+ * Garage's "Zone 03"), as Home counts them. Its camera spotlights stay with
+ * its cameras.
  */
 export function lightRows(places: Place[]): LightRow[] {
 	return places
 		.map((place) => {
-			const faders = place.model.lights.columns.flatMap((c) => c.lights);
-			const { cameras, ...tabs } = place.model.byTab;
-			const others = roomPicture(place.name, Object.values(tabs).flat(), 0).lamps.filter(
-				(d) => !faders.includes(d) && !cameras.includes(d)
-			);
+			const faders = place.model.lights.columns
+				.flatMap((c) => c.lights)
+				.filter((d) => place.lights.includes(d));
+			const others = place.lights.filter((d) => !faders.includes(d));
 			return { place, lights: [...faders, ...others] };
 		})
 		.filter((r) => r.lights.length > 0);
 }
 
 /** Whether a light is on, as its fader would show it, with a command on its way. */
-export const lit = (d: CoreDevice, wants: Wants = {}): boolean =>
-	d.available && levelOf(d, wants[d.device_id]?.want) > 0;
+export const lit = isLit;
 
-export function lightsCount(rows: LightRow[], wants: Wants = {}) {
-	const all = rows.flatMap((r) => r.lights);
-	const on = all.filter((d) => lit(d, wants)).length;
-	const rooms = rows.filter((r) => r.lights.some((d) => lit(d, wants))).length;
-	return { on, all: all.length, rooms };
-}
+/** The house's lights on, of how many, in how many rooms; no room is not one (lights.ts). */
+export const lightsCount = (rows: LightRow[], wants: Wants = {}): LightsCount =>
+	countLights(
+		rows.map((r) => ({ room: r.place.room, lights: r.lights })),
+		wants
+	);
 
 /** Under a room's name: "2 of 5 on", "All off". */
 export function onWord(lights: CoreDevice[], wants: Wants = {}): string {
@@ -146,8 +160,16 @@ export function playerRows(places: Place[]): PlayerRow[] {
 export const silentRooms = (places: Place[]): Place[] =>
 	places.filter((p) => p.room && p.model.byTab.media.length === 0);
 
-export const playingNow = (rows: PlayerRow[], wants: Wants = {}): PlayerRow[] =>
-	rows.filter((r) => r.device.available && isPlaying(r.device, wants[r.device.device_id]?.want));
+/**
+ * The rows playing now, as every place counts them (playing.ts): a speaker
+ * that follows another in a group is counted once, by its leader.
+ */
+export function playingNow(rows: PlayerRow[], wants: Wants = {}): PlayerRow[] {
+	const all = rows.map((r) => r.device);
+	return rows.filter(
+		(r) => playNow(r.device, all, wants[r.device.device_id]?.want).state === 'playing'
+	);
+}
 
 // ---- Climate ----
 
@@ -277,12 +299,30 @@ export const secRows = (places: Place[], wants: Wants = {}): SecRow[] =>
 export const issuesOf = (rows: SecRow[]): { place: Place; item: SecItem }[] =>
 	rows.flatMap((r) => r.items.filter((i) => !i.ok).map((item) => ({ place: r.place, item })));
 
-/** The sidebar's word for what needs attention: "2 open", "1 offline", "3 to check". */
+/**
+ * What needs attention, each kind counted apart: "2 open", "1 open · 1
+ * unlocked", "1 open · 1 unlocked · 1 offline".
+ */
+export function issuesFull(issues: { item: SecItem }[]): string {
+	const count = (word: SecItem['word']) => issues.filter((i) => i.item.word === word).length;
+	const parts: [number, string][] = [
+		[count('Open'), 'open'],
+		[count('Unlocked'), 'unlocked'],
+		[count('Offline'), 'offline']
+	];
+	return parts
+		.filter(([n]) => n > 0)
+		.map(([n, w]) => `${n} ${w}`)
+		.join(' · ');
+}
+
+/**
+ * The sidebar's word for it, short enough for its row: `issuesFull` while it
+ * is one kind ("2 open", "1 unlocked"), else "2 to check", in full in its title.
+ */
 export function issuesWord(issues: { item: SecItem }[]): string {
-	const offline = issues.filter((i) => !i.item.device.available).length;
-	if (offline === 0) return `${issues.length} open`;
-	if (offline === issues.length) return `${offline} offline`;
-	return `${issues.length} to check`;
+	const full = issuesFull(issues);
+	return full.includes(' · ') ? `${issues.length} to check` : full;
 }
 
 // ---- Water ----
@@ -317,6 +357,8 @@ export const openValves = (view: WaterView, wants: Wants = {}) =>
 /** Each view's line in the sidebar, and its light: lit, playing, wrong, wet or fine. */
 export interface ViewStatus {
 	word: string;
+	/** The word in full, for its title: "27 on in 10 rooms and 1 with no room". */
+	full?: string;
 	tone?: 'on' | 'media' | 'warn' | 'wet' | 'ok';
 }
 
@@ -329,12 +371,12 @@ export function statusOf(places: Place[], wants: Wants = {}): Record<ViewId, Vie
 	const water = waterView(places);
 	return {
 		lights: lights.on
-			? { word: lights.rooms === 1 ? '1 room' : `${lights.rooms} rooms`, tone: 'on' }
+			? { word: `${lights.on} on`, full: `${lights.on} on ${whereLit(lights)}`, tone: 'on' }
 			: { word: 'all off' },
 		media: playing ? { word: `${playing} playing`, tone: 'media' } : { word: '' },
 		climate: { word: busy ? `${busy} working` : '' },
 		security: issues.length
-			? { word: issuesWord(issues), tone: 'warn' }
+			? { word: issuesWord(issues), full: issuesFull(issues), tone: 'warn' }
 			: { word: secRows(places).length ? 'secure' : '', tone: 'ok' },
 		water: water.wet.length
 			? { word: `${water.wet.length} leaking`, tone: 'wet' }

@@ -274,7 +274,6 @@
 		margin-top: auto;
 		background: linear-gradient(180deg, rgba(28, 24, 40, 0.92), rgba(18, 16, 26, 0.95));
 		backdrop-filter: blur(30px);
-		-webkit-backdrop-filter: blur(30px);
 		box-shadow:
 			inset 0 1px 0 rgba(255, 255, 255, 0.08),
 			0 -12px 30px -16px rgba(0, 0, 0, 0.8);
@@ -383,6 +382,10 @@
 		text-transform: uppercase;
 		opacity: 0.6;
 	}
+	:global(:root[data-theme='light']) .via small {
+		color: var(--ink-muted);
+		opacity: 1;
+	}
 	.via select {
 		height: 28px;
 		max-width: 220px;
@@ -466,7 +469,6 @@
 		padding: 4px 0 0;
 		background: none;
 		backdrop-filter: none;
-		-webkit-backdrop-filter: none;
 		box-shadow: none;
 		color: inherit;
 	}

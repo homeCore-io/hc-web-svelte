@@ -46,6 +46,10 @@
 			? devices.byId[options.opener]
 			: undefined
 	);
+	// A lock or opener command that failed says so, as Classic's cards do.
+	const note = $derived(
+		commands.notes[device.device_id] ?? (opener ? commands.notes[opener.device_id] : undefined)
+	);
 
 	async function lock() {
 		if (locked && !(await goAhead(device.device_id, v.kind, `Unlock ${name}?`))) return;
@@ -99,7 +103,7 @@
 		{/if}
 	</button>
 	<div class="row">
-		<span class="words"><b>{name}</b><small>{v.stateLine}</small></span>
+		<span class="words"><b>{name}</b><small class:note>{note ?? v.stateLine}</small></span>
 		{#if isLock && may}
 			<button class="pill" class:go={!locked} onclick={lock}>{locked ? 'Unlock' : 'Lock'}</button>
 		{:else if opener && may}
@@ -204,6 +208,10 @@
 	small {
 		color: var(--ink-muted);
 		font-size: 12.5px;
+	}
+	small.note {
+		color: var(--alert);
+		font-weight: 600;
 	}
 	.pill {
 		height: 36px;

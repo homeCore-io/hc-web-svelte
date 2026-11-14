@@ -14,17 +14,34 @@ export interface Me {
 	unlocked_on?: { id: string; name: string; until?: number };
 }
 
+/** How long to wait before asking again, each time (ms). */
+const RETRIES = [500, 1500, 3000];
+
 class Session {
 	me = $state<Me | null>(null);
 	/** Whether we have asked yet. */
 	known = $state(false);
 
+	/**
+	 * Asks who this is. A core that doesn't answer, or answers with a server
+	 * error (busy, or restarting), is asked again a few times, a little later
+	 * each time, before anyone is sent to sign in.
+	 */
 	async load(): Promise<Me | null> {
-		try {
-			const res = await fetch('/ui/me');
-			this.me = res.ok ? ((await res.json()) as Me) : null;
-		} catch {
-			this.me = null;
+		for (let i = 0; ; i++) {
+			try {
+				const res = await fetch('/ui/me');
+				if (res.status < 500 || i >= RETRIES.length) {
+					this.me = res.ok ? ((await res.json()) as Me) : null;
+					break;
+				}
+			} catch {
+				if (i >= RETRIES.length) {
+					this.me = null;
+					break;
+				}
+			}
+			await new Promise((r) => setTimeout(r, RETRIES[i]));
 		}
 		this.known = true;
 		return this.me;
@@ -59,8 +76,14 @@ class Session {
 		return this.me?.kind === 'display';
 	}
 
+	/**
+	 * Whether homeCore treats this sign-in as an admin, the way it checks: an
+	 * admin's own session carries `users:write` with its role, and a key is an
+	 * admin's only when it was given that scope. A key made by an admin without
+	 * it is refused everything admin-only, so the app doesn't offer those.
+	 */
 	get isAdmin(): boolean {
-		return this.me?.role === 'admin';
+		return this.me?.role === 'admin' && this.can('users:write');
 	}
 
 	/** Whether they may tell devices what to do — not only look. */

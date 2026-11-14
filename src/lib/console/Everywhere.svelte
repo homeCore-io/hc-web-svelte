@@ -173,7 +173,7 @@
 	}
 	:where(.ev) :global(.spill.ok) {
 		background: color-mix(in srgb, var(--good, #4fe0a0) 18%, transparent);
-		color: color-mix(in srgb, var(--good, #4fe0a0) 70%, var(--ink));
+		color: var(--good-ink, color-mix(in srgb, var(--good, #4fe0a0) 70%, var(--ink)));
 	}
 	:where(.ev) :global(.spill.bad) {
 		background: color-mix(in srgb, var(--alert) 22%, transparent);
@@ -181,7 +181,7 @@
 	}
 	:where(.ev) :global(.spill.wet) {
 		background: rgba(58, 140, 255, 0.22);
-		color: color-mix(in srgb, #8fbfff 80%, var(--ink));
+		color: var(--cool-ink, color-mix(in srgb, #8fbfff 80%, var(--ink)));
 		box-shadow:
 			inset 0 0 0 1px rgba(90, 160, 255, 0.7),
 			0 0 14px rgba(58, 140, 255, 0.45);
@@ -233,13 +233,13 @@
 		display: grid;
 		place-items: center;
 		background: var(--alert);
-		color: #1a0605;
+		color: var(--alert-ink);
 		font-size: 12px;
 	}
 	:where(.ev) :global(.ipill.wet) {
 		background: rgba(58, 140, 255, 0.16);
 		box-shadow: inset 0 0 0 1px rgba(90, 160, 255, 0.6);
-		color: color-mix(in srgb, #8fbfff 70%, var(--ink));
+		color: var(--cool-ink, color-mix(in srgb, #8fbfff 70%, var(--ink)));
 	}
 	:where(.ev) :global(.ipill.wet i),
 	:where(.ev) :global(.ipill.wet b) {
@@ -303,6 +303,15 @@
 	/* ---- on a phone: one page that scrolls, each row wrapping under its name ---- */
 	.ev.phone {
 		height: auto;
+	}
+	/* In the standard frame (Classic, Lit) the page scrolls as one, so the list
+	   doesn't scroll again inside it. */
+	:global(html:not([data-shell='console'])) .ev {
+		height: auto;
+	}
+	:global(html:not([data-shell='console'])) .ev :global(.evlist) {
+		flex: none;
+		overflow: visible;
 	}
 	.ev.phone :global(.evhead) {
 		padding: 10px 16px 14px;

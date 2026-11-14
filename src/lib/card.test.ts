@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { cardFor, epochOf, judgeBatteriesBy, reading, type CardView } from './card.js';
+import {
+	cardFor,
+	epochOf,
+	judgeBatteriesBy,
+	momentText,
+	reading,
+	seconds,
+	textReading,
+	timerWord,
+	type CardView
+} from './card.js';
+import { hhmmOf } from './when.js';
 import { followUnits } from './units.js';
 import { HOUSE, FIXTURE_NOW } from './fixtures/house.js';
 import type { CoreDevice, Schema } from './devices.js';
@@ -301,5 +312,41 @@ describe('a symbol a person chose', () => {
 		const front = byId('yolink_front_lock');
 		const unlocked = { attributes: { ...front.attributes, locked: false } };
 		expect(card('yolink_front_lock', { ...unlocked, status_icon: 'lock' }).icon).toBe('unlock');
+	});
+});
+
+describe('a reading sent as text', () => {
+	it('reads a device word as words', () => {
+		expect(textReading('heat_cool')).toBe('Heat cool');
+		expect(textReading('LockFailed')).toBe('Lock failed');
+	});
+	it('reads a local date and time as a moment, keeping its numbers whole', () => {
+		const said = textReading('2026-10-16 00:11:04');
+		expect(said).toBe(momentText(new Date(2026, 9, 16, 0, 11, 4).getTime()));
+		expect(said).not.toContain('2026 10 16');
+	});
+	it('leaves a file, a stream name or an address as it is', () => {
+		expect(textReading('snap/reolink_nvr_1_1794177382463.jpg')).toBe(
+			'snap/reolink_nvr_1_1794177382463.jpg'
+		);
+		expect(textReading('reolink_nvr_1_hd')).toBe('reolink_nvr_1_hd');
+		expect(textReading('rtsp://cam.local/main')).toBe('rtsp://cam.local/main');
+		expect(textReading('HDMI1')).toBe('HDMI1');
+	});
+});
+
+describe('timers and times of day, said as people say them', () => {
+	it('capitalizes a timer state, in American spelling', () => {
+		expect(timerWord('idle')).toBe('Idle');
+		expect(timerWord('finished')).toBe('Finished');
+		expect(timerWord('cancelled')).toBe('Canceled');
+	});
+	it('says seconds as minutes and hours', () => {
+		expect(seconds(600)).toBe('10 min');
+		expect(seconds(90)).toBe('1 min 30 s');
+		expect(seconds(5400)).toBe('1 h 30 min');
+	});
+	it('says a time of day in the person’s clock', () => {
+		expect(textReading('16:56')).toBe(hhmmOf('16:56'));
 	});
 });

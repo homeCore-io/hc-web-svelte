@@ -57,7 +57,7 @@
 			...ordered.map(
 				(r) => [r.id === near ? `In ${r.name}` : r.name, grouped.get(r.id) ?? []] as const
 			),
-			['Not in a room', grouped.get('') ?? []] as const
+			['No room', grouped.get('') ?? []] as const
 		]) {
 			const items = list
 				.filter((d) => reads(d, attr))

@@ -4,6 +4,7 @@
 	versions, and restarting it.
 -->
 <script lang="ts">
+	import { notAdmin } from '#lib/refusals.js';
 	import { dateOf, fullDateOf, momentOf, timeOf } from '#lib/when.js';
 	import { page } from '$app/state';
 	import { deviceHref } from '#lib/popup.js';
@@ -21,8 +22,16 @@
 	import { ask } from '#lib/confirm.svelte.js';
 	import { backupDue, daysAgo, size, uptime } from '#lib/settings.js';
 	import { houseDevices } from '#lib/inventory.js';
-	import { isRunning } from '#lib/plugins.js';
-	import { PRESETS, directiveOf, keptOf, readLevel, type Preset } from '#lib/system.js';
+	import {
+		PRESETS,
+		directiveOf,
+		keptOf,
+		pluginHealth,
+		pluginHealthLine,
+		readLevel,
+		type PluginHealth,
+		type Preset
+	} from '#lib/system.js';
 	import { loadConfig } from '#lib/config.js';
 	import {
 		keepLevel,
@@ -46,7 +55,7 @@
 	let level = $state<string | null>(null);
 	let levelMissing = $state(false);
 	// Turned off on purpose isn't trouble: counted apart from the ones meant to run.
-	let plugins = $state<{ running: number; all: number; off: number } | null>(null);
+	let plugins = $state<PluginHealth | null>(null);
 
 	let connections = $state<Connection[] | null>(null);
 
@@ -76,12 +85,7 @@
 		if (v.ok) versions = v.data;
 		if (l.ok) level = l.data.level;
 		else levelMissing = true;
-		if (p.ok)
-			plugins = {
-				running: p.data.filter(isRunning).length,
-				all: p.data.filter((x) => x.enabled).length,
-				off: p.data.filter((x) => !x.enabled).length
-			};
+		if (p.ok) plugins = pluginHealth(p.data);
 	}
 	let updates = $state.raw<{ core?: Latest; app?: Latest }>({});
 	onMount(() => {
@@ -142,12 +146,9 @@
 				value: plugins
 					? `${plugins.running} of ${plugins.all} running`
 					: `${status.plugins_active} running`,
-				detail:
-					plugins && plugins.running < plugins.all
-						? 'Some aren’t running'
-						: `All well${plugins?.off ? ` · ${plugins.off} turned off` : ''}`,
+				detail: plugins ? pluginHealthLine(plugins) : '',
 				href: '/settings/plugins',
-				bad: !!plugins && plugins.running < plugins.all
+				bad: !!plugins && (plugins.running < plugins.all || plugins.trouble > 0)
 			},
 			{
 				label: 'Devices',
@@ -287,7 +288,9 @@
 </script>
 
 {#if !session.isAdmin}
-	<p class="quiet">The system is for the house’s admins.</p>
+	<p class="quiet">
+		{notAdmin('The system is for the house’s admins.', 'manage the system')}
+	</p>
 {:else if failed}
 	<p class="note bad" role="alert">{failed}</p>
 {:else if !status}
@@ -295,9 +298,9 @@
 {:else}
 	<div class="page">
 		<div class="tools">
-			<a class="plain" href="/settings/logs">Logs</a>
-			<a class="plain" href="/settings/events">Events</a>
-			<a class="plain" href="/settings/audit">Audit</a>
+			<a class="plain" href="/settings/logs?from=system">Logs</a>
+			<a class="plain" href="/settings/events?from=system">Events</a>
+			<a class="plain" href="/settings/audit?from=system">Audit</a>
 			<span class="grow"></span>
 			<button class="plain" onclick={restartNow} disabled={restarting === 'Restarting…'}
 				>Restart homeCore…</button
@@ -318,7 +321,7 @@
 		<section class="card">
 			<div class="head">
 				<h2>How much homeCore writes to its log</h2>
-				<a href="/settings/logs">Open the live log</a>
+				<a href="/settings/logs?from=system">Open the live log</a>
 			</div>
 			{#if levelMissing}
 				<p class="sub">This homeCore can’t change its log level while running.</p>
@@ -615,6 +618,18 @@
 		background: none;
 		font-weight: 600;
 		color: var(--ink-muted);
+	}
+	/* On a phone the four fit in one row, each its share, rather than wrapping inside the pill. */
+	@media (max-width: 480px) {
+		.seg {
+			align-self: stretch;
+			flex-wrap: nowrap;
+		}
+		.seg button {
+			flex: 1 1 0;
+			min-width: 0;
+			padding: 0 6px;
+		}
 	}
 	.seg button[aria-checked='true'] {
 		background: var(--surface);

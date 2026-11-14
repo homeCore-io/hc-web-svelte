@@ -13,6 +13,7 @@ import {
 	placeOf,
 	roomSlugOf,
 	layOut,
+	STACKED_WIDTH,
 	shortName,
 	tabChoicesOf,
 	tabOf,
@@ -113,6 +114,11 @@ describe('which tab a device goes in', () => {
 		});
 		expect(placeOf(hue('s', 'scene', { group_rid: 'g' }))).toEqual({ tab: 'lights', as: 'scene' });
 	});
+
+	it('counts a Lights tab with only a keypad by what is on it, never 0', () => {
+		const r = consoleRoom([lutron('k', 'keypad', { available_buttons: [], led_1: 1 })]);
+		expect(r.tabs.find((t) => t.id === 'lights')?.count).toBe(1);
+	});
 });
 
 describe('homeCore’s own switches', () => {
@@ -181,10 +187,10 @@ describe('the household’s choice of tab', () => {
 		expect(r.tabs.find((t) => t.id === 'switches')).toBeUndefined();
 	});
 
-	it('without a choice, leaves the switch with the switches and the timer on Switches', () => {
+	it('without a choice, leaves the switch with the switches and puts the timer on Timers', () => {
 		const r = consoleRoom(room);
 		expect(whereIs(r, 'switch_auto_garage_door')).toEqual(['lights', 'lights.switches']);
-		expect(whereIs(r, 'timer_garage_close')).toEqual(['switches']);
+		expect(whereIs(r, 'timer_garage_close')).toEqual(['timers']);
 	});
 
 	it('puts what dims on Lights as a light, and what doesn’t with its switches', () => {
@@ -319,6 +325,19 @@ describe('a room in tabs', () => {
 		expect(ids(r.byTab.lights)).toContain('other_spotlight');
 	});
 
+	it('puts a spotlight with Cameras when its camera is in another room', () => {
+		const house = [dev('cam', 'camera')];
+		const r = consoleRoom(
+			[...lamps, dev('cam_spotlight', 'light', { on: true })],
+			undefined,
+			undefined,
+			undefined,
+			[...house, ...lamps]
+		);
+		expect(ids(r.byTab.cameras)).toEqual(['cam_spotlight']);
+		expect(ids(r.byTab.lights)).not.toContain('cam_spotlight');
+	});
+
 	it('shows Doors first where something opens', () => {
 		const r = consoleRoom([...lamps, dev('door', 'garage_door'), dev('fan', 'fan')]);
 		expect(r.tabs.map((t) => t.id)).toEqual(['doors', 'lights', 'climate']);
@@ -339,7 +358,32 @@ describe('a room in tabs', () => {
 		const r = consoleRoom([...lamps, dev('s1', 'switch'), dev('s2', 'switch')]);
 		expect(ids(r.lights.switches)).toEqual(['s1', 's2']);
 		expect(r.tabs.find((t) => t.id === 'switches')).toBeUndefined();
-		expect(r.tabs[0]).toMatchObject({ id: 'lights', count: 5 });
+		// Plain switches sit on the tab but are not lights: the count is the lights.
+		expect(r.tabs[0]).toMatchObject({ id: 'lights', count: 3 });
+	});
+
+	it('counts the switches that are lights on the Lights tab, as the room counts them', () => {
+		const ac = { ...dev('ac', 'switch'), name: 'Outlet - Living Room AC' };
+		const holiday = { ...dev('holiday', 'switch'), name: 'Holiday Lights 1' };
+		const zone = { ...dev('zone', 'switch'), name: 'Zone 03' };
+		expect(consoleRoom([...lamps, ac, holiday, zone]).tabs[0]).toMatchObject({ count: 4 });
+		// The room's own rule (its drawing's "Zone 03"), and the household's choice.
+		const own = consoleRoom(
+			[...lamps, ac, holiday, zone],
+			undefined,
+			{},
+			undefined,
+			undefined,
+			(d) => ['holiday', 'zone'].includes(d.device_id)
+		);
+		expect(own.tabs[0]).toMatchObject({ count: 5 });
+		const chosen = consoleRoom([...lamps, ac, holiday], undefined, { ac: 'lights' });
+		expect(chosen.tabs[0]).toMatchObject({ count: 5 });
+	});
+
+	it('counts a Lights tab of plain switches by what is on it, never 0', () => {
+		const r = consoleRoom([dev('s1', 'switch'), dev('s2', 'switch')]);
+		expect(r.tabs[0]).toMatchObject({ id: 'lights', count: 2 });
 	});
 
 	it('gives switches a tab when they would crowd Lights', () => {
@@ -356,6 +400,16 @@ describe('a room in tabs', () => {
 		expect(layOut(wide, 2, 750)).toEqual({ tight: true, crowd: false });
 		expect(layOut(wide, 2, 600)).toEqual({ tight: true, crowd: true });
 		expect(layOut(wide, 0, 10)).toEqual({ tight: true, crowd: false });
+	});
+
+	it("keeps switches on a phone's Lights tab while they fit down its one column", () => {
+		const wide = { columns: lightColumns(lamps, [], []).columns, keypads: [], scenes: [] };
+		expect(layOut(wide, 7, STACKED_WIDTH)).toEqual({ tight: false, crowd: false });
+		expect(layOut(wide, 8, STACKED_WIDTH)).toEqual({ tight: false, crowd: true });
+		const seven = Array.from({ length: 7 }, (_, i) => dev(`s${i}`, 'switch'));
+		const r = consoleRoom([...lamps, ...seven], STACKED_WIDTH);
+		expect(r.lights.switches).toHaveLength(7);
+		expect(r.tabs.map((t) => t.id)).toEqual(['lights']);
 	});
 
 	it('puts every device in one tab only', () => {
@@ -404,11 +458,18 @@ describe('a light’s level', () => {
 		expect(shortName('Officer lamp', 'Office')).toBe('Officer lamp');
 		expect(shortName('Desk Lamp', 'Office')).toBe('Desk Lamp');
 		expect(shortName('Bathroom 2 Leak Sensor', 'Bathroom')).toBe('Bathroom 2 Leak Sensor');
+		expect(shortName('Outside Off', 'Outside')).toBe('Outside Off');
+		expect(shortName('Garage Door', 'Garage')).toBe('Garage Door');
+		expect(shortName('Garage Lights', 'Garage')).toBe('Garage Lights');
+		expect(shortName('Garage Close', 'Garage')).toBe('Garage Close');
+		expect(shortName('Outside Deck Off', 'Outside')).toBe('Deck Off');
 	});
 
 	it('names a brand from its plugin', () => {
 		expect(brandOf('plugin.hue')).toBe('Hue');
 		expect(brandOf(undefined)).toBe('Other');
 		expect(brandOf('plugin.yolink')).toBe('YoLink');
+		expect(brandOf('plugin.nuheat')).toBe('NuHeat');
+		expect(brandOf('sbx.standin')).toBe('Stand-in');
 	});
 });

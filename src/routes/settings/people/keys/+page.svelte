@@ -379,7 +379,8 @@
 {/if}
 
 <style>
-	.top {
+	/* Over .quiet's margin, which comes later: a gap before In use. */
+	.quiet.top {
 		margin-bottom: var(--space-4);
 	}
 	.split {

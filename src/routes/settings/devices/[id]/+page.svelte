@@ -130,7 +130,8 @@
 		!room ? 'in no room' : (TABS.find((t) => t.id === own)?.name ?? 'not shown')
 	);
 	let tabNote = $state<string | null>(null);
-	async function setTab(v: string) {
+	async function setTab(el: HTMLSelectElement) {
+		const v = el.value;
 		tabNote = null;
 		const tab = choiceFor((v || undefined) as TabId | undefined, own);
 		try {
@@ -139,6 +140,8 @@
 				? `Shows on ${room?.name ?? 'its room'}’s ${TABS.find((t) => t.id === tab)?.name} tab, for everyone.`
 				: 'Shows where it sorts, for everyone.';
 		} catch {
+			// The choice didn't change, so Svelte won't write it back: the select does.
+			el.value = chosenTab ?? '';
 			tabNote = 'The house didn’t keep that.';
 		}
 	}
@@ -316,7 +319,7 @@
 						<select
 							value={chosenTab ?? ''}
 							disabled={!session.can('content:write')}
-							onchange={(e) => setTab(e.currentTarget.value)}
+							onchange={(e) => setTab(e.currentTarget)}
 						>
 							<option value="">As it sorts ({sortsTo})</option>
 							{#each TABS as t (t.id)}<option value={t.id}>{t.name}</option>{/each}
@@ -653,6 +656,13 @@
 		color: var(--ink-muted);
 		font-weight: 600;
 		font-size: 14px;
+	}
+	/* On a phone, a choice takes the full width under its name, so it isn't cut. */
+	@media (max-width: 520px) {
+		.row {
+			grid-template-columns: minmax(0, 1fr);
+			gap: 4px;
+		}
 	}
 	input,
 	select {

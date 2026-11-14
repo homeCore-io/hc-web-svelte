@@ -9,6 +9,9 @@
  * Made while a page is set up; the page keeps the tab shown and what's open.
  */
 import { page } from '$app/state';
+import { goto } from '$app/navigation';
+import { nextTab } from '#lib/menuKeys.js';
+import { houseNow } from '#lib/houseNow.svelte.js';
 import { devices } from '#lib/devices.svelte.js';
 import { rooms } from '#lib/rooms.svelte.js';
 import { personal } from '#lib/personal.svelte.js';
@@ -23,13 +26,16 @@ import { roomPower } from '#lib/admin.js';
 import { homeRoomOrder, ref } from '#lib/layers.js';
 import { cardFor, kindOf, type CardView } from '#lib/card.js';
 import type { CoreDevice } from '#lib/devices.js';
+import { roomPowerLights } from '#lib/cameraLights.js';
 import { openDevice } from '#lib/popup.js';
 import { kindOptions } from '#lib/kindOptions.svelte.js';
 import { ROOM_BUILT_IN } from '#lib/options.js';
 import { roomBox } from '#lib/roomBox.js';
 import { camEvents } from './camEvents.svelte.js';
 import { allEvents, camerasOf, pillPrefsOf, pillsOf } from './cameras.js';
-import { roomPicture } from './pictures.js';
+import { roomLights, roomPicture } from './pictures.js';
+import { isLit } from '#lib/lights.js';
+import { playingNow } from '#lib/playing.js';
 import { photoGlow, photoSpots } from './photo.js';
 import {
 	audioChoices,
@@ -43,17 +49,18 @@ import {
 	withRoomAudio
 } from './media.js';
 import { send } from './send.js';
+import { apart } from './apart.js';
 import {
 	brandOf,
 	consoleRoom,
 	devicesIn,
-	levelOf,
 	LIGHTS_WIDTH,
 	shortName,
-	tabChoicesOf
+	tabChoicesOf,
+	type TabId
 } from './room.js';
 import { faderStyle, switchStyle } from './style.js';
-import { arrangeTabs, resolve, roomIn } from './layout.js';
+import { arrangeTabs, resolve, roomIn, tabWith } from './layout.js';
 
 export class RoomNow {
 	#id: () => string;
@@ -89,14 +96,25 @@ export class RoomNow {
 			(personal.doc.favourites ?? []).filter((r) => this.#inRoom.has(r))
 		)
 	);
-	model = $derived(
-		consoleRoom(
+	#chosen = $derived(tabChoicesOf(household.doc.console?.tabs));
+	// The room's lights, as Home, the sidebar and Everywhere count them (lights.ts).
+	#lamps = $derived(
+		roomLights(this.room?.name ?? '', this.list, devices.byId, {
+			links: roomIn(household.doc.console?.rooms, this.id).links,
+			chosen: this.#chosen
+		})
+	);
+	model = $derived.by(() => {
+		const lamps = new Set(this.#lamps);
+		return consoleRoom(
 			this.list,
 			this.width(),
-			tabChoicesOf(household.doc.console?.tabs),
-			new Set(this.lay.off)
-		)
-	);
+			this.#chosen,
+			new Set(this.lay.off),
+			devices.byId,
+			(d) => lamps.has(d)
+		);
+	});
 	arranged = $derived(arrangeTabs(this.model.tabs, this.lay));
 
 	fader = $derived(faderStyle(personal.doc.console, household.doc.console));
@@ -122,7 +140,8 @@ export class RoomNow {
 			this.list,
 			this.list.map((d) => cardFor(d, clock.now)),
 			devices.byId,
-			kindOptions.of('home', 'room', ref.room(this.id), ROOM_BUILT_IN)
+			kindOptions.of('home', 'room', ref.room(this.id), ROOM_BUILT_IN),
+			houseNow.lightIds
 		)
 	);
 	temperature = $derived(this.#box.bigIs === 'lights' ? undefined : this.#box.big);
@@ -133,7 +152,8 @@ export class RoomNow {
 			this.list,
 			clock.now,
 			(d) => commands.pending[d]?.want,
-			this.lay.links
+			this.lay.links,
+			devices.byId
 		)
 	);
 	// The household's photo, if it chose one and it's still there, lit by its spots.
@@ -148,16 +168,8 @@ export class RoomNow {
 				)
 			: []
 	);
-	// The faders, then the switches named as lights, as Home and Everywhere count them.
-	#lamps = $derived.by(() => {
-		const faders = this.model.lights.columns.flatMap((c) => c.lights);
-		return [...faders, ...this.lit.lamps.filter((d) => !faders.includes(d))];
-	});
-	// Counted as the faders and switches show them, with commands on their way.
-	#lampsOn = $derived(
-		this.#lamps.filter((d) => d.available && levelOf(d, commands.pending[d.device_id]?.want) > 0)
-			.length
-	);
+	// Counted with commands on their way.
+	#lampsOn = $derived(this.#lamps.filter((d) => isLit(d, commands.pending)).length);
 	lightsWord = $derived(
 		this.#lamps.length === 0
 			? undefined
@@ -167,9 +179,10 @@ export class RoomNow {
 					? '1 light on'
 					: `${this.#lampsOn} lights on`
 	);
+	// As every place counts it (playing.ts): a grouped speaker by its leader.
 	playing = $derived(
-		this.model.byTab.media.filter(
-			(d) => d.available && this.card(d).stateLine.startsWith('Playing')
+		this.model.byTab.media.filter((d) =>
+			playingNow(d, devices.byId, commands.pending[d.device_id]?.want)
 		).length
 	);
 
@@ -184,22 +197,84 @@ export class RoomNow {
 		}
 		void commands.set(d.device_id, c.kind, { locked: true }, d.attributes);
 	}
+	/**
+	 * A door's pill: the tab the door is on, while it is shown, else the door
+	 * itself, so a pill never does nothing.
+	 */
+	openingPill(d: CoreDevice, choose: (t: TabId) => void): void {
+		const t = tabWith(this.model.byTab, this.arranged.shown, d.device_id);
+		if (t) choose(t);
+		else openDevice(d.device_id, page.url);
+	}
+	/** What the pill says it does, for its title. */
+	openingHint(d: CoreDevice): string {
+		const t = tabWith(this.model.byTab, this.arranged.shown, d.device_id);
+		const name = this.arranged.shown.find((x) => x.id === t)?.name;
+		return name ? `See it on ${name}` : `Open ${this.nameOf(d)}`;
+	}
 	// Locks and doors as pills, but those the household left out.
 	locks = $derived(this.model.locks.filter((d) => !this.lay.pillsOff.includes(d.device_id)));
 	openings = $derived(this.model.openings.filter((d) => !this.lay.pillsOff.includes(d.device_id)));
+	// Two pills with one name ("Test Door: Closed" twice) say which is which.
+	#pillApart = $derived(
+		apart([...this.locks, ...this.openings], (d) => this.short(this.nameOf(d)))
+	);
+	/** A lock's or door's name on its pill. */
+	pillName = (d: CoreDevice): string => {
+		const apartBy = this.#pillApart.get(d.device_id);
+		return this.short(this.nameOf(d)) + (apartBy ? ` (${apartBy})` : '');
+	};
+
+	// ---- the tabs ----
+	/** Shows tab `t` in place of the one shown; the address keeps it. */
+	choose = (t: TabId): void => {
+		const url = new URL(page.url.href);
+		url.searchParams.set('tab', t);
+		url.searchParams.delete('event');
+		void goto(url.pathname + url.search, { replace: true, reset: false });
+	};
+	/** A camera's pill: the Cameras tab, at what it saw. */
+	showEvent = (key: string): void => {
+		const url = new URL(page.url.href);
+		url.searchParams.set('tab', 'cameras');
+		url.searchParams.set('event', key);
+		void goto(url.pathname + url.search, { replace: true, reset: false });
+	};
+	/** The tabs' arrow keys, from `tab`: the next one shown, focused in `box` once it is. */
+	tabKeys = (e: KeyboardEvent, tab: TabId | undefined, box: HTMLElement | undefined): void => {
+		const shown = this.arranged.shown;
+		const to = nextTab(
+			e.key,
+			shown.findIndex((t) => t.id === tab),
+			shown.length
+		);
+		const next = to === null ? undefined : shown[to];
+		if (!next) return;
+		e.preventDefault();
+		this.choose(next.id);
+		queueMicrotask(() => box?.querySelector<HTMLElement>(`[data-tab="${next.id}"]`)?.focus());
+	};
 
 	// ---- Room on, Room off ----
-	busy = $state<'on' | 'off' | null>(null);
-	trouble = $state<string | null>(null);
+	/** Whether Room on and Room off would reach anything: a light, not a camera's spotlight. */
+	hasPower = $derived(roomPowerLights(this.list, devices.byId).length > 0);
+	// Kept with the room they are for, so the next room's buttons start free
+	// and clear, while this one's answer still comes back to it.
+	#busy = $state<{ room: string; on: boolean } | null>(null);
+	#trouble = $state<{ room: string; text: string } | null>(null);
+	busy = $derived<'on' | 'off' | null>(
+		this.#busy?.room === this.id ? (this.#busy.on ? 'on' : 'off') : null
+	);
+	trouble = $derived(this.#trouble?.room === this.id ? this.#trouble.text : null);
 	async power(on: boolean): Promise<void> {
 		const room = this.room;
 		if (!room || this.busy) return;
-		this.busy = on ? 'on' : 'off';
-		this.trouble = null;
+		this.#busy = { room: room.id, on };
+		this.#trouble = null;
 		const { error, lights } = await roomPower(room.id, on);
-		this.busy = null;
+		if (this.#busy?.room === room.id) this.#busy = null;
 		if (error) {
-			this.trouble = error;
+			this.#trouble = { room: room.id, text: error };
 			return;
 		}
 		// Each light it sent a command to waits for its answer, as a fader would.

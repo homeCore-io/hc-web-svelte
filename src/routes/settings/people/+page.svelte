@@ -4,6 +4,7 @@
 	homeCore's own scopes. Adding a person; API keys; displays.
 -->
 <script lang="ts">
+	import { listOf, notAdmin } from '#lib/refusals.js';
 	import { fullDateOf } from '#lib/when.js';
 	import { onMount } from 'svelte';
 	import { onReturn } from '#lib/refresh.js';
@@ -39,15 +40,20 @@
 		return onReturn(load);
 	});
 	async function load() {
-		const [p, r, k] = await Promise.all([loadPeople(), loadRoles(), loadKeys()]);
-		if (!p.ok) return void (failed = p.error);
-		people = [...p.data].sort((a, b) => a.created_at.localeCompare(b.created_at));
+		// Each read on its own: keys and displays are counted even if people were refused.
+		const [p, r, k, d] = await Promise.all([
+			loadPeople(),
+			loadRoles(),
+			loadKeys(),
+			listOf<{ revoked?: boolean }[]>('/displays')
+		]);
 		if (r.ok) roles = ordered(r.data);
 		if (k.ok) keys = k.data;
+		if (d.ok) displays = d.value.filter((x) => !x.revoked).length;
+		if (!p.ok) return void (failed = p.error);
+		failed = null;
+		people = [...p.data].sort((a, b) => a.created_at.localeCompare(b.created_at));
 		void lastActive(p.data).then((s) => (seen = s));
-		const d = await fetch('/api/v1/displays').catch(() => null);
-		if (d?.ok)
-			displays = ((await d.json()) as { revoked?: boolean }[]).filter((x) => !x.revoked).length;
 	}
 
 	const said = $derived(people ? advice(people, roles) : null);
@@ -60,7 +66,9 @@
 </script>
 
 {#if !session.isAdmin}
-	<p class="quiet">People and access are for the house’s admins.</p>
+	<p class="quiet">
+		{notAdmin('People and access are for the house’s admins.', 'manage people')}
+	</p>
 {:else}
 	<div class="page">
 		<div class="tools">
@@ -68,10 +76,10 @@
 				{people ? `${people.length} ${people.length === 1 ? 'person' : 'people'}` : ''}
 			</span>
 			<a class="plain" href="/settings/people/keys"
-				>API keys · {liveKeys === null ? '…' : liveKeys || 'none'} in use</a
+				>API keys{liveKeys === null ? '' : ` · ${liveKeys || 'none'} in use`}</a
 			>
 			<a class="plain" href="/settings/displays"
-				>Displays · {displays === null ? '…' : displays || 'none'}</a
+				>Displays{displays === null ? '' : ` · ${displays || 'none'}`}</a
 			>
 			<a class="go" href="/settings/people/add">+ Add a person</a>
 		</div>

@@ -5,13 +5,14 @@
 	anyone's every-room settings; "Use these instead" takes this layer's away.
 -->
 <script lang="ts">
+	import { houseNow } from '#lib/houseNow.svelte.js';
 	import { cardFor } from '#lib/card.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
 	import { kindOptions } from '#lib/kindOptions.svelte.js';
 	import { ROOM_BUILT_IN, roomDescriptor } from '#lib/options.js';
 	import type { Card } from '#lib/page.js';
-	import { reads, roomBox } from '#lib/roomBox.js';
+	import { airReaders, roomBox } from '#lib/roomBox.js';
 	import { view } from '#lib/view.svelte.js';
 	import KindSettings from './KindSettings.svelte';
 	import RoomBox from './RoomBox.svelte';
@@ -40,7 +41,7 @@
 	);
 	// The preview: the busiest room that follows these settings, one with a
 	// temperature if any has, so the big number shows.
-	const warm = (r: Room) => r.devices.some((d) => reads(d, 'temperature'));
+	const warm = (r: Room) => airReaders(r.devices).length > 0;
 	const sample = $derived(
 		[...rooms]
 			.filter((r) => !own.some((o) => o.ref === r.ref) && r.id !== 'none')
@@ -70,7 +71,8 @@
 						sample.devices,
 						sample.devices.map((d) => cardFor(d, clock.now)),
 						devices.byId,
-						o
+						o,
+						houseNow.lightIds
 					)}
 					devices={[]}
 				/>

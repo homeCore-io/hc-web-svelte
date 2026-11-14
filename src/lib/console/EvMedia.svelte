@@ -19,9 +19,7 @@
 	import Level from './Level.svelte';
 	import {
 		artistOf,
-		currentApp,
 		hueOf,
-		isOn,
 		playerKind,
 		playerName,
 		remoteKeys,
@@ -33,6 +31,7 @@
 	import { brandOf } from './room.js';
 	import { send } from './send.js';
 	import { playerRows, playingNow, silentRooms, type Place } from './everywhere.js';
+	import { playNow } from '#lib/playing.js';
 
 	let { places }: { places: Place[] } = $props();
 
@@ -48,30 +47,40 @@
 			? 'Nothing in the house plays yet'
 			: playing.length === 0
 				? 'Nothing playing'
-				: `${playing.length} playing · ${rows.length - playing.length} paused or idle`
+				: `${playing.length} playing · ${rows.length - playing.length} not playing`
 	);
 
-	/** What a player has on, and how it is: playing, paused, off. */
+	const players = $derived(rows.map((r) => r.device));
+
+	/**
+	 * What a player has on, and how it is, as every place counts it
+	 * (playing.ts): the header's count is the rows that say Playing.
+	 */
 	function nowOf(d: CoreDevice): { what: string; state: string; on: boolean } {
-		if (!d.available) return { what: 'It isn’t answering', state: 'Offline', on: false };
-		const live = { ...d, attributes: { ...d.attributes, ...want(d) } };
-		if (!isOn(live)) return { what: 'Standing by', state: 'Off', on: false };
-		const t = transportOf(d, want(d));
-		const c = cardFor(d, clock.now);
-		if (playerKind(d) === 'screen') {
-			const app = currentApp(d);
-			return {
-				what: app ?? `The ${brandOf(d.plugin_id)} home screen`,
-				state: t.playing ? 'Playing' : app ? 'Open' : 'Idle',
-				on: t.playing
-			};
+		const n = playNow(d, players, want(d));
+		const on = n.state === 'playing';
+		switch (n.state) {
+			case 'offline':
+				return { what: 'It isn’t answering', state: 'Offline', on };
+			case 'off':
+				return { what: 'Standing by', state: 'Off', on };
+			case 'grouped': {
+				const lead = players.find((x) => x.device_id === n.lead);
+				return { what: `With ${lead ? playerName(lead) : 'its group'}`, state: 'Grouped', on };
+			}
 		}
-		if (!c.nowPlaying) return { what: 'Nothing queued', state: 'Idle', on: false };
+		if (n.screen)
+			return {
+				what: n.what ?? `The ${brandOf(d.plugin_id)} home screen`,
+				state: on ? 'Playing' : n.state === 'open' ? 'Open' : 'Idle',
+				on
+			};
+		if (!n.what) return { what: 'Nothing queued', state: 'Idle', on };
 		const artist = artistOf(d);
 		return {
-			what: artist ? `${c.nowPlaying} · ${artist}` : c.nowPlaying,
-			state: t.playing ? 'Playing' : 'Paused',
-			on: t.playing
+			what: artist ? `${n.what} · ${artist}` : n.what,
+			state: on ? 'Playing' : 'Paused',
+			on
 		};
 	}
 	const artOf = (d: CoreDevice) => (d.available ? cardFor(d, clock.now).art : undefined);
@@ -242,7 +251,7 @@
 		font-weight: 500;
 	}
 	.what small.playing {
-		color: #b9a3ff;
+		color: var(--media-ink, #b9a3ff);
 	}
 	.vol {
 		flex: none;

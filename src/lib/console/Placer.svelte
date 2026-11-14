@@ -28,7 +28,9 @@
 	const room = $derived(d ? roomOf(d, rooms.list) : undefined);
 	const list = $derived(room ? devicesIn(devices.byId, room) : []);
 	const chosen = $derived(tabChoicesOf(household.doc.console?.tabs));
-	const own = $derived(ownTab(list, id, chosen, p.width()));
+	// Where it lands by itself is told as a laptop sorts it, as Settings tells
+	// it, so the household's choice means the same from every screen.
+	const own = $derived(ownTab(list, id, chosen));
 	const now = $derived(tabIn(list, id, chosen, p.width()));
 	const roomNames = $derived([...rooms.list].sort((a, b) => a.name.localeCompare(b.name)));
 	const mayMove = $derived(session.can('devices:write'));
@@ -90,12 +92,19 @@
 		const to = e.relatedTarget as Node | null;
 		if (to && !box?.contains(to) && !p.open?.from.contains(to)) p.close();
 	}
+	// Focus that left for the browser's own bar, then came back elsewhere on
+	// the page, never passed through it: closing waits for where it lands.
+	function landed(e: FocusEvent) {
+		const t = e.target as Node;
+		if (p.open && !box?.contains(t) && !p.open.from.contains(t)) p.close();
+	}
 </script>
 
 <svelte:window
 	bind:innerWidth={vw}
 	bind:innerHeight={vh}
 	onpointerdown={away}
+	onfocusin={landed}
 	onkeydown={(e) => {
 		if (e.key === 'Escape' && p.open) {
 			e.preventDefault();

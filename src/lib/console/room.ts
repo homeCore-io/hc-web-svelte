@@ -6,7 +6,8 @@
  * contacts, covers and openers; Cameras, cameras and doorbells with their
  * spotlights and sirens; Lights, lights, keypads and lighting scenes; Media, players;
  * Climate, what you set (thermostats, fans, humidifiers); Water, leak
- * sensors and valves; Sensors, every reading. A switch a thermostat in the
+ * sensors and valves; Sensors, every reading; Timers, timers with their
+ * clocks. A switch a thermostat in the
  * room runs goes with it, in Climate. Plain on/off switches sit in Lights as
  * a column of their own, and get a tab of their own only when Lights would be
  * too crowded for them. homeCore's own switches (virtual switches, groups,
@@ -24,18 +25,30 @@
  */
 import { kindOf } from '../card.js';
 import type { CoreDevice, Devices } from '../devices.js';
+import { isCamera, isCameraLight } from '../cameraLights.js';
 import type { Room } from '../house.js';
 import { isHelper } from '../helpers.js';
+import { isLamp, lightLevel } from '../lights.js';
 import { slugOf } from '../summary.js';
+import { knownPluginName } from '../inventory.js';
 
 export type TabId =
-	'doors' | 'lights' | 'switches' | 'media' | 'climate' | 'water' | 'sensors' | 'cameras';
+	| 'doors'
+	| 'lights'
+	| 'switches'
+	| 'timers'
+	| 'media'
+	| 'climate'
+	| 'water'
+	| 'sensors'
+	| 'cameras';
 
 /** Every tab, in the order shown when something in the room opens; else Lights comes first. */
 export const TABS: readonly { id: TabId; name: string }[] = [
 	{ id: 'doors', name: 'Doors' },
 	{ id: 'lights', name: 'Lights' },
 	{ id: 'switches', name: 'Switches' },
+	{ id: 'timers', name: 'Timers' },
 	{ id: 'media', name: 'Media' },
 	{ id: 'climate', name: 'Climate' },
 	{ id: 'water', name: 'Water' },
@@ -165,8 +178,10 @@ export function placeOf(d: CoreDevice): Place {
 	if (CLIMATE_KINDS.has(k)) return { tab: 'climate' };
 	if (WATER_KINDS.has(k)) return { tab: 'water' };
 	if (SENSOR_KINDS.has(k)) return { tab: 'sensors' };
-	// Anything else that does something (a timer, a button) goes with the switches' tab.
-	if (d.schema?.actions?.length || k === 'timer' || k === 'button') return { tab: 'switches' };
+	// Timers have a tab of their own, with their clocks.
+	if (k === 'timer') return { tab: 'timers' };
+	// Anything else that does something (a button) goes with the switches' tab.
+	if (d.schema?.actions?.length || k === 'button') return { tab: 'switches' };
 	return { tab: 'sensors' };
 }
 
@@ -215,12 +230,6 @@ function chosenPlace(d: CoreDevice, tab: TabId): Exclude<Place, null> {
 	const own = placeOf(d);
 	if (own?.tab === 'lights') return own;
 	return dims(d) ? { tab: 'lights', as: 'light' } : { tab: 'switch' };
-}
-
-/** Whether a light is the spotlight of one of these cameras: `<camera>_spotlight`. */
-function spotlightOf(d: CoreDevice, cameras: Set<string>): boolean {
-	const m = /^(.+)_spotlight$/.exec(d.device_id);
-	return !!m && cameras.has(m[1]!);
 }
 
 /** Whether a device opens and closes something: a cover, a garage door opener, a gate. */
@@ -287,19 +296,17 @@ const nameOf = (d: CoreDevice) => d.name_override ?? d.name;
 const byName = (a: CoreDevice, b: CoreDevice) =>
 	nameOf(a).localeCompare(nameOf(b), undefined, { numeric: true });
 
-/** Brands spelled their own way. */
+/** Brands spelled their own way, beyond the plugins Settings names (`knownPluginName`). */
 const BRANDS: Record<string, string> = {
-	yolink: 'YoLink',
-	nuheat: 'NuHeat',
-	zwave: 'Z-Wave',
 	glue: 'homeCore'
 };
 
-/** "plugin.hue" → "Hue"; "sbx.standin" → "Standin"; "plugin.yolink" → "YoLink". */
+/** "plugin.hue" → "Hue"; "sbx.standin" → "Stand-in"; "plugin.yolink" → "YoLink", as Settings says them. */
 export function brandOf(plugin: string | undefined): string {
 	const last = (plugin ?? '').split('.').pop() ?? '';
 	if (last === '') return 'Other';
-	if (BRANDS[last]) return BRANDS[last];
+	const known = BRANDS[last] ?? knownPluginName(last);
+	if (known) return known;
 	return last.charAt(0).toUpperCase() + last.slice(1);
 }
 
@@ -403,6 +410,11 @@ export const fadersIn = (c: LightColumn): number =>
 
 /** The width the Lights tab has, in pixels, on a laptop's screen. */
 export const LIGHTS_WIDTH = 1120;
+/**
+ * A phone's Lights tab: its columns stack one under another, so any number
+ * of them fits, and only the switches' count can crowd it.
+ */
+export const STACKED_WIDTH = Number.POSITIVE_INFINITY;
 /** At most this many switches sit in the Lights tab as a column. */
 export const SWITCHES_IN_LIGHTS = 7;
 
@@ -457,17 +469,24 @@ export function runByThermostats(devices: CoreDevice[]): Set<string> {
  * Sort a room's devices into the console's tabs, for a Lights tab `width`
  * pixels across, with the household's choices of tab (`chosen`). Lights
  * and switches in `off` were hidden from the room (layout.ts): left out.
+ * `all` is the house, so a camera's spotlight goes with Cameras even when
+ * its camera is in another room. `isLight` says which of the room's switches
+ * are lights, for the Lights tab's count (lights.ts; `roomLights` knows the
+ * room's drawing too); by itself, a switch named as a light.
  */
 export function consoleRoom(
 	devices: CoreDevice[],
 	width = LIGHTS_WIDTH,
 	chosen: TabChoices = {},
-	off: ReadonlySet<string> = new Set()
+	off: ReadonlySet<string> = new Set(),
+	all: Devices | readonly CoreDevice[] = devices,
+	isLight: (d: CoreDevice) => boolean = isLamp
 ): ConsoleRoom {
 	const byTab: Record<TabId, CoreDevice[]> = {
 		doors: [],
 		lights: [],
 		switches: [],
+		timers: [],
 		media: [],
 		climate: [],
 		water: [],
@@ -481,11 +500,7 @@ export function consoleRoom(
 	const switches: CoreDevice[] = [];
 	const run = runByThermostats(devices);
 	// A camera's spotlight goes with it, in Cameras.
-	const cameras = new Set(
-		devices
-			.filter((d) => kindOf(d) === 'camera' || kindOf(d) === 'doorbell')
-			.map((d) => d.device_id)
-	);
+	const cameras = new Set(devices.filter(isCamera).map((d) => d.device_id));
 	const placed: CoreDevice[] = [];
 	for (const d of [...devices].sort(byName)) {
 		const choice = chosen[d.device_id];
@@ -494,7 +509,7 @@ export function consoleRoom(
 		if (off.has(d.device_id) && (p.tab === 'switch' || (p.tab === 'lights' && p.as === 'light')))
 			continue;
 		placed.push(d);
-		if (!choice && p.tab === 'lights' && p.as === 'light' && spotlightOf(d, cameras)) {
+		if (!choice && p.tab === 'lights' && p.as === 'light' && isCameraLight(d, all)) {
 			byTab.cameras.push(d);
 			continue;
 		}
@@ -520,8 +535,13 @@ export function consoleRoom(
 			TabId,
 			number
 		>),
-		// The Lights tab counts what lights the room, not its scenes or groups.
-		lights: columns.reduce((n, c) => n + c.lights.length, 0) + tab.switches.length,
+		// The Lights tab counts the room's lights on it, not its scenes, groups or
+		// the switches that power something else (an AC outlet, a fan); with
+		// nothing that lights it (a keypad alone), what is on it.
+		lights:
+			columns.reduce((n, c) => n + c.lights.length, 0) +
+				tab.switches.filter((d) => chosen[d.device_id] === 'lights' || isLight(d)).length ||
+			byTab.lights.length,
 		// The Cameras tab counts its cameras, not their spotlights and sirens.
 		cameras: byTab.cameras.filter((d) => cameras.has(d.device_id)).length || byTab.cameras.length
 	};
@@ -555,11 +575,7 @@ export const dims = (d: CoreDevice): boolean =>
 	typeof d.attributes?.brightness_pct === 'number' || d.attributes?.supports_dimming === true;
 
 /** A light's level, 0 to 100: its brightness when on, else 0. `want` is a command on its way. */
-export function levelOf(d: CoreDevice, want?: Record<string, unknown>): number {
-	const a = { ...d.attributes, ...want };
-	if (a.on !== true) return 0;
-	return typeof a.brightness_pct === 'number' ? Math.round(a.brightness_pct) : 100;
-}
+export const levelOf = lightLevel;
 
 /** What to send for a fader set to `v`: off at 0, else on at that brightness. */
 export const levelWant = (v: number): Record<string, unknown> =>
@@ -570,7 +586,26 @@ export const levelWant = (v: number): Record<string, unknown> =>
  * the page: "Family Room Floor Lamp" in the Family Room is "Floor Lamp". A
  * name that is only the room's, or another room's numbered after it, is kept whole.
  */
-export function shortName(name: string, room: string): string {
+/** Words that say nothing alone once the room is taken off. */
+const GENERIC = new Set([
+	'on',
+	'off',
+	'open',
+	'close',
+	'door',
+	'doors',
+	'light',
+	'lights',
+	'lock',
+	'switch',
+	'timer',
+	'scene',
+	'all',
+	'start',
+	'stop'
+]);
+
+export function shortName(name: string, room: string, lone = false): string {
 	const r = room.trim().toLowerCase();
 	if (r === '' || !name.toLowerCase().startsWith(r)) return name;
 	const rest = name.slice(r.length);
@@ -578,5 +613,9 @@ export function shortName(name: string, room: string): string {
 	const left = rest.replace(/^[\s\-–:]+/, '');
 	// "Bathroom 2 Leak Sensor" in the Bathroom is another room's: kept whole.
 	if (left === '' || /^\d/.test(left)) return name;
+	// "Outside Off" or "Garage Door" left as Off or Door reads as the room's own
+	// controls, or the garage door itself: a lone everyday word keeps the room.
+	// (`lone`: where the room is said alongside, as on its Home tile, it may go.)
+	if (!lone && GENERIC.has(left.toLowerCase())) return name;
 	return left.charAt(0).toUpperCase() + left.slice(1);
 }

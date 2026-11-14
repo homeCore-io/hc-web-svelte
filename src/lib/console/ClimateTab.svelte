@@ -259,6 +259,9 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
+	:global(:root[data-theme='light']) .speeds button:not(.on) {
+		color: color-mix(in srgb, var(--ink) 50%, var(--ink-muted));
+	}
 	.speeds button.on {
 		background: linear-gradient(180deg, #9fe4ff, #5ab8ff);
 		color: #06202c;

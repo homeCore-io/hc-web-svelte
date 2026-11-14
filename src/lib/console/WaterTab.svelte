@@ -162,10 +162,10 @@
 		font-size: calc(26px + 8px * var(--k, 1));
 		font-weight: 700;
 		letter-spacing: -0.02em;
-		color: color-mix(in srgb, var(--good, #4fe0a0) 70%, var(--ink));
+		color: var(--good-ink, color-mix(in srgb, var(--good, #4fe0a0) 70%, var(--ink)));
 	}
 	.drop b.wet {
-		color: #6fb6ff;
+		color: var(--cool-ink, #6fb6ff);
 	}
 	.drop small,
 	.sub {
@@ -223,7 +223,7 @@
 	.state b {
 		font-size: calc(18px + 4px * var(--k, 1));
 		font-weight: 700;
-		color: color-mix(in srgb, var(--good, #4fe0a0) 70%, var(--ink));
+		color: var(--good-ink, color-mix(in srgb, var(--good, #4fe0a0) 70%, var(--ink)));
 	}
 	.state b.shut {
 		color: #ffb38a;

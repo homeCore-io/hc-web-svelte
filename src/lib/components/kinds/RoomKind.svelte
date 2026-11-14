@@ -12,8 +12,8 @@
 	import { household } from '#lib/household.svelte.js';
 	import { kindOptions } from '#lib/kindOptions.svelte.js';
 	import type { KindProps } from '#lib/kinds.js';
-	import { ROOM_BUILT_IN } from '#lib/options.js';
-	import { roomBox } from '#lib/roomBox.js';
+	import { ROOM_BUILT_IN, sourceOf } from '#lib/options.js';
+	import { degrees, roomBox, sourced } from '#lib/roomBox.js';
 	import FieldBox from '../FieldBox.svelte';
 	import RoomBox from '../RoomBox.svelte';
 	import RoomRow from '../RoomRow.svelte';
@@ -22,15 +22,13 @@
 	const cards = $derived(card.devices.map((d) => cardFor(d, clock.now)));
 	// In a grid (a page someone made, G27) a room is a box the grid's size.
 	const boxed = $derived(layout === 'field' || layout === 'tiles' || layout === 'grid');
-	const box = $derived(
+	const options = $derived(kindOptions.of(page, 'room', card.ref, ROOM_BUILT_IN));
+	const box = $derived(boxed ? roomBox(card.devices, cards, devices.byId, options) : undefined);
+	// In the list, the same temperature its box would show.
+	const temperature = $derived(
 		boxed
-			? roomBox(
-					card.devices,
-					cards,
-					devices.byId,
-					kindOptions.of(page, 'room', card.ref, ROOM_BUILT_IN)
-				)
-			: undefined
+			? undefined
+			: degrees(sourced(sourceOf(options.temperature), 'temperature', devices.byId, card.devices))
 	);
 </script>
 
@@ -59,5 +57,6 @@
 		icon={household.iconOf(card.id)}
 		devices={card.devices}
 		{cards}
+		{temperature}
 	/>
 {/if}

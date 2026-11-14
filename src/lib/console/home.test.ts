@@ -12,6 +12,7 @@ import {
 	issuesOf,
 	ISSUES_SHOWN,
 	playingOf,
+	dockCount,
 	tileOf
 } from './home.js';
 
@@ -64,14 +65,21 @@ describe('the greeting', () => {
 	});
 
 	it('sums the house up in one line', () => {
-		expect(houseLine({ lightsOn: 8, litRooms: 5, playing: 2, working: 3, issues: 0 })).toBe(
+		const lights = (on: number, rooms: number, loose = 0) => ({ on, all: 40, rooms, loose });
+		expect(houseLine({ lights: lights(8, 5), playing: 2, working: 3, issues: 0 })).toBe(
 			'8 lights on in 5 rooms · 2 playing · 3 thermostats working · all secure'
 		);
-		expect(houseLine({ lightsOn: 1, litRooms: 1, playing: 0, working: 1, issues: 1 })).toBe(
+		expect(houseLine({ lights: lights(1, 1), playing: 0, working: 1, issues: 1 })).toBe(
 			'1 light on in 1 room · 1 thermostat working · 1 thing needs attention'
 		);
-		expect(houseLine({ lightsOn: 0, litRooms: 0, playing: 0, working: 0, issues: 2 })).toBe(
+		expect(houseLine({ lights: lights(0, 0), playing: 0, working: 0, issues: 2 })).toBe(
 			'Every light off · 2 things need attention'
+		);
+		expect(houseLine({ lights: lights(27, 10, 1), playing: 0, working: 0, issues: 0 })).toBe(
+			'27 lights on in 10 rooms and 1 with no room · all secure'
+		);
+		expect(houseLine({ lights: lights(1, 0, 1), playing: 0, working: 0, issues: 0 })).toBe(
+			'1 light on with no room · all secure'
 		);
 	});
 });
@@ -244,8 +252,6 @@ describe('favorites', () => {
 
 describe('what’s playing', () => {
 	const rooms = [room('o', 'Office', 'office'), room('f', 'Family Room', 'family_room')];
-	const now = (d: CoreDevice) =>
-		typeof d.attributes.media_title === 'string' ? d.attributes.media_title : undefined;
 
 	it('lists a speaker group once, by its leader, and a screen in an app', () => {
 		const list = [
@@ -284,7 +290,7 @@ describe('what’s playing', () => {
 				{ plugin_id: 'plugin.roku', area: 'office' }
 			)
 		];
-		expect(playingOf(list, rooms, now)).toEqual([
+		expect(playingOf(list, rooms)).toEqual([
 			{
 				id: 'r',
 				title: 'YouTube',
@@ -310,6 +316,50 @@ describe('what’s playing', () => {
 			dev('b', 'media_player', 'B', { media_title: 'x' }, { available: false }),
 			dev('c', 'media_player', 'C', {}, { plugin_id: 'plugin.sonos' })
 		];
-		expect(playingOf(list, rooms, now)).toEqual([]);
+		expect(playingOf(list, rooms)).toEqual([]);
+	});
+
+	it('lists a Sonos playing its line-in or a TV as playing, never as nothing queued', () => {
+		const list = [
+			dev(
+				'lr',
+				'media_player',
+				'Living Room',
+				{
+					state: 'playing',
+					media_title: 'RINCON_542A1B8710A901400',
+					group_members: ['lr'],
+					group_coordinator: 'lr'
+				},
+				{ plugin_id: 'plugin.sonos' }
+			),
+			dev(
+				'b',
+				'media_player',
+				'Bathroom',
+				{ state: 'paused', media_title: 'ALT Radio' },
+				{ plugin_id: 'plugin.sonos', area: 'office' }
+			)
+		];
+		const out = playingOf(list, rooms);
+		expect(out.map((p) => [p.title, p.playing])).toEqual([
+			['TV or line-in', true],
+			['ALT Radio', false]
+		]);
+		expect(dockCount(out)).toBe('1 playing · 1 paused');
+	});
+
+	it('counts the dock in words that add up', () => {
+		const p = (playing: boolean, screen: boolean) => ({
+			id: 'x',
+			title: 't',
+			sub: '',
+			playing,
+			screen
+		});
+		expect(dockCount([p(true, true), p(true, false), p(false, false), p(false, true)])).toBe(
+			'2 playing · 1 paused · 1 open'
+		);
+		expect(dockCount([p(false, false)])).toBe('Nothing playing now · 1 paused');
 	});
 });

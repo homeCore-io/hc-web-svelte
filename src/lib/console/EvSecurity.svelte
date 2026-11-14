@@ -24,6 +24,7 @@
 	import { openDevice } from '#lib/popup.js';
 	import EvHead from './EvHead.svelte';
 	import { doorName } from './doors.js';
+	import { apart } from './apart.js';
 	import { issuesOf, secRows, type Place, type SecItem } from './everywhere.js';
 
 	let { places, phone = false }: { places: Place[]; phone?: boolean } = $props();
@@ -37,6 +38,15 @@
 	const unlocked = $derived(locks.filter((i) => i.device.available && !i.ok));
 	const nameOf = (d: CoreDevice) => d.name_override ?? d.name;
 	const short = (d: CoreDevice, p: Place) => doorName(nameOf(d), p.room ? p.name : '');
+	// Two doors in one room shown with one name say which is which.
+	const named = (r: { items: { device: CoreDevice }[]; place: Place }) => {
+		const m = apart(
+			r.items.map((i) => i.device),
+			(d) => short(d, r.place)
+		);
+		return (d: CoreDevice) =>
+			short(d, r.place) + (m.has(d.device_id) ? ` (${m.get(d.device_id)})` : '');
+	};
 
 	const summary = $derived(
 		[
@@ -166,7 +176,7 @@
 								strokeWidth={2.2}
 								aria-hidden="true"
 							/>{:else}<DoorOpen size={13} strokeWidth={2.2} aria-hidden="true" />{/if}
-						{short(i.device, r.place)}: {commands.notes[i.device.device_id] ?? i.word}
+						{named(r)(i.device)}: {commands.notes[i.device.device_id] ?? i.word}
 					</button>
 				{/each}
 			</div>

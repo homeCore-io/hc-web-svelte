@@ -7,6 +7,7 @@
 	It does nothing until it has its settings, so its settings come next.
 -->
 <script lang="ts">
+	import { notAdmin } from '#lib/refusals.js';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -23,6 +24,7 @@
 		type PluginRecord,
 		type RegistryPlugin
 	} from '#lib/plugins.js';
+	import { installLabel, installedText } from '#lib/catalog.js';
 	import {
 		install,
 		loadRegistry,
@@ -156,7 +158,9 @@
 		<CatalogExtensions />
 	{/await}
 {:else if !session.isAdmin}
-	<p class="quiet">Plugins are for the house’s admins.</p>
+	<p class="quiet">
+		{notAdmin('Plugins are for the house’s admins.', 'add plugins from the Catalog')}
+	</p>
 {:else if failed}
 	<p class="quiet">The registry: {failed}</p>
 {:else if registry === null}
@@ -183,7 +187,7 @@
 						>
 							<strong>{p.name}</strong>
 							<span>{p.description || 'No description in the registry.'}</span>
-							{#if mine}<em>Installed · {versionOf(mine)}</em>{/if}
+							{#if mine}<em>{installedText(mine)}</em>{/if}
 						</button>
 					</li>
 				{/each}
@@ -205,8 +209,8 @@
 					Version
 					<select bind:value={version}
 						>{#each versions as v, i (v)}<option value={v}
-								>{v}{i === 0 ? ' — the latest' : ''}{needs(v)
-									? ` — needs homeCore ${needs(v)}`
+								>{v}{i === 0 ? ' · the latest' : ''}{needs(v)
+									? ` · needs homeCore ${needs(v)}`
 									: ''}</option
 							>{/each}</select
 					>
@@ -217,8 +221,12 @@
 				</p>
 				{#if installed}
 					<p class="quiet">
-						<strong>Installed: {versionOf(installed)}.</strong> Installing {version} replaces it and keeps
-						its settings.
+						<strong
+							>{versionOf(installed)
+								? `Installed: ${versionOf(installed)}.`
+								: 'Installed, but its version isn’t known.'}</strong
+						>
+						Installing {version} replaces it and keeps its settings.
 					</p>
 				{/if}
 				{#if choices.length}
@@ -253,11 +261,7 @@
 									runtimes.find((x) => x.runtime_id === runOn),
 									runOn
 								)}`
-							: installed
-								? compareVersions(version, versionOf(installed) ?? '0') > 0
-									? `Update to ${version}`
-									: `Install ${version}`
-								: `Install ${chosen.name}`}
+							: installLabel(chosen.name, version, installed)}
 				</button>
 				{#if placed}
 					<p class="note" role="status">

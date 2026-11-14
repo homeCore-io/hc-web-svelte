@@ -175,7 +175,7 @@ const TIMER_SAY: Record<string, string> = {
 	running: 'starts',
 	paused: 'is paused',
 	idle: 'stops',
-	cancelled: 'is cancelled'
+	cancelled: 'is canceled'
 };
 
 const PRESSES: [string, string][] = [

@@ -273,7 +273,7 @@ export function homePage(h: HomeInput): Page {
 						ref: ref.room('none'),
 						kind: 'room' as const,
 						id: 'none',
-						name: 'Not in a room',
+						name: 'No room',
 						href: '/rooms/none',
 						devices: strays
 					}

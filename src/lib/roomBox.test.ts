@@ -12,13 +12,16 @@ import {
 	roomDescriptor
 } from './options.js';
 import {
+	airReaders,
 	bigNumbers,
 	fieldPlan,
 	fieldText,
+	outdoorStation,
 	outsideTemperature,
 	readingOf,
 	roomBox,
 	sourced,
+	troubleOf,
 	type Box
 } from './roomBox.js';
 import { homeStyle, styleChanges, styleOf, shellRooms } from './styles.js';
@@ -105,8 +108,9 @@ describe('readings', () => {
 		expect(readingOf({ ...office[0]!, available: false }, 'temperature')).toBeUndefined();
 	});
 
-	it('the room’s average, one sensor, an average of chosen ones, or none', () => {
-		expect(sourced('auto', 'temperature', all, office)).toBe(20);
+	it('the room’s thermometers, one sensor, an average of chosen ones, or none', () => {
+		// The desk thermometer, not averaged with the motion sensor’s 19.
+		expect(sourced('auto', 'temperature', all, office)).toBe(21);
 		expect(sourced(['desk'], 'temperature', all, office)).toBe(21);
 		expect(sourced(['desk', 'far'], 'temperature', all, office)).toBe(25.5);
 		expect(sourced('none', 'temperature', all, office)).toBeUndefined();
@@ -123,17 +127,73 @@ describe('readings', () => {
 	});
 });
 
+describe('a room’s temperature: only what reads the air', () => {
+	const leak = (id: string) => dev(id, 'water_sensor', { temperature: 18, water_detected: false });
+	const freezer = dev('probe', 'temperature_sensor', {
+		temperature: -14.3,
+		temp_limit_low: -20,
+		temp_limit_high: -5
+	});
+	const fridge = dev(
+		'fridge',
+		'temperature_sensor',
+		{ temperature: 4 },
+		{ name: 'Kitchen Fridge' }
+	);
+	const floor = (t: number) =>
+		dev('floor', 'thermostat', { temperature: t, setpoint: 20 }, { plugin_id: 'plugin.nuheat' });
+	const stat = dev('stat', 'thermostat', { temperature: 6.7, setpoint: 10 });
+	const t = (near: CoreDevice[]) => sourced('auto', 'temperature', {}, near);
+
+	it('leaves out leak sensors, freezer probes and fridges: a garage reads its thermometers', () => {
+		const garage = [
+			dev('a', 'temperature_sensor', { temperature: 6.7 }),
+			dev('b', 'temperature_sensor', { temperature: 10.6 }),
+			freezer,
+			fridge,
+			leak('l'),
+			stat
+		];
+		expect(airReaders(garage).map((d) => d.device_id)).toEqual(['a', 'b']);
+		expect(t(garage)).toBeCloseTo(8.65, 5);
+	});
+
+	it('shows nothing rather than a leak sensor’s own temperature', () => {
+		expect(t([leak('sink'), leak('dishwasher')])).toBeUndefined();
+		expect(t([freezer])).toBeUndefined();
+	});
+
+	it('never reads a heated floor; a thermostat’s room reading when there is no thermometer', () => {
+		expect(t([floor(22.9)])).toBeUndefined();
+		expect(t([floor(22.9), stat])).toBe(6.7);
+		expect(t([floor(22.9), dev('den', 'temperature_sensor', { temperature: 14 })])).toBe(14);
+		// With only a motion sensor that reads the air, its reading.
+		expect(t([leak('l'), dev('m', 'motion_sensor', { temperature: 22 })])).toBe(22);
+	});
+
+	it('the box and the house’s figure read the same rule', () => {
+		const kitchen = [leak('k1'), leak('k2')];
+		const b = roomBox(
+			kitchen,
+			kitchen.map((d) => cardFor(d, NOW)),
+			fromList(kitchen),
+			resolve([], ROOM_BUILT_IN)
+		);
+		expect(b.temperature).toBeUndefined();
+	});
+});
+
 describe('a room’s box', () => {
 	it('shows the temperature big, then lights and humidity', () => {
 		const b = box();
-		expect(b.big).toBe('20°');
+		expect(b.big).toBe('21°');
 		expect(b.lines.map((l) => l.text)).toEqual(['1 of 2 lights on', '48%']);
 		expect(b.glow).toBe(0.5);
 		expect(b.badges.map((x) => x.label)).toEqual(['Someone here']);
 	});
 
 	it('takes its temperature from a sensor chosen, or none', () => {
-		expect(box({ temperature: ['desk'] }).big).toBe('21°');
+		expect(box({ temperature: ['motion'] }).big).toBe('19°');
 		expect(box({ temperature: 'none' }).big).toBeUndefined();
 	});
 
@@ -160,6 +220,19 @@ describe('a room’s box', () => {
 		expect(b.lines.filter((l) => l.alert).map((l) => l.text)).toEqual(['Leak', 'door open']);
 	});
 
+	it('names what is wrong as Home rings it, a lock left unlocked too', () => {
+		const list = [...office, dev('lock', 'lock', { locked: false })];
+		const cards = list.map((d) => cardFor(d, NOW));
+		const b = roomBox(list, cards, all, resolve([{ doors: false }], ROOM_BUILT_IN));
+		expect(troubleOf(b, cards)).toBe('lock unlocked');
+		expect(
+			troubleOf(
+				box(),
+				office.map((d) => cardFor(d, NOW))
+			)
+		).toBeUndefined();
+	});
+
 	it('offers All off only while something is on, and only if asked', () => {
 		expect(box().allOff.map((c) => c.id)).toEqual(['lamp']);
 		expect(box({ allOff: false }).allOff).toEqual([]);
@@ -170,7 +243,7 @@ describe('the room field (mockup A)', () => {
 	it('a big box: the number, lights then humidity, a note; a small one: one short line', () => {
 		const t = fieldText(box());
 		expect(t.line).toBe('1 of 2 lights on · 48%');
-		expect(t.short).toBe('20° · 1/2 on');
+		expect(t.short).toBe('21° · 1/2 on');
 		expect(t.brief).toBe('1/2 on');
 		expect(t.lit).toBe(true);
 		expect(t.note).toBeUndefined();
@@ -275,7 +348,7 @@ describe('the big numbers', () => {
 	it('in the order chosen, each with a word under it', () => {
 		const n = bigNumbers(h, SUMMARY_BUILT_IN);
 		expect(n.map((x) => [x.id, x.value, x.sub])).toEqual([
-			['inside', '20', 'average of 1 room'],
+			['inside', '21', 'average of 1 room'],
 			['outside', '—', 'no weather station'],
 			['lights', '1', 'in 1 room'],
 			['playing', '0', 'nothing playing'],
@@ -283,10 +356,21 @@ describe('the big numbers', () => {
 		]);
 	});
 
+	it('average the house inside from what reads the air, never a leak sensor or a freezer', () => {
+		const odd = [
+			dev('sink', 'water_sensor', { temperature: 2, water_detected: false }),
+			dev('probe', 'temperature_sensor', { temperature: -14, temp_limit_high: -5 }),
+			dev('floor', 'thermostat', { temperature: 30, setpoint: 28 }, { plugin_id: 'plugin.nuheat' })
+		];
+		const cellar = { name: 'Cellar', devices: odd, cards: odd.map((d) => cardFor(d, NOW)) };
+		const inside = bigNumbers({ ...h, rooms: [...rooms, cellar] }, SUMMARY_BUILT_IN)[0];
+		expect([inside?.value, inside?.sub]).toEqual(['21', 'average of 1 room']);
+	});
+
 	it('say their temperatures in the person’s unit, as cards do', () => {
 		followUnits(() => ({ temperature: 'F', measures: 'us' }));
 		const us = bigNumbers(h, SUMMARY_BUILT_IN).find((x) => x.id === 'inside');
-		expect([us?.value, us?.unit]).toEqual(['68', '°F']);
+		expect([us?.value, us?.unit]).toEqual(['70', '°F']);
 		followUnits(() => ({ temperature: 'C', measures: 'metric' }));
 		expect(bigNumbers(h, SUMMARY_BUILT_IN).find((x) => x.id === 'inside')?.unit).toBe('°C');
 	});
@@ -343,5 +427,27 @@ describe('the temperature outside', () => {
 		expect(outsideTemperature({ ...all, ws: station })).toBe(13);
 		expect(outsideTemperature(all)).toBeUndefined();
 		expect(outsideTemperature({ ...all, ws: station }, ['far'])).toBe(30);
+	});
+
+	it('passes over a station that hasn’t reported in an hour', () => {
+		const at = (iso: string) => ({ ...station, last_seen: iso });
+		const now = Date.parse('2026-11-13T12:00:00Z');
+		const fresh = at('2026-11-13T11:15:00Z');
+		const old = at('2026-10-31T16:08:05Z');
+		expect(outsideTemperature({ ws: fresh }, 'auto', now)).toBe(13);
+		expect(outsideTemperature({ ws: old }, 'auto', now)).toBeUndefined();
+		expect(outdoorStation({ ws: old }, now)).toBeUndefined();
+		// Without a time, or with a station that doesn't say when, it's the station's.
+		expect(outsideTemperature({ ws: old })).toBe(13);
+		expect(outsideTemperature({ ws: station }, 'auto', now)).toBe(13);
+		// A reading that changed lately counts, though the last report was long ago.
+		const changed = { ...old, attributes_changed_at: { temperature: '2026-11-13T11:30:00Z' } };
+		expect(outsideTemperature({ ws: changed }, 'auto', now)).toBe(13);
+		// Home's big number says why there's none.
+		const n = bigNumbers({ all: { ws: old }, rooms: [], cards: [], now }, SUMMARY_BUILT_IN);
+		expect(n.find((x) => x.id === 'outside')).toMatchObject({
+			value: '—',
+			sub: 'no recent reading'
+		});
 	});
 });

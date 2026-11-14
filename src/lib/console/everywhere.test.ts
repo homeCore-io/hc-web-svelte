@@ -7,6 +7,7 @@ import {
 	everyRoom,
 	fromWord,
 	issuesOf,
+	issuesFull,
 	issuesWord,
 	lightRows,
 	lightsCount,
@@ -101,6 +102,23 @@ describe('Lights', () => {
 		expect(ids(rows[0]!.lights.map((device) => ({ device })))).toEqual(['desk', 'lamp']);
 	});
 
+	it('leaves out a spotlight whose camera is in another room, in the No room row too', () => {
+		const rows = lightRows(
+			placesOf(
+				house({
+					garage: [dev('deck', 'camera'), dev('bulb', 'light', { on: false })],
+					office: [dev('porch', 'camera'), dev('deck_spotlight', 'light', { on: true })],
+					'': [dev('porch_spotlight', 'light', { on: true }), dev('wled', 'light')]
+				}),
+				[office, garage]
+			)
+		);
+		expect(rows.map((r) => [r.place.name, ids(r.lights.map((device) => ({ device })))])).toEqual([
+			['Garage', ['bulb']],
+			['No room', ['wled']]
+		]);
+	});
+
 	it('leaves out a virtual switch named as a light', () => {
 		const glue = { plugin_id: 'core.glue' };
 		const rows = lightRows(
@@ -136,17 +154,60 @@ describe('Lights', () => {
 
 	it('counts lights on and the rooms they are in, with commands on their way', () => {
 		const rows = lightRows(places);
-		expect(lightsCount(rows)).toEqual({ on: 1, all: 3, rooms: 1 });
+		expect(lightsCount(rows)).toEqual({ on: 1, all: 3, rooms: 1, loose: 0 });
 		expect(lightsCount(rows, { bulb: { want: { on: true } } })).toEqual({
 			on: 2,
 			all: 3,
-			rooms: 2
+			rooms: 2,
+			loose: 0
 		});
 		expect(lightsCount(rows, { lamp: { want: { on: false } } })).toEqual({
 			on: 0,
 			all: 3,
-			rooms: 0
+			rooms: 0,
+			loose: 0
 		});
+	});
+
+	it('never counts No room as a room, and says the lights in it apart', () => {
+		const places = placesOf(
+			house({
+				garage: [dev('bulb', 'light', { on: true })],
+				'': [dev('wled', 'light', { on: true }), dev('eaves', 'light', { on: true })]
+			}),
+			[garage]
+		);
+		const count = lightsCount(lightRows(places));
+		expect(count).toEqual({ on: 3, all: 3, rooms: 1, loose: 2 });
+		expect(statusOf(places).lights).toMatchObject({
+			word: '3 on',
+			full: '3 on in 1 room and 2 with no room'
+		});
+	});
+
+	it('counts an offline light as off', () => {
+		const rows = lightRows(
+			placesOf(house({ '': [{ ...dev('eaves', 'light', { on: true }), available: false }] }), [])
+		);
+		expect(lightsCount(rows)).toEqual({ on: 0, all: 1, rooms: 0, loose: 0 });
+	});
+
+	it('leaves out what powers something else, unless the household put it on Lights', () => {
+		const devices = [
+			dev('ac', 'switch', { on: true }, { name: 'Outlet - Living Room AC' }),
+			dev('meter', 'switch', { on: true }, { name: 'YoLink Plug Power Meter' }),
+			dev('fan', 'switch', { on: true }, { name: 'Bathroom Exhaust Fan' }),
+			dev('holiday', 'switch', { on: true }, { name: 'Holiday Lights 1' }),
+			dev('lamp', 'light', { on: true })
+		];
+		const rows = lightRows(placesOf(house({ garage: devices }), [garage]));
+		expect(ids(rows[0]!.lights.map((device) => ({ device }))).sort()).toEqual(['holiday', 'lamp']);
+		const chosen = lightRows(placesOf(house({ garage: devices }), [garage], { ac: 'lights' }));
+		expect(ids(chosen[0]!.lights.map((device) => ({ device }))).sort()).toEqual([
+			'ac',
+			'holiday',
+			'lamp'
+		]);
 	});
 
 	it('says how many are on in a room', () => {
@@ -283,7 +344,11 @@ describe('Security', () => {
 	it('names the sidebar’s count by what it is', () => {
 		const issues = issuesOf(secRows(places));
 		expect(issuesWord(issues)).toBe('3 to check');
-		expect(issuesWord(issues.filter((i) => i.item.device.available))).toBe('2 open');
+		expect(issuesFull(issues)).toBe('1 open · 1 unlocked · 1 offline');
+		// An unlocked lock is not "open".
+		expect(issuesWord(issues.filter((i) => i.item.device.available))).toBe('2 to check');
+		expect(issuesFull(issues.filter((i) => i.item.device.available))).toBe('1 open · 1 unlocked');
+		expect(issuesWord(issues.filter((i) => i.item.word === 'Open'))).toBe('1 open');
 		expect(issuesWord(issues.filter((i) => !i.item.device.available))).toBe('1 offline');
 	});
 
@@ -337,9 +402,9 @@ describe('the sidebar', () => {
 			[office]
 		);
 		const s = statusOf(places);
-		expect(s.lights).toEqual({ word: '1 room', tone: 'on' });
+		expect(s.lights).toEqual({ word: '1 on', full: '1 on in 1 room', tone: 'on' });
 		expect(s.media).toEqual({ word: '1 playing', tone: 'media' });
-		expect(s.security).toEqual({ word: '1 open', tone: 'warn' });
+		expect(s.security).toEqual({ word: '1 unlocked', full: '1 unlocked', tone: 'warn' });
 		expect(s.water).toEqual({ word: 'all dry', tone: 'ok' });
 		expect(statusOf(places, { lock: { want: { locked: true } } }).security).toEqual({
 			word: 'secure',
@@ -358,6 +423,10 @@ describe('the sidebar', () => {
 			}),
 			[office]
 		);
-		expect(statusOf(places).security).toEqual({ word: '2 offline', tone: 'warn' });
+		expect(statusOf(places).security).toEqual({
+			word: '2 offline',
+			full: '2 offline',
+			tone: 'warn'
+		});
 	});
 });

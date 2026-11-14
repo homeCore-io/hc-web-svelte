@@ -6,7 +6,7 @@
 <script lang="ts">
 	import { reading } from '#lib/card.js';
 	import { devices } from '#lib/devices.svelte.js';
-	import { displayName } from '#lib/devices.js';
+	import { displayName, unitOf } from '#lib/devices.js';
 	import { kindOptions } from '#lib/kindOptions.svelte.js';
 	import type { KindProps } from '#lib/kinds.js';
 	import { CHART_BUILT_IN, chartSource, compareSource, spanOf } from '#lib/options.js';
@@ -82,7 +82,7 @@
 				deviceId={d.device_id}
 				attr={src.attr}
 				label={what}
-				unit={d.schema?.attributes[src.attr]?.unit}
+				unit={unitOf(d, src.attr)}
 				bool={false}
 				current={d.attributes[src.attr]}
 				span={spanOf(o.span)}

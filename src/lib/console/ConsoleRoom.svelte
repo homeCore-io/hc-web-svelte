@@ -20,18 +20,10 @@
 -->
 <script lang="ts">
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
-	import LockIcon from '@lucide/svelte/icons/lock';
-	import LockOpen from '@lucide/svelte/icons/lock-open';
-	import DoorClosed from '@lucide/svelte/icons/door-closed';
-	import DoorOpen from '@lucide/svelte/icons/door-open';
 	import { devices } from '#lib/devices.svelte.js';
 	import { heading } from '#lib/heading.svelte.js';
-	import { clock } from '#lib/clock.svelte.js';
-	import { commands } from '#lib/commands.svelte.js';
-	import { isOpen } from '#lib/card.js';
 	import type { CoreDevice } from '#lib/devices.js';
 	import Icon from '#lib/components/Icon.svelte';
 	import LightsTab from './LightsTab.svelte';
@@ -45,16 +37,16 @@
 	import Placer from './Placer.svelte';
 	import { Placer as Placing, providePlacer } from './placer.svelte.js';
 	import { camEvents } from './camEvents.svelte.js';
-	import { pillWord } from './cameras.js';
 	import AudioBar from './AudioBar.svelte';
 	import RoomPicture from './RoomPicture.svelte';
 	import RoomPhoto from './RoomPhoto.svelte';
 	import { isPlayer } from './media.js';
 	import { RoomNow } from './roomNow.svelte.js';
-	import type { TabId } from './room.js';
+	import HeaderPills from './HeaderPills.svelte';
 	import { tabToShow } from './layout.js';
 	import type { Component } from 'svelte';
 	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
+	import { household } from '#lib/household.svelte.js';
 
 	let { id }: { id: string } = $props();
 
@@ -98,27 +90,19 @@
 	$effect(() => heading.ownTitle());
 
 	const card = r.card;
-	const nameOf = (d: CoreDevice) => r.nameOf(d);
 
 	// ---- the rooms either side, and what the room is like now ----
 	const prev = $derived(r.prev);
 	const next = $derived(r.next);
-	const temperature = $derived(r.temperature);
 	const lit = $derived(r.lit);
 	const photo = $derived(r.photo);
 	const glow = $derived(r.glow);
-	const lightsWord = $derived(r.lightsWord);
-	const playing = $derived(r.playing);
 
-	// ---- locks and doors, Room on and off, favorites ----
-	const short = r.short;
-	const lockPill = (d: CoreDevice) => r.lockPill(d);
+	// ---- Room on and off, favorites ----
 	const busy = $derived(r.busy);
 	const trouble = $derived(r.trouble);
 	const power = (on: boolean) => r.power(on);
 	const favs = $derived(r.favs);
-	const locks = $derived(r.locks);
-	const openings = $derived(r.openings);
 	const useFav = (d: CoreDevice) => r.useFav(d);
 
 	// ---- the room's audio ----
@@ -131,36 +115,12 @@
 
 	// ---- what the room's cameras saw lately, as pills ----
 	$effect(() => camEvents.follow(r.roomCams));
-	const camPills = $derived(r.camPills);
-	const camName = r.camName;
-	function showEvent(key: string) {
-		const url = new URL(page.url.href);
-		url.searchParams.set('tab', 'cameras');
-		url.searchParams.set('event', key);
-		void goto(url.pathname + url.search, { replace: true, reset: false });
-	}
-
-	// ---- the tabs ----
-	function choose(t: TabId) {
-		const url = new URL(page.url.href);
-		url.searchParams.set('tab', t);
-		url.searchParams.delete('event');
-		void goto(url.pathname + url.search, { replace: true, reset: false });
-	}
+	const choose = r.choose;
 	let tabBox = $state<HTMLElement>();
-	function keys(e: KeyboardEvent) {
-		const shown = arranged.shown;
-		const i = shown.findIndex((t) => t.id === tab);
-		const by = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
-		if (by === 0 || i < 0) return;
-		e.preventDefault();
-		const nextTab = shown[(i + by + shown.length) % shown.length]!;
-		choose(nextTab.id);
-		queueMicrotask(() => tabBox?.querySelector<HTMLElement>(`[data-tab="${nextTab.id}"]`)?.focus());
-	}
+	const keys = (e: KeyboardEvent) => r.tabKeys(e, tab, tabBox);
 </script>
 
-{#if !devices.loaded}
+{#if !devices.loaded || !household.loaded}
 	<p class="quiet pad">Loading the house…</p>
 {:else if room === undefined}
 	<p class="quiet pad">This room isn't in the house any more.</p>
@@ -193,64 +153,7 @@
 							>{/if}
 					</div>
 					<div class="chips">
-						{#if temperature}<span class="chip">{temperature}</span>{/if}
-						{#if lightsWord}<span class="chip">{lightsWord}</span>{/if}
-						{#if playing > 0}<span class="chip"
-								>{playing === 1 ? '1 playing' : `${playing} playing`}</span
-							>{/if}
-						{#each locks as d (d.device_id)}
-							{@const c = card(d)}
-							{@const locked =
-								c.control?.kind === 'lock' ? c.control.locked : c.stateLine.startsWith('Locked')}
-							<button
-								type="button"
-								class="pill"
-								class:ok={d.available && locked}
-								class:bad={!d.available || !locked}
-								aria-busy={commands.pending[d.device_id] ? true : undefined}
-								title={!d.available
-									? `${nameOf(d)} is offline`
-									: locked
-										? `Unlock ${nameOf(d)}`
-										: `Lock ${nameOf(d)}`}
-								onclick={() => lockPill(d)}
-							>
-								{#if locked}<LockIcon
-										size={13}
-										strokeWidth={2.2}
-										aria-hidden="true"
-									/>{:else}<LockOpen size={13} strokeWidth={2.2} aria-hidden="true" />{/if}
-								{short(nameOf(d))}: {d.available ? (locked ? 'Locked' : 'Unlocked') : 'Offline'}
-							</button>
-						{/each}
-						{#each openings as d (d.device_id)}
-							{@const open = isOpen(card(d))}
-							<button
-								type="button"
-								class="pill"
-								class:ok={d.available && !open}
-								class:bad={!d.available || open}
-								title="See the room’s doors"
-								onclick={() => choose('doors')}
-							>
-								{#if open}<DoorOpen
-										size={13}
-										strokeWidth={2.2}
-										aria-hidden="true"
-									/>{:else}<DoorClosed size={13} strokeWidth={2.2} aria-hidden="true" />{/if}
-								{short(nameOf(d))}: {d.available ? (open ? 'Open' : 'Closed') : 'Offline'}
-							</button>
-						{/each}
-						{#each camPills as e (e.key)}
-							<button
-								type="button"
-								class="pill cam"
-								class:old={clock.now - e.at > 10 * 60_000}
-								title="See it on the Cameras tab"
-								onclick={() => showEvent(e.key)}
-								><i aria-hidden="true"></i>{pillWord(e, clock.now, camName(e.cam))}</button
-							>
-						{/each}
+						<HeaderPills {r} />
 					</div>
 				</div>
 				<div class="side">
@@ -262,20 +165,22 @@
 							title="Arrange this room: favorites, tabs, lights, its picture and pills"
 							><SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />Customize</a
 						>
-						<div class="pair" role="group" aria-label={`${room.name} lights`}>
-							<button
-								type="button"
-								disabled={!may || busy !== null}
-								aria-busy={busy === 'on' || undefined}
-								onclick={() => power(true)}>{busy === 'on' ? 'Turning on…' : 'Room on'}</button
-							>
-							<button
-								type="button"
-								disabled={!may || busy !== null}
-								aria-busy={busy === 'off' || undefined}
-								onclick={() => power(false)}>{busy === 'off' ? 'Turning off…' : 'Room off'}</button
-							>
-						</div>
+						<!-- Only where they would reach a light: not over cameras' spotlights alone. -->
+						{#if r.hasPower}<div class="pair" role="group" aria-label={`${room.name} lights`}>
+								<button
+									type="button"
+									disabled={!may || busy !== null}
+									aria-busy={busy === 'on' || undefined}
+									onclick={() => power(true)}>{busy === 'on' ? 'Turning on…' : 'Room on'}</button
+								>
+								<button
+									type="button"
+									disabled={!may || busy !== null}
+									aria-busy={busy === 'off' || undefined}
+									onclick={() => power(false)}
+									>{busy === 'off' ? 'Turning off…' : 'Room off'}</button
+								>
+							</div>{/if}
 					</div>
 				</div>
 			</div>
@@ -293,6 +198,13 @@
 			</div>
 		{/if}
 
+		{#if household.missing}
+			<!-- The tabs are as homeCore sorts them until the household's layout arrives. -->
+			<p class="quiet pad" role="status">
+				Couldn’t load the household’s layout, so these tabs may not be as it arranged them. Trying
+				again.
+			</p>
+		{/if}
 		{#if arranged.shown.length === 0}
 			<p class="quiet pad">Nothing in {room.name} yet.</p>
 		{:else}
@@ -360,6 +272,8 @@
 					<SensorsTab list={model.byTab.sensors} all={list} room={room.name} />
 				{:else if tab === 'switches'}
 					<SwitchesTab list={model.byTab.switches} room={room.name} {may} />
+				{:else if tab === 'timers'}
+					<SwitchesTab list={model.byTab.timers} room={room.name} {may} />
 				{:else if tab === 'cameras'}
 					<CamerasTab list={model.byTab.cameras} room={room.name} {may} {sw} />
 				{/if}
@@ -474,58 +388,6 @@
 		margin-top: 12px;
 		flex-wrap: wrap;
 	}
-	.chip,
-	.pill {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		height: 26px;
-		padding: 0 10px;
-		border: 0;
-		border-radius: 999px;
-		background: color-mix(in srgb, var(--ink) 10%, transparent);
-		backdrop-filter: blur(10px);
-		font-size: 12px;
-		color: color-mix(in srgb, var(--ink) 90%, transparent);
-		white-space: nowrap;
-	}
-	.pill {
-		cursor: pointer;
-		font-weight: 600;
-	}
-	.pill.ok {
-		background: color-mix(in srgb, var(--good, #4fe0a0) 18%, transparent);
-		color: color-mix(in srgb, var(--good, #4fe0a0) 70%, var(--ink));
-	}
-	.pill.bad {
-		background: color-mix(in srgb, var(--alert) 22%, transparent);
-		color: color-mix(in srgb, var(--alert) 65%, var(--ink));
-	}
-	.pill:hover {
-		filter: brightness(1.15);
-	}
-	.pill.cam {
-		background: rgba(255, 196, 107, 0.16);
-		color: #ffd9a0;
-	}
-	:global(:root[data-theme='light']) .pill.cam {
-		color: #8a5a10;
-	}
-	.pill.cam i {
-		width: 7px;
-		height: 7px;
-		border-radius: 50%;
-		background: #ffc46b;
-		box-shadow: 0 0 8px #ffc46b;
-	}
-	.pill.cam.old {
-		background: color-mix(in srgb, var(--ink) 10%, transparent);
-		color: color-mix(in srgb, var(--ink) 80%, transparent);
-	}
-	.pill.cam.old i {
-		background: var(--ink-muted);
-		box-shadow: none;
-	}
 	.acts {
 		display: flex;
 		align-items: center;
@@ -548,7 +410,11 @@
 		cursor: pointer;
 	}
 	:global(:root[data-theme='light']) .ghost {
-		background: rgba(255, 255, 255, 0.7);
+		background: rgba(255, 255, 255, 0.8);
+		color: var(--ink);
+	}
+	:global(:root[data-theme='light']) .ghost:hover {
+		background: #fff;
 	}
 	.ghost:hover {
 		color: var(--ink);
@@ -556,9 +422,6 @@
 	.ghost:focus-visible {
 		outline: 2px solid var(--accent);
 		outline-offset: 2px;
-	}
-	.pill[aria-busy='true'] {
-		opacity: 0.6;
 	}
 	.side {
 		display: flex;

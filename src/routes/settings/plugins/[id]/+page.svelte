@@ -110,7 +110,8 @@
 
 	async function load() {
 		const res = await loadPlugin(id);
-		if (!res.ok) return void (failed = res.error);
+		if (!res.ok)
+			return void (failed = res.status === 404 ? `There is no plugin called “${id}”.` : res.error);
 		failed = null;
 		plugin = res.data;
 	}
@@ -418,7 +419,7 @@
 					>
 				</label>
 				{#if logNote}<p class="trouble">{logNote}</p>{/if}
-				{#if lines === null}<p class="quiet">Loading…</p>
+				{#if lines === null}{#if !logNote}<p class="quiet">Loading…</p>{/if}
 				{:else if lines.length === 0}<p class="quiet">Nothing at this level yet.</p>
 				{:else}
 					<ol class="log">
@@ -528,7 +529,9 @@
 				<dl>
 					<dt>Version</dt>
 					<dd>
-						{`${versionOf(plugin) ?? '—'}${reg && latestOf(reg, core.version) && !update ? ' · the latest' : ''}`}
+						{versionOf(plugin)
+							? `${versionOf(plugin)}${reg && latestOf(reg, core.version) && !update ? ' · the latest' : ''}`
+							: 'Not known'}
 					</dd>
 					<dt>Runs on</dt>
 					<dd>

@@ -63,9 +63,9 @@
 	<div class="ch">
 		{#if brand}<span class="tag" data-brand={tagOf}>{brand}</span>{/if}
 		{#if onopen}
-			<button type="button" class="ttl" onclick={onopen}>{title}</button>
-		{:else}<span class="ttl">{title}</span>{/if}
-		{#if note}<span class="cn" class:alert>{note}</span>{/if}
+			<button type="button" class="ttl" {title} onclick={onopen}>{title}</button>
+		{:else}<span class="ttl" {title}>{title}</span>{/if}
+		{#if note}<span class="cn" class:alert title={note}>{note}</span>{/if}
 		{#if place}<Moved d={place} /><span class="pl"><Place d={place} tag={false} /></span>{/if}
 	</div>
 	{@render children()}
@@ -158,6 +158,25 @@
 	.pl :global(.dots) {
 		width: 20px;
 	}
+	/* Stacked, the heading is a finger tall, and the "⋯" ends its line,
+	   a finger wide, whatever the rule above the heading. */
+	.stack .ch {
+		min-height: 44px;
+	}
+	.stack .pl {
+		position: static;
+		width: auto;
+		margin-left: auto;
+	}
+	.stack .pl :global(.dots) {
+		width: 44px;
+		height: 44px;
+	}
+	/* Its name: the heading's full height, and a finger wide however short. */
+	.stack button.ttl {
+		align-self: stretch;
+		min-width: 44px;
+	}
 	.cn.alert {
 		color: var(--alert);
 	}
@@ -202,7 +221,7 @@
 		color: #8a5a10;
 	}
 	:global(:root[data-theme='light']) .tag[data-brand='yolink'] {
-		color: #157a4f;
+		color: var(--good-ink);
 	}
 	:global(:root[data-theme='light']) .tag[data-brand='nuheat'],
 	:global(:root[data-theme='light']) .tag[data-brand='mysa'] {

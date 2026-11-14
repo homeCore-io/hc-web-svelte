@@ -46,7 +46,9 @@ describe('rooms', () => {
 	});
 
 	it('a room’s summary: lights, temperature, anything playing', () => {
-		expect(roomSummary(cardsIn('r-den'))).toBe('1 light on · 1 fan on · 21.4°C · Den TV playing');
+		expect(roomSummary(cardsIn('r-den'), '21°')).toBe(
+			'1 light on · 1 fan on · 21° · Den TV playing'
+		);
 		expect(roomSummary(cardsIn('r-kitchen'))).toBe('Back door open');
 		expect(roomSummary(cardsIn('r-garage'))).toBe('Leak · 1 switch on');
 		expect(roomSummary(cardsIn('r-bedroom'))).toBe('All quiet');
@@ -82,5 +84,27 @@ describe('rooms', () => {
 	it('slugs match homeCore’s', () => {
 		expect(slugOf("Kid's Room")).toBe('kid_s_room');
 		expect(slugOf('  TV Room ')).toBe('tv_room');
+	});
+});
+
+describe('the lights, as the house counts them', () => {
+	const sw = (id: string, name: string) =>
+		cardFor(
+			{
+				device_id: id,
+				name,
+				device_type: 'switch',
+				plugin_id: 'plugin.test',
+				available: true,
+				attributes: { on: true }
+			},
+			FIXTURE_NOW
+		);
+	it('counts the house’s lights, switches named as lights too, and calls the rest switches', () => {
+		const holiday = sw('holiday', 'Holiday Lights');
+		const ac = sw('ac', 'Outlet - Office AC');
+		const lights = new Set(['holiday']);
+		expect(houseChips([holiday, ac], lights).map((c) => c.text)).toEqual(['1 light on']);
+		expect(roomSummary([holiday, ac], undefined, lights)).toBe('1 light on · 1 switch on');
 	});
 });

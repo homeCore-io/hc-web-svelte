@@ -12,7 +12,7 @@
 import { remaining } from './helpers.js';
 import { isTemperature, numberText, readingUnit, shown, shownRange, toShown } from './units.js';
 import { displayName, type AttributeSchema, type CoreDevice, type Schema } from './devices.js';
-import { momentOf } from './when.js';
+import { hhmmOf, momentOf } from './when.js';
 import { targetWords, thermostatOf } from './thermostat.js';
 
 export type IconName =
@@ -390,7 +390,7 @@ function describe(
 					? `Running · ${clock(left)} left`
 					: state === 'paused'
 						? `Paused · ${clock(left)} left`
-						: words(state);
+						: timerWord(state);
 			// homeCore's own timers take commands rather than declaring actions.
 			if (d.plugin_id === 'core.glue') {
 				// Its own length (`default_secs`, core 0.1.84); `duration_secs` is
@@ -502,23 +502,25 @@ function media(d: CoreDevice, a: Record<string, unknown>, s: Schema, v: CardView
 	// can be its address (`hls.m3u8?rj-ttl=5&…`). Never say that; the station
 	// shows in its logo, and the line just says it's playing.
 	// A Sonos playing its line-in or TV gives its own id ("RINCON_542A…") as the title.
-	const title = raw && !streamAddress(raw) && !idLike(raw) ? raw : undefined;
+	const title = raw && !streamAddress(raw) && !lineInTitle(raw) ? raw : undefined;
 	const source = str(a.app_name) ?? (a.source !== 'Home' ? str(a.source) : undefined);
 	const app = source && !idLike(source) ? source : undefined;
 	const isSpeaker = (d.plugin_id ?? '').includes('sonos') || d.ui_hint === 'speaker';
 	v.icon = isSpeaker ? 'speaker' : 'tv';
 	const playing = state === 'playing';
+	// Playing its own id: a Sonos playing its line-in or a TV (playing.ts says the same).
+	const lineIn = playing && !title && !app && raw && lineInTitle(raw) ? 'TV or line-in' : undefined;
 	v.tone = !on ? 'off' : playing ? 'on' : 'neutral';
 	v.stateLine = !on
 		? 'Off'
 		: playing
-			? `Playing${title ? ` — ${title}` : app ? ` — ${app}` : ''}`
+			? `Playing${title ? ` — ${title}` : app ? ` — ${app}` : lineIn ? ` — ${lineIn}` : ''}`
 			: state === 'paused'
 				? `Paused${title ? ` — ${title}` : ''}`
 				: app
 					? `On · ${app}`
 					: 'On';
-	if (on && (playing || state === 'paused')) v.nowPlaying = title ?? app;
+	if (on && (playing || state === 'paused')) v.nowPlaying = title ?? app ?? lineIn;
 	const ids = new Set((s.actions ?? []).map((x) => x.id));
 	const toggle = ids.has('play_pause') ? 'play_pause' : playing ? 'pause' : 'play';
 	if (on && ids.has(toggle)) v.control = { kind: 'play', playing, action: toggle };
@@ -547,6 +549,13 @@ export const streamAddress = (t: string) =>
 
 /** A device's or input's id rather than its name: long, no spaces, capitals, digits and "_". */
 export const idLike = (t: string) => t.length >= 12 && /^[A-Z0-9_:.-]+$/.test(t) && /\d/.test(t);
+
+/**
+ * A Sonos playing its line-in or a TV: its title is its own id ("RINCON_542A…")
+ * or the stream's address ("x-rincon-stream:RINCON_…").
+ */
+export const lineInTitle = (t: string) =>
+	idLike(t) || /^x-(rincon|sonos)/i.test(t) || /RINCON_/.test(t);
 
 /** homeCore's artwork for a player, keyed by the track's own art address. */
 export function artUrl(deviceId: string, published: string): string {
@@ -790,12 +799,46 @@ export function reading(a: Record<string, unknown>, s: Schema, name: string): st
 		if (name === 'temperature' || name.endsWith('_temperature') || isTemperature(r.unit))
 			return `${n}°${unitLetter(r.unit)}`;
 		if (r.unit === '%') return `${Math.round(r.value)}%`;
+		if (r.unit === 's' && Number.isInteger(r.value)) return seconds(Math.max(0, r.value));
 		return r.unit ? `${n} ${r.unit}` : n;
 	}
-	if (typeof value === 'string')
-		// An address is said as it is, never capitalised or split into words.
-		return /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : cap(words(uncamel(value)));
+	if (typeof value === 'string') return textReading(value);
 	return undefined;
+}
+
+/**
+ * Whole seconds as a person says them: 7200 → "2 h", 90 → "1 min 30 s".
+ * The rules' own `duration` says the same; a device's page doesn't load their code.
+ */
+export function seconds(s: number): string {
+	if (s < 60) return `${s} s`;
+	if (s < 3600) return s % 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s / 60} min`;
+	const m = Math.round((s % 3600) / 60);
+	return `${Math.floor(s / 3600)} h${m ? ` ${m} min` : ''}`;
+}
+
+/** A timer's state, as a word: Idle, Finished, Canceled. */
+export function timerWord(state: string): string {
+	return state === 'cancelled' ? 'Canceled' : cap(words(state));
+}
+
+/**
+ * A reading sent as text. A word or two in a device's own spelling —
+ * `heat_cool`, `LockFailed` — reads as words; a local date and time —
+ * Ecowitt's "2026-10-16 00:11:04" — as the app says a moment; anything else
+ * (an address, a file, a stream's name, a model number) as it is, since
+ * splitting it at dashes and underscores only mangles it.
+ */
+export function textReading(value: string): string {
+	const local = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/.exec(value.trim());
+	if (local) {
+		const [, y, mo, d, h, mi, s] = local.map(Number);
+		const t = new Date(y!, mo! - 1, d!, h!, mi!, s || 0).getTime();
+		if (Number.isFinite(t)) return momentText(t);
+	}
+	// A time of day (a mode's "16:56"), in the person's clock.
+	if (/^([01]?\d|2[0-3]):[0-5]\d$/.test(value.trim())) return hhmmOf(value.trim());
+	return /^[A-Za-z][A-Za-z _-]*$/.test(value) ? cap(words(uncamel(value))) : value;
 }
 
 /** A moment as the app says one in a reading: "Oct 21, 1:20 PM". */

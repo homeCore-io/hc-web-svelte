@@ -434,7 +434,7 @@
 					{#if form.descriptor.sections[0]?.fields.length}
 						<SectionForm {form} section={form.descriptor.sections[0]} showKeys={false} />
 					{/if}
-					{#if kind.type === 'schedule' && !making && !core.since('0.1.82')}
+					{#if kind.type === 'schedule' && !making && core.older('0.1.82')}
 						<p class="quiet">
 							homeCore can’t change a schedule’s times once it’s made: delete it and make it again.
 						</p>

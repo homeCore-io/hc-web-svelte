@@ -19,6 +19,11 @@ export class Synced<D extends { version: number }> {
 	loaded = $state(false);
 	/** Set when a save has failed for good; the change is still shown here. */
 	trouble = $state<string | null>(null);
+	/**
+	 * Set while the server hasn't handed the document over: what is shown is
+	 * generated, not what was saved, and loading tries again until it is.
+	 */
+	missing = $state(false);
 
 	#url: string;
 	#kind: string;
@@ -45,16 +50,41 @@ export class Synced<D extends { version: number }> {
 	}
 
 	async load(): Promise<void> {
-		try {
-			const res = await fetch(this.#url);
-			if (res.ok) this.#take((await res.json()) as D);
-		} catch {
-			// Shown as generated until the server answers.
-		}
+		await this.#fetch();
 		this.loaded = true;
 		follow(this.#kind, (version) => {
 			if (version > this.#saved.version) void this.#reload();
 		});
+	}
+
+	#wait = 0;
+	#retry: ReturnType<typeof setTimeout> | undefined;
+	/**
+	 * Asks for the document; failing, says so and asks again a little later each time.
+	 * Only one ask waits at a time, and a refusal (a 4xx other than a timeout or too
+	 * many asks) isn't asked again: it won't change until the sign-in does.
+	 */
+	async #fetch(): Promise<void> {
+		clearTimeout(this.#retry);
+		this.#retry = undefined;
+		let status = 0;
+		try {
+			const res = await fetch(this.#url);
+			if (res.ok) {
+				this.#take((await res.json()) as D);
+				this.missing = false;
+				this.#wait = 0;
+				return;
+			}
+			status = res.status;
+		} catch {
+			// Shown as generated until the server answers.
+		}
+		this.missing = true;
+		if (status >= 400 && status < 500 && status !== 408 && status !== 429) return;
+		this.#wait = Math.min(30_000, this.#wait === 0 ? 2_000 : this.#wait * 2);
+		clearTimeout(this.#retry);
+		this.#retry = setTimeout(() => void this.#fetch(), this.#wait);
 	}
 
 	/** Hear the document whenever it is loaded afresh. */
@@ -131,6 +161,7 @@ export class Synced<D extends { version: number }> {
 			if (!res.ok) return;
 			const doc = (await res.json()) as D;
 			if (doc.version > this.#saved.version) this.#take(doc);
+			this.missing = false;
 		} catch {
 			// The next change event tries again.
 		}

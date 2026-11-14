@@ -3,7 +3,16 @@ import { HOUSE, FIXTURE_NOW } from '../fixtures/house.js';
 import { cardFor, type CardView } from '../card.js';
 import type { CoreDevice } from '../devices.js';
 import type { Card } from '../page.js';
-import { colourOf, houseScene, isGroup, kelvinToRgb, litRoom, stemOf, xyToRgb } from './room.js';
+import {
+	colourOf,
+	houseScene,
+	isGroup,
+	kelvinToRgb,
+	litRoom,
+	shownReading,
+	stemOf,
+	xyToRgb
+} from './room.js';
 
 const byId = (id: string) => HOUSE.find((d) => d.device_id === id)!;
 const asCard = (d: CoreDevice): Card => ({
@@ -46,6 +55,17 @@ describe('a room in the Lit look (12)', () => {
 			'device:hue_ceiling': 'Zone 04'
 		});
 		expect(lightsOf(zones)).not.toContain('group:Zone');
+	});
+
+	it('draws an offline light as off, with no glow', () => {
+		const lamp = byId('hue_lamp');
+		const on = { ...lamp, attributes: { ...lamp.attributes, on: true, brightness_pct: 60 } };
+		const lit = room([on]);
+		expect(lit.lights.map((l) => !isGroup(l) && l.on)).toEqual([true]);
+		expect(lit.glow).toHaveLength(1);
+		const off = room([{ ...on, available: false }]);
+		expect(off.lights.map((l) => !isGroup(l) && l.on)).toEqual([false]);
+		expect(off.glow).toEqual([]);
 	});
 
 	it('folds remotes and keypads away, and keeps a lock with the doors', () => {
@@ -105,6 +125,22 @@ describe('sensors and house scenes in the Lit look', () => {
 		expect(room([probe]).readings[0]?.range).toEqual({ low: -20, high: -5 });
 	});
 
+	it('reads a °F sensor in its own unit, not as °C converted again', () => {
+		const den = byId('ecowitt_den');
+		const station = {
+			...den,
+			attributes: { ...den.attributes, temperature: 69.6, temperature_unit: 'F' }
+		};
+		const r = room([station]).readings[0]!;
+		// The tests read in °C: 69.6 °F is 20.9 °C, never 69.6 °C taken as 157 °F.
+		expect(shownReading(r, 69.6)).toBeCloseTo(20.89, 1);
+		const celsius = { ...den, attributes: { ...den.attributes, temperature: 21 } };
+		delete (celsius.attributes as Record<string, unknown>).temperature_unit;
+		expect(shownReading(room([celsius]).readings[0]!, 21)).toBe(21);
+		// Humidity is a percentage, whatever the temperature's unit.
+		expect(shownReading({ ...r, attr: 'humidity' }, 54)).toBe(54);
+	});
+
 	it('reads a house scene from what it sets: dark, a lock, its words', () => {
 		const devices = Object.fromEntries(HOUSE.map((d) => [d.device_id, d]));
 		const night = houseScene(
@@ -117,5 +153,8 @@ describe('sensors and house scenes in the Lit look', () => {
 		const evening = houseScene({ hue_lamp: { on: true, color_temp: 2700 } }, devices);
 		expect(evening.dark).toBe(false);
 		expect(evening.colours).toHaveLength(1);
+		expect(evening.does).toBe('A light on');
+		const movie = houseScene({ hue_lamp: { on: true }, hue_ceiling: { on: true } }, devices);
+		expect(movie.does).toBe('2 lights on');
 	});
 });

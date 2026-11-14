@@ -38,6 +38,7 @@
 	} from '#lib/alertStarts.js';
 	import type { AlertRule } from '#lib/alerts.js';
 	import DoSomething from './DoSomething.svelte';
+	import { focusFirst, moveInMenu } from '#lib/menuKeys.js';
 
 	let { list, act = false }: { list: Alert[]; act?: boolean } = $props();
 
@@ -70,8 +71,28 @@
 	// ---- ignoring: one alert's choices open at a time ----
 	// The quieter choices — skip, stop these, ignore — wait behind "⋯".
 	let menu = $state<string | null>(null);
-	const pick = (f: () => unknown) => {
+	// The ⋯ button that opened the menu: focus goes back to it as the menu closes.
+	let opener: HTMLElement | null = null;
+	function shut(refocus: boolean) {
 		menu = null;
+		if (refocus && opener?.isConnected) opener.focus();
+		opener = null;
+	}
+	function menuKey(e: KeyboardEvent) {
+		if (menu === null) return;
+		if (e.key === 'Escape') {
+			e.preventDefault();
+			e.stopPropagation();
+			shut(true);
+		} else moveInMenu(e, e.currentTarget as HTMLElement);
+	}
+	// Tabbing out of the menu, or anywhere else, closes it.
+	function menuLeave(e: FocusEvent) {
+		const to = e.relatedTarget as Node | null;
+		if (menu !== null && !(e.currentTarget as HTMLElement).contains(to)) shut(false);
+	}
+	const pick = (f: () => unknown) => {
+		shut(true);
 		void f();
 	};
 
@@ -116,7 +137,7 @@
 
 	const where = (a: Alert) => {
 		const d = devices.byId[a.device_id];
-		// Its room; with none, where it comes from — never "Not in a room" on every alert.
+		// Its room; with none, where it comes from — never "No room" on every alert.
 		return d ? (roomOf(d, rooms.list)?.name ?? (d.plugin_id ? pluginLabel(d.plugin_id) : '')) : '';
 	};
 	function since(at: string): string {
@@ -247,22 +268,22 @@
 						<button type="button" class="seen-wide" onclick={() => seen(a)}>Seen</button>
 					{/if}
 					{#if (canSee && !a.acknowledged) || canIgnore}
-						<span class="more">
+						<!-- svelte-ignore a11y_no_static_element_interactions -->
+						<span class="more" onkeydown={menuKey} onfocusout={menuLeave}>
 							<button
 								type="button"
 								class="dots"
 								aria-label={`More for ${a.message}`}
+								aria-haspopup="menu"
 								aria-expanded={menu === a.id}
-								onclick={() => (menu = menu === a.id ? null : a.id)}>⋯</button
+								onclick={(e) => {
+									if (menu === a.id) return shut(false);
+									opener = e.currentTarget;
+									menu = a.id;
+								}}>⋯</button
 							>
 							{#if menu === a.id}
-								<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-								<div
-									class="menu"
-									role="menu"
-									tabindex="-1"
-									onkeydown={(e) => e.key === 'Escape' && (menu = null)}
-								>
+								<div class="menu" role="menu" tabindex="-1" use:focusFirst>
 									{#if canSee && !a.acknowledged}
 										<button
 											type="button"
@@ -343,6 +364,7 @@
 		background: var(--surface);
 		border: 1px solid var(--card-line);
 		container-type: inline-size;
+		position: relative;
 	}
 	li > a {
 		display: flex;
@@ -411,6 +433,22 @@
 		}
 		.acts .menu .seen-narrow {
 			display: block;
+		}
+		.acts .dots {
+			width: 44px;
+			height: 44px;
+		}
+		/* With nothing beside it, the "⋯" sits in the card's corner by the age,
+		   rather than on a row of its own. */
+		li:has(> .acts):not(:has(> .acts > :not(.more, .seen-wide))) > a {
+			padding-right: 50px;
+		}
+		.acts:not(:has(> :not(.more, .seen-wide))) {
+			position: absolute;
+			top: 8px;
+			right: 4px;
+			padding: 0;
+			border-top: 0;
 		}
 	}
 	.acts .starts {

@@ -8,6 +8,7 @@
 	sheet to the default for its type, and back.
 -->
 <script lang="ts">
+	import { houseNow } from '#lib/houseNow.svelte.js';
 	import { cardFor, kindOf as typeOf } from '#lib/card.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
@@ -120,7 +121,8 @@
 								card.devices,
 								card.devices.map((d) => cardFor(d, clock.now)),
 								devices.byId,
-								o
+								o,
+								houseNow.lightIds
 							)}
 							devices={[]}
 						/>

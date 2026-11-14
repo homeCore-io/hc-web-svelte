@@ -19,6 +19,7 @@ import {
 	lookFile,
 	reachesHere,
 	consoleHere,
+	phoneOwnPage,
 	readLook,
 	type Look
 } from './model.js';
@@ -166,6 +167,12 @@ describe('the console’s frame', () => {
 		expect(consoleHere({ ...CONSOLE, reaches: 'everywhere' }, '/settings')).toBe(true);
 		expect(consoleHere(LIT, '/')).toBe(false);
 		expect(consoleHere(CLASSIC, '/rooms/office')).toBe(false);
+	});
+
+	it('keeps Me and the picture, and only those, in the phone frame', () => {
+		for (const p of ['/me', '/me/', '/me/picture']) expect(phoneOwnPage(p), p).toBe(true);
+		for (const p of ['/me/looks/evening', '/settings', '/more', '/meters', '/'])
+			expect(phoneOwnPage(p), p).toBe(false);
 	});
 
 	it('refuses a look kept under the console’s name', () => {

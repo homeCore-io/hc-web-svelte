@@ -9,13 +9,13 @@
 <script lang="ts">
 	import { commands } from '#lib/commands.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
-	import { roomPower } from '#lib/admin.js';
 	import { session } from '#lib/me.svelte.js';
 	import { kindOf } from '#lib/card.js';
 	import type { CoreDevice } from '#lib/devices.js';
-	import { devices } from '#lib/devices.svelte.js';
 	import EvHead from './EvHead.svelte';
 	import { levelOf } from './room.js';
+	import { whereLit } from '#lib/lights.js';
+	import { setLights } from './switchLights.js';
 	import { lightRows, lightsCount, lit, onWord, type LightRow, type Place } from './everywhere.js';
 
 	let { places, phone = false }: { places: Place[]; phone?: boolean } = $props();
@@ -31,7 +31,7 @@
 			? 'No lights in the house yet'
 			: count.on === 0
 				? `All ${count.all} lights are off`
-				: `${count.on} of ${count.all} lights on in ${count.rooms === 1 ? '1 room' : `${count.rooms} rooms`}`
+				: `${count.on} of ${count.all} lights on ${whereLit(count)}`
 	);
 
 	function flip(d: CoreDevice) {
@@ -46,27 +46,10 @@
 		const key = r.place.key;
 		if (busy[key]) return null;
 		busy = { ...busy, [key]: on ? 'on' : 'off' };
-		let error: string | null = null;
-		if (r.place.room) {
-			const said = await roomPower(r.place.room.id, on);
-			error = said.error;
-			// Each light it sent a command to waits for its answer, as a bulb would.
-			for (const id of said.lights) {
-				const d = devices.byId[id];
-				if (d) commands.expect(id, kindOf(d), { on }, d.attributes);
-			}
-			// A switch named as a light that Room off doesn't cover is sent its own.
-			for (const d of r.lights)
-				if (d.available && !said.lights.includes(d.device_id) && lit(d, commands.pending) !== on)
-					void commands.set(d.device_id, kindOf(d), { on }, d.attributes);
-		} else {
-			// Lights in no room have no Room on: each is sent its own.
-			for (const d of r.lights.filter((l) => l.available))
-				void commands.set(d.device_id, kindOf(d), { on }, d.attributes);
-		}
+		const error = await setLights({ ...r, room: r.place.room, name: r.place.name }, on);
 		const { [key]: _done, ...rest } = busy;
 		busy = rest;
-		return error ? `${r.place.name}: ${error}` : null;
+		return error;
 	}
 	async function room(r: LightRow, on: boolean) {
 		trouble = await power(r, on);
@@ -79,7 +62,7 @@
 			body:
 				count.on === 1
 					? 'The one light on goes off.'
-					: `All ${count.on} lights on in ${count.rooms === 1 ? 'one room' : `${count.rooms} rooms`} go off.`,
+					: `All ${count.on} lights on ${whereLit(count)} go off.`,
 			go: 'Turn off',
 			stay: 'Not now'
 		});
@@ -130,7 +113,7 @@
 					>
 				{/each}
 			</div>
-			<div class="pair" role="group" aria-label={`${r.place.name} lights`}>
+			<div class="pair" class:phone role="group" aria-label={`${r.place.name} lights`}>
 				<button
 					type="button"
 					disabled={!may || busy[r.place.key] !== undefined}
@@ -265,5 +248,14 @@
 	.pair button:disabled {
 		cursor: default;
 		opacity: 0.6;
+	}
+	/* On a phone, a finger's size. */
+	.pair.phone {
+		padding: 0;
+	}
+	.pair.phone button {
+		height: 44px;
+		min-width: 50px;
+		border-radius: 12px;
 	}
 </style>

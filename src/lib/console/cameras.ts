@@ -310,6 +310,37 @@ export function eventsOf(cam: string, h: CamHistory, merge = MERGE_MS): CamEvent
 	return out.sort((a, b) => b.at - a.at);
 }
 
+/**
+ * How many stills the camera plugin keeps of each camera by itself
+ * (hc-reolink's `snapshots_kept`): older ones are deleted as new ones come.
+ */
+export const STILLS_KEPT = 20;
+
+/** When a still was taken, from its name ("snap/cam-1794584940106.jpg"), if it says. */
+export function stillAt(path: string): number | undefined {
+	const m = /-(\d{10,})\.[a-z]+$/i.exec(path);
+	return m ? Number(m[1]) : undefined;
+}
+
+/**
+ * Whether a still is likely still kept, so it's worth asking for: among the
+ * newest `kept` of the camera's stills today (`today`, any order), and
+ * newer than the newest one found gone (`goneAt`, ms), since the plugin
+ * deletes its oldest first. A still not in today's list (just taken) is.
+ */
+export function stillKept(
+	path: string,
+	today: readonly string[],
+	goneAt?: number,
+	kept = STILLS_KEPT
+): boolean {
+	const at = stillAt(path);
+	if (goneAt !== undefined && at !== undefined && at <= goneAt) return false;
+	const newest = [...new Set(today)].sort((a, b) => (stillAt(b) ?? 0) - (stillAt(a) ?? 0));
+	const i = newest.indexOf(path);
+	return i < 0 || i < kept;
+}
+
 /** Every camera's events, newest first, kept to `kinds` when given. */
 export function allEvents(
 	byCam: Record<string, CamEvent[]>,
@@ -474,4 +505,20 @@ export function pageOf(total: number, fits: number, first: number): EventPage {
 /** How many cards `width` wide, `gap` apart, fit across `room`; at least one. */
 export function cardsAcross(room: number, width: number, gap: number): number {
 	return Math.max(1, Math.floor((room + gap) / (width + gap)));
+}
+
+// ---- counts, while they load ----
+
+/** How many cameras, or that they are still loading: never "0 cameras" before the house is in. */
+export const camerasWord = (n: number, loaded: boolean): string =>
+	!loaded ? 'Loading cameras…' : n === 1 ? '1 camera' : `${n} cameras`;
+
+/**
+ * How many events today, while some camera's are still being read: "Reading…",
+ * "3 events so far", then "3 events". Never "0 events" before they are read.
+ */
+export function eventsWord(n: number, reading: boolean): string {
+	if (reading && n === 0) return 'Reading…';
+	const word = n === 1 ? '1 event' : `${n} events`;
+	return reading ? `${word} so far` : word;
 }

@@ -11,7 +11,12 @@ import { isOpen, kindOf, type CardView, type IconName } from './card.js';
 import { displayName, unitOf, type CoreDevice, type Devices } from './devices.js';
 import { numbersOf, sourceOf, type NumberId, type Options, type Source } from './options.js';
 import { allOffTargets } from './summary.js';
-import { shownUnit, toShown } from './units.js';
+import { isCameraLight } from './cameraLights.js';
+import { playingNow } from './playing.js';
+import { shownUnit, toShown, type Units } from './units.js';
+
+/** Readings in homeCore's own units, to compare against a fixed °C. */
+const CELSIUS: Units = { temperature: 'C', measures: 'metric' };
 
 // ---- readings ----
 
@@ -29,9 +34,53 @@ export const reads = (d: CoreDevice, attr: string): boolean =>
 const mean = (xs: number[]) =>
 	xs.length > 0 ? xs.reduce((a, b) => a + b, 0) / xs.length : undefined;
 
+// ---- what reads a room's air ----
+
+/** Kinds whose temperature is the air's: a thermometer, a weather station. */
+const THERMOMETERS = new Set(['temperature_sensor', 'weather_station']);
+/** Kinds whose temperature is the device's own, never the room's: a leak sensor's. */
+const NOT_AIR = new Set(['water_sensor', 'leak_sensor']);
+/** Plugins whose thermostats read a heated floor, not the air above it. */
+const FLOOR_HEAT = new Set(['plugin.nuheat']);
+/** Names that say a sensor sits in something cold. */
+const COLD_STORE = /freez|fridge|refrigerat|cooler/i;
+
+/**
+ * Whether a sensor keeps a cold box: its name says so, or its own safe range
+ * tops out below 10 °C (a freezer probe's -20 to -5).
+ */
+function inColdStore(d: CoreDevice): boolean {
+	if (COLD_STORE.test(displayName(d)) || COLD_STORE.test(d.name)) return true;
+	const high = d.attributes.temp_limit_high;
+	if (typeof high !== 'number') return false;
+	return toShown(high, unitOf(d, 'temperature') ?? '°C', CELSIUS) < 10;
+}
+
+/**
+ * The devices whose temperature is the room's air, best first: its
+ * thermometers and weather stations if it has any, else its thermostats'
+ * own readings, else anything else that reads the air (a motion sensor's).
+ * Never a leak sensor's, a freezer probe's or a heated floor's, so a room
+ * with only those shows no temperature rather than theirs.
+ */
+export function airReaders(near: CoreDevice[]): CoreDevice[] {
+	const air = near.filter((d) => {
+		if (typeof d.attributes.temperature !== 'number') return false;
+		const kind = kindOf(d);
+		if (NOT_AIR.has(kind) || NOT_AIR.has(d.device_type ?? '')) return false;
+		if (kind === 'thermostat' && FLOOR_HEAT.has(d.plugin_id ?? '')) return false;
+		return !inColdStore(d);
+	});
+	const thermometers = air.filter((d) => THERMOMETERS.has(kindOf(d)));
+	if (thermometers.length > 0) return thermometers;
+	const thermostats = air.filter((d) => kindOf(d) === 'thermostat');
+	return thermostats.length > 0 ? thermostats : air;
+}
+
 /**
  * A reading from a source: the devices chosen (one, or their average), or —
- * `auto` — the average of `near`, the devices it would naturally be.
+ * `auto` — the average of `near`, the devices it would naturally be. For a
+ * temperature, `auto` takes only what reads the air (`airReaders`).
  */
 export function sourced(
 	source: Source,
@@ -40,21 +89,57 @@ export function sourced(
 	near: CoreDevice[]
 ): number | undefined {
 	if (source === 'none') return undefined;
-	const from = source === 'auto' ? near : source.flatMap((id) => all[id] ?? []);
+	const from =
+		source === 'auto'
+			? attr === 'temperature'
+				? airReaders(near)
+				: near
+			: source.flatMap((id) => all[id] ?? []);
 	return mean(from.flatMap((d) => readingOf(d, attr) ?? []));
 }
 
-/** The house's own weather station, else a weather plugin's place: what reads outside. */
-export function outdoorStation(all: Devices): CoreDevice | undefined {
+/** A reading outside older than this is no longer the weather: an hour. */
+export const OUTSIDE_FRESH_MS = 3600_000;
+
+/**
+ * When a device last reported `attr`: its last report, or the reading's last
+ * change, whichever is later; undefined when it doesn't say.
+ */
+function reportedAt(d: CoreDevice, attr: string): number | undefined {
+	const at = [d.last_seen, d.attributes_changed_at?.[attr]]
+		.map((t) => (t ? Date.parse(t) : NaN))
+		.filter((t) => Number.isFinite(t));
+	return at.length > 0 ? Math.max(...at) : undefined;
+}
+
+/**
+ * The house's own weather station, else a weather plugin's place: what reads
+ * outside. Given `now` (ms), one that hasn't reported its temperature in
+ * the last hour isn't, so Home never shows a days-old temperature as today's.
+ */
+export function outdoorStation(all: Devices, now?: number): CoreDevice | undefined {
+	const fresh = (d: CoreDevice) => {
+		const at = now === undefined ? undefined : reportedAt(d, 'temperature');
+		return at === undefined || now! - at <= OUTSIDE_FRESH_MS;
+	};
 	const outdoors = (kind: string) =>
-		Object.values(all).find((d) => kindOf(d) === kind && readingOf(d, 'temperature') !== undefined);
+		Object.values(all).find(
+			(d) => kindOf(d) === kind && readingOf(d, 'temperature') !== undefined && fresh(d)
+		);
 	return outdoors('weather_station') ?? outdoors('weather');
 }
 
-/** The temperature outside, in the person's units: from `source`, or (`auto`) the station's. */
-export function outsideTemperature(all: Devices, source: Source = 'auto'): number | undefined {
+/**
+ * The temperature outside, in the person's units: from `source`, or
+ * (`auto`) the station's, one that reported in the last hour when `now` is given.
+ */
+export function outsideTemperature(
+	all: Devices,
+	source: Source = 'auto',
+	now?: number
+): number | undefined {
 	if (source !== 'auto') return sourced(source, 'temperature', all, []);
-	const station = outdoorStation(all);
+	const station = outdoorStation(all, now);
 	return station ? readingOf(station, 'temperature') : undefined;
 }
 
@@ -154,10 +239,22 @@ function wrong(cards: CardView[]): { lines: Line[]; alarm: boolean } {
 /**
  * A room's box. `devices` are the room's, `cards` their descriptions, `all`
  * the house's (a chosen sensor may be elsewhere), `o` the settings that apply.
+ * `lightIds` are the house's lights as every place counts them (lights.ts,
+ * `houseNow.lightIds`); without them, its lights that aren't a camera's spotlight.
  */
-export function roomBox(devices: CoreDevice[], cards: CardView[], all: Devices, o: Options): Box {
+export function roomBox(
+	devices: CoreDevice[],
+	cards: CardView[],
+	all: Devices,
+	o: Options,
+	lightIds?: ReadonlySet<string>
+): Box {
 	const { lines, alarm } = wrong(cards);
-	const lights = cards.filter((c) => c.available && LIGHT(c));
+	const lights = cards.filter(
+		(c) =>
+			c.available &&
+			(lightIds ? lightIds.has(c.id) : LIGHT(c) && !isCameraLight({ device_id: c.id }, all))
+	);
 	const on = lights.filter((c) => c.tone === 'on');
 	const temperature = degrees(sourced(sourceOf(o.temperature), 'temperature', all, devices));
 	const humidity = percent(sourced(sourceOf(o.humidity), 'humidity', all, devices));
@@ -190,7 +287,11 @@ export function roomBox(devices: CoreDevice[], cards: CardView[], all: Devices, 
 		if (unlocked.length === 1) said(`${unlocked[0]!.name} unlocked`, 'unlocked');
 		else if (unlocked.length > 1) said(`${unlocked.length} unlocked`, 'unlocked');
 	}
-	const playing = cards.filter((c) => c.available && c.stateLine.startsWith('Playing'));
+	// Playing as every place counts it (playing.ts): a grouped speaker by its leader.
+	const playing = cards.filter((c) => {
+		const d = devices.find((x) => x.device_id === c.id);
+		return d ? playingNow(d, all) : c.available && c.stateLine.startsWith('Playing');
+	});
 	if (o.music && playing.length > 0)
 		said(
 			playing.length === 1 ? `${playing[0]!.name} playing` : `${playing.length} playing`,
@@ -252,7 +353,7 @@ export function roomBox(devices: CoreDevice[], cards: CardView[], all: Devices, 
 		badges,
 		glow: o.lights && lights.length > 0 ? on.length / lights.length : 0,
 		alarm,
-		allOff: o.allOff ? allOffTargets(cards) : [],
+		allOff: o.allOff ? allOffTargets(cards, all) : [],
 		bigIs:
 			o.big === 'temperature' || o.big === 'humidity' || o.big === 'lights' ? o.big : undefined,
 		temperature,
@@ -310,6 +411,18 @@ export function fieldText(b: Box): FieldText {
 		note: b.lines.find((x) => !SAID.has(x.what)),
 		wrong: b.lines.find((x) => x.alert && x.what !== 'open')
 	};
+}
+
+/**
+ * What is wrong in a room, in words, as Home's tile rings it in red: what the
+ * box says is wrong, else a lock left unlocked. Missing when nothing is.
+ */
+export function troubleOf(b: Box, cards: CardView[]): string | undefined {
+	const wrong = b.lines.find((l) => l.alert)?.text;
+	if (wrong) return wrong;
+	const unlocked = cards.filter((c) => c.available && c.icon === 'unlock');
+	if (unlocked.length === 1) return `${unlocked[0]!.name} unlocked`;
+	return unlocked.length > 1 ? `${unlocked.length} unlocked` : undefined;
 }
 
 /** How much is going on in a room: lights on, marks, what's wrong. */
@@ -399,9 +512,11 @@ const names = (xs: string[]) =>
 
 export interface HouseIn {
 	all: Devices;
-	/** Each room's name and devices, rooms only (not "Not in a room"). */
+	/** Each room's name and devices, rooms only (not "No room"). */
 	rooms: { name: string; devices: CoreDevice[]; cards: CardView[] }[];
 	cards: CardView[];
+	/** Now (ms): outside, a station that hasn't reported in an hour is passed over. */
+	now?: number;
 }
 
 /** The big numbers, in the order chosen. A number with nothing to say reads "—". */
@@ -409,7 +524,7 @@ export function bigNumbers(h: HouseIn, o: Options): BigNumber[] {
 	const temps = h.rooms.flatMap((r) => sourced('auto', 'temperature', h.all, r.devices) ?? []);
 	const humids = h.rooms.flatMap((r) => sourced('auto', 'humidity', h.all, r.devices) ?? []);
 	// Outside: the house's own station, measured; else a weather plugin's place.
-	const station = outdoorStation(h.all);
+	const station = outdoorStation(h.all, h.now);
 	const inside = sourceOf(o.inside);
 	const outside = sourceOf(o.outside);
 	const humid = sourceOf(o.humid);
@@ -436,17 +551,24 @@ export function bigNumbers(h: HouseIn, o: Options): BigNumber[] {
 			};
 		},
 		outside: () => {
-			const v = outsideTemperature(h.all, outside);
+			const v = outsideTemperature(h.all, outside, h.now);
 			const hum =
 				outside === 'auto' && station ? percent(readingOf(station, 'humidity')) : undefined;
 			return {
 				value: v === undefined ? '—' : String(Math.round(v)),
 				unit: v === undefined ? undefined : shownUnit('°C'),
-				sub: chosen(outside) ?? (station ? (hum ?? displayName(station)) : 'no weather station')
+				sub:
+					chosen(outside) ??
+					(station
+						? (hum ?? displayName(station))
+						: outdoorStation(h.all)
+							? 'no recent reading'
+							: 'no weather station')
 			};
 		},
 		lights: () => {
-			const on = (c: CardView) => c.available && LIGHT(c) && c.tone === 'on';
+			const on = (c: CardView) =>
+				c.available && LIGHT(c) && c.tone === 'on' && !isCameraLight({ device_id: c.id }, h.all);
 			const n = h.cards.filter(on).length;
 			const rooms = roomsWith((r) => r.cards.some(on)).length;
 			return {

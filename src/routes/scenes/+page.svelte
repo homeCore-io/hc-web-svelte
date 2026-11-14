@@ -15,6 +15,19 @@
 	import { openDevice } from '#lib/popup.js';
 	import ModeChips from '#lib/components/ModeChips.svelte';
 	import SceneCard from '#lib/components/SceneCard.svelte';
+	import { lookHere } from '#lib/look.svelte.js';
+	import { ref } from '#lib/layers.js';
+	import type { Card } from '#lib/page.js';
+
+	// A look that draws scenes its own way (Lit's swatches) draws them so here
+	// too, as on its Home and rooms; loaded only for it.
+	const look = lookHere();
+	const lit = $derived(look.draws('scenes') === 'lit');
+	const drawn = $derived(
+		lit ? Promise.all([import('#lib/lit/room.js'), import('#lib/lit/LitScene.svelte')]) : undefined
+	);
+	const statesOf = (id: string) =>
+		(scenes.list.find((x) => x.id === id)?.states ?? {}) as Record<string, unknown>;
 
 	const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
 	const groups = $derived.by(() => {
@@ -53,7 +66,31 @@
 				<h2 class="section-label">{g.room}</h2>
 				<div class="grid">
 					{#each g.list as s (s.id)}
-						{#if s.device}
+						{#if drawn}
+							{#await drawn then [{ deviceScene, houseScene }, { default: LitScene }]}
+								{@const d = devices.byId[s.id]}
+								{#if s.device && d}
+									<LitScene
+										s={deviceScene(
+											{ ref: ref.device(s.id), kind: 'device', device: d, scene: true },
+											s.name
+										)}
+										form="chip"
+										run={() => commands.act(s.id, 'activate')}
+									/>
+								{:else}
+									<LitScene
+										s={{
+											card: { ref: ref.scene(s.id), kind: 'scene', id: s.id, name: s.name } as Card,
+											name: s.name,
+											...houseScene(statesOf(s.id), devices.byId)
+										}}
+										form="chip"
+										run={() => scenes.run(s.id)}
+									/>
+								{/if}
+							{/await}
+						{:else if s.device}
 							<SceneCard
 								name={s.name}
 								run={() => commands.act(s.id, 'activate')}

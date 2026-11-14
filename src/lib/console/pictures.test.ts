@@ -7,6 +7,7 @@ import {
 	op,
 	pictureOf,
 	PICTURES,
+	roomLights,
 	roomPicture,
 	shade,
 	spotsOf
@@ -310,5 +311,45 @@ describe('the household’s own fixes to a drawing’s spots', () => {
 			desk: ['desk'],
 			over: ['over']
 		});
+	});
+});
+
+describe('roomLights', () => {
+	const sw = (id: string, name: string, more: Partial<CoreDevice> = {}) =>
+		dev(id, 'switch', name, { on: true }, more);
+	it('takes the Garage’s zones by its drawing, never its heater or a camera’s spotlight', () => {
+		const camera = dev('cam', 'camera', 'Driveway');
+		const list = [
+			sw('z3', 'Zone 03'),
+			sw('z4', 'Zone 04'),
+			sw('over', 'Garage Overhead Light'),
+			sw('heat', 'Garage Heater'),
+			sw('door', 'Garage Door', { plugin_id: 'core.glue' }),
+			lamp('cam_spotlight', 'Driveway spotlight', true),
+			camera
+		];
+		expect(
+			roomLights('Garage', list)
+				.map((d) => d.device_id)
+				.sort()
+		).toEqual(['over', 'z3', 'z4']);
+	});
+
+	it('takes what the household put on the Lights tab, but not a scene or a keypad', () => {
+		const list = [sw('ac', 'Outlet - Office AC'), dev('scene', 'scene', 'Bright', {})];
+		expect(roomLights('Office', list).map((d) => d.device_id)).toEqual([]);
+		expect(
+			roomLights('Office', list, list, { chosen: { ac: 'lights', scene: 'lights' } }).map(
+				(d) => d.device_id
+			)
+		).toEqual(['ac']);
+	});
+
+	it('takes a switch the household linked to a light in the drawing', () => {
+		const list = [sw('plug', 'Spare Plug')];
+		expect(roomLights('Office', list)).toEqual([]);
+		expect(
+			roomLights('Office', list, list, { links: { dl: 'plug' } }).map((d) => d.device_id)
+		).toEqual(['plug']);
 	});
 });

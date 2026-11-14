@@ -1,10 +1,13 @@
 <!--
 	A room's header, a frame piece (13 §7): its name, its readings, and a glow
 	from each light that's on, in its own color, with the room in chips: lights
-	on, and what needs someone, which a tap fixes. While it's drawn, the shell's
-	header shows no title (the room's name is here).
+	on, and what needs someone, which a tap fixes, when the look doesn't show
+	that under the header (NeedsKind). While it's drawn, the shell's header
+	shows no title (the room's name is here).
 -->
 <script lang="ts">
+	import { houseNow } from '#lib/houseNow.svelte.js';
+	import { isLamp, isLit } from '#lib/lights.js';
 	import type { KindProps } from '#lib/kinds.js';
 	import { cardFor, type CardView } from '#lib/card.js';
 	import { withPending } from '#lib/pending.js';
@@ -52,20 +55,30 @@
 			])
 		)
 	);
-	const lit = $derived(litRoom(cards, views));
+	const lit = $derived(litRoom(cards, views, {}, {}, devices.byId));
 	const box = $derived(
 		roomBox(
 			live,
 			Object.values(views),
 			devices.byId,
-			kindOptions.of('home', 'room', ref.room(card.id), ROOM_BUILT_IN)
+			kindOptions.of('home', 'room', ref.room(card.id), ROOM_BUILT_IN),
+			houseNow.lightIds
 		)
 	);
+	// The room's lights on, as Home, the sidebar and Everywhere count them (lights.ts).
 	const lightsOn = $derived(
-		[
-			...lit.lights.flatMap((l) => ('members' in l ? l.members : [l])),
-			...lit.switches.lights
-		].filter((l) => l.on).length
+		live.filter(
+			(d) =>
+				(houseNow.lightIds ? houseNow.lightIds.has(d.device_id) : isLamp(d)) &&
+				isLit(d, commands.pending)
+		).length
+	);
+	// What needs someone, as chips, unless the look shows it under the header
+	// (NeedsKind), so each shows once.
+	const problems = $derived(
+		here.def.frame.needs && (here.def.grouping.room ?? []).some((r) => r.takes.includes('needs'))
+			? []
+			: lit.problems
 	);
 	// Glowing, or plain where the look says so (13 §7).
 	const plain = $derived(here.def.frame.header === 'plain');
@@ -135,7 +148,7 @@
 						? 'Lights off'
 						: `${lightsOn} light${lightsOn === 1 ? '' : 's'} on`}</span
 				>
-				{#each lit.problems as p (p.key)}
+				{#each problems as p (p.key)}
 					{#if p.fix && session.mayUse}
 						<button class="chip bad" onclick={() => fix(p.fix!)}
 							><span class="dot bad"></span>{p.title} · {p.fix.label}</button

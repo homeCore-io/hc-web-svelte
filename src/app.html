@@ -54,10 +54,80 @@
 			html[data-theme='dark'] {
 				background: #0d1015;
 			}
+			/* Until the app draws its frame (+layout.svelte takes this away): a quiet
+			   line in the theme's own muted ink, shown only if starting takes a moment,
+			   and a word more if it takes long. */
+			#hc-boot {
+				position: fixed;
+				inset: 0;
+				display: grid;
+				place-content: center;
+				justify-items: center;
+				gap: 10px;
+				padding: 24px;
+				color: #5d6470;
+				font:
+					500 15px/1.4 system-ui,
+					sans-serif;
+				text-align: center;
+				opacity: 0;
+				animation: hc-boot-in 0.3s 0.5s forwards;
+			}
+			@media (prefers-color-scheme: dark) {
+				html:not([data-theme='light']) #hc-boot {
+					color: #9aa4b2;
+				}
+			}
+			html[data-theme='dark'] #hc-boot {
+				color: #9aa4b2;
+			}
+			#hc-boot svg {
+				width: 40px;
+				height: 40px;
+				opacity: 0.85;
+			}
+			#hc-boot p {
+				margin: 0;
+			}
+			#hc-boot .late {
+				max-width: 30ch;
+				font-size: 13px;
+				opacity: 0;
+				animation: hc-boot-in 0.3s 8s forwards;
+			}
+			@keyframes hc-boot-in {
+				to {
+					opacity: 1;
+				}
+			}
+			@media (prefers-reduced-motion: reduce) {
+				#hc-boot,
+				#hc-boot .late {
+					animation-duration: 0s;
+				}
+			}
 		</style>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
+		<div id="hc-boot" role="status">
+			<svg viewBox="0 0 64 64" aria-hidden="true">
+				<rect width="64" height="64" rx="14" fill="currentColor" opacity="0.18" />
+				<path
+					d="M11.5 29 L32 11.5 L52.5 29"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="8.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				/>
+				<circle cx="32" cy="47.5" r="8" fill="currentColor" />
+			</svg>
+			<p>Opening homeCore…</p>
+			<p class="late">
+				Still waiting for homeCore to answer. It may be busy; this page opens when it does.
+			</p>
+		</div>
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>
 </html>

@@ -169,7 +169,7 @@
 				<Lock size={20} aria-hidden="true" />
 			</button>
 		</header>
-		<main onpointerdown={down} onpointerup={up}>
+		<main id="main" tabindex="-1" onpointerdown={down} onpointerup={up}>
 			{@render children()}
 		</main>
 		{#if tabs.length > 1}

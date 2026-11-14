@@ -27,7 +27,7 @@
 	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
-	import { backFor, titleFor } from '#lib/nav.js';
+	import { backFor, focusMain, titleFor } from '#lib/nav.js';
 	import { homeRoomOrder, ref } from '#lib/layers.js';
 	import { personal } from '#lib/personal.svelte.js';
 	import { household } from '#lib/household.svelte.js';
@@ -154,6 +154,14 @@
 		if (menuBox?.contains(t) || opener?.contains(t)) return;
 		closeMenu();
 	}
+	// The keyboard leaving a menu (Tab past its end, or back into the page from
+	// the browser's own bar) closes it, as a click elsewhere does.
+	function focusElsewhere(e: FocusEvent) {
+		if (menu === null) return;
+		const t = e.target as Node;
+		if (menuBox?.contains(t) || opener?.contains(t)) return;
+		closeMenu();
+	}
 	afterNavigate(() => {
 		if (menu !== null) closeMenu();
 	});
@@ -169,9 +177,10 @@
 	const me = $derived(session.me?.username ?? '');
 </script>
 
-<svelte:window onkeydown={keys} onpointerdown={outside} />
+<svelte:window onkeydown={keys} onpointerdown={outside} onfocusin={focusElsewhere} />
 
 <div class="console" class:folded class:customizing>
+	<a class="skip" href="#main" onclick={(e) => focusMain(e)}>Skip to content</a>
 	<header class="tb" bind:offsetHeight={barHeight}>
 		<button
 			class="collapse"
@@ -201,7 +210,7 @@
 			onclick={() => (finder.open = true)}
 		>
 			<Search size={14} strokeWidth={2} aria-hidden="true" />
-			<span class="words">Search devices, scenes, rooms</span>
+			<span class="words">Search devices, rooms, scenes</span>
 			<kbd aria-hidden="true">Ctrl K</kbd>
 		</button>
 		<a
@@ -256,7 +265,7 @@
 					class="si"
 					href={`/everywhere/${v.id}`}
 					aria-current={pathname === `/everywhere/${v.id}` ? 'page' : undefined}
-					title={s.word ? `${v.label}: ${s.word}` : v.label}
+					title={s.word ? `${v.label}: ${s.full ?? s.word}` : v.label}
 				>
 					<v.icon size={17} strokeWidth={1.9} aria-hidden="true" />
 					<span class="lbl">{v.label}</span>
@@ -337,7 +346,12 @@
 					{#if key !== null}<EditMenu pageKey={key} />{/if}
 				</div>
 			{/if}
-			<main class:editing={editingHere} class:bleed={heading.owned && !editingHere}>
+			<main
+				id="main"
+				tabindex="-1"
+				class:editing={editingHere}
+				class:bleed={heading.owned && !editingHere}
+			>
 				{#if editingHere}<EditBar key={key!} />{/if}
 				{#if key !== null && !editingHere && household.trouble}<p class="trouble" role="alert">
 						{household.trouble}
@@ -402,7 +416,6 @@
 		padding: 0 14px;
 		background: var(--con-bar);
 		backdrop-filter: blur(20px);
-		-webkit-backdrop-filter: blur(20px);
 		box-shadow: inset 0 -1px 0 var(--con-edge);
 	}
 	/* Nothing in the toolbar is squeezed or cut off; the search gives way first. */
@@ -577,6 +590,8 @@
 		font-weight: 600;
 	}
 	.lbl {
+		/* The view's name stays whole; a long word beside it gives way. */
+		flex: none;
 		min-width: 0;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -599,12 +614,18 @@
 		top: 8px;
 		right: 8px;
 	}
+	/* Settings and You stay in view at the bottom; the rooms scroll above them. */
 	.foot {
+		position: sticky;
+		bottom: -12px;
+		margin-bottom: -12px;
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
-		padding-top: 8px;
+		padding: 8px 0 12px;
 		border-top: 1px solid var(--con-edge);
+		background: var(--con-side);
+		backdrop-filter: blur(20px);
 	}
 
 	/* Folded: the rail of icons, the room list behind one button. */
@@ -738,7 +759,6 @@
 		border-radius: 16px;
 		background: color-mix(in srgb, var(--surface) 97%, transparent);
 		backdrop-filter: blur(20px);
-		-webkit-backdrop-filter: blur(20px);
 		box-shadow:
 			0 30px 60px -10px rgba(0, 0, 0, 0.6),
 			inset 0 1px 0 rgba(255, 255, 255, 0.1),

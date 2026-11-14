@@ -48,7 +48,7 @@
 
 <button
 	disabled={!session.mayRunScenes}
-	title={session.mayRunScenes ? undefined : 'You may look, not run scenes'}
+	title={session.mayRunScenes ? name : `${name}: you may look, not run scenes`}
 	class="scene"
 	class:done={status === 'done'}
 	class:failed={status === 'failed'}
@@ -101,10 +101,16 @@
 		align-items: center;
 		justify-content: center;
 	}
+	/* Two lines before it gives way, so "Lights On" and "Lights Off" never read the same. */
 	.name {
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
 		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		overflow-wrap: break-word;
+		line-height: 1.2;
+		padding: 4px 0;
 	}
 	.done {
 		background: var(--lit-bg);

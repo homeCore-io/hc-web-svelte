@@ -4,9 +4,18 @@
 	dialog, so the keyboard stays inside it and the page behind can't be
 	reached; Escape, the ✕ or pulling it down by its top closes it, and the
 	keyboard goes back to what opened it.
+
+	It takes a place in the browser's history as it opens, so Back (the
+	browser's, or Android's gesture) closes it rather than leaving the page.
 -->
+<script module lang="ts">
+	let made = 0;
+</script>
+
 <script lang="ts">
 	import { onMount, type Snippet } from 'svelte';
+	import { page } from '$app/state';
+	import { pushState, replaceState } from '$app/navigation';
 	import X from '@lucide/svelte/icons/x';
 	import { pullCloses } from './phone.js';
 
@@ -23,6 +32,40 @@
 		head?: Snippet;
 		children: Snippet;
 	} = $props();
+
+	// ---- its place in history: Back closes it, and closing it takes the place back ----
+	const key = ++made;
+	let placed = false;
+	let leaving = false;
+	onMount(() => {
+		pushState('', { ...page.state, phoneSheet: key });
+		// Closed by its page, not from the sheet (on its way to a device's
+		// details, say): its place is let go of where it is, as going back
+		// now would race whatever opens next.
+		return () => {
+			if (placed && !leaving && page.state.phoneSheet === key) {
+				const { phoneSheet: _, ...rest } = page.state;
+				replaceState('', rest);
+			}
+		};
+	});
+	// Its place shown; then Back was pressed, or the page moved on: the sheet goes.
+	$effect(() => {
+		const here = page.state.phoneSheet === key;
+		if (here) placed = true;
+		else if (placed) {
+			placed = false;
+			onclose();
+		}
+	});
+	/** Closed from the sheet: by going back, when its place is still the one shown. */
+	function close() {
+		if (leaving) return;
+		if (placed && page.state.phoneSheet === key) {
+			leaving = true;
+			history.back();
+		} else onclose();
+	}
 
 	let dialog = $state<HTMLDialogElement>();
 	onMount(() => {
@@ -49,23 +92,26 @@
 		if (!start) return;
 		const speed = pull / Math.max(1, e.timeStamp - start.t);
 		start = null;
-		if (pullCloses(pull, speed)) onclose();
+		if (pullCloses(pull, speed)) close();
 		pull = 0;
 	}
 </script>
 
+<!-- A link followed from the sheet takes the sheet's place in history, so Back
+	from where it leads comes back to the page as it was, not to a dead step. -->
 <dialog
 	bind:this={dialog}
 	class="psheet"
+	data-sveltekit-replacestate
 	aria-label={label}
 	style:transform={pull > 0 ? `translateY(${pull}px)` : undefined}
 	oncancel={(e) => {
 		e.preventDefault();
-		onclose();
+		close();
 	}}
 	onclick={(e) => {
 		// A tap on the dimmed page lands on the dialog element itself.
-		if (e.target === dialog) onclose();
+		if (e.target === dialog) close();
 	}}
 >
 	<div class="glass">
@@ -81,7 +127,7 @@
 			<div class="ttl">
 				<h2>{label}</h2>
 				{#if head}{@render head()}{/if}
-				<button type="button" class="x" aria-label="Close" onclick={onclose}
+				<button type="button" class="x" aria-label="Close" onclick={close}
 					><X size={18} strokeWidth={2.2} aria-hidden="true" /></button
 				>
 			</div>
@@ -123,10 +169,15 @@
 		border-radius: inherit;
 		background: color-mix(in srgb, var(--surface) 80%, transparent);
 		backdrop-filter: blur(40px) saturate(1.4);
-		-webkit-backdrop-filter: blur(40px) saturate(1.4);
 		box-shadow:
 			inset 0 1px 0 rgba(255, 255, 255, 0.12),
 			0 -20px 50px rgba(0, 0, 0, 0.5);
+	}
+	/* Without blur, what is behind would read through the sheet, so it is nearly solid. */
+	@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+		.glass::before {
+			background: color-mix(in srgb, var(--surface) 96%, transparent);
+		}
 	}
 	.top {
 		flex: none;

@@ -82,7 +82,7 @@ export function underRooms(
 	offers: Offer[],
 	rooms: Room[]
 ): { id: string; name: string; offers: Offer[] }[] {
-	const out = [...rooms.map((r) => ({ id: r.id, name: r.name })), { id: '', name: 'Not in a room' }]
+	const out = [...rooms.map((r) => ({ id: r.id, name: r.name })), { id: '', name: 'No room' }]
 		.map((r) => ({
 			...r,
 			offers: offers.filter((o) => o.room === r.id).sort((a, b) => a.name.localeCompare(b.name))

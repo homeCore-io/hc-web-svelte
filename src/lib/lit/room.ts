@@ -5,7 +5,9 @@
  * The page's own arrangement still applies (what is hidden, what a card is
  * called); Lit only decides where each kind of thing goes on the page.
  */
-import type { CoreDevice, Devices } from '../devices.js';
+import { unitOf, type CoreDevice, type Devices } from '../devices.js';
+import { toShown } from '../units.js';
+import { cameraLightCards, cameraLightIds } from '../cameraLights.js';
 import { INFRASTRUCTURE, isOpen, kindOf, type CardView } from '../card.js';
 import type { Card } from '../page.js';
 
@@ -64,7 +66,7 @@ export interface Reading {
 	name: string;
 	/** The attribute drawn over time. */
 	attr: 'temperature' | 'humidity';
-	/** The device's own safe range, when it keeps one (a freezer probe), in °C. */
+	/** The device's own safe range, when it keeps one (a freezer probe), in its own unit. */
 	range?: { low: number; high: number };
 }
 
@@ -194,6 +196,11 @@ export function litRoom(
 	const rest: Card[] = [];
 	const more: Card[] = [];
 	const problems: Problem[] = [];
+	// A camera's spotlight is its camera's, not one of the room's lights.
+	const spotlights = new Set([
+		...cameraLightIds(devices),
+		...cameraLightCards(Object.values(views))
+	]);
 
 	for (const card of cards) {
 		if (card.kind === 'scene') {
@@ -251,7 +258,7 @@ export function litRoom(
 				});
 			continue;
 		}
-		const lamp = lampOf(card, view, name);
+		const lamp = spotlights.has(d.device_id) ? null : lampOf(card, view, name);
 		if (lamp) {
 			lamps.push(lamp);
 			continue;
@@ -327,6 +334,16 @@ export function litRoom(
 	};
 }
 
+/**
+ * A reading's number in the person's units. A temperature is in the device's
+ * own unit (an Ecowitt station's °F, its temperature_unit), so it is converted
+ * from that, never assumed to be °C. Its history and safe range are in it too.
+ */
+export function shownReading(r: Pick<Reading, 'card' | 'attr'>, v: number): number {
+	if (r.attr !== 'temperature') return v;
+	return toShown(v, unitOf(r.card.device, 'temperature') ?? '°C');
+}
+
 /** A temperature or humidity sensor, with its day (and its own safe range); null for anything else. */
 export function readingOf(
 	card: Card & { kind: 'device' },
@@ -362,7 +379,8 @@ export function lampOf(card: Card & { kind: 'device' }, view: CardView, name: st
 		card,
 		view,
 		name,
-		on: sw.on,
+		// An offline light is off, as everywhere counts it (lights.ts).
+		on: sw.on && view.available,
 		level: dim && dim.kind === 'slider' ? Math.round(dim.value) : null,
 		rgb: view.kind === 'switch' || view.kind === 'outlet' ? WARM : colourOf(card.device),
 		attr: sw.attr
@@ -429,7 +447,7 @@ export function houseScene(
 		else if (MEDIA_KINDS.has(kind)) badges.add('media');
 		else if (d) badges.add('other');
 	}
-	if (on > 0) words.push(on === 1 ? 'A light on' : ` lights on`);
+	if (on > 0) words.push(on === 1 ? 'A light on' : `${on} lights on`);
 	else if (off > 0) words.push('Lights off');
 	if (badges.has('lock')) words.push('locks');
 	if (badges.has('heat')) words.push('sets the heat');

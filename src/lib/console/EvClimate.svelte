@@ -17,6 +17,7 @@
 	import ThermoMini from './ThermoMini.svelte';
 	import { fanSpeeds, speedLabel, speedWant, spinOf } from './climate.js';
 	import { shortName } from './room.js';
+	import { apart } from './apart.js';
 	import { climateView, working, type Place } from './everywhere.js';
 
 	let { places }: { places: Place[] } = $props();
@@ -26,6 +27,13 @@
 	const unit = $derived(units().temperature === 'F' ? '°F' : '°C');
 	const want = (d: CoreDevice) => commands.pending[d.device_id]?.want;
 	const nameOf = (d: CoreDevice, room: string) => shortName(d.name_override ?? d.name, room);
+	// Two sensors shown with one name (two gateways' "Ch 1") say which is which.
+	const readApart = $derived(
+		apart(
+			view.readings.map((r) => r.reading.device),
+			(d) => nameOf(d, view.readings.find((r) => r.reading.device === d)?.where ?? '')
+		)
+	);
 	const roomHref = (p: Place, tab: string) =>
 		p.room ? `/rooms/${p.room.id}?tab=${tab}` : undefined;
 
@@ -156,7 +164,9 @@
 						href={roomHref(r.place, 'sensors') ?? `/rooms/none`}
 						title={d.name_override ?? d.name}
 						><b>{nameOf(d, r.where ?? '')}</b><small class:noroom={r.where === undefined}
-							>{r.where ?? 'No room yet'} · {r.from}</small
+							>{r.where ?? 'No room'} · {r.from}{readApart.has(d.device_id)
+								? ` · ${readApart.get(d.device_id)}`
+								: ''}</small
 						></a
 					>
 					<span class="tval" class:bad class:gone={!d.available}
@@ -217,7 +227,7 @@
 		font-size: 10.5px;
 	}
 	.trd .evname small.noroom {
-		color: #ffc46b;
+		color: var(--warm-ink, #ffc46b);
 	}
 	.tval {
 		width: 52px;
@@ -239,12 +249,13 @@
 		width: 36px;
 		flex: none;
 		font: 500 12px var(--font-num);
-		color: #8fb8e6;
+		color: var(--cool-ink, #8fb8e6);
 		text-align: right;
 	}
+	/* The fans share the row's width, so a long name has room instead of empty columns beside it. */
 	.fans {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
 		gap: 0 22px;
 	}
 	.fanrow {

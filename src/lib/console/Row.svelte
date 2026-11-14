@@ -35,10 +35,10 @@
 <div class="row">
 	<span class="dot {dot}" aria-hidden="true"></span>
 	{#if onopen}
-		<button type="button" class="nm" onclick={onopen}
+		<button type="button" class="nm" title={name} onclick={onopen}
 			>{name}{#if sub}<small>{sub}</small>{/if}{#if place}<Moved d={place} />{/if}</button
 		>
-	{:else}<span class="nm"
+	{:else}<span class="nm" title={name}
 			>{name}{#if sub}<small>{sub}</small>{/if}{#if place}<Moved d={place} />{/if}</span
 		>{/if}
 	{#if word}<b class="word {dot}">{word}</b>{/if}
@@ -109,8 +109,9 @@
 		text-overflow: ellipsis;
 	}
 	.word {
-		/* The name gives way first: its basis is greedy. */
-		flex: 0 0.2 auto;
+		/* The name gives way, never the state: "Vacant for 27 d" is read whole. */
+		flex: 0 0 auto;
+		max-width: 60%;
 		min-width: 0;
 		overflow: hidden;
 		text-overflow: ellipsis;

@@ -72,6 +72,7 @@
 	} from './media.js';
 	import { brandOf } from './room.js';
 	import { send } from './send.js';
+	import { stacked } from './phone/phone.svelte.js';
 
 	let {
 		screens,
@@ -102,6 +103,8 @@
 		extras?: CoreDevice[];
 	} = $props();
 
+	// On a phone: one column, each part as wide as the phone, every speaker a card.
+	const phone = stacked();
 	const nameOf = (d: CoreDevice) => playerName(d, room);
 	const want = (d: CoreDevice) => commands.pending[d.device_id]?.want;
 	const waiting = (d: CoreDevice) => commands.pending[d.device_id] !== undefined;
@@ -190,14 +193,14 @@
 	});
 
 	// ---- many speakers: the mixer ----
-	const mixer = $derived(asMixer(speakers.length));
+	const mixer = $derived(!phone && asMixer(speakers.length));
 	/** The speaker each room's mixer shows, as chosen here. */
 	let chosen = $state<Record<string, string>>({});
 	const shown = $derived(mixer ? mixerPick(speakers, chosen[room], want) : undefined);
 	const fit = $derived(mixerFit(speakers.length, secW - 40, space - 16, fader));
 </script>
 
-<div class="media">
+<div class="media" class:phone>
 	{#each screens as d (d.device_id)}
 		{@const s = showing(d)}
 		{@const tiles = appTiles(d)}
@@ -801,13 +804,19 @@
 	.app:hover:not(:disabled) .ico {
 		transform: translateY(-2px);
 	}
+	/* Inside its own cell, on up to two lines: "The Roku Channel" never runs into the next. */
 	.an {
-		max-width: 72px;
+		max-width: 100%;
 		font-size: 11px;
 		font-weight: 500;
-		white-space: nowrap;
+		line-height: 1.2;
+		text-align: center;
 		overflow: hidden;
-		text-overflow: ellipsis;
+		overflow-wrap: break-word;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
 	}
 	.app.on {
 		background: rgba(160, 123, 255, 0.16);
@@ -1050,7 +1059,7 @@
 	}
 	.st.on {
 		background: color-mix(in srgb, var(--good, #4fe0a0) 20%, transparent);
-		color: color-mix(in srgb, var(--good, #4fe0a0) 75%, var(--ink));
+		color: var(--good-ink, color-mix(in srgb, var(--good, #4fe0a0) 75%, var(--ink)));
 	}
 	.now {
 		margin: 6px 0 0;
@@ -1427,5 +1436,88 @@
 		.ico {
 			transition: none;
 		}
+	}
+
+	/* ---- on a phone: one column, every part as wide as the phone ---- */
+	.phone .desk {
+		/* A remote a thumb can use, in any window's height. */
+		--d: 150px;
+		--key: 44px;
+		--ico: 52px;
+		flex-direction: column;
+		align-items: stretch;
+		flex-wrap: nowrap;
+		row-gap: 0;
+	}
+	.phone .col,
+	.phone .screen,
+	.phone .apps-col {
+		width: auto;
+		padding: 0;
+		border-left: 0;
+	}
+	.phone .col + .col {
+		margin-top: 16px;
+		padding-top: 16px;
+		border-top: 1px solid var(--con-edge-strong);
+	}
+	.phone .apps {
+		grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+	}
+	.phone .an {
+		max-width: 100%;
+	}
+	.phone .speakers {
+		grid-template-columns: minmax(0, 1fr);
+		padding: 16px 0 0;
+		--art: 92px;
+	}
+	.phone .speakers.alone {
+		padding-top: 0;
+	}
+	.phone .stage {
+		max-width: none;
+		max-height: none;
+		padding: 12px;
+		gap: 12px;
+	}
+	.phone .now {
+		font-size: 19px;
+		overflow-wrap: break-word;
+	}
+	.phone .deck {
+		gap: 8px 10px;
+	}
+	.phone .vol {
+		flex: 1 1 160px;
+		max-width: none;
+	}
+	.phone .ch,
+	.phone .eyebrow {
+		min-height: 44px;
+	}
+	.phone .btn {
+		min-height: 44px;
+	}
+	/* A speaker's name: the row's full height, still cut short with "…". */
+	.phone .who {
+		line-height: 44px;
+	}
+	.phone button.ttl {
+		position: relative;
+	}
+	.phone button.ttl::after {
+		content: '';
+		position: absolute;
+		inset: min(0px, calc((100% - 44px) / 2));
+	}
+	.phone .rb,
+	.phone .rb.sm {
+		width: 44px;
+		height: 44px;
+	}
+	.phone .rb.big {
+		width: 52px;
+		height: 52px;
 	}
 </style>

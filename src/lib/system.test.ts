@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import type { PluginRecord } from './plugins.js';
 import {
+	pluginHealth,
+	pluginHealthLine,
 	keptOf,
 	auditMatches,
 	auditRows,
@@ -232,5 +235,36 @@ describe('a log level, kept', () => {
 			targets: { rumqttd: 'warn', 'hc_core::engine': 'trace' }
 		});
 		expect(keptOf('hc_core=debug')).toBeNull();
+	});
+});
+
+describe('the plugins at a glance', () => {
+	const p = (id: string, enabled: boolean, status: string, levels: string[] = []) =>
+		({
+			plugin_id: id,
+			enabled,
+			status,
+			managed: true,
+			restart_count: 0,
+			notices: levels.map((level) => ({ level, text: 'x' }))
+		}) as unknown as PluginRecord;
+	it('isn’t all well while a running plugin reports an error or a warning', () => {
+		const h = pluginHealth([
+			p('plugin.ecowitt', true, 'active', ['error']),
+			p('plugin.weather', true, 'active', ['warning', 'warning']),
+			p('plugin.reolink', true, 'active', ['info']),
+			// Running though turned off: what it says still counts.
+			p('plugin.lutron', false, 'active', ['error']),
+			// Off and stopped: what it said last doesn't.
+			p('plugin.hue', false, 'stopped', ['error'])
+		]);
+		expect(h).toEqual({ running: 3, all: 3, off: 2, trouble: 3 });
+		expect(pluginHealthLine(h)).toBe('3 need a look · 2 turned off');
+	});
+	it('all well only when none needs a look', () => {
+		expect(pluginHealthLine({ running: 2, all: 2, off: 0, trouble: 0 })).toBe('All well');
+		expect(pluginHealthLine({ running: 1, all: 2, off: 1, trouble: 1 })).toBe(
+			'Some aren’t running · 1 needs a look · 1 turned off'
+		);
 	});
 });

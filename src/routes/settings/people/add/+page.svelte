@@ -4,6 +4,7 @@
 	they set it on Me.
 -->
 <script lang="ts">
+	import { notAdmin } from '#lib/refusals.js';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { session } from '#lib/me.svelte.js';
@@ -52,7 +53,9 @@
 </script>
 
 {#if !session.isAdmin}
-	<p class="quiet">People and access are for the house’s admins.</p>
+	<p class="quiet">
+		{notAdmin('People and access are for the house’s admins.', 'manage people')}
+	</p>
 {:else}
 	<form class="split" class:one={!wide.current} onsubmit={add}>
 		<fieldset class="roles">

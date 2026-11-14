@@ -12,7 +12,8 @@ import { consoleRoom, LIGHTS_WIDTH, TABS, type TabChoices, type TabId } from './
 export const TAB_HINTS: Record<TabId, string> = {
 	doors: 'locks, openers',
 	lights: 'faders, scenes',
-	switches: 'toggles, timers',
+	switches: 'toggles, buttons',
+	timers: 'clocks',
 	media: 'players',
 	climate: 'thermostats, fans',
 	water: 'leaks, valves',

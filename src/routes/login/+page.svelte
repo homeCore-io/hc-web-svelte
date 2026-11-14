@@ -16,6 +16,13 @@
 		busy = false;
 		if (error === null) void goto('/');
 	}
+	// Someone already signed in (not a display) is told so, with the way home.
+	const signedIn = $derived(session.me !== null && !session.isDisplay ? session.me : null);
+	async function signOut() {
+		busy = true;
+		await session.signOut();
+		busy = false;
+	}
 </script>
 
 <svelte:head><title>Sign in · homeCore</title></svelte:head>
@@ -23,20 +30,28 @@
 <main>
 	<form onsubmit={submit}>
 		<h1><Mark size={36} />homeCore</h1>
-		{#if page.url.searchParams.get('changed')}
-			<p class="said" role="status">Your password is changed. Sign in with the new one.</p>
+		{#if signedIn}
+			<p class="said" role="status">You’re signed in as <strong>{signedIn.username}</strong>.</p>
+			<a class="home" href="/">Go to homeCore</a>
+			<button type="button" class="plain" disabled={busy} onclick={signOut}
+				>Sign out to sign in as someone else</button
+			>
+		{:else}
+			{#if page.url.searchParams.get('changed')}
+				<p class="said" role="status">Your password is changed. Sign in with the new one.</p>
+			{/if}
+			<label>
+				<span>Username</span>
+				<input bind:value={username} autocomplete="username" autocapitalize="none" required />
+			</label>
+			<label>
+				<span>Password</span>
+				<input type="password" bind:value={password} autocomplete="current-password" required />
+			</label>
+			{#if error !== null}<p class="error" role="alert">{error}</p>{/if}
+			<button type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+			<a class="display" href="/display">Set this screen up as a display</a>
 		{/if}
-		<label>
-			<span>Username</span>
-			<input bind:value={username} autocomplete="username" autocapitalize="none" required />
-		</label>
-		<label>
-			<span>Password</span>
-			<input type="password" bind:value={password} autocomplete="current-password" required />
-		</label>
-		{#if error !== null}<p class="error" role="alert">{error}</p>{/if}
-		<button type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
-		<a class="display" href="/display">Set this screen up as a display</a>
 	</form>
 </main>
 
@@ -95,6 +110,23 @@
 		color: var(--accent-ink);
 		font-weight: 600;
 		font-size: 15px;
+	}
+	.home {
+		display: grid;
+		place-items: center;
+		height: var(--target);
+		border-radius: 22px;
+		background: var(--accent);
+		color: var(--accent-ink);
+		font-weight: 600;
+		font-size: 15px;
+		text-decoration: none;
+	}
+	button.plain {
+		background: none;
+		color: var(--ink-muted);
+		font-weight: 500;
+		font-size: 14px;
 	}
 	button:disabled {
 		opacity: 0.6;

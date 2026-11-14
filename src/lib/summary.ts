@@ -9,6 +9,7 @@
 import { cardFor, INFRASTRUCTURE, isOpen, SENSORS, type CardView } from './card.js';
 import { roomSlug, type CoreDevice, type Devices } from './devices.js';
 import type { Room } from './house.js';
+import { cameraLightCards, isCameraLight } from './cameraLights.js';
 
 export interface Chip {
 	key: string;
@@ -18,19 +19,44 @@ export interface Chip {
 	ids: string[];
 }
 
-/** Kinds whose "on" a person would call a light. */
+/** Kinds whose "on" a person would call a light, when the house's lights aren't given. */
 const LIGHTS = new Set(['light']);
+
+/**
+ * The cards that are lights: those in `lights`, the house's lights as every
+ * place counts them (lights.ts, `houseNow.lightIds`); without it, lights
+ * that aren't a camera's spotlight.
+ */
+/** The cards playing: those in `playingIds` (playing.ts); without them, those that say so. */
+const playingCards = (cards: CardView[], playingIds?: ReadonlySet<string>): CardView[] =>
+	cards.filter((c) =>
+		playingIds ? playingIds.has(c.id) : c.available && c.stateLine.startsWith('Playing')
+	);
+
+function lightCards(cards: CardView[], lights?: ReadonlySet<string>): CardView[] {
+	if (lights) return cards.filter((c) => lights.has(c.id));
+	const spot = cameraLightCards(cards);
+	return cards.filter((c) => LIGHTS.has(c.kind) && !spot.has(c.id));
+}
 /** Kinds "All off" turns off. Never a lock, a mode or a timer. */
 const ALL_OFF = new Set(['light', 'switch', 'outlet', 'fan', 'media_player', 'tv', 'speaker']);
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-/** The chips at the top of Home, in a fixed order; only those with something to say. */
-export function houseChips(cards: CardView[]): Chip[] {
-	const lights = cards.filter((c) => c.available && LIGHTS.has(c.kind) && c.tone === 'on');
+/**
+ * The chips at the top of Home, in a fixed order; only those with something
+ * to say. `cards` are the house's; `lights`, the ids of its lights
+ * (`houseNow.lightIds`); `playingIds`, its players playing (playing.ts).
+ */
+export function houseChips(
+	cards: CardView[],
+	lights?: ReadonlySet<string>,
+	playingIds?: ReadonlySet<string>
+): Chip[] {
+	const lit = lightCards(cards, lights).filter((c) => c.available && c.tone === 'on');
 	const open = cards.filter((c) => c.available && isOpen(c));
 	const unlocked = cards.filter((c) => c.available && c.icon === 'unlock');
-	const playing = cards.filter((c) => c.available && c.stateLine.startsWith('Playing'));
+	const playing = playingCards(cards, playingIds);
 	const wet = cards.filter((c) => c.alarm === 'wet');
 	const chips: Chip[] = [];
 	if (wet.length > 0)
@@ -57,13 +83,13 @@ export function houseChips(cards: CardView[]): Chip[] {
 			alert: false,
 			ids: ids(unlocked)
 		});
-	if (lights.length > 0)
+	if (lit.length > 0)
 		chips.push({
 			key: 'lights',
-			text: plural(lights.length, 'light on', 'lights on'),
+			text: plural(lit.length, 'light on', 'lights on'),
 			icon: 'light',
 			alert: false,
-			ids: ids(lights)
+			ids: ids(lit)
 		});
 	if (playing.length === 1)
 		chips.push({
@@ -84,42 +110,57 @@ export function houseChips(cards: CardView[]): Chip[] {
 	return chips;
 }
 
-/** A room's one line: lights on, the temperature, anything open, anything playing. */
-export function roomSummary(cards: CardView[]): string {
+/**
+ * A room's one line: lights on, the temperature, anything open, anything
+ * playing. `temperature` is the room's, as its box says it (`roomBox.ts`),
+ * so the line and the box never show two numbers for one room. `lights`
+ * are the house's lights (`houseNow.lightIds`); a switch that isn't one is a switch.
+ */
+export function roomSummary(
+	cards: CardView[],
+	temperature?: string,
+	lights?: ReadonlySet<string>,
+	playingIds?: ReadonlySet<string>
+): string {
 	const parts: string[] = [];
 	const wet = cards.filter((c) => c.alarm === 'wet').length;
 	if (wet > 0) parts.push(wet === 1 ? 'Leak' : `${wet} leaks`);
-	const lights = cards.filter((c) => c.available && LIGHTS.has(c.kind) && c.tone === 'on').length;
-	if (lights > 0) parts.push(plural(lights, 'light on', 'lights on'));
+	const lamps = lightCards(cards, lights);
+	const on = lamps.filter((c) => c.available && c.tone === 'on').length;
+	if (on > 0) parts.push(plural(on, 'light on', 'lights on'));
 	// Everything else "All off" would turn off, so the button never sits beside
 	// a summary that says nothing is on.
 	const switches = cards.filter(
-		(c) => c.available && (c.kind === 'switch' || c.kind === 'outlet') && c.tone === 'on'
+		(c) =>
+			c.available &&
+			(c.kind === 'switch' || c.kind === 'outlet') &&
+			c.tone === 'on' &&
+			!lamps.includes(c)
 	).length;
 	if (switches > 0) parts.push(plural(switches, 'switch on', 'switches on'));
 	const fans = cards.filter((c) => c.available && c.kind === 'fan' && c.tone === 'on').length;
 	if (fans > 0) parts.push(plural(fans, 'fan on', 'fans on'));
-	const temp = cards.find(
-		(c) => c.available && (c.kind === 'temperature_sensor' || c.kind === 'weather_station')
-	);
-	if (temp) {
-		const reading = temp.stateLine.split(' · ')[0];
-		if (reading && /\d/.test(reading)) parts.push(reading);
-	}
+	if (temperature) parts.push(temperature);
 	const open = cards.filter((c) => c.available && isOpen(c));
 	if (open.length === 1) parts.push(`${open[0]!.name} open`);
 	else if (open.length > 1) parts.push(`${open.length} open`);
-	const playing = cards.filter((c) => c.available && c.stateLine.startsWith('Playing'));
+	const playing = playingCards(cards, playingIds);
 	if (playing.length === 1) parts.push(`${playing[0]!.name} playing`);
 	else if (playing.length > 1) parts.push(`${playing.length} playing`);
 	return parts.length > 0 ? parts.join(' · ') : 'All quiet';
 }
 
-/** What "All off" would turn off in a room right now — empty hides the button. */
-export function allOffTargets(cards: CardView[]): CardView[] {
+/**
+ * What "All off" would turn off in a room right now — empty hides the button.
+ * Never a camera's spotlight, which isn't one of the room's lights: it is told
+ * by its camera in `all`, the house's devices, else among `cards`.
+ */
+export function allOffTargets(cards: CardView[], all?: Devices): CardView[] {
+	const spot = all ? undefined : cameraLightCards(cards);
 	return cards.filter(
 		(c) =>
 			c.available &&
+			!(all ? isCameraLight({ device_id: c.id }, all) : spot!.has(c.id)) &&
 			ALL_OFF.has(c.kind) &&
 			c.control !== null &&
 			((c.control.kind === 'switch' && c.control.on) ||

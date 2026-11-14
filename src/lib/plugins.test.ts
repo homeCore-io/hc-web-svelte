@@ -4,8 +4,11 @@ import {
 	startedAgain,
 	buttonOf,
 	dangerous,
+	heldBy,
+	withHeld,
 	isRunning,
 	compareVersions,
+	versionAtLeast,
 	latestOf,
 	needsCore,
 	notInstalled,
@@ -47,6 +50,12 @@ const REGISTRY = [
 ];
 
 describe('versions', () => {
+	test('a version not known yet is neither new enough nor too old', () => {
+		expect(versionAtLeast(null, '0.1.81')).toBeNull();
+		expect(versionAtLeast('0.1.102', '0.1.81')).toBe(true);
+		expect(versionAtLeast('0.1.81', '0.1.81')).toBe(true);
+		expect(versionAtLeast('0.1.80', '0.1.81')).toBe(false);
+	});
 	test('by number, not by letter', () => {
 		expect(compareVersions('0.1.10', '0.1.9')).toBeGreaterThan(0);
 		expect(compareVersions('v1.2.0', '1.2')).toBe(0);
@@ -88,11 +97,20 @@ describe('how it is, in words', () => {
 		// Settings and System count "running" the way this list says it.
 		for (const r of [rec({}), rec({ enabled: false }), rec({ status: 'offline' })])
 			expect(isRunning(r)).toBe(stateOf(r, NOW).word === 'Running');
-		expect(stateOf(rec({ enabled: false }), NOW)).toEqual({
+		expect(stateOf(rec({ enabled: false, status: 'stopped' }), NOW)).toEqual({
 			word: 'Turned off',
 			detail: '',
 			tone: 'quiet'
 		});
+		// Turned off, but not yet stopped: it says it's still running.
+		expect(stateOf(rec({ enabled: false }), NOW)).toEqual({
+			word: 'Turned off',
+			detail: 'but still running',
+			tone: 'quiet'
+		});
+		expect(stateOf(rec({ enabled: false, status: 'starting' }), NOW).detail).toBe(
+			'but still starting'
+		);
 		expect(
 			stateOf(rec({ status: 'offline', last_heartbeat: '2026-10-16T12:00:00Z' }), NOW)
 		).toEqual({
@@ -127,6 +145,23 @@ describe('how it is, in words', () => {
 			['YoLink', undefined, undefined]
 		]);
 		expect(notInstalled(REGISTRY, [rec({})]).map((r) => r.name)).toEqual(['ISY']); // the house's spelling, not the registry's "Isy"
+	});
+
+	test('the list counts the devices homeCore holds, as a plugin’s page does', () => {
+		const rows = rowsOf(
+			[rec({ device_count: 59 }), rec({ plugin_id: 'plugin.yolink', device_count: 3 })],
+			REGISTRY,
+			NOW
+		);
+		// Until the devices are in, each plugin's own count.
+		expect(withHeld(rows, null).map((r) => r.devices)).toEqual([59, 3]);
+		const held = heldBy([
+			...Array.from({ length: 60 }, (_, i) => ({ device_id: `h${i}`, plugin_id: 'plugin.hue' })),
+			{ device_id: 'core', plugin_id: undefined }
+		] as never[]);
+		expect(held).toEqual({ 'plugin.hue': 60 });
+		// A plugin homeCore holds none for has none.
+		expect(withHeld(rows, held).map((r) => r.devices)).toEqual([60, 0]);
 	});
 });
 

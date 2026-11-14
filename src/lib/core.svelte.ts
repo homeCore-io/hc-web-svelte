@@ -3,7 +3,7 @@
  * read once from `/health` (public) and kept. Until it answers, nothing new
  * is offered — an older homeCore would only refuse it.
  */
-import { compareVersions } from './plugins.js';
+import { versionAtLeast } from './plugins.js';
 
 class Core {
 	#version = $state<string | null>(null);
@@ -29,10 +29,17 @@ class Core {
 			});
 	}
 
-	/** Whether this homeCore is `min` or newer. Asks, the first time. */
+	/** Whether this homeCore is `min` or newer. Asks, the first time; no until it answers. */
 	since(min: string): boolean {
-		const v = this.version;
-		return v !== null && compareVersions(v, min) >= 0;
+		return versionAtLeast(this.version, min) === true;
+	}
+
+	/**
+	 * Whether this homeCore is known to be older than `min`. Only then may a page
+	 * say so: until `/health` answers, it isn't known either way.
+	 */
+	older(min: string): boolean {
+		return versionAtLeast(this.version, min) === false;
 	}
 }
 

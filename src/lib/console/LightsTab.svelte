@@ -28,6 +28,7 @@
 	import { dims, SCENES_MIN, shortName, type LightColumn, type LightsTab } from './room.js';
 	import type { FaderStyle, SwitchStyle } from './style.js';
 	import { blocksOf } from './layout.js';
+	import { namesApart } from './apart.js';
 	import { appliesTo, lampSceneNote, onLabel, swatchOf, takesScenes } from './hueScenes.js';
 	import {
 		activeIn,
@@ -68,7 +69,12 @@
 
 	const blocks = $derived(blocksOf(tab, order));
 
-	const nameOf = (d: CoreDevice) => shortName(d.name_override ?? d.name, room);
+	// Two with one name ("Outlet - Living Room AC" twice) say which is which.
+	const nameOf = $derived(
+		namesApart([...tab.columns.flatMap((c) => c.lights), ...tab.switches, ...tab.keypads], (d) =>
+			shortName(d.name_override ?? d.name, room)
+		)
+	);
 	const open = (d: CoreDevice) => openDevice(d.device_id, page.url);
 	// A timer, or anything else that doesn't switch, put here by the household: below the switches.
 	const flipped = $derived(tab.switches.filter((d) => flips(d) && !isTimer(d)));
@@ -114,15 +120,33 @@
 	// ---- a group's scenes: two lines of chips, and the rest behind "All" ----
 	let allScenes = $state<Record<string, boolean>>({});
 	let clipped = $state<Record<string, boolean>>({});
-	function clips(node: HTMLElement, key: string) {
+	// The chips below the two lines are out of reach too, not only out of
+	// sight: inert, so Tab skips them and never scrolls the clipped box,
+	// until "All" opens them.
+	function clips(node: HTMLElement, arg: { key: string; open: boolean }) {
+		let { key, open } = arg;
 		const check = () => {
 			const over = node.scrollHeight > node.clientHeight + 1;
 			if (over !== !!clipped[key]) clipped = { ...clipped, [key]: over };
+			const bottom = node.getBoundingClientRect().top + node.clientHeight - 1;
+			for (const el of node.children)
+				(el as HTMLElement).inert = !open && el.getBoundingClientRect().top >= bottom;
 		};
 		const seen = new ResizeObserver(check);
 		seen.observe(node);
+		const added = new MutationObserver(check);
+		added.observe(node, { childList: true });
 		check();
-		return { destroy: () => seen.disconnect() };
+		return {
+			update(next: { key: string; open: boolean }) {
+				({ key, open } = next);
+				check();
+			},
+			destroy: () => {
+				seen.disconnect();
+				added.disconnect();
+			}
+		};
 	}
 
 	// ---- picking a lamp as the scenes' target, per column ----
@@ -235,7 +259,11 @@
 								>
 							{/if}
 						</p>
-						<div class="chips" class:open={allScenes[c.key]} use:clips={c.key}>
+						<div
+							class="chips"
+							class:open={allScenes[c.key]}
+							use:clips={{ key: c.key, open: !!allScenes[c.key] }}
+						>
 							{#each c.scenes as s (s.device_id)}
 								<span class="cw"
 									><button
@@ -284,7 +312,7 @@
 							</div>
 						{:else}
 							<div class="srow">
-								<button type="button" class="sname" onclick={() => open(s)}
+								<button type="button" class="sname" title={nameOf(s)} onclick={() => open(s)}
 									>{nameOf(s)}<Moved d={s} /></button
 								>
 								<Switch
@@ -304,7 +332,13 @@
 							>{/if}
 					{/each}
 				</div>
-				{#if unflipped.length > 0}<SwitchSet list={unflipped} {room} {may} look="rows" />{/if}
+				{#if unflipped.length > 0}<SwitchSet
+						list={unflipped}
+						{room}
+						{may}
+						look="rows"
+						named={nameOf}
+					/>{/if}
 			</section>
 		{:else if b.kind === 'keypad'}
 			{@const k = tab.keypads[b.index]!}
@@ -599,13 +633,18 @@
 	.srow:first-child {
 		border-top: 0;
 	}
+	/* Up to two lines, so "Holiday Lights 1" and "Holiday Lights 2" stay told apart. */
 	.sname {
 		flex: 1;
 		min-width: 0;
 		font-size: 13px;
 		font-weight: 500;
+		line-height: 1.25;
 		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		overflow-wrap: anywhere;
 	}
 </style>

@@ -155,7 +155,7 @@
 		color: #ff9a9a;
 		font: 600 13px var(--font);
 	}
-	:global(:root[data-theme='light']) .ipill {
+	:global(:root[data-theme='light']) .ipill:not(.rest) {
 		color: #b42318;
 	}
 	.ipill.rest {

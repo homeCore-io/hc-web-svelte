@@ -8,6 +8,7 @@ import { byWhom } from './activity.js';
 import { pluginLabel } from './inventory.js';
 import { roleName } from './people.js';
 import type { Change, Schema } from './devices.js';
+import { isRunning, type PluginRecord } from './plugins.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Json = any;
@@ -721,4 +722,39 @@ export function auditRows(entries: AuditEntry[], tz?: string): AuditRow[] {
 		out.push({ key, first: a, all: [a] });
 	}
 	return out;
+}
+
+// ---- the plugins, at a glance ----
+
+export interface PluginHealth {
+	running: number;
+	/** Turned on. */
+	all: number;
+	off: number;
+	/** Turned on or running, and saying something is wrong: an error or a warning. */
+	trouble: number;
+}
+
+/** How the plugins are, for System's tile: running, and how many need a look. */
+export function pluginHealth(list: PluginRecord[]): PluginHealth {
+	return {
+		running: list.filter(isRunning).length,
+		all: list.filter((p) => p.enabled).length,
+		off: list.filter((p) => !p.enabled).length,
+		trouble: list.filter(
+			(p) =>
+				(p.enabled || p.status === 'active') &&
+				(p.notices ?? []).some((n) => n.level === 'error' || n.level === 'warning')
+		).length
+	};
+}
+
+/** The tile's line under the count: "All well" only when none needs a look. */
+export function pluginHealthLine(h: PluginHealth): string {
+	const parts: string[] = [];
+	if (h.running < h.all) parts.push('Some aren’t running');
+	if (h.trouble) parts.push(`${h.trouble} ${h.trouble === 1 ? 'needs' : 'need'} a look`);
+	if (parts.length === 0) parts.push('All well');
+	if (h.off) parts.push(`${h.off} turned off`);
+	return parts.join(' · ');
 }

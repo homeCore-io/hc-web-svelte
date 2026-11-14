@@ -21,56 +21,56 @@ export const SETTINGS: SettingsItem[] = [
 		slug: 'devices',
 		label: 'Devices',
 		group: 'house',
-		words: 'devices names rooms',
+		words: 'names rooms',
 		detail: 'Names, and which room each is in'
 	},
 	{
 		slug: 'rooms',
 		label: 'Rooms',
 		group: 'house',
-		words: 'rooms areas order icons',
+		words: 'areas order icons',
 		detail: 'Names, order and icons; new rooms'
 	},
 	{
 		slug: 'scenes',
 		label: 'Scenes',
 		group: 'house',
-		words: 'scenes movie bedtime',
+		words: 'movie bedtime',
 		detail: 'homeCore’s own scenes'
 	},
 	{
 		slug: 'modes',
 		label: 'Modes',
 		group: 'house',
-		words: 'modes solar sunset sunrise offset night day away guests',
+		words: 'solar sunset sunrise offset night day away guests',
 		detail: 'Day, night and your own'
 	},
 	{
 		slug: 'helpers',
 		label: 'Helpers',
 		group: 'house',
-		words: 'helpers timers switches counters flags groups thresholds schedules glue',
+		words: 'timers switches counters flags groups thresholds schedules glue',
 		detail: 'Timers, switches and counters'
 	},
 	{
 		slug: 'automations',
 		label: 'Automations',
 		group: 'house',
-		words: 'automations rules triggers conditions actions',
+		words: 'rules triggers conditions actions',
 		detail: 'Rules, in words: what each does and when it last ran'
 	},
 	{
 		slug: 'alerts',
 		label: 'Alerts',
 		group: 'house',
-		words: 'alerts rules battery time door',
+		words: 'rules battery time door',
 		detail: 'Time rules: a door open at night'
 	},
 	{
 		slug: 'displays',
 		label: 'Displays',
 		group: 'house',
-		words: 'displays kiosk tablet panel pin',
+		words: 'kiosk tablet panel pin',
 		detail: 'Kitchen panels and hall tablets'
 	},
 	{
@@ -84,14 +84,14 @@ export const SETTINGS: SettingsItem[] = [
 		slug: 'pictures',
 		label: 'Pictures',
 		group: 'house',
-		words: 'pictures photos images videos albums upload delete picture frame',
+		words: 'photos images videos albums upload delete picture frame',
 		detail: 'Your pictures and the household’s'
 	},
 	{
 		slug: 'look',
 		label: 'Look',
 		group: 'house',
-		words: 'theme look phone bar palette colour',
+		words: 'theme phone bar palette colour',
 		detail: 'The house’s theme and phone bar'
 	},
 
@@ -99,14 +99,15 @@ export const SETTINGS: SettingsItem[] = [
 		slug: 'plugins',
 		label: 'Plugins',
 		group: 'system',
-		words: 'plugins integrations hue lutron sonos yolink zwave restart install registry catalog',
+		words:
+			'integrations hue lutron sonos yolink zwave restart install registry catalog updates upgrade',
 		detail: 'What connects homeCore to devices'
 	},
 	{
 		slug: 'extensions',
 		label: 'Extensions',
 		group: 'system',
-		words: 'extensions ui drawings rive animated catalog store install upload',
+		words: 'ui drawings rive animated catalog store install upload',
 		detail: 'Drawings and cards the looks can choose'
 	},
 	{
@@ -120,15 +121,14 @@ export const SETTINGS: SettingsItem[] = [
 		slug: 'configuration',
 		label: 'Configuration',
 		group: 'system',
-		words:
-			'configuration homecore.toml config port broker mqtt location influx logging auth whitelist',
+		words: 'homecore.toml config port broker mqtt location influx logging auth whitelist',
 		detail: 'homecore.toml'
 	},
 	{
 		slug: 'notifications',
 		label: 'Notifications',
 		group: 'system',
-		words: 'notifications notify pushover email telegram channels messages',
+		words: 'notify pushover email telegram channels messages',
 		detail: 'Where homeCore can send messages'
 	},
 	{
@@ -142,28 +142,29 @@ export const SETTINGS: SettingsItem[] = [
 		slug: 'logs',
 		label: 'Logs',
 		group: 'system',
-		words: 'logs log level debug',
+		words: 'log level debug',
 		detail: 'Live, from homeCore and its plugins'
 	},
 	{
 		slug: 'events',
 		label: 'Events',
 		group: 'system',
-		words: 'events stream mqtt',
+		words: 'stream mqtt',
 		detail: 'Everything the house reports, live'
 	},
 	{
 		slug: 'audit',
 		label: 'Audit',
 		group: 'system',
-		words: 'audit sign in who changed',
+		words: 'sign in who changed',
 		detail: 'Who changed what, and when'
 	},
 	{
 		slug: 'system',
 		label: 'System',
 		group: 'system',
-		words: 'system version health status uptime storage restart log level maintenance',
+		words:
+			'version health status uptime storage restart log level maintenance units temperature fahrenheit celsius region timezone zone',
 		detail: 'Version, health, storage'
 	}
 ];

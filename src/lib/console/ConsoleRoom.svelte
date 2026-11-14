@@ -56,6 +56,7 @@
 	import type { Component } from 'svelte';
 	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 	import { nextTab } from '#lib/menuKeys.js';
+	import { apart } from './apart.js';
 	import { household } from '#lib/household.svelte.js';
 
 	let { id }: { id: string } = $props();
@@ -121,6 +122,8 @@
 	const favs = $derived(r.favs);
 	const locks = $derived(r.locks);
 	const openings = $derived(r.openings);
+	// Two pills with one name ("Test Door: Closed" twice) say which is which.
+	const pillApart = $derived(apart([...locks, ...openings], (d) => short(nameOf(d))));
 	const useFav = (d: CoreDevice) => r.useFav(d);
 
 	// ---- the room's audio ----
@@ -222,7 +225,9 @@
 										strokeWidth={2.2}
 										aria-hidden="true"
 									/>{:else}<LockOpen size={13} strokeWidth={2.2} aria-hidden="true" />{/if}
-								{short(nameOf(d))}: {d.available ? (locked ? 'Locked' : 'Unlocked') : 'Offline'}
+								{short(nameOf(d))}{pillApart.has(d.device_id)
+									? ` (${pillApart.get(d.device_id)})`
+									: ''}: {d.available ? (locked ? 'Locked' : 'Unlocked') : 'Offline'}
 							</button>
 						{/each}
 						{#each openings as d (d.device_id)}
@@ -240,7 +245,9 @@
 										strokeWidth={2.2}
 										aria-hidden="true"
 									/>{:else}<DoorClosed size={13} strokeWidth={2.2} aria-hidden="true" />{/if}
-								{short(nameOf(d))}: {d.available ? (open ? 'Open' : 'Closed') : 'Offline'}
+								{short(nameOf(d))}{pillApart.has(d.device_id)
+									? ` (${pillApart.get(d.device_id)})`
+									: ''}: {d.available ? (open ? 'Open' : 'Closed') : 'Offline'}
 							</button>
 						{/each}
 						{#each camPills as e (e.key)}

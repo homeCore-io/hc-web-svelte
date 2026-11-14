@@ -1,10 +1,11 @@
 /**
  * A timer on the console (homeCore's own, and any plugin's): a small clock
  * with the time it has left, counted down each second from when it started
- * (as its card counts it), and Start or Cancel.
+ * (as its card counts it), and Start or Cancel; a paused one offers Resume
+ * and Cancel, so the time it has left isn't thrown away.
  *
- * homeCore's timers take `start` and `cancel` as commands; a plugin's are
- * pressed by the actions it declares, when it declares them.
+ * homeCore's timers take `start`, `resume` and `cancel` as commands; a
+ * plugin's are pressed by the actions it declares, when it declares them.
  *
  * Pure: the tile draws what this decides.
  */
@@ -13,9 +14,9 @@ import type { CoreDevice } from '../devices.js';
 import { clock, isHelper, remaining } from '../helpers.js';
 
 /** A press of a timer's button: a homeCore command, or the plugin's action. */
+export type TimerLabel = 'Start' | 'Resume' | 'Cancel';
 export type TimerPress =
-	| { label: 'Start' | 'Cancel'; command: Record<string, unknown> }
-	| { label: 'Start' | 'Cancel'; action: string };
+	{ label: TimerLabel; command: Record<string, unknown> } | { label: TimerLabel; action: string };
 
 export interface TimerView {
 	running: boolean;
@@ -27,6 +28,8 @@ export interface TimerView {
 	note?: string;
 	/** Its button, when it has one. */
 	press?: TimerPress;
+	/** A second button beside it: Cancel, for a paused one. */
+	also?: TimerPress;
 }
 
 export const isTimer = (d: CoreDevice): boolean => kindOf(d) === 'timer';
@@ -49,15 +52,23 @@ export function timerView(d: CoreDevice, now: number): TimerView {
 		: state === 'paused'
 			? { running, figure: clock(Math.ceil(left)), dim: true, note: 'Paused' }
 			: { running, figure: state === 'finished' ? 'done' : 'idle', dim: true };
-	const label = running ? 'Cancel' : 'Start';
-	if (isHelper(d)) {
-		view.press = {
-			label,
-			command: running ? { command: 'cancel' } : { command: 'start', duration_secs: lengthOf(a) }
-		};
-	} else {
-		const action = d.schema?.actions?.find((x) => x.id === (running ? 'cancel' : 'start'));
-		if (action) view.press = { label, action: action.id };
-	}
+	const paused = state === 'paused';
+	// Running: Cancel. Paused: Resume, and Cancel beside it. Else: Start.
+	const first: TimerLabel = running ? 'Cancel' : paused ? 'Resume' : 'Start';
+	const helper = isHelper(d);
+	const pressOf = (label: TimerLabel): TimerPress | undefined => {
+		const id = label.toLowerCase();
+		if (helper)
+			return {
+				label,
+				command: id === 'start' ? { command: 'start', duration_secs: lengthOf(a) } : { command: id }
+			};
+		const action = d.schema?.actions?.find((x) => x.id === id);
+		return action ? { label, action: action.id } : undefined;
+	};
+	const press = pressOf(first);
+	const also = paused ? pressOf('Cancel') : undefined;
+	if (press) view.press = press;
+	if (also) view.also = also;
 	return view;
 }

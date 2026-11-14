@@ -1,8 +1,8 @@
 <!--
 	A timer as a small clock (timer.ts): the time it has left in large figures,
 	counting down each second while it runs, else "idle" or "done" dimmed; its
-	name under it; and Start or Cancel. Several sit side by side and wrap. The
-	name opens the timer's page.
+	name under it; and Start or Cancel, or Resume and Cancel while it's paused.
+	Several sit side by side and wrap. The name opens the timer's page.
 -->
 <script lang="ts">
 	import { page } from '$app/state';
@@ -11,7 +11,7 @@
 	import { commands } from '#lib/commands.svelte.js';
 	import { goAhead } from '#lib/ask.js';
 	import { openDevice } from '#lib/popup.js';
-	import { timerView } from './timer.js';
+	import { timerView, type TimerPress } from './timer.js';
 
 	let { d, name, may }: { d: CoreDevice; name: string; may: boolean } = $props();
 
@@ -23,8 +23,7 @@
 	let busy = $state(false);
 	const note = $derived(d.available ? (commands.notes[d.device_id] ?? view.note) : 'Offline');
 
-	async function press() {
-		const p = view.press;
+	async function press(p: TimerPress | undefined) {
 		if (!p || !may || !d.available || busy) return;
 		if (!(await goAhead(d.device_id, 'timer', `${p.label} ${name}?`))) return;
 		busy = true;
@@ -40,15 +39,21 @@
 		>{name}{#if note}<small class:bad={!d.available || !!commands.notes[d.device_id]}>{note}</small
 			>{/if}</button
 	>
-	{#if view.press}
-		<button
-			type="button"
-			class="tb"
-			class:stop={view.press.label === 'Cancel'}
-			aria-busy={busy || undefined}
-			disabled={!may || !d.available || busy}
-			onclick={press}>{view.press.label}</button
-		>
+	{#if view.press || view.also}
+		<span class="btns">
+			{#each [view.press, view.also] as p (p?.label)}
+				{#if p}
+					<button
+						type="button"
+						class="tb"
+						class:stop={p.label === 'Cancel'}
+						aria-busy={busy || undefined}
+						disabled={!may || !d.available || busy}
+						onclick={() => press(p)}>{p.label}</button
+					>
+				{/if}
+			{/each}
+		</span>
 	{/if}
 </div>
 
@@ -108,8 +113,13 @@
 	.nm small.bad {
 		color: var(--alert);
 	}
-	.tb {
+	.btns {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
 		margin-top: 2px;
+	}
+	.tb {
 		height: 26px;
 		padding: 0 12px;
 		border: 0;

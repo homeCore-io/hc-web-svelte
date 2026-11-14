@@ -65,6 +65,39 @@ describe('a timer’s button', () => {
 		expect(timerView(on, at).press).toEqual({ label: 'Cancel', command: { command: 'cancel' } });
 	});
 
+	it('resumes a paused one, and can cancel it, keeping the time it has left', () => {
+		const p = timerView(timer({ state: 'paused', remaining_secs: 30, duration_secs: 600 }), at);
+		expect(p.press).toEqual({ label: 'Resume', command: { command: 'resume' } });
+		expect(p.also).toEqual({ label: 'Cancel', command: { command: 'cancel' } });
+		expect(p.figure).toBe('0:30');
+		const on = timer({ state: 'running', duration_secs: 600, started_at: started(10) });
+		expect(timerView(on, at).also).toBeUndefined();
+		expect(timerView(timer({ state: 'idle' }), at).also).toBeUndefined();
+	});
+
+	it('resumes a paused plugin timer only by the actions it declares', () => {
+		const schema = (ids: string[]) =>
+			({
+				attributes: {},
+				actions: ids.map((id) => ({ id, label: id }))
+			}) as unknown as CoreDevice['schema'];
+		const both = timerView(
+			timer(
+				{ state: 'paused' },
+				{ plugin_id: 'plugin.x', schema: schema(['start', 'resume', 'cancel']) }
+			),
+			at
+		);
+		expect(both.press).toEqual({ label: 'Resume', action: 'resume' });
+		expect(both.also).toEqual({ label: 'Cancel', action: 'cancel' });
+		const none = timerView(
+			timer({ state: 'paused' }, { plugin_id: 'plugin.x', schema: schema(['start']) }),
+			at
+		);
+		expect(none.press).toBeUndefined();
+		expect(none.also).toBeUndefined();
+	});
+
 	it('presses a plugin’s by the actions it declares, else has none', () => {
 		const schema = {
 			attributes: {},

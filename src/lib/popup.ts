@@ -17,10 +17,15 @@ export function deviceHref(id: string, from: From): string {
 	return url.pathname + url.search;
 }
 
-export function openDevice(id: string, from: From): void {
+/**
+ * Opens the popup over `from`. With `replace`, it takes the place of the
+ * history step now shown (a phone sheet's, as the sheet gives way to it), so
+ * closing it comes back to the page from before that step.
+ */
+export function openDevice(id: string, from: From, replace = false): void {
 	openedHere = true;
 	// Over the page as it is: no scroll to the top, focus left where it was.
-	void goto(deviceHref(id, from), { reset: false });
+	void goto(deviceHref(id, from), { reset: false, replace });
 }
 
 export function closeDevice(from: From): void {

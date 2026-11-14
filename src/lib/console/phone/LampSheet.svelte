@@ -187,7 +187,8 @@
 		if (!target) return;
 		const id = target.device_id;
 		onclose();
-		openDevice(id, page.url);
+		// In the sheet's place in history, so closing the details comes back to the room.
+		openDevice(id, page.url, true);
 	}
 </script>
 

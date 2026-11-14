@@ -97,9 +97,12 @@
 	}
 </script>
 
+<!-- A link followed from the sheet takes the sheet's place in history, so Back
+	from where it leads comes back to the page as it was, not to a dead step. -->
 <dialog
 	bind:this={dialog}
 	class="psheet"
+	data-sveltekit-replacestate
 	aria-label={label}
 	style:transform={pull > 0 ? `translateY(${pull}px)` : undefined}
 	oncancel={(e) => {

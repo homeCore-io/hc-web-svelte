@@ -379,7 +379,8 @@ export function lampOf(card: Card & { kind: 'device' }, view: CardView, name: st
 		card,
 		view,
 		name,
-		on: sw.on,
+		// An offline light is off, as everywhere counts it (lights.ts).
+		on: sw.on && view.available,
 		level: dim && dim.kind === 'slider' ? Math.round(dim.value) : null,
 		rgb: view.kind === 'switch' || view.kind === 'outlet' ? WARM : colourOf(card.device),
 		attr: sw.attr

@@ -57,6 +57,17 @@ describe('a room in the Lit look (12)', () => {
 		expect(lightsOf(zones)).not.toContain('group:Zone');
 	});
 
+	it('draws an offline light as off, with no glow', () => {
+		const lamp = byId('hue_lamp');
+		const on = { ...lamp, attributes: { ...lamp.attributes, on: true, brightness_pct: 60 } };
+		const lit = room([on]);
+		expect(lit.lights.map((l) => !isGroup(l) && l.on)).toEqual([true]);
+		expect(lit.glow).toHaveLength(1);
+		const off = room([{ ...on, available: false }]);
+		expect(off.lights.map((l) => !isGroup(l) && l.on)).toEqual([false]);
+		expect(off.glow).toEqual([]);
+	});
+
 	it('folds remotes and keypads away, and keeps a lock with the doors', () => {
 		const r = room([byId('caseta_pico'), byId('lutron_keypad'), byId('yolink_front_lock')]);
 		expect(r.more.map((c) => c.ref)).toEqual(['device:caseta_pico', 'device:lutron_keypad']);

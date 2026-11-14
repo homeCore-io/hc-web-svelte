@@ -23,7 +23,8 @@ import type { Box } from '../roomBox.js';
 import { artistOf, groupOf, isPlayer, playerName } from './media.js';
 import { playingNow, playNow } from '../playing.js';
 import { roomOf } from './cameras.js';
-import { guards, levelOf, securityKind, shortName, watchActive, watchWord } from './room.js';
+import { levelOf, shortName } from './room.js';
+import { guards, securityKind, watchActive, watchWord } from '../security.js';
 import { isLamp, type Wants } from './pictures.js';
 import { whereLit, type LightsCount } from '../lights.js';
 

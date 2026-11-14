@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import type { CoreDevice } from '../devices.js';
-import { securityKind, watchActive, watchWord } from './room.js';
+import type { CoreDevice } from './devices.js';
+import { cardFor } from './card.js';
+import {
+	cardOpen,
+	cardSecurity,
+	cardUnlocked,
+	openWords,
+	securityKind,
+	watchActive,
+	watchWord
+} from './security.js';
 
 const dev = (
 	id: string,
@@ -79,5 +88,40 @@ describe('a watched device', () => {
 		expect(watchWord(dev('l', 'light', { on: false }), 0)).toBe('Off');
 		expect(watchWord(dev('l', 'light', { on: true, brightness_pct: 40 }), 0)).toBe('On');
 		expect(watchWord(dev('w', 'water_sensor', { water_detected: true }), 0)).toBe('Wet');
+	});
+});
+
+describe('as cards', () => {
+	const door = dev('d', 'contact_sensor', { open: true }, { name: 'Pantry Door' });
+	const out = { ...door, device_id: 'o', security: false };
+	const motion = dev(
+		'm',
+		'motion_sensor',
+		{ motion: true },
+		{ name: 'Driveway Motion', security: true }
+	);
+	const lock = dev('k', 'lock', { locked: false }, { security: false });
+	const byId = { d: door, o: out, m: motion, k: lock };
+	const card = (d: CoreDevice) => cardFor(d, 0);
+
+	it('finds what needs a look as an open door does', () => {
+		expect(cardSecurity(card(motion), byId)).toBe('watch');
+		expect(cardOpen(card(door), byId)).toBe(true);
+		expect(cardOpen(card(out), byId)).toBe(false);
+		expect(cardOpen(card(motion), byId)).toBe(true);
+		expect(cardOpen(card({ ...motion, available: false }), byId)).toBe(false);
+		// Without its device at hand, a card goes by its kind.
+		expect(cardOpen(card(door))).toBe(true);
+		expect(cardOpen(card(motion))).toBe(false);
+		expect(cardUnlocked(card(lock), byId)).toBe(false);
+		expect(cardUnlocked(card(lock))).toBe(true);
+	});
+
+	it('says it in words', () => {
+		expect(openWords([card(door)], byId)).toBe('Pantry Door open');
+		expect(openWords([card(motion)], byId)).toBe('Driveway Motion: Motion');
+		expect(openWords([card(door), card(door)], byId)).toBe('2 open');
+		expect(openWords([card(door), card(motion)], byId)).toBe('2 to check');
+		expect(openWords([], byId)).toBeUndefined();
 	});
 });

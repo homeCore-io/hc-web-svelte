@@ -21,7 +21,7 @@
 	import { commands } from '#lib/commands.svelte.js';
 	import { isOpen } from '#lib/card.js';
 	import { pillWord } from './cameras.js';
-	import { watchActive, watchWord } from './room.js';
+	import { watchActive, watchWord } from '#lib/security.js';
 	import type { RoomNow } from './roomNow.svelte.js';
 
 	let { r, phone = false }: { r: RoomNow; phone?: boolean } = $props();

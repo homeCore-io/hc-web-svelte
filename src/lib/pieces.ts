@@ -4,13 +4,14 @@
  * house's devices, so each can be tested without drawing anything.
  */
 import { playingNow as playsNow } from './playing.js';
-import { isOpen, reading, skyIcon, type CardView, type CardSymbol, type IconName } from './card.js';
+import { reading, skyIcon, type CardView, type CardSymbol, type IconName } from './card.js';
 import { displayName, type AttributeSchema, type CoreDevice, type Devices } from './devices.js';
 import type { Room } from './house.js';
 import { kindOf } from './card.js';
 import { sourceOf, type Options } from './options.js';
 import { readingOf } from './roomBox.js';
 import { roomOf } from './summary.js';
+import { cardOpen, cardSecurity, cardUnlocked } from './security.js';
 import { readingUnit, shownUnit, toShown } from './units.js';
 
 export interface Item {
@@ -86,12 +87,16 @@ export function worthKnowing(
 		),
 		...pick(
 			o.open,
-			(c) => c.available && isOpen(c),
-			(c) => openFor(all[c.id], now)
+			// As security counts it (security.ts): a watched device active says its state.
+			(c) => cardOpen(c, all),
+			(c) =>
+				cardSecurity(c, all) === 'watch'
+					? (c.stateLine.split(' · ')[0] ?? '')
+					: openFor(all[c.id], now)
 		),
 		...pick(
 			o.unlocked,
-			(c) => c.available && c.icon === 'unlock',
+			(c) => cardUnlocked(c, all),
 			() => 'Unlocked'
 		)
 	];

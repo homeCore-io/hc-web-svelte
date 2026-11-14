@@ -26,7 +26,7 @@
 		)
 	);
 	// What's wrong, a lock left unlocked too, as Home's tile rings it.
-	const wrong = $derived(troubleOf(box, cards));
+	const wrong = $derived(troubleOf(box, cards, devices.byId));
 </script>
 
 <span class="status" class:wrong={wrong !== undefined} title={wrong}>

@@ -25,14 +25,8 @@ import { units, type Units } from '../units.js';
 import { climateTab } from './climate.js';
 import { orderPlayers } from './media.js';
 import { playNow } from '../playing.js';
-import {
-	brandOf,
-	consoleRoom,
-	watchActive,
-	watchWord,
-	type ConsoleRoom,
-	type TabChoices
-} from './room.js';
+import { brandOf, consoleRoom, type ConsoleRoom, type TabChoices } from './room.js';
+import { watchActive, watchWord } from '../security.js';
 import { roomLights } from './pictures.js';
 import { isLit, lightsCount as countLights, whereLit, type LightsCount } from '../lights.js';
 import { readingOf, type Reading } from './sensors.js';

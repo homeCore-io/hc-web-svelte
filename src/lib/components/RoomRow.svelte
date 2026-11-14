@@ -32,7 +32,9 @@
 		temperature?: string;
 	} = $props();
 
-	const summary = $derived(roomSummary(cards, temperature, houseNow.lightIds, houseNow.playingIds));
+	const summary = $derived(
+		roomSummary(cards, temperature, houseNow.lightIds, houseNow.playingIds, house.byId)
+	);
 	const targets = $derived(allOffTargets(cards, house.byId));
 	const alert = $derived(cards.some((c) => c.alarm === 'wet'));
 

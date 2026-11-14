@@ -10,7 +10,7 @@ import { toShown } from '../units.js';
 import { cameraLightCards, cameraLightIds } from '../cameraLights.js';
 import { INFRASTRUCTURE, isOpen, kindOf, type CardView } from '../card.js';
 import type { Card } from '../page.js';
-import { securityKind, watchActive, watchWord } from '../console/room.js';
+import { securityKind, watchActive, watchWord } from '../security.js';
 
 /** A light or a switch, as Lit draws it. */
 export interface Lamp {

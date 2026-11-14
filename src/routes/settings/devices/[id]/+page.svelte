@@ -30,7 +30,8 @@
 	import Chart from '#lib/components/Chart.svelte';
 	import SaveBar from '#lib/components/admin/SaveBar.svelte';
 	import { household } from '#lib/household.svelte.js';
-	import { devicesIn, guards, TABS, tabChoicesOf, type TabId } from '#lib/console/room.js';
+	import { devicesIn, TABS, tabChoicesOf, type TabId } from '#lib/console/room.js';
+	import { guards } from '#lib/security.js';
 	import { choiceFor, ownTab } from '#lib/console/placing.js';
 	import { setDeviceTab } from '#lib/console/tabChoice.js';
 

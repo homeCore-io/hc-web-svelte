@@ -220,6 +220,27 @@ describe('a room’s box', () => {
 		expect(b.lines.filter((l) => l.alert).map((l) => l.text)).toEqual(['Leak', 'door open']);
 	});
 
+	it('counts open and unlocked as security does, by the household’s choice', () => {
+		const list = [
+			dev('pantry', 'contact_sensor', { open: true }, { security: false }),
+			dev('lock', 'lock', { locked: false }, { security: false }),
+			dev('drive', 'motion_sensor', { motion: true }, { name: 'Driveway Motion', security: true })
+		];
+		const byId = fromList(list);
+		const cards = list.map((d) => cardFor(d, NOW));
+		const b = roomBox(list, cards, byId, resolve([{ doors: true }], ROOM_BUILT_IN));
+		expect(b.lines.filter((l) => l.what === 'open' || l.what === 'unlocked')).toEqual([
+			{ text: 'Driveway Motion: Motion', alert: true, what: 'open' }
+		]);
+		expect(b.marks.map((m) => m.label)).toContain('Driveway Motion: Motion');
+		expect(b.marks.map((m) => m.label)).not.toContain('Unlocked');
+		expect(troubleOf(b, cards, byId)).toBe('Driveway Motion: Motion');
+		// Left out alone, nothing is wrong.
+		const out = list.slice(0, 2);
+		const quiet = roomBox(out, cards.slice(0, 2), fromList(out), resolve([{}], ROOM_BUILT_IN));
+		expect(troubleOf(quiet, cards.slice(0, 2), fromList(out))).toBeUndefined();
+	});
+
 	it('names what is wrong as Home rings it, a lock left unlocked too', () => {
 		const list = [...office, dev('lock', 'lock', { locked: false })];
 		const cards = list.map((d) => cardFor(d, NOW));

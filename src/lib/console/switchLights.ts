@@ -2,8 +2,10 @@
  * Turning a room's lights on or off, and every light in the house off, the
  * same way from Home and from Everywhere › Lights: Room on or Room off for a
  * room (homeCore remembers which lights were on), then its own command for
- * each light Room off doesn't cover (a switch named as a light), and for
- * each light in no room, which has no Room on.
+ * each light Room on and Room off don't reach (a switch named as a light), and
+ * for each light in no room, which has no Room on. A light they do reach is
+ * left to them: Room on brings back only the lights that were on, and turning
+ * the rest on too would undo that.
  */
 import { roomPower } from '#lib/admin.js';
 import { commands } from '#lib/commands.svelte.js';
@@ -12,6 +14,7 @@ import { kindOf } from '#lib/card.js';
 import type { CoreDevice } from '#lib/devices.js';
 import type { Room } from '#lib/house.js';
 import { isLit } from '#lib/lights.js';
+import { roomPowerLights } from '#lib/cameraLights.js';
 
 /** A room's lights, or the lights in no room (`room` missing). */
 export interface Lights {
@@ -33,8 +36,17 @@ export async function setLights(r: Lights, on: boolean): Promise<string | null> 
 		const d = devices.byId[id];
 		if (d) commands.expect(id, kindOf(d), { on }, d.attributes);
 	}
+	// If Room on or off failed, each light is sent its own command instead.
+	const reached = said.error
+		? new Set<string>()
+		: new Set(roomPowerLights(r.lights, devices.byId).map((d) => d.device_id));
 	for (const d of r.lights)
-		if (d.available && !said.lights.includes(d.device_id) && isLit(d, commands.pending) !== on)
+		if (
+			d.available &&
+			!said.lights.includes(d.device_id) &&
+			!reached.has(d.device_id) &&
+			isLit(d, commands.pending) !== on
+		)
 			void commands.set(d.device_id, kindOf(d), { on }, d.attributes);
 	return said.error ? `${r.name}: ${said.error}` : null;
 }

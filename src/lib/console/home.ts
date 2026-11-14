@@ -96,7 +96,7 @@ export function tileOf(
 	wants: Wants = () => undefined,
 	all: readonly CoreDevice[] = devices
 ): Tile {
-	const short = (name: string) => shortName(name.replace(/\s+sensor$/i, ''), room.name);
+	const short = (name: string) => shortName(name.replace(/\s+sensor$/i, ''), room.name, true);
 	const on = lamps.filter((d) => d.available && levelOf(d, wants(d.device_id)) > 0).length;
 	const lightsWord =
 		lamps.length === 0 ? undefined : on === 0 ? 'Lights off' : plural(on, 'light on', 'lights on');
@@ -163,7 +163,7 @@ export function issuesOf(
 ): Issue[] {
 	const out: Issue[] = [];
 	for (const { room, cards } of rooms) {
-		const short = (name: string) => shortName(name.replace(/\s+sensor$/i, ''), room.name);
+		const short = (name: string) => shortName(name.replace(/\s+sensor$/i, ''), room.name, true);
 		for (const c of cards) {
 			if (!c.available) {
 				if (guards(c.kind))

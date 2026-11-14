@@ -458,6 +458,11 @@ describe('a light’s level', () => {
 		expect(shortName('Officer lamp', 'Office')).toBe('Officer lamp');
 		expect(shortName('Desk Lamp', 'Office')).toBe('Desk Lamp');
 		expect(shortName('Bathroom 2 Leak Sensor', 'Bathroom')).toBe('Bathroom 2 Leak Sensor');
+		expect(shortName('Outside Off', 'Outside')).toBe('Outside Off');
+		expect(shortName('Garage Door', 'Garage')).toBe('Garage Door');
+		expect(shortName('Garage Lights', 'Garage')).toBe('Garage Lights');
+		expect(shortName('Garage Close', 'Garage')).toBe('Garage Close');
+		expect(shortName('Outside Deck Off', 'Outside')).toBe('Deck Off');
 	});
 
 	it('names a brand from its plugin', () => {

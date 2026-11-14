@@ -586,7 +586,26 @@ export const levelWant = (v: number): Record<string, unknown> =>
  * the page: "Family Room Floor Lamp" in the Family Room is "Floor Lamp". A
  * name that is only the room's, or another room's numbered after it, is kept whole.
  */
-export function shortName(name: string, room: string): string {
+/** Words that say nothing alone once the room is taken off. */
+const GENERIC = new Set([
+	'on',
+	'off',
+	'open',
+	'close',
+	'door',
+	'doors',
+	'light',
+	'lights',
+	'lock',
+	'switch',
+	'timer',
+	'scene',
+	'all',
+	'start',
+	'stop'
+]);
+
+export function shortName(name: string, room: string, lone = false): string {
 	const r = room.trim().toLowerCase();
 	if (r === '' || !name.toLowerCase().startsWith(r)) return name;
 	const rest = name.slice(r.length);
@@ -594,5 +613,9 @@ export function shortName(name: string, room: string): string {
 	const left = rest.replace(/^[\s\-–:]+/, '');
 	// "Bathroom 2 Leak Sensor" in the Bathroom is another room's: kept whole.
 	if (left === '' || /^\d/.test(left)) return name;
+	// "Outside Off" or "Garage Door" left as Off or Door reads as the room's own
+	// controls, or the garage door itself: a lone everyday word keeps the room.
+	// (`lone`: where the room is said alongside, as on its Home tile, it may go.)
+	if (!lone && GENERIC.has(left.toLowerCase())) return name;
 	return left.charAt(0).toUpperCase() + left.slice(1);
 }

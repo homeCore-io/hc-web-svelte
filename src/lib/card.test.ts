@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { cardFor, epochOf, judgeBatteriesBy, reading, type CardView } from './card.js';
+import {
+	cardFor,
+	epochOf,
+	judgeBatteriesBy,
+	momentText,
+	reading,
+	textReading,
+	type CardView
+} from './card.js';
 import { followUnits } from './units.js';
 import { HOUSE, FIXTURE_NOW } from './fixtures/house.js';
 import type { CoreDevice, Schema } from './devices.js';
@@ -301,5 +309,25 @@ describe('a symbol a person chose', () => {
 		const front = byId('yolink_front_lock');
 		const unlocked = { attributes: { ...front.attributes, locked: false } };
 		expect(card('yolink_front_lock', { ...unlocked, status_icon: 'lock' }).icon).toBe('unlock');
+	});
+});
+
+describe('a reading sent as text', () => {
+	it('reads a device word as words', () => {
+		expect(textReading('heat_cool')).toBe('Heat cool');
+		expect(textReading('LockFailed')).toBe('Lock failed');
+	});
+	it('reads a local date and time as a moment, keeping its numbers whole', () => {
+		const said = textReading('2026-10-16 00:11:04');
+		expect(said).toBe(momentText(new Date(2026, 9, 16, 0, 11, 4).getTime()));
+		expect(said).not.toContain('2026 10 16');
+	});
+	it('leaves a file, a stream name or an address as it is', () => {
+		expect(textReading('snap/reolink_nvr_1_1794177382463.jpg')).toBe(
+			'snap/reolink_nvr_1_1794177382463.jpg'
+		);
+		expect(textReading('reolink_nvr_1_hd')).toBe('reolink_nvr_1_hd');
+		expect(textReading('rtsp://cam.local/main')).toBe('rtsp://cam.local/main');
+		expect(textReading('HDMI1')).toBe('HDMI1');
 	});
 });

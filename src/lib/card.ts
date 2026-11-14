@@ -801,10 +801,25 @@ export function reading(a: Record<string, unknown>, s: Schema, name: string): st
 		if (r.unit === '%') return `${Math.round(r.value)}%`;
 		return r.unit ? `${n} ${r.unit}` : n;
 	}
-	if (typeof value === 'string')
-		// An address is said as it is, never capitalised or split into words.
-		return /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : cap(words(uncamel(value)));
+	if (typeof value === 'string') return textReading(value);
 	return undefined;
+}
+
+/**
+ * A reading sent as text. A word or two in a device's own spelling —
+ * `heat_cool`, `LockFailed` — reads as words; a local date and time —
+ * Ecowitt's "2026-10-16 00:11:04" — as the app says a moment; anything else
+ * (an address, a file, a stream's name, a model number) as it is, since
+ * splitting it at dashes and underscores only mangles it.
+ */
+export function textReading(value: string): string {
+	const local = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/.exec(value.trim());
+	if (local) {
+		const [, y, mo, d, h, mi, s] = local.map(Number);
+		const t = new Date(y!, mo! - 1, d!, h!, mi!, s || 0).getTime();
+		if (Number.isFinite(t)) return momentText(t);
+	}
+	return /^[A-Za-z][A-Za-z _-]*$/.test(value) ? cap(words(uncamel(value))) : value;
 }
 
 /** A moment as the app says one in a reading: "Oct 21, 1:20 PM". */

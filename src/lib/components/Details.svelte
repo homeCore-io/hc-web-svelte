@@ -205,7 +205,7 @@
 		<div class="hero-row">
 			<!-- Off keeps its level, shown resting: turning it on returns there (#29). -->
 			<BigBar
-				label={sw.on ? 'Brightness' : 'Brightness · off'}
+				label="Brightness"
 				value={brightness.value}
 				resting={!sw.on}
 				min={0}
@@ -636,6 +636,13 @@
 					</div>
 				{/each}
 			</dl>
+		</section>
+	{/if}
+
+	{#if view.empty}
+		<section>
+			<h3 class="section-label">Readings</h3>
+			<p class="quiet">{view.empty}</p>
 		</section>
 	{/if}
 

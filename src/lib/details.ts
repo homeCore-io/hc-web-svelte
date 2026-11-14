@@ -132,7 +132,15 @@ export interface DetailsView {
 	more: Line[];
 	/** The reading worth a chart of the last day, if any. */
 	chart?: { attr: string; label: string; unit?: string; bool: boolean };
+	/** Said instead of readings when a device that only reports has reported nothing yet. */
+	empty?: string;
 }
+
+/**
+ * Kinds that only report: the weather outside is read, never set, whatever
+ * the plugin's schema says about writing it.
+ */
+const READ_ONLY = new Set(['weather', 'weather_station']);
 
 /** Kinds whose leftover readings go under More rather than Readings. */
 const QUIET_READINGS = new Set([
@@ -161,6 +169,7 @@ export function detailsFor(d: CoreDevice, all: CoreDevice[] = [], now = Date.now
 	const a = d.attributes;
 	const claimed = new Set((s.actions ?? []).map((x) => x.writes).filter(Boolean));
 	const covered = onCard(card);
+	const readOnly = READ_ONLY.has(card.kind);
 
 	const names = ordered(s);
 	const controls: DetailControl[] = [];
@@ -175,15 +184,17 @@ export function detailsFor(d: CoreDevice, all: CoreDevice[] = [], now = Date.now
 			if (text !== undefined) more.push({ attr: name, label: labelOf(name, spec), value: text });
 			continue;
 		}
-		if (spec.writable && !covered.has(name) && !claimed.has(name)) {
+		if (spec.writable && !readOnly && !covered.has(name) && !claimed.has(name)) {
 			const control = controlFor(name, spec, value, a);
 			if (control !== undefined) {
 				controls.push(control);
 				continue;
 			}
 		}
-		if (spec.writable && (covered.has(name) || claimed.has(name))) continue;
+		if (spec.writable && !readOnly && (covered.has(name) || claimed.has(name))) continue;
 		if (spec.kind === 'json') continue;
+		// The same light level twice: Hue sends `illuminance` and `illuminance_lux`.
+		if (name.endsWith('_lux') && s.attributes[name.slice(0, -4)]) continue;
 		const text = lineFor(a, s, name);
 		if (text === undefined) continue;
 		// A light, switch or fan says what matters on its card and controls;
@@ -203,7 +214,13 @@ export function detailsFor(d: CoreDevice, all: CoreDevice[] = [], now = Date.now
 		groups: groupsOf(d, s, all),
 		readings: once(readings),
 		more: once(more),
-		chart: chartFor(d, s)
+		chart: chartFor(d, s),
+		empty:
+			readOnly && names.every((n) => a[n] === null || a[n] === undefined)
+				? card.kind === 'weather'
+					? 'No weather from the service yet.'
+					: 'No readings from it yet.'
+				: undefined
 	};
 }
 
@@ -608,7 +625,9 @@ function ordered(s: Schema): string[] {
 }
 
 function labelOf(name: string, spec: AttributeSchema): string {
-	if (spec.display_name) return spec.display_name;
+	// A unit left on the end of a plugin's name for it ("Power w") is said by the value instead.
+	if (spec.display_name)
+		return spec.unit ? spec.display_name.replace(/ (w|kwh|pct|secs)$/i, '') : spec.display_name;
 	const w = words(name.replace(/_(pct|secs|w|kwh)$|(?<=^current)_a$/, ''));
 	return w[0]!.toUpperCase() + w.slice(1);
 }

@@ -285,3 +285,58 @@ describe('in the person’s units', () => {
 		expect(actionBody(set, {})).toEqual({ action: 'set_setpoint', value: 21.7 });
 	});
 });
+
+describe('the weather outside, which is read and never set', () => {
+	const weather = (temperature: number | null, humidity: number | null) =>
+		({
+			device_id: 'weather_home',
+			name: 'Weather',
+			available: true,
+			plugin_id: 'plugin.weather',
+			device_type: 'weather',
+			attributes: { temperature, humidity },
+			schema: {
+				attributes: {
+					temperature: { kind: 'float', writable: true, unit: '°F', display_name: 'Temperature' },
+					humidity: { kind: 'float', writable: true, unit: '%', display_name: 'Humidity' }
+				}
+			}
+		}) as unknown as CoreDevice;
+	it('offers no setters even where the schema calls a reading writable', () => {
+		const v = detailsFor(weather(50, 60));
+		expect(v.controls).toEqual([]);
+		expect(v.readings.map((r) => r.attr).sort()).toEqual(['humidity', 'temperature']);
+		expect(v.empty).toBeUndefined();
+	});
+	it('says it has heard nothing yet when every reading is empty', () => {
+		const v = detailsFor(weather(null, null));
+		expect(v.controls).toEqual([]);
+		expect(v.readings).toEqual([]);
+		expect(v.empty).toBe('No weather from the service yet.');
+	});
+});
+
+describe('labels that say a reading once', () => {
+	it('drops a unit left on the end of a plugin’s name, and Hue’s second light level', () => {
+		const d = {
+			device_id: 'm',
+			name: 'Motion',
+			available: true,
+			plugin_id: 'plugin.hue',
+			device_type: 'motion_sensor',
+			attributes: { power_w: 3, illuminance: 26.7, illuminance_lux: 26.7 },
+			schema: {
+				attributes: {
+					power_w: { kind: 'float', unit: 'W', display_name: 'Power w' },
+					illuminance: { kind: 'float', unit: 'lux', display_name: 'Illuminance' },
+					illuminance_lux: { kind: 'float', unit: 'lux', display_name: 'Illuminance Lux' }
+				}
+			}
+		} as unknown as CoreDevice;
+		const v = detailsFor(d);
+		const all = [...v.readings, ...v.more];
+		expect(all.find((r) => r.attr === 'power_w')?.label).toBe('Power');
+		expect(all.some((r) => r.attr === 'illuminance_lux')).toBe(false);
+		expect(all.some((r) => r.attr === 'illuminance')).toBe(true);
+	});
+});

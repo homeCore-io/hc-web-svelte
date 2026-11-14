@@ -31,10 +31,14 @@
 	let held = $state<number | null>(null);
 	const shown = $derived(held ?? value);
 	const pct = $derived(max > min ? ((shown - min) / (max - min)) * 100 : 0);
+	// A light that is off says Off, not the level it keeps for turning on again,
+	// until someone drags it.
 	const text = $derived(
-		unit === 'K'
-			? `${Math.round(shown)} K`
-			: `${Number.isInteger(step) ? Math.round(shown) : shown.toFixed(1)}${unit === '%' ? '%' : unit ? ` ${unit}` : ''}`
+		resting && held === null
+			? 'Off'
+			: unit === 'K'
+				? `${Math.round(shown)} K`
+				: `${Number.isInteger(step) ? Math.round(shown) : shown.toFixed(1)}${unit === '%' ? '%' : unit ? ` ${unit}` : ''}`
 	);
 </script>
 

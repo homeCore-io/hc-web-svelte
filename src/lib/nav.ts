@@ -101,14 +101,17 @@ export function titleFor(pathname: string): string {
 	return known[pathname] ?? (setting ? settingsItem(setting[1]!)?.label : undefined) ?? 'homeCore';
 }
 
-/** The Everywhere views, by their address, for a tab's title. */
-const EVERYWHERE: Record<string, string> = {
-	lights: 'Lights',
-	media: 'Media',
-	climate: 'Climate',
-	security: 'Security',
-	water: 'Water'
-};
+/** The house's Everywhere views (/everywhere/{id}): every room at once, and the symbol each goes by. */
+export const EVERYWHERE_VIEWS = [
+	{ id: 'lights', label: 'Lights', icon: 'light' },
+	{ id: 'media', label: 'Media', icon: 'speaker' },
+	{ id: 'climate', label: 'Climate', icon: 'thermometer' },
+	{ id: 'security', label: 'Security', icon: 'lock' },
+	{ id: 'water', label: 'Water', icon: 'water' }
+] as const;
+const EVERYWHERE: Record<string, string> = Object.fromEntries(
+	EVERYWHERE_VIEWS.map((v) => [v.id, v.label])
+);
 
 /** What an address is called where neither the page nor `titleFor` names it. */
 function placeOf(pathname: string): string | null {

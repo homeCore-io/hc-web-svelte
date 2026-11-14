@@ -13,6 +13,11 @@
 	import { view } from '#lib/view.svelte.js';
 	import RoomIcon from '#lib/components/RoomIcon.svelte';
 
+	// Every room at once, as the console's sidebar and phone bar offer them.
+	const everywhere = ['Lights', 'Media', 'Climate', 'Security', 'Water'].map((label) => ({
+		href: `/everywhere/${label.toLowerCase()}`,
+		label
+	}));
 	const items = $derived([
 		{ href: '/pages', label: 'Pages' },
 		{ href: '/scenes', label: 'Scenes' },
@@ -30,6 +35,18 @@
 <div class="page">
 	<ul>
 		{#each items as item (item.href)}
+			<li>
+				<a href={item.href}>
+					<span>{item.label}</span>
+					<ChevronRight size={18} aria-hidden="true" />
+				</a>
+			</li>
+		{/each}
+	</ul>
+
+	<h2>Everywhere</h2>
+	<ul>
+		{#each everywhere as item (item.href)}
 			<li>
 				<a href={item.href}>
 					<span>{item.label}</span>

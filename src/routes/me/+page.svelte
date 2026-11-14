@@ -169,8 +169,7 @@
 		if (next.length < 8) return void (passwordNote = 'The new one needs at least 8 characters.');
 		const r = await changeMyPassword(current, next);
 		if (!r.ok) return void (passwordNote = r.error);
-		await session.signOut();
-		void goto('/login?changed=1');
+		await session.signOut('/login?changed=1');
 	}
 
 	async function signOut() {

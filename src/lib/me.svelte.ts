@@ -61,9 +61,15 @@ class Session {
 		return null;
 	}
 
-	async signOut(): Promise<void> {
+	/**
+	 * Signs out, then loads `to` afresh: what was read for this person (their
+	 * look, favorites, the house as they could see it) goes with the page, so
+	 * whoever signs in next starts clean.
+	 */
+	async signOut(to = '/login'): Promise<void> {
 		await fetch('/ui/auth/logout', { method: 'POST' });
 		this.me = null;
+		location.replace(to);
 	}
 
 	/** May this session do `scope`? Judged by homeCore's scopes, never the role (S4). */

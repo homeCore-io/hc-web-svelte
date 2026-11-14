@@ -365,3 +365,16 @@ describe('a rule still being made', () => {
 		expect(sentence(h, r).some((b) => b.todo)).toBe(true);
 	});
 });
+
+test('a scene being active is said as active, not as its attribute being on', () => {
+	const active = (value: boolean, op = 'Eq') =>
+		plain(
+			checkPhrase(h, {
+				DeviceState: { device_id: 'zz_scene_out', attribute: 'active', op, value }
+			})
+		);
+	expect(active(true)).toMatch(/ is active$/);
+	expect(active(false)).toMatch(/ is not active$/);
+	expect(active(true, 'Ne')).toMatch(/ is not active$/);
+	expect(active(true)).not.toMatch(/active is on/);
+});

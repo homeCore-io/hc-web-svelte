@@ -55,6 +55,7 @@
 	import { tabToShow } from './layout.js';
 	import type { Component } from 'svelte';
 	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
+	import { nextTab } from '#lib/menuKeys.js';
 
 	let { id }: { id: string } = $props();
 
@@ -151,12 +152,12 @@
 	function keys(e: KeyboardEvent) {
 		const shown = arranged.shown;
 		const i = shown.findIndex((t) => t.id === tab);
-		const by = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
-		if (by === 0 || i < 0) return;
+		const to = nextTab(e.key, i, shown.length);
+		if (to === null) return;
 		e.preventDefault();
-		const nextTab = shown[(i + by + shown.length) % shown.length]!;
-		choose(nextTab.id);
-		queueMicrotask(() => tabBox?.querySelector<HTMLElement>(`[data-tab="${nextTab.id}"]`)?.focus());
+		const next = shown[to]!;
+		choose(next.id);
+		queueMicrotask(() => tabBox?.querySelector<HTMLElement>(`[data-tab="${next.id}"]`)?.focus());
 	}
 </script>
 

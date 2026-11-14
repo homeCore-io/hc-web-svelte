@@ -11,6 +11,7 @@ import { cap, words, ago } from './card.js';
 import { knownPluginName, pluginLabel } from './inventory.js';
 import type { Field } from './ruleEdit.js';
 import { timeOf } from './when.js';
+import type { CoreDevice } from './devices.js';
 
 export interface Notice {
 	level: 'info' | 'warning' | 'error';
@@ -245,6 +246,20 @@ export interface Row {
 	notice?: Notice;
 	record: PluginRecord;
 }
+
+/** How many devices homeCore holds for each plugin: the count its own page shows. */
+export function heldBy(list: Iterable<CoreDevice>): Record<string, number> {
+	const n: Record<string, number> = {};
+	for (const d of list) if (d.plugin_id) n[d.plugin_id] = (n[d.plugin_id] ?? 0) + 1;
+	return n;
+}
+
+/**
+ * The rows with the devices homeCore holds for each, as its page counts
+ * them. A plugin's own count can lag behind: it's used until they're in (`held` null).
+ */
+export const withHeld = (rows: Row[], held: Record<string, number> | null): Row[] =>
+	held ? rows.map((r) => ({ ...r, devices: held[r.id] ?? 0 })) : rows;
 
 const NOTICE_RANK = { error: 0, warning: 1, info: 2 } as const;
 

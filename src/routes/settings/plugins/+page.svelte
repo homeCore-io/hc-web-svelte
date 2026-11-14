@@ -12,7 +12,14 @@
 	import { clock } from '#lib/clock.svelte.js';
 	import { live } from '#lib/live.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
-	import { notInstalled, rowsOf, type PluginRecord, type RegistryPlugin } from '#lib/plugins.js';
+	import {
+		heldBy,
+		notInstalled,
+		rowsOf,
+		withHeld,
+		type PluginRecord,
+		type RegistryPlugin
+	} from '#lib/plugins.js';
 	import { loadRegistry, loadRuntimes, loadStatus } from '#lib/pluginAdmin.js';
 
 	let list = $state<PluginRecord[] | null>(null);
@@ -49,21 +56,10 @@
 		};
 	});
 
-	// The devices homeCore holds for each: the count its own page shows. A
-	// plugin's own count can lag behind; it's used only until they're in.
-	const held = $derived.by(() => {
-		if (!devices.loaded) return null;
-		const n: Record<string, number> = {};
-		for (const d of Object.values(devices.byId))
-			if (d.plugin_id) n[d.plugin_id] = (n[d.plugin_id] ?? 0) + 1;
-		return n;
-	});
+	// The devices homeCore holds for each: the count its own page shows.
+	const held = $derived(devices.loaded ? heldBy(Object.values(devices.byId)) : null);
 	const rows = $derived(
-		list
-			? rowsOf(list, registry, clock.now, core.version).map((r) =>
-					held ? { ...r, devices: held[r.id] ?? 0 } : r
-				)
-			: []
+		list ? withHeld(rowsOf(list, registry, clock.now, core.version), held) : []
 	);
 	const running = $derived(rows.filter((r) => r.state.word === 'Running').length);
 	const updates = $derived(rows.filter((r) => r.update).length);

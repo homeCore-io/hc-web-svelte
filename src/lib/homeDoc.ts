@@ -38,7 +38,8 @@ export function homeDocument(): Page {
 		chips: houseChips(
 			Object.values(devices.byId).map((d) => cardFor(d, clock.now)),
 			houseNow.lightIds,
-			houseNow.playingIds
+			houseNow.playingIds,
+			devices.byId
 		),
 		mode: view.mode(HOME)
 	});

@@ -10,6 +10,7 @@ import { toShown } from '../units.js';
 import { cameraLightCards, cameraLightIds } from '../cameraLights.js';
 import { INFRASTRUCTURE, isOpen, kindOf, type CardView } from '../card.js';
 import type { Card } from '../page.js';
+import { securityKind, watchActive, watchWord } from '../security.js';
 
 /** A light or a switch, as Lit draws it. */
 export interface Lamp {
@@ -233,6 +234,12 @@ export function litRoom(
 				detail: ''
 			});
 
+		// What counts for security, as the household chose: a lock left
+		// unlocked or a door open below, a watched device while it's active.
+		const counts = securityKind(d);
+		if (counts === 'watch' && view.available && watchActive(d))
+			problems.push({ key: `${card.ref}/active`, title: `${name}: ${watchWord(d)}`, detail: '' });
+
 		if (card.scene) {
 			scenes.push(deviceScene(card, name));
 			continue;
@@ -243,6 +250,7 @@ export function litRoom(
 		}
 		if (isDoorKind(view.kind)) {
 			doors.push(card);
+			if (!counts) continue;
 			if (view.control?.kind === 'lock' && !view.control.locked && view.available)
 				problems.push({
 					key: `${card.ref}/unlocked`,

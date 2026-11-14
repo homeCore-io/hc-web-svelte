@@ -1,6 +1,7 @@
 <!--
 	One device, for an admin (A1): its name and room, the console tab it
-	shows on in its room (for the whole household), its name in rules, what
+	shows on in its room and whether it counts for security (both for the
+	whole household), its name in rules, what
 	it reports and its history, where it is used, and deleting it.
 -->
 <script lang="ts">
@@ -18,7 +19,7 @@
 	import { heading } from '#lib/heading.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
-	import { SYMBOLS, cardFor } from '#lib/card.js';
+	import { SYMBOLS, cardFor, kindOf } from '#lib/card.js';
 	import { roomOf } from '#lib/summary.js';
 	import { kindLabel, pluginLabel, seenText } from '#lib/inventory.js';
 	import { chartable, readingsOf, usesOf } from '#lib/deviceView.js';
@@ -30,6 +31,7 @@
 	import SaveBar from '#lib/components/admin/SaveBar.svelte';
 	import { household } from '#lib/household.svelte.js';
 	import { devicesIn, TABS, tabChoicesOf, type TabId } from '#lib/console/room.js';
+	import { guards } from '#lib/security.js';
 	import { choiceFor, ownTab } from '#lib/console/placing.js';
 	import { setDeviceTab } from '#lib/console/tabChoice.js';
 
@@ -144,6 +146,33 @@
 			el.value = chosenTab ?? '';
 			tabNote = 'The house didn’t keep that.';
 		}
+	}
+
+	// ---- whether it counts for security, for everyone (homeCore's `security`) ----
+	const security = $derived(
+		device?.security === true ? 'in' : device?.security === false ? 'out' : ''
+	);
+	const byType = $derived(device ? guards(kindOf(device)) : undefined);
+	let securityNote = $state<string | null>(null);
+	const securityHint = (v: string) =>
+		v === 'out'
+			? 'Left out of Everywhere › Security, the sidebar’s count and its room’s header, for everyone. It still shows on its room’s tabs and in rules.'
+			: v === 'in'
+				? byType
+					? 'Counts for security, for everyone.'
+					: 'Counts for security, for everyone. It needs a look while it’s active: motion, open, wet or on.'
+				: byType
+					? `Counts for security as ${byType === 'lock' ? 'a lock' : 'a door'}, for everyone.`
+					: 'Doesn’t count for security, as its type says.';
+	async function setSecurity(el: HTMLSelectElement) {
+		const v = el.value;
+		securityNote = null;
+		const err = await patchDevice(id, { security: v === 'in' ? true : v === 'out' ? false : null });
+		if (err) {
+			// The device didn't change, so Svelte won't write it back: the select does.
+			el.value = security;
+			securityNote = err;
+		} else securityNote = securityHint(v);
 	}
 
 	// ---- name in rules ----
@@ -326,6 +355,26 @@
 						</select>
 					</label>
 					{#if tabNote}<p class="hint" role="status">{tabNote}</p>{/if}
+					<label class="row">
+						<span class="k">Security</span>
+						<select
+							value={security}
+							disabled={!session.can('devices:write')}
+							onchange={(e) => setSecurity(e.currentTarget)}
+						>
+							<option value=""
+								>As its type says ({byType === 'lock'
+									? 'counts: a lock'
+									: byType === 'door'
+										? 'counts: a door'
+										: 'doesn’t count'})</option
+							>
+							<option value="in">Counts for security</option>
+							<option value="out">Not for security</option>
+						</select>
+					</label>
+					{#if securityNote}<p class="hint" role="status">{securityNote}</p>
+					{:else if security === 'out'}<p class="hint">{securityHint('out')}</p>{/if}
 					<div class="row">
 						<span class="k">Name in rules</span>
 						{#if renamingRules}

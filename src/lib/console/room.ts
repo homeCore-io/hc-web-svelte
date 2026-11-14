@@ -24,6 +24,7 @@
  * Pure: the page draws what this decides.
  */
 import { kindOf } from '../card.js';
+import { OPENER_KINDS, OPENING_KINDS, securityKind } from '../security.js';
 import type { CoreDevice, Devices } from '../devices.js';
 import { isCamera, isCameraLight } from '../cameraLights.js';
 import type { Room } from '../house.js';
@@ -83,8 +84,6 @@ export function devicesIn(all: Devices | CoreDevice[], room: Room): CoreDevice[]
 const LIGHT_KINDS = new Set(['light', 'dimmer']);
 const SWITCH_KINDS = new Set(['switch', 'outlet', 'virtual_switch', 'plug']);
 const KEYPAD_KINDS = new Set(['keypad', 'vcrx']);
-const OPENER_KINDS = new Set(['cover', 'garage', 'garage_door', 'gate', 'shade', 'blind']);
-const OPENING_KINDS = new Set(['contact_sensor', 'door', 'window', ...OPENER_KINDS]);
 const DOOR_KINDS = new Set(['lock', ...OPENING_KINDS]);
 const SECURITY_KINDS = new Set(['camera', 'siren', 'doorbell']);
 const MEDIA_KINDS = new Set(['media_player', 'tv', 'speaker', 'receiver']);
@@ -240,15 +239,6 @@ export function opens(d: CoreDevice): boolean {
 	return (SWITCH_KINDS.has(k) || isScene(d)) && OPENS.test(d.name_override ?? d.name);
 }
 
-/**
- * Whether a kind of device keeps the house shut, as a header's pills show
- * it: a lock, or a door, window or cover that opens.
- */
-export function guards(kind: string): 'lock' | 'door' | undefined {
-	if (kind === 'lock') return 'lock';
-	return OPENING_KINDS.has(kind) ? 'door' : undefined;
-}
-
 // ---- the Lights tab ----
 
 /** A column of the Lights tab: one group of one lighting system. */
@@ -288,6 +278,8 @@ export interface ConsoleRoom {
 	/** For the header: locks, and what opens and closes (doors, windows, covers), on any tab. */
 	locks: CoreDevice[];
 	openings: CoreDevice[];
+	/** Anything else the household put in security (a motion sensor, a light), on any tab. */
+	watched: CoreDevice[];
 	/** The tab shown when none was chosen. */
 	first: TabId | undefined;
 }
@@ -556,9 +548,10 @@ export function consoleRoom(
 		tabs,
 		lights: tab,
 		byTab,
-		// Its locks and doors, on whichever tab they are.
-		locks: placed.filter((d) => guards(kindOf(d)) === 'lock'),
-		openings: placed.filter((d) => guards(kindOf(d)) === 'door'),
+		// Its locks, doors and what else is watched, on whichever tab they are.
+		locks: placed.filter((d) => securityKind(d) === 'lock'),
+		openings: placed.filter((d) => securityKind(d) === 'door'),
+		watched: placed.filter((d) => securityKind(d) === 'watch'),
 		first: tabs[0]?.id
 	};
 }

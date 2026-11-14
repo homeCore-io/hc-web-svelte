@@ -17,7 +17,8 @@
 		houseChips(
 			Object.values(devices.byId).map((d) => cardFor(d, clock.now)),
 			houseNow.lightIds,
-			houseNow.playingIds
+			houseNow.playingIds,
+			devices.byId
 		)
 	);
 	const chip = $derived(chips.find((c) => c.key === page.params.key));

@@ -7,12 +7,13 @@
  * Whatever is switched off, a box always shows what's wrong in the room — a
  * leak, smoke, an open door, something offline (G6).
  */
-import { isOpen, kindOf, type CardView, type IconName } from './card.js';
+import { kindOf, type CardView, type IconName } from './card.js';
 import { displayName, unitOf, type CoreDevice, type Devices } from './devices.js';
 import { numbersOf, sourceOf, type NumberId, type Options, type Source } from './options.js';
 import { allOffTargets } from './summary.js';
 import { isCameraLight } from './cameraLights.js';
 import { playingNow } from './playing.js';
+import { cardOpen, cardUnlocked, openWords } from './security.js';
 import { shownUnit, toShown, type Units } from './units.js';
 
 /** Readings in homeCore's own units, to compare against a fixed °C. */
@@ -211,8 +212,12 @@ export interface Box {
 const LIGHT = (c: CardView) => c.kind === 'light';
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-/** What's wrong in the room, in words — always shown (G6). Low batteries go with Batteries. */
-function wrong(cards: CardView[]): { lines: Line[]; alarm: boolean } {
+/**
+ * What's wrong in the room, in words, always shown (G6). Low batteries go
+ * with Batteries. What is open counts as security does (security.ts), a
+ * watched device active with it, by the household's choice in `all`.
+ */
+function wrong(cards: CardView[], all: Devices): { lines: Line[]; alarm: boolean } {
 	const lines: Line[] = [];
 	const wet = cards.filter((c) => c.alarm === 'wet');
 	if (wet.length > 0)
@@ -225,9 +230,9 @@ function wrong(cards: CardView[]): { lines: Line[]; alarm: boolean } {
 	if (smoke.length > 0) lines.push({ text: 'Smoke', alert: true, what: 'smoke' });
 	const jammed = cards.filter((c) => c.alarm === 'jammed');
 	for (const c of jammed) lines.push({ text: `${c.name} jammed`, alert: true, what: 'jammed' });
-	const open = cards.filter((c) => c.available && isOpen(c));
-	if (open.length === 1) lines.push({ text: `${open[0]!.name} open`, alert: true, what: 'open' });
-	else if (open.length > 1) lines.push({ text: `${open.length} open`, alert: true, what: 'open' });
+	const open = cards.filter((c) => cardOpen(c, all));
+	const openText = openWords(open, all);
+	if (openText) lines.push({ text: openText, alert: true, what: 'open' });
 	const off = cards.filter((c) => c.alarm === 'offline');
 	if (off.length === 1)
 		lines.push({ text: `${off[0]!.name} offline`, alert: true, what: 'offline' });
@@ -249,7 +254,7 @@ export function roomBox(
 	o: Options,
 	lightIds?: ReadonlySet<string>
 ): Box {
-	const { lines, alarm } = wrong(cards);
+	const { lines, alarm } = wrong(cards, all);
 	const lights = cards.filter(
 		(c) =>
 			c.available &&
@@ -283,7 +288,7 @@ export function roomBox(
 		if (fans > 0) said(plural(fans, 'fan on', 'fans on'), 'fans');
 	}
 	if (o.doors) {
-		const unlocked = cards.filter((c) => c.available && c.icon === 'unlock');
+		const unlocked = cards.filter((c) => cardUnlocked(c, all));
 		if (unlocked.length === 1) said(`${unlocked[0]!.name} unlocked`, 'unlocked');
 		else if (unlocked.length > 1) said(`${unlocked.length} unlocked`, 'unlocked');
 	}
@@ -330,11 +335,11 @@ export function roomBox(
 	const mark = (n: number, icon: Mark['icon'], label: string, tone: Mark['tone']) =>
 		n > 0 && marks.push({ icon, label, tone });
 	mark(cards.filter((c) => c.alarm === 'wet').length, 'water', 'Leak', 'alert');
-	const open = some((c) => isOpen(c));
-	mark(open.length, 'door-open', open.length === 1 ? `${open[0]!.name} open` : 'Open', 'alert');
+	const open = cards.filter((c) => cardOpen(c, all));
+	mark(open.length, 'door-open', open.length === 1 ? openWords(open, all)! : 'Open', 'alert');
 	if (o.battery)
 		mark(cards.filter((c) => c.alarm === 'low battery').length, 'alert', 'Battery low', 'alert');
-	if (o.doors) mark(some((c) => c.icon === 'unlock').length, 'unlock', 'Unlocked', 'warn');
+	if (o.doors) mark(cards.filter((c) => cardUnlocked(c, all)).length, 'unlock', 'Unlocked', 'warn');
 	if (badges.some((b) => b.icon === 'motion')) mark(1, 'motion', 'Someone here', 'calm');
 	if (o.music) mark(playing.length, 'speaker', 'Playing', 'calm');
 	if (o.fans)
@@ -415,12 +420,13 @@ export function fieldText(b: Box): FieldText {
 
 /**
  * What is wrong in a room, in words, as Home's tile rings it in red: what the
- * box says is wrong, else a lock left unlocked. Missing when nothing is.
+ * box says is wrong, else a lock left unlocked (that counts for security, by
+ * the choice in `all`). Missing when nothing is.
  */
-export function troubleOf(b: Box, cards: CardView[]): string | undefined {
+export function troubleOf(b: Box, cards: CardView[], all?: Devices): string | undefined {
 	const wrong = b.lines.find((l) => l.alert)?.text;
 	if (wrong) return wrong;
-	const unlocked = cards.filter((c) => c.available && c.icon === 'unlock');
+	const unlocked = cards.filter((c) => cardUnlocked(c, all));
 	if (unlocked.length === 1) return `${unlocked[0]!.name} unlocked`;
 	return unlocked.length > 1 ? `${unlocked.length} unlocked` : undefined;
 }
@@ -586,7 +592,8 @@ export function bigNumbers(h: HouseIn, o: Options): BigNumber[] {
 			};
 		},
 		open: () => {
-			const p = (c: CardView) => c.available && isOpen(c);
+			// As security counts it: a door open, a watched device active.
+			const p = (c: CardView) => cardOpen(c, h.all);
 			const where = roomsWith((r) => r.cards.some(p));
 			return {
 				value: String(h.cards.filter(p).length),

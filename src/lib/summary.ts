@@ -6,10 +6,11 @@
  * Built from the card descriptions, so a summary never disagrees with the
  * cards it summarises.
  */
-import { cardFor, INFRASTRUCTURE, isOpen, SENSORS, type CardView } from './card.js';
+import { cardFor, INFRASTRUCTURE, SENSORS, type CardView } from './card.js';
 import { roomSlug, type CoreDevice, type Devices } from './devices.js';
 import type { Room } from './house.js';
 import { cameraLightCards, isCameraLight } from './cameraLights.js';
+import { cardOpen, cardSecurity, cardUnlocked, openWords } from './security.js';
 
 export interface Chip {
 	key: string;
@@ -51,11 +52,13 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 export function houseChips(
 	cards: CardView[],
 	lights?: ReadonlySet<string>,
-	playingIds?: ReadonlySet<string>
+	playingIds?: ReadonlySet<string>,
+	all?: Devices
 ): Chip[] {
 	const lit = lightCards(cards, lights).filter((c) => c.available && c.tone === 'on');
-	const open = cards.filter((c) => c.available && isOpen(c));
-	const unlocked = cards.filter((c) => c.available && c.icon === 'unlock');
+	// What's open and unlocked as security counts it, by the household's choice in `all`.
+	const open = cards.filter((c) => cardOpen(c, all));
+	const unlocked = cards.filter((c) => cardUnlocked(c, all));
 	const playing = playingCards(cards, playingIds);
 	const wet = cards.filter((c) => c.alarm === 'wet');
 	const chips: Chip[] = [];
@@ -70,7 +73,10 @@ export function houseChips(
 	if (open.length > 0)
 		chips.push({
 			key: 'open',
-			text: `${open.length} open`,
+			// A watched device active isn't open: counted with them, they're to check.
+			text: open.some((c) => cardSecurity(c, all) === 'watch')
+				? `${open.length} to check`
+				: `${open.length} open`,
 			icon: 'door-open',
 			alert: false,
 			ids: ids(open)
@@ -120,7 +126,8 @@ export function roomSummary(
 	cards: CardView[],
 	temperature?: string,
 	lights?: ReadonlySet<string>,
-	playingIds?: ReadonlySet<string>
+	playingIds?: ReadonlySet<string>,
+	all?: Devices
 ): string {
 	const parts: string[] = [];
 	const wet = cards.filter((c) => c.alarm === 'wet').length;
@@ -141,9 +148,11 @@ export function roomSummary(
 	const fans = cards.filter((c) => c.available && c.kind === 'fan' && c.tone === 'on').length;
 	if (fans > 0) parts.push(plural(fans, 'fan on', 'fans on'));
 	if (temperature) parts.push(temperature);
-	const open = cards.filter((c) => c.available && isOpen(c));
-	if (open.length === 1) parts.push(`${open[0]!.name} open`);
-	else if (open.length > 1) parts.push(`${open.length} open`);
+	const open = openWords(
+		cards.filter((c) => cardOpen(c, all)),
+		all
+	);
+	if (open) parts.push(open);
 	const playing = playingCards(cards, playingIds);
 	if (playing.length === 1) parts.push(`${playing[0]!.name} playing`);
 	else if (playing.length > 1) parts.push(`${playing.length} playing`);

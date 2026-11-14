@@ -228,6 +228,33 @@ describe('what needs attention', () => {
 		]);
 	});
 
+	it('goes by the household’s choice: a door left out, a motion sensor put in', () => {
+		const pantry = dev(
+			'd',
+			'contact_sensor',
+			'Bathroom Door Sensor',
+			{ open: true },
+			{ security: false }
+		);
+		const motion = dev(
+			'm',
+			'motion_sensor',
+			'Bathroom Motion',
+			{ motion: true },
+			{ security: true }
+		);
+		const idle = dev('n', 'light', 'Bathroom Light', { on: false }, { security: true });
+		const list = [pantry, motion, idle];
+		expect(issuesOf([{ room: bath, cards: cards(list) }], [], list, [bath])).toEqual([
+			{ key: 'watch:m', text: 'Bathroom: Motion · Motion', act: 'Show', fix: { device: 'm' } }
+		]);
+	});
+
+	it('leaves a lock chosen out of security off its room’s tile', () => {
+		const out = dev('k', 'lock', 'Laundry Room Lock', { locked: false }, { security: false });
+		expect(tile(laundry, [out]).alarm).toBe(false);
+	});
+
 	it('shows only so many, and counts what’s left', () => {
 		const doors = Array.from({ length: ISSUES_SHOWN + 2 }, (_, i) =>
 			dev(`d${i}`, 'contact_sensor', `Door ${i}`, { open: true })

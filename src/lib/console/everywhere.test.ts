@@ -356,6 +356,58 @@ describe('Security', () => {
 		const rows = secRows(places, { back_lock: { want: { locked: true } } });
 		expect(issuesOf(rows).map((i) => i.item.device.device_id)).toEqual(['window', 'gone']);
 	});
+	describe('as the household chose', () => {
+		const chosen = placesOf(
+			house({
+				office: [
+					dev('back_lock', 'lock', { locked: false }, { name: 'Back Door Lock' }),
+					dev('pantry', 'contact_sensor', { open: true }, { security: false })
+				],
+				garage: [
+					dev(
+						'drive',
+						'motion_sensor',
+						{ motion: true },
+						{ name: 'Driveway Motion', security: true }
+					),
+					dev('shed', 'light', { on: false }, { name: 'Shed Light', security: true }),
+					dev('cam', 'motion_sensor', { motion: true }, { security: false }),
+					dev('far', 'motion_sensor', {}, { security: true, available: false })
+				]
+			}),
+			[office, garage]
+		);
+
+		it('leaves out what was chosen out, and lists what was chosen in after the doors', () => {
+			const rows = secRows(chosen);
+			expect(
+				rows.map((r) => r.items.map((i) => [i.device.device_id, i.kind, i.word, i.ok]))
+			).toEqual([
+				[['back_lock', 'lock', 'Unlocked', false]],
+				[
+					['drive', 'watch', 'Motion', false],
+					['far', 'watch', 'Offline', false],
+					['shed', 'watch', 'Off', true]
+				]
+			]);
+		});
+
+		it('counts a watched device while it is active, or offline', () => {
+			const issues = issuesOf(secRows(chosen));
+			expect(issues.map((i) => i.item.device.device_id)).toEqual(['back_lock', 'drive', 'far']);
+			expect(issuesFull(issues)).toBe('1 unlocked · 1 motion · 1 offline');
+			expect(issuesWord(issues)).toBe('3 to check');
+			expect(statusOf(chosen).security).toMatchObject({ word: '3 to check', tone: 'warn' });
+		});
+
+		it('is secure with nothing active', () => {
+			const calm = placesOf(
+				house({ garage: [dev('shed', 'light', { on: false }, { security: true })] }),
+				[garage]
+			);
+			expect(statusOf(calm).security).toEqual({ word: 'secure', tone: 'ok' });
+		});
+	});
 });
 
 describe('Water', () => {

@@ -6,7 +6,8 @@
  * the house, along the bottom.
  *
  * What needs attention is what the house's state says now (a lock left
- * unlocked, a door open, either one offline) and what homeCore raised as an
+ * unlocked, a door open, something else watched active, any one offline;
+ * what counts for security as `securityKind` says) and what homeCore raised as an
  * alert (a leak, smoke, a jammed lock, a rule's). The rest of homeCore's
  * alerts (other things offline, low batteries) are counted in one pill that
  * opens Alerts.
@@ -22,7 +23,8 @@ import type { Box } from '../roomBox.js';
 import { artistOf, groupOf, isPlayer, playerName } from './media.js';
 import { playingNow, playNow } from '../playing.js';
 import { roomOf } from './cameras.js';
-import { guards, levelOf, shortName } from './room.js';
+import { levelOf, shortName } from './room.js';
+import { guards, securityKind, watchActive, watchWord } from '../security.js';
 import { isLamp, type Wants } from './pictures.js';
 import { whereLit, type LightsCount } from '../lights.js';
 
@@ -108,7 +110,9 @@ export function tileOf(
 		return c ? short(c.name) + text.slice(c.name.length) : text;
 	};
 	const wrong = box.lines.filter((l) => l.alert).map((l) => tidy(l.text));
-	const unlocked = cards.filter((c) => c.available && c.icon === 'unlock');
+	// A lock the household left out of security doesn't ring the room.
+	const counted = new Set(devices.filter((d) => securityKind(d)).map((d) => d.device_id));
+	const unlocked = cards.filter((c) => c.available && c.icon === 'unlock' && counted.has(c.id));
 	const playing = devices.filter((d) => playingNow(d, all, wants(d.device_id)));
 	const work = devices.flatMap((d) => working(d) ?? []);
 	const fans = cards.filter((c) => c.available && c.kind === 'fan' && c.tone === 'on');
@@ -132,7 +136,8 @@ export function tileOf(
 
 // ---- what needs attention ----
 
-export type Fix = { lock: string } | { href: string };
+/** Lock it, go to a page, or open a device over Home. */
+export type Fix = { lock: string } | { href: string } | { device: string };
 
 export interface Issue {
 	key: string;
@@ -151,9 +156,10 @@ const TAB_FOR: Record<string, string> = { wet: 'water', smoke: 'sensors', jammed
 
 /**
  * What needs attention in the house: each room's locks left unlocked (fixed
- * by locking them), doors open, and locks and doors offline (shown), then
+ * by locking them), doors open, devices watched for security active (shown
+ * by opening them), and any of those offline (shown), then
  * homeCore's urgent alerts, then one pill counting the rest of its alerts.
- * An offline lock or door shown here isn't counted again with them.
+ * An offline device shown here isn't counted again with them.
  */
 export function issuesOf(
 	rooms: { room: Room; cards: CardView[] }[],
@@ -162,32 +168,46 @@ export function issuesOf(
 	roomList: Room[]
 ): Issue[] {
 	const out: Issue[] = [];
+	const byId = new Map(all.map((d) => [d.device_id, d]));
 	for (const { room, cards } of rooms) {
 		const short = (name: string) => shortName(name.replace(/\s+sensor$/i, ''), room.name, true);
 		for (const c of cards) {
+			const d = byId.get(c.id);
+			// The household's choice where the device is known, else its type.
+			const counts = d ? securityKind(d) : guards(c.kind);
+			if (!counts) continue;
+			const device = { device: c.id };
+			const doors = { href: `/rooms/${room.id}?tab=doors` };
 			if (!c.available) {
-				if (guards(c.kind))
-					out.push({
-						key: `offline:${c.id}`,
-						text: `${room.name} ${short(c.name)}: Offline`,
-						act: 'Show',
-						fix: { href: `/rooms/${room.id}?tab=doors` }
-					});
+				out.push({
+					key: `offline:${c.id}`,
+					text: `${room.name} ${short(c.name)}: Offline`,
+					act: 'Show',
+					fix: counts === 'watch' ? device : doors
+				});
 				continue;
 			}
-			if (c.icon === 'unlock')
+			if (counts === 'watch') {
+				if (d && watchActive(d))
+					out.push({
+						key: `watch:${c.id}`,
+						text: `${room.name}: ${short(c.name)} · ${watchWord(d)}`,
+						act: 'Show',
+						fix: device
+					});
+			} else if (c.icon === 'unlock')
 				out.push({
 					key: `unlocked:${c.id}`,
 					text: `${room.name}: ${short(c.name)} unlocked`,
 					act: c.control?.kind === 'lock' ? 'Lock it' : 'Show',
-					fix: c.control?.kind === 'lock' ? { lock: c.id } : { href: `/rooms/${room.id}?tab=doors` }
+					fix: c.control?.kind === 'lock' ? { lock: c.id } : doors
 				});
 			else if (isOpen(c))
 				out.push({
 					key: `open:${c.id}`,
 					text: `${room.name}: ${short(c.name)} open`,
 					act: 'Show',
-					fix: { href: `/rooms/${room.id}?tab=doors` }
+					fix: doors
 				});
 		}
 	}

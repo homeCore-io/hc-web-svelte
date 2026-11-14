@@ -2,8 +2,10 @@
 	A room's header chips and pills, on the desktop's room (ConsoleRoom) and
 	the phone's (PhoneRoom) alike, from the room now (roomNow.svelte.ts): its
 	temperature, its lights and what's playing as chips; then a pill for each
-	lock (pressed, it locks or unlocks), each door (pressed, the tab it's on)
-	and what the cameras saw lately (pressed, the Cameras tab at it).
+	lock (pressed, it locks or unlocks), each door (pressed, the tab it's on),
+	each other device the household put in security (pressed, the device;
+	red while active: motion, open, on) and what the cameras saw lately
+	(pressed, the Cameras tab at it).
 
 	They sit in the page's own row: it wraps them on the desktop and scrolls
 	them across on a phone (`phone`), where they're a little larger to touch.
@@ -13,11 +15,13 @@
 	import LockOpen from '@lucide/svelte/icons/lock-open';
 	import DoorClosed from '@lucide/svelte/icons/door-closed';
 	import DoorOpen from '@lucide/svelte/icons/door-open';
+	import Eye from '@lucide/svelte/icons/eye';
 	import type { CoreDevice } from '#lib/devices.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { commands } from '#lib/commands.svelte.js';
 	import { isOpen } from '#lib/card.js';
 	import { pillWord } from './cameras.js';
+	import { watchActive, watchWord } from '#lib/security.js';
 	import type { RoomNow } from './roomNow.svelte.js';
 
 	let { r, phone = false }: { r: RoomNow; phone?: boolean } = $props();
@@ -74,6 +78,21 @@
 				aria-hidden="true"
 			/>{/if}
 		{r.pillName(d)}: {d.available ? (open ? 'Open' : 'Closed') : 'Offline'}
+	</button>
+{/each}
+{#each r.watched as d (d.device_id)}
+	{@const active = watchActive(d)}
+	<button
+		type="button"
+		class="pill"
+		class:phone
+		class:ok={d.available && !active}
+		class:bad={!d.available || active}
+		title={d.available ? `Open ${r.nameOf(d)}` : `${r.nameOf(d)} is offline`}
+		onclick={() => r.watchPill(d)}
+	>
+		<Eye size={13} strokeWidth={2.2} aria-hidden="true" />
+		{r.pillName(d)}: {d.available ? watchWord(d, clock.now) : 'Offline'}
 	</button>
 {/each}
 {#each r.camPills as e (e.key)}

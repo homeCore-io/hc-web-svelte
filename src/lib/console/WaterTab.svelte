@@ -246,7 +246,7 @@
 	}
 	.dbtn.close {
 		color: #fff;
-		background: linear-gradient(180deg, #ff7d6b, #e5483a);
+		background: linear-gradient(180deg, #d04a36, #b8341f);
 		box-shadow:
 			inset 0 1px 0 rgba(255, 255, 255, 0.35),
 			0 8px 18px -8px rgba(255, 90, 70, 0.8);

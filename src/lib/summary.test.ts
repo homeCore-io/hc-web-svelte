@@ -21,6 +21,32 @@ describe('the house chips', () => {
 		expect(houseChips(all)[0]).toMatchObject({ alert: true, ids: ['yolink_leak_2'] });
 	});
 
+	it('count what is open as security does, by the household’s choice', () => {
+		const back = grouped
+			.get('r-kitchen')!
+			.find((d) => cardFor(d, FIXTURE_NOW).icon === 'door-open')!;
+		const out = { ...back, security: false };
+		const motion = {
+			...back,
+			device_id: 'drive',
+			name: 'Driveway Motion',
+			device_type: 'motion_sensor',
+			attributes: { motion: true },
+			security: true
+		};
+		const list = [out, motion];
+		const cards = list.map((d) => cardFor(d, FIXTURE_NOW));
+		expect(houseChips(cards, undefined, undefined, fromList(list)).map((c) => c.text)).toEqual([
+			'1 to check'
+		]);
+		expect(roomSummary(cards, undefined, undefined, undefined, fromList(list))).toBe(
+			'Driveway Motion: Motion'
+		);
+		expect(roomSummary(cards.slice(0, 1), undefined, undefined, undefined, fromList([out]))).toBe(
+			'All quiet'
+		);
+	});
+
 	it('say nothing when nothing is going on', () => {
 		const quiet = HOUSE.filter((d) => d.device_type === 'temperature_sensor').map((d) =>
 			cardFor(d, FIXTURE_NOW)

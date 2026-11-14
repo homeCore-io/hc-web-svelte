@@ -161,6 +161,7 @@ export class HomeNow {
 	// ---- what needs attention ----
 	fix = async (i: Issue): Promise<void> => {
 		if ('href' in i.fix) return void goto(i.fix.href);
+		if ('device' in i.fix) return openDevice(i.fix.device, page.url);
 		const d = devices.byId[i.fix.lock];
 		if (!d || !this.may) return;
 		void commands.set(d.device_id, kindOf(d), { locked: true }, d.attributes);

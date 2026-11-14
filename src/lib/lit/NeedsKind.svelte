@@ -1,7 +1,8 @@
 <!--
 	What in a room needs someone, a frame piece (13 §7): an unlocked lock, an
-	open door, a device that isn't answering, a leak, each with its fix where
-	there is one. Nothing at all when nothing does.
+	open door, something else watched for security while it's active, a
+	device that isn't answering, a leak, each with its fix where there is
+	one. Nothing at all when nothing does.
 -->
 <script lang="ts">
 	import type { KindProps } from '#lib/kinds.js';

@@ -318,6 +318,13 @@
 	}
 	.ev.phone :global(.evhead .glow) {
 		height: 200px;
+		/* Under the view picker it fades in, so its top isn't a line across the screen. */
+		mask-image: linear-gradient(transparent, #000 48px);
+	}
+	/* The standard frame's page has its own gutter; the glow reaches the screen's edges. */
+	:global(html:not([data-shell='console'])) .ev.phone :global(.evhead .glow) {
+		left: calc(-1 * var(--space-4));
+		right: calc(-1 * var(--space-4));
 	}
 	.ev.phone :global(.evhead .kick),
 	.ev.phone :global(.evhead h1) {

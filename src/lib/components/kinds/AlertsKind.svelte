@@ -2,12 +2,14 @@
 	What needs attention (N7): the first three alerts, and the way to the rest.
 	In the room field (mockup A): beside the rooms, one short line each; on a
 	phone, one line after the big numbers: the most serious alert, else the
-	doors open ("2 doors open · 3 alerts").
+	doors open ("2 doors open · 3 alerts"), as security counts them: a watched
+	device active too ("2 to check · 3 alerts").
 -->
 <script lang="ts">
 	import { page } from '$app/state';
 	import { alerts } from '#lib/alerts.svelte.js';
-	import { cardFor, isOpen } from '#lib/card.js';
+	import { cardFor } from '#lib/card.js';
+	import { cardOpen, cardSecurity } from '#lib/security.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { displayName } from '#lib/devices.js';
 	import { devices } from '#lib/devices.svelte.js';
@@ -28,13 +30,15 @@
 		plugin: 'alert'
 	} as const;
 	// Counted as the big numbers' Open is.
-	const open = $derived(
+	const openCards = $derived(
 		place === 'brief'
 			? Object.values(devices.byId)
 					.map((d) => cardFor(d, clock.now))
-					.filter((c) => c.available && isOpen(c)).length
-			: 0
+					.filter((c) => cardOpen(c, devices.byId))
+			: []
 	);
+	const open = $derived(openCards.length);
+	const watched = $derived(openCards.some((c) => cardSecurity(c, devices.byId) === 'watch'));
 	// The full list (its seen and ignore tools come with it) is fetched as this
 	// loads, not with Home: the alerts come from the network after it anyway.
 	const full = $derived(place === undefined ? import('../AlertList.svelte') : undefined);
@@ -58,7 +62,9 @@
 		{#if serious || open > 0}<b class="lead"
 				>{serious
 					? serious.message || `${name(serious.device_id)}: ${serious.reason}`
-					: many(open, 'door open', 'doors open')}</b
+					: watched
+						? `${open} to check`
+						: many(open, 'door open', 'doors open')}</b
 			>{/if}
 		<span class="count"
 			>{#if serious || open > 0}{'· '}{/if}{many(alerts.list.length, 'alert', 'alerts')}</span

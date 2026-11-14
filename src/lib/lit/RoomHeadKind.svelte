@@ -1,8 +1,9 @@
 <!--
 	A room's header, a frame piece (13 §7): its name, its readings, and a glow
 	from each light that's on, in its own color, with the room in chips: lights
-	on, and what needs someone, which a tap fixes. While it's drawn, the shell's
-	header shows no title (the room's name is here).
+	on, and what needs someone, which a tap fixes, when the look doesn't show
+	that under the header (NeedsKind). While it's drawn, the shell's header
+	shows no title (the room's name is here).
 -->
 <script lang="ts">
 	import { houseNow } from '#lib/houseNow.svelte.js';
@@ -72,6 +73,13 @@
 				isLit(d, commands.pending)
 		).length
 	);
+	// What needs someone, as chips, unless the look shows it under the header
+	// (NeedsKind), so each shows once.
+	const problems = $derived(
+		here.def.frame.needs && (here.def.grouping.room ?? []).some((r) => r.takes.includes('needs'))
+			? []
+			: lit.problems
+	);
 	// Glowing, or plain where the look says so (13 §7).
 	const plain = $derived(here.def.frame.header === 'plain');
 	// A plugin's header (13 §12.2), while its plugin offers one; else the glowing one.
@@ -140,7 +148,7 @@
 						? 'Lights off'
 						: `${lightsOn} light${lightsOn === 1 ? '' : 's'} on`}</span
 				>
-				{#each lit.problems as p (p.key)}
+				{#each problems as p (p.key)}
 					{#if p.fix && session.mayUse}
 						<button class="chip bad" onclick={() => fix(p.fix!)}
 							><span class="dot bad"></span>{p.title} · {p.fix.label}</button

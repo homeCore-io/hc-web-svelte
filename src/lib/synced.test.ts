@@ -62,3 +62,31 @@ describe('Synced', () => {
 		expect(s.saved.items).toEqual(['a', 'b']);
 	});
 });
+
+describe('loading the document', () => {
+	it('says it is missing when the server fails, and tries again until it answers', async () => {
+		vi.useFakeTimers();
+		const answers: (number | 'down')[] = ['down', 500, 200];
+		const get = vi.fn(async () => {
+			const a = answers.shift() ?? 200;
+			if (a === 'down') throw new TypeError('network');
+			if (a !== 200) return new Response('{}', { status: a });
+			return new Response(JSON.stringify({ version: 4, items: ['saved'] }), { status: 200 });
+		});
+		vi.stubGlobal('fetch', get);
+		const s = new Synced<Doc>('/ui/household', 'household');
+
+		await s.load();
+		expect(s.loaded).toBe(true);
+		expect(s.missing).toBe(true);
+		expect(s.doc.items).toBeUndefined();
+
+		await vi.advanceTimersByTimeAsync(2_000);
+		expect(s.missing).toBe(true);
+		await vi.advanceTimersByTimeAsync(4_000);
+		expect(s.missing).toBe(false);
+		expect(s.doc.items).toEqual(['saved']);
+		expect(get).toHaveBeenCalledTimes(3);
+		vi.useRealTimers();
+	});
+});

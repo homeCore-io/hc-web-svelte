@@ -56,6 +56,7 @@
 	import type { Component } from 'svelte';
 	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 	import { nextTab } from '#lib/menuKeys.js';
+	import { household } from '#lib/household.svelte.js';
 
 	let { id }: { id: string } = $props();
 
@@ -161,7 +162,7 @@
 	}
 </script>
 
-{#if !devices.loaded}
+{#if !devices.loaded || !household.loaded}
 	<p class="quiet pad">Loading the house…</p>
 {:else if room === undefined}
 	<p class="quiet pad">This room isn't in the house any more.</p>
@@ -296,6 +297,13 @@
 			</div>
 		{/if}
 
+		{#if household.missing}
+			<!-- The tabs are as homeCore sorts them until the household's layout arrives. -->
+			<p class="quiet pad" role="status">
+				Couldn’t load the household’s layout, so these tabs may not be as it arranged them. Trying
+				again.
+			</p>
+		{/if}
 		{#if arranged.shown.length === 0}
 			<p class="quiet pad">Nothing in {room.name} yet.</p>
 		{:else}

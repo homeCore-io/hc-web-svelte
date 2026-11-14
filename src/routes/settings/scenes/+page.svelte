@@ -27,8 +27,8 @@
 		<a class="new" href="/settings/scenes/new"><Plus size={16} aria-hidden="true" />New scene</a>
 		{#if scenes.list.length === 0}
 			<p class="empty">
-				homeCore has no scenes of its own yet. A scene sets several devices at once — Movie night,
-				Bedtime — and can be run from Scenes or by a rule.
+				homeCore has no scenes of its own yet. A scene sets several devices at once (Movie night,
+				Bedtime) and can be run from Scenes or by a rule.
 			</p>
 		{:else}
 			<ul>

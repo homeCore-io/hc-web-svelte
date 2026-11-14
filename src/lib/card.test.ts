@@ -68,7 +68,7 @@ describe('cards for the kinds in this house (03 §3)', () => {
 
 	it('a TV: what is playing, and play/pause', () => {
 		const c = card('roku_den');
-		expect(c.stateLine).toBe('Playing — Nature');
+		expect(c.stateLine).toBe('Playing: Nature');
 		expect(c.control).toEqual({ kind: 'play', playing: true, action: 'play_pause' });
 		expect(c.icon).toBe('tv');
 		const off = card('roku_den', { attributes: { on: false, state: 'idle' } });
@@ -79,7 +79,7 @@ describe('cards for the kinds in this house (03 §3)', () => {
 	it('a speaker without play_pause plays or pauses by its state, with volume in Large', () => {
 		const c = card('sonos_kitchen');
 		expect(c.icon).toBe('speaker');
-		expect(c.stateLine).toBe('Paused — Morning');
+		expect(c.stateLine).toBe('Paused: Morning');
 		expect(c.control).toEqual({ kind: 'play', playing: false, action: 'play' });
 		expect(c.extras.map((e) => e.kind)).toEqual(['transport', 'slider']);
 	});

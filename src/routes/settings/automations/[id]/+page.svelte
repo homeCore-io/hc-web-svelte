@@ -308,7 +308,7 @@
 		const yes = await ask({
 			title: checks ? `Run “${rule.name}” now?` : `Do the steps of “${rule.name}” now?`,
 			body: checks
-				? 'As if its moment came: its checks still decide, and if they pass it does its steps — on the house, for real.'
+				? 'As if its moment came: its checks still decide, and if they pass it does its steps on the house, for real.'
 				: 'Its steps are done on the house, for real, whatever its checks say.',
 			go: checks ? 'Run it' : 'Do the steps'
 		});
@@ -358,7 +358,7 @@
 		{#each steps as s, i (i)}
 			<li class:off={s.off}>
 				<span
-					><Words words={s.words} />{#if s.off}<em> — turned off</em>{/if}</span
+					><Words words={s.words} />{#if s.off}<em> (turned off)</em>{/if}</span
 				>
 				{#if s.branches}
 					{#each s.branches as b, j (j)}
@@ -458,7 +458,7 @@
 			{#if paused}
 				<div class="banner lit">
 					<strong
-						>Another rule paused it: its moment doesn’t run it until a rule resumes it — or you do.</strong
+						>Another rule paused it: its moment doesn’t run it until a rule resumes it, or you do.</strong
 					>
 					{#if canWrite}<button type="button" onclick={resume}>Resume it</button>{/if}
 				</div>
@@ -479,7 +479,7 @@
 			{#if onlyTells(rule)}
 				<p class="banner lit">
 					It only sends a message. If that’s about something staying open or on, an
-					<a href="/settings/alerts">alert</a> says so without a rule — and clears itself.
+					<a href="/settings/alerts">alert</a> says so without a rule, and clears itself.
 				</p>
 			{/if}
 		</header>
@@ -521,7 +521,7 @@
 					{#if runs.length === 0}
 						<h2>Recent runs</h2>
 						<p class="quiet">
-							Nothing since homeCore started — it keeps the last 20 times each rule’s moment came,
+							Nothing since homeCore started. It keeps the last 20 times each rule’s moment came,
 							and forgets them when it restarts.
 						</p>
 					{:else}
@@ -625,7 +625,7 @@
 					<section class="card side">
 						<strong>Run it now</strong>
 						<span class="quiet"
-							>As if its moment came — even while it’s off. Its steps are done on the house.</span
+							>As if its moment came, even while it’s off. Its steps are done on the house.</span
 						>
 						<button type="button" class="go" disabled={running} onclick={() => runNow(true)}
 							>Run it</button

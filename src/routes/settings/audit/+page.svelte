@@ -188,7 +188,7 @@
 			</label>
 			<input
 				type="search"
-				placeholder="Search — a name, a room, an address"
+				placeholder="Search: a name, a room, an address"
 				aria-label="Search the audit"
 				bind:value={query}
 			/>
@@ -206,7 +206,7 @@
 		{#if entries.length && !changesRecorded && !about}
 			<p class="lit">
 				This homeCore records sign-ins, accounts and keys, but not changes to rules, devices, rooms
-				and scenes — a newer one does.
+				and scenes. A newer one does.
 			</p>
 		{/if}
 		{#if failed}<p class="note bad" role="alert">{failed}</p>{/if}
@@ -248,7 +248,7 @@
 					<p class="quiet">
 						Matched in the {entries.length} loaded, back to {fullDateOf(
 							entries[entries.length - 1]!.ts
-						)} — older ones may match too.
+						)}. Older ones may match too.
 					</p>
 				{/if}
 				<button class="plain" onclick={() => load(true)} disabled={busy}

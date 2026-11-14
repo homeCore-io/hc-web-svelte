@@ -45,7 +45,7 @@
 					>{value === undefined
 						? 'Choose…'
 						: ctx
-							? 'As written — see the JSON tab'
+							? 'As written (see the JSON tab)'
 							: 'As written, below'}</option
 				>{/if}
 			{#each cmds as c (c.key)}<option value={c.key}>{c.label}</option>{/each}

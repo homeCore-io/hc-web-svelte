@@ -796,11 +796,12 @@ export const reachesHere = (l: Look, path: string): boolean =>
 	l.reaches === 'everywhere' || householdPage(path);
 
 /**
- * Whether this screen is drawn in the console's frame: the look puts the app
- * in it, and reaches here. Elsewhere (settings, Me), the standard frame.
+ * Whether this screen is drawn in the console's frame: every screen, when the
+ * look puts the app in it, so its toolbar's gear (household settings) and
+ * picture (your own) are always there. Settings and Me keep Classic's feel
+ * inside it unless the look reaches them (S9); `_path` is kept for callers.
  */
-export const consoleHere = (l: Look, path: string): boolean =>
-	shellOf(l) === 'console' && reachesHere(l, path);
+export const consoleHere = (l: Look, _path?: string): boolean => shellOf(l) === 'console';
 
 /** Every look someone may choose: the built-in ones, then the house's, then their own. */
 export function allLooks(house?: unknown[], mine?: unknown[]): Look[] {

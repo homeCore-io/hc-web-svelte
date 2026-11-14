@@ -115,7 +115,7 @@
 	async function discard() {
 		const yes = await ask({
 			title: 'Discard this automation?',
-			lost: ['Everything in it — it was never saved.'],
+			lost: ['Everything in it. It was never saved.'],
 			go: 'Discard',
 			danger: true
 		});
@@ -166,7 +166,7 @@
 			: undefined}
 		starters={start ? startFrom : undefined}
 		whenHint={start
-			? 'Editable like any trigger — widen it, or change “happens” to “ends”.'
+			? 'Editable like any trigger. Widen it, or change “happens” to “ends”.'
 			: undefined}
 	>
 		{#snippet banner()}
@@ -189,7 +189,7 @@
 					>
 					<ul>
 						{#each members as m (m.id)}<li>
-								<a href={`/settings/automations/${encodeURIComponent(m.id)}`}>{m.name}</a> — {plain(
+								<a href={`/settings/automations/${encodeURIComponent(m.id)}`}>{m.name}</a>: {plain(
 									sentence(house, m)
 								)}
 							</li>{/each}
@@ -228,7 +228,7 @@
 				onclick={() => dropDraft('new')}
 			>
 				<strong>Start from nothing</strong>
-				<span>When, only if, do — built step by step</span>
+				<span>When, only if, do: built step by step</span>
 			</a>
 		</div>
 	</div>

@@ -139,7 +139,7 @@
 					!(await goAhead(
 						device.device_id,
 						card.kind,
-						`${control.label} — ${name}?`,
+						`${control.label}: ${name}?`,
 						control.confirm
 					))
 				)
@@ -185,7 +185,7 @@
 	<a
 		class="open"
 		href={deviceHref(device.device_id, page.url)}
-		aria-label={`${name} — details`}
+		aria-label={`${name}: details`}
 		onclick={(e) => {
 			if (e.metaKey || e.ctrlKey || e.shiftKey) return;
 			e.preventDefault();
@@ -265,7 +265,7 @@
 		<a
 			class="cover"
 			href={deviceHref(device.device_id, page.url)}
-			aria-label={`${name} — details`}
+			aria-label={`${name}: details`}
 			onclick={(e) => {
 				if (e.metaKey || e.ctrlKey || e.shiftKey) return;
 				e.preventDefault();
@@ -291,7 +291,7 @@
 		<div
 			class="menu"
 			role="menu"
-			aria-label={`${name} — for me`}
+			aria-label={`${name}: for me`}
 			tabindex="-1"
 			onkeydown={(e) => e.key === 'Escape' && (menu = false)}
 		>

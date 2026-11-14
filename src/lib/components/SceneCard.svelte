@@ -68,7 +68,7 @@
 		{#if status === 'done'}<Check size={16} />{:else}<Icon name="scene" size={16} />{/if}
 	</span>
 	<span class="name"
-		>{status === 'failed' ? `${name} — didn't run${why ? `: ${why}` : ''}` : name}</span
+		>{status === 'failed' ? `${name} didn't run${why ? `: ${why}` : ''}` : name}</span
 	>
 </button>
 

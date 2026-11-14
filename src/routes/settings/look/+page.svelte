@@ -71,7 +71,7 @@
 		<section>
 			<h2 class="section-label" id="bar">The household's phone bar</h2>
 			<p class="quiet">
-				Up to {BAR_SIZE} places, then More — for everyone who hasn't chosen their own.
+				Up to {BAR_SIZE} places, then More. This is for everyone who hasn't chosen their own.
 			</p>
 			<BarChooser
 				{bar}

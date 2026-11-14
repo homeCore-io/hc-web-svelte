@@ -205,7 +205,7 @@ export function scopesForAlert(a: Alert, n: Names): Scope[] {
 					topic: a.topic,
 					device_ids: [a.device_id]
 				},
-				banner: `${lower(label)} — ${name}`,
+				banner: `${lower(label)} · ${name}`,
 				state: `${name}: ${lower(label)}`,
 				alert: `“${label}” on ${name}`
 			},
@@ -220,7 +220,7 @@ export function scopesForAlert(a: Alert, n: Names): Scope[] {
 		name: `Only ${name}`,
 		help: `This one ${a.kind === 'offline' ? 'device' : own.one.split(' ').pop()}`,
 		filter: { kind: a.kind, device_ids: [a.device_id] },
-		banner: `${own.word} — ${name}`,
+		banner: `${own.word} · ${name}`,
 		state: `${name} ${own.is}`,
 		alert: `the ${own.word} alert for ${name}`
 	};
@@ -235,7 +235,7 @@ export function scopesForAlert(a: Alert, n: Names): Scope[] {
 					name: `Any ${P} device going offline`,
 					help: `${P} only`,
 					filter: { kind: a.kind, plugin_id: plugin },
-					banner: `offline — any ${P} device`,
+					banner: `offline · any ${P} device`,
 					state: `a ${P} device goes offline`,
 					alert: `the offline alert for any ${P} device`
 				}
@@ -244,7 +244,7 @@ export function scopesForAlert(a: Alert, n: Names): Scope[] {
 					name: `Any ${P} ${own.one}`,
 					help: `${count} ${count === 1 ? own.one.split(' ').pop() : own.many.split(' ').pop()} now, and any you add later`,
 					filter: { kind: a.kind, plugin_id: plugin },
-					banner: `${own.word} — any ${P} ${own.one}`,
+					banner: `${own.word} · any ${P} ${own.one}`,
 					state: `any ${P} ${own.one} ${own.is}`,
 					alert: `the ${own.word} alert for any ${P} ${own.one}`
 				};
@@ -285,7 +285,7 @@ export function scopesForKind(kind: OwnKind, n: Names): Scope[] {
 			name: own.anywhere,
 			help: own.anywhereHelp,
 			filter: { kind },
-			banner: `${own.word} — anywhere`,
+			banner: `${own.word} · anywhere`,
 			state: kind === 'offline' ? 'any device goes offline' : `anything ${own.is}`,
 			alert: `any ${own.word} alert`
 		}
@@ -300,7 +300,7 @@ export function scopesForKind(kind: OwnKind, n: Names): Scope[] {
 			name: `Any ${P} ${own.one}`,
 			help: `${count} now, and any you add later`,
 			filter: { kind, plugin_id: p },
-			banner: `${own.word} — any ${P} ${own.one}`,
+			banner: `${own.word} · any ${P} ${own.one}`,
 			state: `any ${P} ${own.one} ${own.is}`,
 			alert: `the ${own.word} alert for any ${P} ${own.one}`
 		});
@@ -318,7 +318,7 @@ export function scopesForPluginKind(pluginId: string, topic: string, n: Names): 
 			name: `${label} on any ${P} device`,
 			help: `From ${P}, any device it has now or later`,
 			filter: { kind: 'plugin', plugin_id: pluginId, topic },
-			banner: `${lower(label)} — ${P}`,
+			banner: `${lower(label)} · ${P}`,
 			state: `${P}: ${lower(label)}`,
 			alert: `“${P} · ${label}”`
 		}
@@ -474,7 +474,7 @@ export function cardLine(
 	n: Names
 ): { text: string; tone: 'bad' | 'wait' | 'by' } {
 	if (x.alert_deleted)
-		return { text: 'Its alert was deleted — choose another trigger or delete it', tone: 'bad' };
+		return { text: 'Its alert was deleted. Choose another trigger or delete it', tone: 'bad' };
 	if (x.waiting) {
 		const l = x.links.find((y) => y.waiting) ?? x.links[0]!;
 		const why =

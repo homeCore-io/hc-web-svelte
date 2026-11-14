@@ -63,7 +63,7 @@ export const offsetText = (n: number) =>
 export function howOf(m: CoreMode): string {
 	const c = m.config;
 	if (c.kind === 'solar') {
-		if (!c.on_event || !c.off_event) return 'Follows the sun — no times set';
+		if (!c.on_event || !c.off_event) return 'Follows the sun, no times set';
 		const on = sunWords(c.on_event);
 		const off = sunWords(c.off_event);
 		const at = (word: string, n: number | undefined) => (n ? `${word} ${offsetText(n)}` : word);

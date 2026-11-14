@@ -54,8 +54,8 @@
 <KindSettings
 	title="Every room’s box"
 	who={shared
-		? 'For everyone — a room set on its own keeps its own.'
-		: 'Only you see this — a room set on its own keeps its own.'}
+		? 'For everyone. A room set on its own keeps its own.'
+		: 'Only you see this. A room set on its own keeps its own.'}
 	descriptor={roomDescriptor()}
 	mine={layer.mine}
 	without={layer.without}
@@ -95,7 +95,7 @@
 				{/if}
 			</div>
 		{:else}
-			<p class="sub">None — every room follows these settings.</p>
+			<p class="sub">None. Every room follows these settings.</p>
 		{/each}
 	</section>
 </KindSettings>

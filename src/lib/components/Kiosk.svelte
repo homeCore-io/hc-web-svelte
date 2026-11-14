@@ -160,7 +160,7 @@
 			<span class="title">{tabs.find((t) => t.href === pathname)?.label ?? ''}</span>
 			<span class="live" data-state={live.state} aria-hidden="true"></span>
 			{#if alerts.list.length > 0}
-				<a class="bell" href="/alerts" aria-label={`Alerts — ${alerts.list.length}`}>
+				<a class="bell" href="/alerts" aria-label={`Alerts: ${alerts.list.length}`}>
 					<Bell size={20} aria-hidden="true" />
 					{alerts.list.length}
 				</a>

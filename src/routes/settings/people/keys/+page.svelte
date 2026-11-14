@@ -237,7 +237,7 @@
 						{#if k.allowed_cidrs?.length}<span class="sub"
 								>Only from {k.allowed_cidrs.join(', ')}{checksAddresses
 									? ''
-									: ' — not checked by this homeCore'}</span
+									: ' (not checked by this homeCore)'}</span
 							>{/if}
 						<span class="mono">hc_sk_{k.prefix}…</span>
 						<div class="acts">
@@ -267,7 +267,8 @@
 			{#if made}
 				<h2 class="big">“{made.label}”</h2>
 				<p>
-					Here is the key. It’s shown <strong>only now</strong> — put it where the program reads it.
+					Here is the key. It’s shown <strong>only now</strong>, so put it where the program reads
+					it.
 				</p>
 				<code class="token">{made.token}</code>
 				<div class="acts">
@@ -334,8 +335,8 @@
 							<select bind:value={extend}>
 								<option value={null}
 									>{editing.expires_at
-										? `as now — ${fullDateOf(editing.expires_at)}`
-										: 'as now — never'}</option
+										? `as now: ${fullDateOf(editing.expires_at)}`
+										: 'as now: never'}</option
 								>
 								{#each EXPIRY.filter((e) => e.days !== null) as e (e.label)}<option value={e.days}
 										>{e.label} from today</option
@@ -369,7 +370,7 @@
 					{#if !checksAddresses}
 						<p class="sub">
 							This homeCore keeps addresses a key may be used from but doesn’t check them, so this
-							page doesn’t offer it — homeCore 0.1.80 does.
+							page doesn’t offer it. homeCore 0.1.80 does.
 						</p>
 					{/if}
 				</form>

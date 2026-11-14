@@ -151,7 +151,7 @@
 	// Compact says the target beside what it's doing: "Cooling · target 72°".
 	const small = $derived(
 		t.dual && t.heat !== undefined && t.cool !== undefined
-			? `${deg(t.heat, t.unit)}–${deg(t.cool, t.unit)}`
+			? `${deg(t.heat, t.unit)} to ${deg(t.cool, t.unit)}`
 			: target === undefined
 				? ''
 				: `target ${deg(target, t.unit)}`
@@ -181,7 +181,7 @@
 			<a
 				class="open"
 				href={deviceHref(device.device_id, page.url)}
-				aria-label={`${name} — details`}
+				aria-label={`Details for ${name}`}
 				onclick={(e) => {
 					if (e.metaKey || e.ctrlKey || e.shiftKey) return;
 					e.preventDefault();

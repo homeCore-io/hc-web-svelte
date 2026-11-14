@@ -302,33 +302,6 @@
 					>
 				{/each}
 			{/if}
-			<span class="grow"></span>
-			<div class="foot">
-				{#if houseList.length > 0}
-					<button
-						class="si"
-						aria-label="Household settings"
-						aria-expanded={menu === 'house'}
-						aria-haspopup="dialog"
-						title="Household settings"
-						onclick={(e) => openMenu('house', e)}
-					>
-						<Settings size={17} strokeWidth={1.9} aria-hidden="true" />
-						<span class="lbl">Settings</span>
-					</button>
-				{/if}
-				<button
-					class="si"
-					aria-label="You: your own settings"
-					aria-expanded={menu === 'you'}
-					aria-haspopup="dialog"
-					title="You"
-					onclick={(e) => openMenu('you', e)}
-				>
-					<Avatar person={session.me?.id} name={me} size={22} />
-					<span class="lbl">You</span>
-				</button>
-			</div>
 		</nav>
 
 		<div class="stage" class:with-sheet={adding.page !== null}>
@@ -597,9 +570,6 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
-	.grow {
-		flex: 1;
-	}
 	.seeing {
 		margin-left: auto;
 		width: 7px;
@@ -613,19 +583,6 @@
 		position: absolute;
 		top: 8px;
 		right: 8px;
-	}
-	/* Settings and You stay in view at the bottom; the rooms scroll above them. */
-	.foot {
-		position: sticky;
-		bottom: -12px;
-		margin-bottom: -12px;
-		display: flex;
-		flex-direction: column;
-		gap: 2px;
-		padding: 8px 0 12px;
-		border-top: 1px solid var(--con-edge);
-		background: var(--con-side);
-		backdrop-filter: blur(20px);
 	}
 
 	/* Folded: the rail of icons, the room list behind one button. */
@@ -661,11 +618,6 @@
 		height: 1px;
 		margin: 4px 0;
 		background: var(--con-edge);
-	}
-	.folded .foot {
-		align-items: center;
-		gap: 6px;
-		border-top: 0;
 	}
 
 	/* ---- the page ---- */
@@ -803,10 +755,6 @@
 			height: 1px;
 			margin: 4px 0;
 			background: var(--con-edge);
-		}
-		.foot {
-			align-items: center;
-			border-top: 0;
 		}
 		.head {
 			padding: 14px 16px 8px;

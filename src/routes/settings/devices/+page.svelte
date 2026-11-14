@@ -157,7 +157,7 @@
 					? [
 							removed !== null
 								? 'A plugin that still reports one doesn’t bring it back: it’s listed under Deleted, to bring back.'
-								: 'A plugin that still reports one brings it back as new on its next report — remove it in the plugin (or its hub) first.'
+								: 'A plugin that still reports one brings it back as new on its next report. Remove it in the plugin (or its hub) first.'
 						]
 					: []),
 				'Rules that name them are turned off until someone changes them.'
@@ -233,7 +233,7 @@
 				<summary
 					>{orphans.total_orphans === 1
 						? 'One device may be gone'
-						: `${orphans.total_orphans} devices may be gone`} — {orphans.plugins
+						: `${orphans.total_orphans} devices may be gone`}: {orphans.plugins
 						.map((p) => `${pluginLabel(p.plugin_id)} ${p.suspects.length}`)
 						.join(', ')}</summary
 				>
@@ -245,8 +245,8 @@
 						<span>
 							The {p.core_holds - p.plugin_reports === 1 ? 'one' : p.core_holds - p.plugin_reports} heard
 							from longest ago {p.suspects.length === 1 ? 'is' : 'are'} probably gone:
-							{p.suspects.map((x) => x.name).join(', ')}. Check before deleting — it’s a count, not
-							a certainty.
+							{p.suspects.map((x) => x.name).join(', ')}. Check before deleting: it’s a count, not a
+							certainty.
 						</span>
 						<button type="button" onclick={() => selectOrphans(p.suspects.map((x) => x.device_id))}
 							>Select {p.suspects.length === 1 ? 'it' : 'them'}</button

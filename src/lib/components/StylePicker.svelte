@@ -19,7 +19,7 @@
 	const current = $derived(homeStyle(view.changes(page), kindOptions.shellRooms(page)));
 	const who = $derived(
 		view.mode(page) === 'edit'
-			? 'For everyone — unless they chose their own.'
+			? 'For everyone, unless they chose their own.'
 			: 'Only you see this, on top of the house’s Home.'
 	);
 	// Each style's little drawing: which cells glow, and how many columns.

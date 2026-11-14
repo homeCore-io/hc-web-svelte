@@ -53,6 +53,27 @@ describe('a room’s lights on or off', () => {
 		]);
 	});
 
+	it('leaves Room on to bring back only the lights that were on', async () => {
+		const lamp = light('lamp', false);
+		const other = light('other', false);
+		const named = light('holiday', false, { device_type: 'switch' });
+		Object.assign(fake.byId, { lamp, other });
+		fake.said['r-den'] = { error: null, lights: ['lamp'] };
+		await setLights({ room: den, name: 'Den', lights: [lamp, other, named] }, true);
+		// The other lamp was off before Room off, so it stays off; the switch Room on can't reach is sent.
+		expect(fake.commands.expect.mock.calls.map((c) => c[0])).toEqual(['lamp']);
+		expect(fake.commands.set.mock.calls.map((c) => [c[0], c[2]])).toEqual([
+			['holiday', { on: true }]
+		]);
+	});
+
+	it('sends each light its own command when Room on fails', async () => {
+		const lamp = light('lamp', false);
+		fake.said['r-den'] = { error: 'homeCore is not answering.', lights: [] };
+		await setLights({ room: den, name: 'Den', lights: [lamp] }, true);
+		expect(fake.commands.set.mock.calls.map((c) => c[0])).toEqual(['lamp']);
+	});
+
 	it('says what went wrong, by the room’s name', async () => {
 		fake.said['r-den'] = { error: 'homeCore is not answering.', lights: [] };
 		expect(await setLights({ room: den, name: 'Den', lights: [] }, true)).toBe(

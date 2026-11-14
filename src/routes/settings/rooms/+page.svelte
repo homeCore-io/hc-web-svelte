@@ -289,8 +289,8 @@
 										on, instead of making {room.name} again.
 									</li>
 									<li>
-										Anything that pointed at {room.name} — its place on Home, a display’s page, someone’s
-										phone bar — points at {target.name} instead.
+										Anything that pointed at {room.name} (its place on Home, a display’s page, someone’s
+										phone bar) points at {target.name} instead.
 									</li>
 								</ul>
 							{/if}

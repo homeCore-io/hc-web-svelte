@@ -373,7 +373,7 @@ export async function restartAndWait(
 	return {
 		ok: false,
 		error:
-			'homeCore hasn’t come back yet. Whatever runs it (systemd, Docker) should start it again — check there.'
+			'homeCore hasn’t come back yet. Whatever runs it (systemd, Docker) should start it again. Check there.'
 	};
 }
 

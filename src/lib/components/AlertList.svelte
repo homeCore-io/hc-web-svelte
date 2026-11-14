@@ -170,7 +170,7 @@
 		if (
 			a.action.confirm &&
 			!(await ask({
-				title: `${a.action.label.replace(/…$/, '')} — ${a.message}?`,
+				title: `${a.action.label.replace(/…$/, '')}: ${a.message}?`,
 				go: a.action.label.replace(/…$/, ''),
 				stay: 'Not now'
 			}))

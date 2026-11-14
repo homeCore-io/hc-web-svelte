@@ -79,7 +79,7 @@
 		if (isMe) {
 			const ok = await ask({
 				title: `Make yourself ${roleName(role).toLowerCase()}?`,
-				body: 'You’ll be signed out, and sign in again without admin — you won’t be able to undo this yourself.',
+				body: 'You’ll be signed out, and sign in again without admin. You won’t be able to undo this yourself.',
 				go: 'Change my role',
 				danger: true
 			});
@@ -175,7 +175,7 @@
 	</header>
 	{#if page.url.searchParams.get('added')}
 		<p class="lit" role="status">
-			Added. Give {person.username} their password in person — they can change it, and set a PIN, on Me.
+			Added. Give {person.username} their password in person. They can change it, and set a PIN, on Me.
 		</p>
 	{/if}
 

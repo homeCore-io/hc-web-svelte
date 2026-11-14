@@ -24,7 +24,7 @@
 <div class="page">
 	<p class="lead">
 		{pages.length === 0
-			? 'Pages you make — a kitchen panel, the garden, movie night — with what you choose on them.'
+			? 'Pages you make (a kitchen panel, the garden, movie night) with what you choose on them.'
 			: 'The house’s pages, then yours. Tap one to open it.'}
 	</p>
 	<div class="grid">

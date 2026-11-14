@@ -46,7 +46,7 @@ describe('Synced', () => {
 		const s = new Synced<Doc>('/ui/household', 'household');
 
 		await s.change(push('a'));
-		expect(s.trouble).toMatch(/ask an admin/);
+		expect(s.trouble).toMatch(/Ask an admin/);
 		expect(s.doc.items).toBeUndefined();
 
 		await s.change(push('b'));

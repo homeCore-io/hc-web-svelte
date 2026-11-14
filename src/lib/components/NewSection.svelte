@@ -105,7 +105,7 @@
 			</label>
 		{/if}
 		<p class="who">
-			{view.mode(page) === 'edit' ? 'Everyone sees it — unless they hide it.' : 'Only you see it.'}
+			{view.mode(page) === 'edit' ? 'Everyone sees it, unless they hide it.' : 'Only you see it.'}
 		</p>
 		<button type="submit" class="make" disabled={!name.trim()}>Make the section</button>
 	</form>

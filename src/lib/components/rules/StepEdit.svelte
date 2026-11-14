@@ -213,7 +213,7 @@
 					value={current?.cmd.key ?? ''}
 					onchange={(e) => setCommand(e.currentTarget.value, {})}
 				>
-					{#if !current}<option value="" disabled>As written — see the JSON tab</option>{/if}
+					{#if !current}<option value="" disabled>As written (see the JSON tab)</option>{/if}
 					{#each cmds as c (c.key)}<option value={c.key}>{c.label}</option>{/each}
 				</select>
 			</label>
@@ -234,7 +234,7 @@
 					onchange={(e) => set('track_event_value', e.currentTarget.checked)}
 				/>
 				<span
-					>Use the value that started it — this step’s setting, with the reading the moment brought
+					>Use the value that started it: this step’s setting, with the reading the moment brought
 					(to make one device follow another)</span
 				>
 			</label>

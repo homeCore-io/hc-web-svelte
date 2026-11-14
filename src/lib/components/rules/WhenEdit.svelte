@@ -278,7 +278,7 @@
 	{:else if kind === 'webhook'}
 		<div class="hook">
 			<label class="kind name">
-				<span>Its name — the end of the address</span>
+				<span>Its name (the end of the address)</span>
 				<span class="row">
 					<input
 						class="mono"
@@ -300,7 +300,7 @@
 				>
 			</div>
 			<p class="quiet">
-				Anyone who can reach this address can start the rule — it asks for no password, so the name
+				Anyone who can reach this address can start the rule. It asks for no password, so the name
 				is its secret. Give it only to the service that calls it; a new name stops the old address
 				working once you save.
 			</p>

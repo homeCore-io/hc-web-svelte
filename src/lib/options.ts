@@ -306,7 +306,7 @@ export const weatherDescriptor = (): Descriptor => ({
 				},
 				{
 					kind: 'note',
-					text: 'A forecast shows when the device has one — a weather plugin’s, say.'
+					text: 'A forecast shows when the device has one (a weather plugin’s, say).'
 				},
 				{
 					kind: 'toggle',

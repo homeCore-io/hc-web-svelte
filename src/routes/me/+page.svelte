@@ -169,8 +169,7 @@
 		if (next.length < 8) return void (passwordNote = 'The new one needs at least 8 characters.');
 		const r = await changeMyPassword(current, next);
 		if (!r.ok) return void (passwordNote = r.error);
-		await session.signOut();
-		void goto('/login?changed=1');
+		await session.signOut('/login?changed=1');
 	}
 
 	async function signOut() {
@@ -379,7 +378,7 @@
 		<section>
 			<h2 class="section-label" id="keys">API keys</h2>
 			<p class="note">
-				Keys let a program — a script, another app — use homeCore as you, with no more than you may. <a
+				Keys let a program (a script, another app) use homeCore as you, with no more than you may. <a
 					href="/settings/people/keys">Your keys</a
 				>
 			</p>

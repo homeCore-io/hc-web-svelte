@@ -656,7 +656,7 @@ export function commandsOf(d: CoreDevice): Command[] {
 				{
 					kind: 'text',
 					name: 'value',
-					label: type === 'datetime' ? 'Date, time or both — 2026-04-04, 08:00:00' : 'Words'
+					label: type === 'datetime' ? 'Date, time or both: 2026-04-04, 08:00:00' : 'Words'
 				}
 			],
 			build: (v) => ({ command: 'set', value: String(v.value ?? '') }),
@@ -872,7 +872,7 @@ export const CHECK_KINDS: { kind: CheckKind; label: string; sub: string }[] = [
 ];
 
 export const STEP_KINDS: { kind: StepKind; label: string; sub: string }[] = [
-	{ kind: 'device', label: 'Set a device', sub: 'On, off, a level — whatever it takes' },
+	{ kind: 'device', label: 'Set a device', sub: 'On, off, a level, whatever it takes' },
 	{ kind: 'scene', label: 'Run a scene', sub: 'One of homeCore’s scenes' },
 	{ kind: 'room', label: 'A room’s lights', sub: 'Off, or back on as they were' },
 	{ kind: 'wait', label: 'Wait', sub: 'For a time' },
@@ -956,9 +956,9 @@ export function webhookName(): string {
  */
 export function webhookProblem(name: unknown): string | null {
 	if (typeof name !== 'string' || name === '') return 'It needs a name.';
-	if (name.startsWith('/')) return 'Leave out the “/” — homeCore matches the name exactly.';
+	if (name.startsWith('/')) return 'Leave out the “/”. homeCore matches the name exactly.';
 	if (!/^[A-Za-z0-9_-][A-Za-z0-9._-]*$/.test(name))
-		return 'Letters, digits, “-”, “_” and “.” only — no spaces or “/”.';
+		return 'Letters, digits, “-”, “_” and “.” only. No spaces or “/”.';
 	if (name.length < 12)
 		return 'Short names are easy to guess, and anyone who guesses it can run the rule.';
 	return null;
@@ -1088,7 +1088,7 @@ export function buttonsOf(d: CoreDevice | undefined): Choice[] {
 		.sort((a, b) => a - b)
 		.map((n) => {
 			const named = d.button_names?.[String(n)];
-			return { value: String(n), label: named ? `${n} — ${named}` : `Button ${n}` };
+			return { value: String(n), label: named ? `${n}: ${named}` : `Button ${n}` };
 		});
 }
 
@@ -1253,7 +1253,7 @@ export function problemsOf(r: Rule, has: (id: string) => boolean): string[] {
 		.map((t) => webhookProblem(tagOf(t)[1].path))
 		.filter((p): p is string => p !== null && !p.startsWith('Short'));
 	if (hooks.length) out.push(`A webhook’s name: ${hooks[0]}`);
-	if (!(r.actions ?? []).length) out.push('It doesn’t do anything yet — add a step.');
+	if (!(r.actions ?? []).length) out.push('It doesn’t do anything yet. Add a step.');
 	const ifs = JSON.stringify(r.actions ?? []).includes('"Conditional":{"condition":""');
 	if (ifs) out.push('An if/otherwise doesn’t ask anything yet.');
 	return out;

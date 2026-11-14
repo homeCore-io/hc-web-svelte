@@ -161,7 +161,7 @@
 					c.running ? { command: 'cancel' } : { command: 'start', duration_secs: c.durationSecs }
 				);
 			case 'button':
-				if (!(await goAhead(id, kind, `${c.label} — ${r.name}?`, c.confirm))) return;
+				if (!(await goAhead(id, kind, `${c.label}: ${r.name}?`, c.confirm))) return;
 				return void commands.act(id, c.action);
 		}
 	}

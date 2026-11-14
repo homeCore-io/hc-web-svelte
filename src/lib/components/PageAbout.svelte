@@ -215,8 +215,8 @@
 				</ol>
 				<small
 					>{inBar
-						? 'Your bar only — set on Me. Pages is still in More.'
-						: 'Your bar only — set on Me. The house’s default bar is in Settings.'}</small
+						? 'Your bar only, set on Me. Pages is still in More.'
+						: 'Your bar only, set on Me. The house’s default bar is in Settings.'}</small
 				>
 			</section>
 		{/if}
@@ -225,7 +225,7 @@
 			<h3>On displays</h3>
 			{#if !house}
 				<p>
-					Only the house’s pages go on displays — a display isn’t a person, so it can’t show a page
+					Only the house’s pages go on displays. A display isn’t a person, so it can’t show a page
 					that’s just yours.
 				</p>
 			{:else if !session.isAdmin}

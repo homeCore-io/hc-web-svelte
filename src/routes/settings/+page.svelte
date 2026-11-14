@@ -235,7 +235,7 @@
 			<input
 				type="search"
 				bind:value={query}
-				placeholder="Find a setting — “backup”, “port”, “pushover”"
+				placeholder="Find a setting: “backup”, “port”, “pushover”"
 				aria-label="Find a setting"
 			/>
 		</label>

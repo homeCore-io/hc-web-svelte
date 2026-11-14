@@ -32,7 +32,7 @@
 	<span>{label}</span>
 	<select value={shown} class:missing={!known} onchange={(e) => onchange(e.currentTarget.value)}>
 		<option value="" disabled={!optional}>{optional ? 'None' : 'Choose a device…'}</option>
-		{#if !known}<option {value}>{value} — not in the house</option>{/if}
+		{#if !known}<option {value}>{value} (not in the house)</option>{/if}
 		{#each groups as g (g.room)}
 			<optgroup label={g.room}>
 				{#each g.devices as d (d.device_id)}<option value={d.device_id}>{displayName(d)}</option

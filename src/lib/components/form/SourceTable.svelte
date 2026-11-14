@@ -80,7 +80,7 @@
 		{#each rooms.list as r (r.id)}<option value={r.name}></option>{/each}
 	</datalist>
 	<p class="quiet">
-		A change here is made to the device at once — it isn’t part of saving these settings. A room the
+		A change here is made to the device at once. It isn’t part of saving these settings. A room the
 		house doesn’t have yet is made.
 	</p>
 </div>

@@ -98,7 +98,7 @@ describe('the list', () => {
 		const list = rowsOf([...RULES, kept], h, {}, {}, { 'r-door': started });
 		expect(list.filter((r) => shows(r, '', 'alerts')).map((r) => r.rule.id)).toEqual(['r-door']);
 		expect(list.find((r) => r.rule.id === 'r-kept')!.trouble).toEqual([
-			'Its alert was deleted — choose another trigger or delete it'
+			'Its alert was deleted. Choose another trigger or delete it'
 		]);
 	});
 

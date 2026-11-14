@@ -64,7 +64,7 @@ export function rowsOf(
 			.map((r) => r.id);
 		const trouble: string[] = [];
 		if (alertDeleted(rule))
-			trouble.push('Its alert was deleted — choose another trigger or delete it');
+			trouble.push('Its alert was deleted. Choose another trigger or delete it');
 		else if (rule.error) trouble.push(`homeCore can’t run it: ${rule.error}`);
 		if (missing.length)
 			trouble.push(

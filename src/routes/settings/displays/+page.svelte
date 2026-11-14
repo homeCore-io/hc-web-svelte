@@ -166,9 +166,9 @@
 {:else}
 	<div class="stack">
 		<p class="quiet">
-			A display is a screen for the house — a kitchen panel, a hall tablet. It shows only the pages
-			you choose, isn't anybody's account, and can never change settings. Anyone with a PIN can
-			unlock it for a few minutes (set a PIN on Me).
+			A display is a screen for the house, like a kitchen panel or a hall tablet. It shows only the
+			pages you choose, isn't anybody's account, and can never change settings. Anyone with a PIN
+			can unlock it for a few minutes (set a PIN on Me).
 		</p>
 
 		<!-- Not offered when homeCore wouldn't list them: it would refuse a new one too. -->
@@ -176,7 +176,7 @@
 			<form class="new" onsubmit={create}>
 				<input
 					bind:value={name}
-					placeholder="A name — Hall tablet, say"
+					placeholder="A name, like Hall tablet"
 					aria-label="New display's name"
 				/>
 				<button type="submit" disabled={name.trim() === ''}>Make a display</button>

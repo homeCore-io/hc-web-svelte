@@ -158,8 +158,8 @@
 					</ul>
 				{/if}
 				<p class="quiet">
-					Everyone can personalise their own view. Rooms and devices can’t be limited per person yet
-					— that comes later.
+					Everyone can personalize their own view. Rooms and devices can’t be limited per person
+					yet. That comes later.
 				</p>
 			</section>
 		{/if}

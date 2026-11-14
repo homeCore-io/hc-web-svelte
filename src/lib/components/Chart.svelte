@@ -152,7 +152,7 @@
 			? ''
 			: fmt(shape.min) === fmt(shape.max)
 				? `steady at ${fmt(shape.min)}${unitText}`
-				: `${fmt(shape.min)}–${fmt(shape.max)}${unitText}`
+				: `${fmt(shape.min)} to ${fmt(shape.max)}${unitText}`
 	);
 </script>
 
@@ -163,7 +163,7 @@
 				<span class="num range"
 					>{fmt(shape.min) === fmt(shape.max)
 						? fmt(shape.min)
-						: `${fmt(shape.min)}–${fmt(shape.max)}`}{shownAs === '%'
+						: `${fmt(shape.min)} to ${fmt(shape.max)}`}{shownAs === '%'
 						? '%'
 						: shownAs
 							? ` ${shownAs}`

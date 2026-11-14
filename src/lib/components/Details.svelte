@@ -108,7 +108,7 @@
 	let units = $state<Record<string, number>>({});
 	let ran = $state<string | null>(null);
 	async function run(a: ActionView) {
-		if (!(await goAhead(id, card.kind, `${a.label} — ${card.name}?`, a.confirm))) return;
+		if (!(await goAhead(id, card.kind, `${a.label}: ${card.name}?`, a.confirm))) return;
 		if (await commands.act(id, a.id, withoutAction(actionBody(a, values[a.id] ?? {})))) {
 			ran = a.id;
 			setTimeout(() => {

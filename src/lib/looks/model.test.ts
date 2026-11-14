@@ -159,12 +159,22 @@ describe('the console’s frame', () => {
 		expect(odd.frame).toEqual(CLASSIC.frame);
 	});
 
-	it('draws the household’s pages in the console, and settings and Me in the standard frame', () => {
-		for (const p of ['/', '/rooms/office', '/pages/x', '/scenes', '/alerts'])
+	it('draws every screen in the console, settings and Me too, so its gear and picture are always there', () => {
+		for (const p of [
+			'/',
+			'/rooms/office',
+			'/pages/x',
+			'/scenes',
+			'/alerts',
+			'/settings',
+			'/settings/system',
+			'/me',
+			'/more'
+		])
 			expect(consoleHere(CONSOLE, p), p).toBe(true);
-		for (const p of ['/settings', '/settings/system', '/me', '/more'])
-			expect(consoleHere(CONSOLE, p), p).toBe(false);
-		expect(consoleHere({ ...CONSOLE, reaches: 'everywhere' }, '/settings')).toBe(true);
+		// Settings keep Classic's feel inside it unless the look reaches them (S9).
+		expect(reachesHere(CONSOLE, '/settings')).toBe(false);
+		expect(reachesHere({ ...CONSOLE, reaches: 'everywhere' }, '/settings')).toBe(true);
 		expect(consoleHere(LIT, '/')).toBe(false);
 		expect(consoleHere(CLASSIC, '/rooms/office')).toBe(false);
 	});

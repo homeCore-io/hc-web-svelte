@@ -255,7 +255,7 @@
 			<a
 				class="icon bell"
 				href="/alerts"
-				aria-label={alerts.list.length > 0 ? `Alerts — ${alerts.list.length}` : 'Alerts'}
+				aria-label={alerts.list.length > 0 ? `Alerts: ${alerts.list.length}` : 'Alerts'}
 			>
 				<Bell size={22} strokeWidth={1.8} aria-hidden="true" />
 				{#if alerts.list.length > 0}<span class="count" aria-hidden="true"

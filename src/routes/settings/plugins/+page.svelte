@@ -92,7 +92,7 @@
 		{:else if list === null}
 			<p class="quiet">Loading…</p>
 		{:else if rows.length === 0}
-			<p class="quiet">No plugins yet — add one to connect homeCore to your devices.</p>
+			<p class="quiet">No plugins yet. Add one to connect homeCore to your devices.</p>
 		{:else if wide.current}
 			<div class="table" role="table" aria-label="Plugins">
 				<div class="row head" role="row">

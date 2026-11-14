@@ -63,7 +63,7 @@ export function readLevel(directive: string): LevelReading {
 	const preset = PRESETS.find((p) => p.level === level)?.id ?? null;
 	let note: string | null = null;
 	if (bare.length > 1)
-		note = `It says ${bare.map((b) => `“${b}”`).join(' and then ')} for everything — the last one wins, so it is really ${level}.`;
+		note = `It says ${bare.map((b) => `“${b}”`).join(' and then ')} for everything. The last one wins, so it is really ${level}.`;
 	else if (!onlyBroker)
 		note = `Some parts of homeCore are set apart: ${targeted.filter((t) => !BROKER_QUIET.includes(t)).join(', ')}.`;
 	else if (!BROKER_QUIET.every((b) => parts.includes(b)) && level && level !== 'info')
@@ -201,7 +201,7 @@ export function eventRow(e: Json, house: EventHouse): EventRow | undefined {
 				kind: 'device',
 				words: [
 					s(name(e.device_id, e.device_name)),
-					p(` — ${said.join(', ')}`),
+					p(`: ${said.join(', ')}`),
 					...(who ? [p(` · ${who}`)] : [])
 				],
 				href: `/settings/devices/${encodeURIComponent(e.device_id)}`
@@ -268,7 +268,7 @@ export function eventRow(e: Json, house: EventHouse): EventRow | undefined {
 			const st = String(e.state ?? '');
 			const what =
 				st === 'running' && e.remaining_secs
-					? ` started — ${minutes(e.remaining_secs)}`
+					? ` started, ${minutes(e.remaining_secs)}`
 					: st === 'finished' || st === 'idle'
 						? ' finished'
 						: ` ${st}`;
@@ -281,7 +281,7 @@ export function eventRow(e: Json, house: EventHouse): EventRow | undefined {
 				kind: 'warn',
 				words: [
 					s(name(e.device_id, e.device_name)),
-					p(` battery low — ${Math.round(e.battery_pct)}%`)
+					p(` battery low (${Math.round(e.battery_pct)}%)`)
 				]
 			};
 		case 'alert_raised':
@@ -353,7 +353,7 @@ export function eventRow(e: Json, house: EventHouse): EventRow | undefined {
 				kind: 'device',
 				words: [
 					s(name(e.device_id, e.device_name)),
-					p(` battery is fine again — ${Math.round(e.battery_pct)}%`)
+					p(` battery is fine again (${Math.round(e.battery_pct)}%)`)
 				]
 			};
 		case 'alert_cleared':
@@ -491,7 +491,7 @@ export function folded(rows: EventRow[], noisy: (r: EventRow) => boolean): Event
 			const attrs = g.key.split(':').slice(2).join(':').split(',').filter(Boolean);
 			g.words = [
 				...g.words.slice(0, 1),
-				p(` — ${[...new Set(attrs.map(label))].join(', ')} changed${n > 1 ? ` ${n} times` : ''}`)
+				p(`: ${[...new Set(attrs.map(label))].join(', ')} changed${n > 1 ? ` ${n} times` : ''}`)
 			];
 		}
 	}
@@ -602,7 +602,7 @@ export function auditWords(a: AuditEntry): { t: string; strong?: boolean }[] {
 	const [area = '', verb = ''] = a.event_type.split(/\.(.*)/s);
 	switch (a.event_type) {
 		case 'auth.login':
-			return ok ? [who, p(' signed in')] : [who, p(' couldn’t sign in — wrong password')];
+			return ok ? [who, p(' signed in')] : [who, p(' couldn’t sign in: wrong password')];
 		case 'auth.refresh':
 			return [who, p(' kept a session going')];
 		case 'auth.refresh.reuse':
@@ -678,7 +678,7 @@ export function auditWords(a: AuditEntry): { t: string; strong?: boolean }[] {
 	}
 	const v = VERB[verb];
 	if (thing && v) return [who, p(` ${v}`), ...named(thing)];
-	return [who, p(` — ${a.event_type}`)];
+	return [who, p(`: ${a.event_type}`)];
 }
 
 function thingOf(a: AuditEntry, area: string): string {

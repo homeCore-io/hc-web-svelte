@@ -84,7 +84,7 @@
 	const plan = $derived(writes(form.changes));
 	const blocked = $derived(
 		plan.cannot.length
-			? `${plan.cannot.map((c) => c.field.label ?? c.key).join(', ')} can’t be emptied here — edit the file instead.`
+			? `${plan.cannot.map((c) => c.field.label ?? c.key).join(', ')} can’t be emptied here. Edit the file instead.`
 			: form.blocked
 				? 'Fix the settings marked in red first.'
 				: null
@@ -117,7 +117,7 @@
 	async function editFile() {
 		const yes = await ask({
 			title: `Edit ${name}’s file itself?`,
-			body: 'homeCore checks nothing in it but that it’s TOML. Passwords stay hidden — leave “__redacted__” as it is to keep one.',
+			body: 'homeCore checks nothing in it but that it’s TOML. Passwords stay hidden. Leave “__redacted__” as it is to keep one.',
 			go: 'Edit the file'
 		});
 		if (!yes || !config?.raw) return;

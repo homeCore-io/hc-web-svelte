@@ -213,7 +213,7 @@
 			0 0 12px rgba(90, 209, 255, 0.8);
 	}
 	.blank {
-		color: #9d998f;
+		color: #66625a;
 	}
 	.last {
 		box-shadow:
@@ -244,7 +244,7 @@
 		outline: none;
 	}
 	.kname input::placeholder {
-		color: #9d998f;
+		color: #66625a;
 		text-transform: uppercase;
 	}
 	.kname.wait {

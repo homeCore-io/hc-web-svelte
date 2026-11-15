@@ -1,10 +1,10 @@
 /**
  * Home in the console's look, live: what the desktop's Home (ConsoleHome)
- * and the phone's (phone/PhoneHome) show and do. The day and the weather
- * outside; every room as a tile, its drawing or photo lit by its lights
- * (home.ts, pictures.ts, photo.ts), in Home's order; the house in a line;
- * what needs attention, with its fix; the person's favorites and Every light
- * off; and what's playing.
+ * and the phone's (phone/PhoneHome) show and do. The day; the weather
+ * outside, now and to come (weather.ts); every room as a tile, its drawing
+ * or photo lit by its lights (home.ts, pictures.ts, photo.ts), in Home's
+ * order; the house in a line; what needs attention, with its fix; the
+ * person's favorites and Every light off; and what's playing.
  *
  * Made while a page is set up.
  */
@@ -28,14 +28,7 @@ import { homeRoomOrder, ref } from '#lib/layers.js';
 import { cardFor, kindOf } from '#lib/card.js';
 import { displayName, type CoreDevice } from '#lib/devices.js';
 import { ROOM_BUILT_IN } from '#lib/options.js';
-import {
-	degrees,
-	outdoorStation,
-	outsideTemperature,
-	percent,
-	readingOf,
-	roomBox
-} from '#lib/roomBox.js';
+import { roomBox } from '#lib/roomBox.js';
 import { openDevice } from '#lib/popup.js';
 import { homeSceneRefs, homeScenesOf, type HomeScene } from '#lib/homeScenes.js';
 import { roomPicture } from './pictures.js';
@@ -55,6 +48,7 @@ import {
 	working,
 	type Issue
 } from './home.js';
+import { bandOf, nowChoicesOf, nowSourceOf, withNowSource, type NowSource } from './weather.js';
 
 const wants = (id: string) => commands.pending[id]?.want;
 
@@ -69,19 +63,15 @@ export class HomeNow {
 	time = $derived(this.at.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }));
 	night = $derived(this.at.getHours() < 6 || this.at.getHours() >= 19);
 
-	// ---- the weather outside: the house's station, and a weather plugin's words ----
-	// A station that hasn't reported in an hour isn't the weather now.
-	station = $derived(outdoorStation(devices.byId, clock.now));
-	outside = $derived(degrees(outsideTemperature(devices.byId, 'auto', clock.now)));
-	humidity = $derived(this.station ? percent(readingOf(this.station, 'humidity')) : undefined);
-	#forecast = $derived(
-		Object.values(devices.byId).find(
-			(d) => kindOf(d) === 'weather' && typeof d.attributes.condition === 'string'
-		)
-	);
-	condition = $derived(this.#forecast?.attributes.condition as string | undefined);
-	cloudy = $derived(/cloud|overcast|rain|snow|fog|drizzle|storm|mist/i.test(this.condition ?? ''));
-	partly = $derived(/partly|mostly sunny|few/i.test(this.condition ?? ''));
+	// ---- the weather band: now from where the household chose, the forecast from the service ----
+	// A station that hasn't reported in an hour isn't the weather now (weather.ts).
+	nowSource = $derived(nowSourceOf(household.doc));
+	weather = $derived(bandOf(devices.byId, this.nowSource, clock.now, this.night));
+	/** Who may choose where now comes from, for the household. */
+	mayChooseNow = $derived(session.can('content:write'));
+	nowChoices = $derived(nowChoicesOf(devices.byId, rooms.list, this.nowSource, clock.now));
+	chooseNow = (source: NowSource): Promise<void> =>
+		household.change((d) => withNowSource(d, source));
 
 	// ---- every room, as a tile ----
 	#order = $derived(homeRoomOrder(rooms.list, (r) => ref.room(r.id), view.changes('home')).shown);

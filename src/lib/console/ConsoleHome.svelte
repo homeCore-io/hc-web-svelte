@@ -1,22 +1,17 @@
 <!--
 	Home in the console's look (the HomeConsole board): a greeting with the
-	day, the time and the weather outside, and the house in a line; what
-	needs attention, each with its fix; the house's favorites and its
-	scenes row (HomeScenes); every room as a tile, its drawing lit live by
-	its lights, with its temperature and what's going on; and what's playing
-	in the house, along the bottom. What the cameras saw lately shows under
-	the greeting, as the household chose (HomePills).
+	day and the time, and the house in a line; what needs attention, each
+	with its fix; the weather, now and to come (WeatherBand); the house's
+	favorites and its scenes row (HomeScenes); every room as a tile, its
+	drawing lit live by its lights, with its temperature and what's going
+	on; and what's playing in the house, along the bottom. What the cameras
+	saw lately shows under the greeting, as the household chose (HomePills).
 
 	A screen can open on a room instead (opensOn.ts). Loaded only by the
 	console's look.
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import Sun from '@lucide/svelte/icons/sun';
-	import Moon from '@lucide/svelte/icons/moon';
-	import Cloud from '@lucide/svelte/icons/cloud';
-	import CloudSun from '@lucide/svelte/icons/cloud-sun';
-	import CloudMoon from '@lucide/svelte/icons/cloud-moon';
 	import LightbulbOff from '@lucide/svelte/icons/lightbulb-off';
 	import Music from '@lucide/svelte/icons/music';
 	import Tv from '@lucide/svelte/icons/tv';
@@ -26,11 +21,11 @@
 	import { clock } from '#lib/clock.svelte.js';
 	import { commands } from '#lib/commands.svelte.js';
 	import { cardFor } from '#lib/card.js';
-	import { displayName } from '#lib/devices.js';
 	import Icon from '#lib/components/Icon.svelte';
 	import RoomPicture from './RoomPicture.svelte';
 	import HomePills from './HomePills.svelte';
 	import HomeScenes from './HomeScenes.svelte';
+	import WeatherBand from './WeatherBand.svelte';
 	import { anyLit } from './pictures.js';
 	import RoomPhoto from './RoomPhoto.svelte';
 	import { photoLit } from './photo.js';
@@ -55,17 +50,10 @@
 	const h = new HomeNow();
 	const may = $derived(h.may);
 
-	// ---- the greeting, and the weather outside ----
+	// ---- the greeting ----
 	const at = $derived(h.at);
 	const day = $derived(h.day);
 	const time = $derived(h.time);
-	const night = $derived(h.night);
-	const outside = $derived(h.outside);
-	const station = $derived(h.station);
-	const humidity = $derived(h.humidity);
-	const condition = $derived(h.condition);
-	const cloudy = $derived(h.cloudy);
-	const partly = $derived(h.partly);
 
 	// ---- every room as a tile, the house in a line, what needs attention ----
 	const tiles = $derived(h.tiles);
@@ -74,6 +62,22 @@
 	const playing = $derived(h.playing);
 	const line = $derived(h.line);
 	const fix = h.fix;
+
+	// ---- favorites: by touch a row that scrolls, fading at an edge with more past it ----
+	let more = $state({ left: false, right: false });
+	function edges(el: HTMLElement) {
+		const look = () =>
+			(more = {
+				left: el.scrollLeft > 1,
+				right: el.scrollLeft + el.clientWidth < el.scrollWidth - 1
+			});
+		look();
+		el.addEventListener('scroll', look, { passive: true });
+		const seen = new ResizeObserver(look);
+		seen.observe(el);
+		for (const c of el.children) seen.observe(c);
+		return { destroy: () => (el.removeEventListener('scroll', look), seen.disconnect()) };
+	}
 
 	// ---- favorites ----
 	const favs = $derived(h.favs);
@@ -102,29 +106,6 @@
 				<p class="line">{line}</p>
 				<HomePills />
 			</div>
-			{#if outside}
-				<div class="outside" title={station ? `From ${displayName(station)}` : undefined}>
-					<span class="sky" aria-hidden="true">
-						{#if cloudy && partly}
-							{#if night}<CloudMoon size={40} strokeWidth={1.5} />{:else}<CloudSun
-									size={40}
-									strokeWidth={1.5}
-								/>{/if}
-						{:else if cloudy}<Cloud size={40} strokeWidth={1.5} />
-						{:else if night}<Moon size={40} strokeWidth={1.5} />
-						{:else}<Sun size={40} strokeWidth={1.5} />{/if}
-					</span>
-					<div>
-						<b>{outside}</b>
-						<small
-							>{['Outside', humidity && `${humidity} humidity`].filter(Boolean).join(' · ')}</small
-						>
-						{#if condition || station}<small class="from"
-								>{condition ?? `From ${displayName(station!)}`}</small
-							>{/if}
-					</div>
-				</div>
-			{/if}
 		</section>
 
 		{#if issues.length > 0}
@@ -144,7 +125,16 @@
 			</div>
 		{/if}
 
-		<div class="favs" role="group" aria-label="Favorites">
+		<WeatherBand {h} />
+
+		<div
+			class="favs"
+			class:fade-l={more.left}
+			class:fade-r={more.right}
+			role="group"
+			aria-label="Favorites"
+			use:edges
+		>
 			<button
 				type="button"
 				class="fav"
@@ -306,37 +296,6 @@
 	.hello :global(.pills) {
 		margin-top: 4px;
 	}
-	.outside {
-		position: relative;
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		padding: 10px 16px;
-		border-radius: 16px;
-		background: color-mix(in srgb, var(--ink) 5%, transparent);
-	}
-	.sky {
-		display: grid;
-		color: #c7d2e6;
-	}
-	:global(:root[data-theme='light']) .sky {
-		color: #5a6478;
-	}
-	.outside b {
-		display: block;
-		font-size: 28px;
-		font-weight: 700;
-		line-height: 1;
-	}
-	.outside small {
-		display: block;
-		margin-top: 2px;
-		font-size: 12px;
-		color: var(--ink-muted);
-	}
-	.outside .from {
-		font-size: 11px;
-	}
 
 	/* ---- what needs attention ---- */
 	.issues {
@@ -404,7 +363,32 @@
 		gap: 10px;
 		padding: 14px 28px;
 		overflow-x: auto;
+		/* It scrolls by touch or trackpad; no bar under it. */
+		scrollbar-width: none;
 		box-shadow: inset 0 -1px 0 var(--con-edge);
+	}
+	.favs::-webkit-scrollbar {
+		display: none;
+	}
+	.favs.fade-r {
+		mask-image: linear-gradient(90deg, #000 calc(100% - 56px), transparent);
+	}
+	.favs.fade-l {
+		mask-image: linear-gradient(90deg, transparent, #000 56px);
+	}
+	.favs.fade-l.fade-r {
+		mask-image: linear-gradient(90deg, transparent, #000 56px, #000 calc(100% - 56px), transparent);
+	}
+	/* With a mouse or trackpad the row wraps onto more lines instead. */
+	@media (pointer: fine) {
+		.favs {
+			flex-wrap: wrap;
+			overflow-x: visible;
+		}
+		.favs.fade-l,
+		.favs.fade-r {
+			mask-image: none;
+		}
 	}
 	.fav {
 		flex: none;

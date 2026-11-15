@@ -1,7 +1,8 @@
 <!--
 	System (A6): how homeCore is — running since when, its plugins, devices,
 	alerts, the last backup and storage — how much it writes to its log, its
-	versions, and restarting it.
+	versions, and restarting it. Beside the household's units, where Home's
+	weather now comes from (console/weather.ts).
 -->
 <script lang="ts">
 	import { notAdmin } from '#lib/refusals.js';
@@ -18,6 +19,14 @@
 	import type { TemperatureUnit } from '#lib/units.js';
 	import { clock } from '#lib/clock.svelte.js';
 	import { devices } from '#lib/devices.svelte.js';
+	import { rooms } from '#lib/rooms.svelte.js';
+	import { household } from '#lib/household.svelte.js';
+	import {
+		nowChoicesOf,
+		nowSourceOf,
+		withNowSource,
+		type NowSource
+	} from '#lib/console/weather.js';
 	import { alerts } from '#lib/alerts.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
 	import { backupDue, daysAgo, size, uptime } from '#lib/settings.js';
@@ -70,6 +79,11 @@
 		const a = await houseUnits.set(u);
 		unitNote = a.ok ? null : a.error;
 	}
+
+	// Where the weather on Home reads the temperature now, for the household.
+	const nowSource = $derived(nowSourceOf(household.doc));
+	const nowChoices = $derived(nowChoicesOf(devices.byId, rooms.list, nowSource, clock.now));
+	const pickNow = (source: NowSource) => household.change((d) => withNowSource(d, source));
 	async function load() {
 		const [st, v, l, p, c] = await Promise.all([
 			loadStatus(),
@@ -400,6 +414,20 @@
 				>.
 			</p>
 			{#if unitNote}<p class="sub" role="status">{unitNote}</p>{/if}
+			<label class="wxfrom"
+				>Weather on Home: current conditions from
+				<select
+					value={nowSource}
+					disabled={!session.can('content:write')}
+					onchange={(e) => void pickNow(e.currentTarget.value as NowSource)}
+				>
+					{#each nowChoices as c (c.value)}<option value={c.value}>{c.label}</option>{/each}
+				</select>
+			</label>
+			<p class="sub">
+				The temperature and humidity Home shows now. The forecast always comes from the weather
+				service. Automatic is the house's own weather station while it reports, else the service.
+			</p>
 		</section>
 
 		{#if connections}
@@ -562,6 +590,22 @@
 		font-weight: 700;
 	}
 	.detail,
+	.wxfrom {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px;
+		font-size: 14px;
+	}
+	.wxfrom select {
+		height: 36px;
+		padding: 0 8px;
+		border-radius: 10px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--ink);
+		font: inherit;
+	}
 	.sub {
 		font-size: 13px;
 		color: var(--ink-muted);

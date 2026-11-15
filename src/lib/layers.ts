@@ -110,10 +110,13 @@ export interface PersonDoc {
 /**
  * Home's choices kept beside its layout. `scenes` is the scenes row, in its
  * order, as refs: `scene:{id}` for homeCore's own, `device:{id}` for a
- * plugin's. Absent or empty, a person sees the household's.
+ * plugin's. Absent or empty, a person sees the household's. `weather.now`
+ * is where the weather band's temperature now comes from (console/weather.ts),
+ * kept by the household only; absent is automatic.
  */
 export interface HomeChoices {
 	scenes?: string[];
+	weather?: { now?: 'auto' | 'service' | `device:${string}` };
 }
 
 /** Whether to ask before a command: always, never, or as the device declares (D2). */

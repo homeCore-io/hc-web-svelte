@@ -1,7 +1,8 @@
 <!--
 	Home on the phone (the PhonePlan board), from the console's Home
-	(homeNow.svelte.ts): a greeting with the day and the temperature outside,
-	and the house in a line; what needs attention, each with its fix; Every
+	(homeNow.svelte.ts): a greeting with the day, and the house in a line;
+	what needs attention, each with its fix; the weather now and the next
+	three days, the 24 hours and the week a tap away (WeatherBand); Every
 	light off and the person's favorites in a row that scrolls across; the
 	scenes row, two across (HomeScenes); then every room as a lit tile, two
 	across in Home's order.
@@ -15,6 +16,7 @@
 	import Icon from '#lib/components/Icon.svelte';
 	import HomePills from '../HomePills.svelte';
 	import HomeScenes from '../HomeScenes.svelte';
+	import WeatherBand from '../WeatherBand.svelte';
 	import { greetingOf } from '../home.js';
 	import { HomeNow } from '../homeNow.svelte.js';
 	import PhoneTop from './PhoneTop.svelte';
@@ -29,9 +31,7 @@
 	<div class="phome">
 		<div class="hglow" aria-hidden="true"></div>
 		<PhoneTop title={greetingOf(h.at.getHours())}>
-			<p class="sub">
-				{[h.day, h.outside && `${h.outside} outside`].filter(Boolean).join(' · ')}
-			</p>
+			<p class="sub">{h.day}</p>
 			<p class="line">{h.line}</p>
 		</PhoneTop>
 
@@ -52,6 +52,7 @@
 			</div>
 		{/if}
 		<div class="cams"><HomePills /></div>
+		<WeatherBand {h} phone />
 
 		<div class="favs" role="group" aria-label="Favorites">
 			<button

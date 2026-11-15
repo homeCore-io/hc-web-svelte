@@ -114,18 +114,23 @@ function reportedAt(d: CoreDevice, attr: string): number | undefined {
 }
 
 /**
+ * Whether a device's temperature is still the weather now: it reported it in
+ * the last hour, or it doesn't say when, or no `now` (ms) is given.
+ */
+export function freshOutside(d: CoreDevice, now?: number): boolean {
+	const at = now === undefined ? undefined : reportedAt(d, 'temperature');
+	return at === undefined || now! - at <= OUTSIDE_FRESH_MS;
+}
+
+/**
  * The house's own weather station, else a weather plugin's place: what reads
  * outside. Given `now` (ms), one that hasn't reported its temperature in
  * the last hour isn't, so Home never shows a days-old temperature as today's.
  */
 export function outdoorStation(all: Devices, now?: number): CoreDevice | undefined {
-	const fresh = (d: CoreDevice) => {
-		const at = now === undefined ? undefined : reportedAt(d, 'temperature');
-		return at === undefined || now! - at <= OUTSIDE_FRESH_MS;
-	};
 	const outdoors = (kind: string) =>
 		Object.values(all).find(
-			(d) => kindOf(d) === kind && readingOf(d, 'temperature') !== undefined && fresh(d)
+			(d) => kindOf(d) === kind && readingOf(d, 'temperature') !== undefined && freshOutside(d, now)
 		);
 	return outdoors('weather_station') ?? outdoors('weather');
 }

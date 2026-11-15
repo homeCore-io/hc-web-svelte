@@ -199,7 +199,7 @@ function dayOf(time: unknown): number {
 }
 
 /** A condition's words: its option's label, else the value in words. */
-function conditionText(spec: AttributeSchema | undefined, value: string): string {
+export function conditionText(spec: AttributeSchema | undefined, value: string): string {
 	const o = (spec?.options ?? []).find((x) => typeof x !== 'string' && x.value === value);
 	if (typeof o === 'object' && o.label) return o.label;
 	const w = value.replace(/_/g, ' ');

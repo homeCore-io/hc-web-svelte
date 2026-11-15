@@ -103,6 +103,17 @@ export interface PersonDoc {
 	 * Customize's "Just me".
 	 */
 	roomAudio?: Record<string, string>;
+	/** Home's own choices: their scenes row, over the household's (homeScenes.ts). */
+	home?: HomeChoices;
+}
+
+/**
+ * Home's choices kept beside its layout. `scenes` is the scenes row, in its
+ * order, as refs: `scene:{id}` for homeCore's own, `device:{id}` for a
+ * plugin's. Absent or empty, a person sees the household's.
+ */
+export interface HomeChoices {
+	scenes?: string[];
 }
 
 /** Whether to ask before a command: always, never, or as the device declares (D2). */
@@ -142,6 +153,8 @@ export interface HouseDoc {
 	 * for none. Unset, the room's first screen, else its first speaker (console/media.ts).
 	 */
 	roomAudio?: Record<string, string>;
+	/** Home's choices for everyone: the scenes row (homeScenes.ts). */
+	home?: HomeChoices;
 }
 
 export const ref = {

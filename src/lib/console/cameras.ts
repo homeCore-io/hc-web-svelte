@@ -186,6 +186,8 @@ export function wallSplit(
 	{ gap = 16, railGap = 8, above = 0, least = 150 } = {}
 ): { viewer: number; rail: number } {
 	const most = cols === 2 ? 480 : 320;
+	// Two across, each snapshot stays wide enough for its name.
+	least = cols === 2 ? Math.max(least, 228) : least;
 	const byHeight = railWidth(railH, shown, cols, { gap: railGap, above, most, least });
 	const viewer = Math.max(0, Math.min(width - least - gap, (viewH * 16) / 9));
 	const rail = Math.max(least, Math.min(byHeight, width - viewer - gap));

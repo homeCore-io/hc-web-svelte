@@ -137,6 +137,17 @@
 		background: color-mix(in srgb, var(--ink) 10%, transparent);
 		color: var(--ink);
 	}
+	/* A finger needs more than the 22 px drawn: the same dots, a larger place to tap. */
+	@media (pointer: coarse) {
+		.place:not(.corner, .chip) .dots {
+			position: relative;
+		}
+		.dots::after {
+			content: '';
+			position: absolute;
+			inset: -10px;
+		}
+	}
 	.dots:focus-visible {
 		outline: 2px solid var(--accent);
 		outline-offset: 1px;

@@ -1,11 +1,11 @@
 <!--
 	Home in the console's look (the HomeConsole board): a greeting with the
 	day, the time and the weather outside, and the house in a line; what
-	needs attention, each with its fix; the house's favorites; every room as
-	a tile, its drawing lit live by its lights, with its temperature and
-	what's going on; and what's playing in the house, along the bottom.
-	What the cameras saw lately shows under the greeting, as the household
-	chose (HomePills).
+	needs attention, each with its fix; the house's favorites and its
+	scenes row (HomeScenes); every room as a tile, its drawing lit live by
+	its lights, with its temperature and what's going on; and what's playing
+	in the house, along the bottom. What the cameras saw lately shows under
+	the greeting, as the household chose (HomePills).
 
 	A screen can open on a room instead (opensOn.ts). Loaded only by the
 	console's look.
@@ -30,6 +30,7 @@
 	import Icon from '#lib/components/Icon.svelte';
 	import RoomPicture from './RoomPicture.svelte';
 	import HomePills from './HomePills.svelte';
+	import HomeScenes from './HomeScenes.svelte';
 	import { anyLit } from './pictures.js';
 	import RoomPhoto from './RoomPhoto.svelte';
 	import { photoLit } from './photo.js';
@@ -159,6 +160,7 @@
 					></span
 				>
 			</button>
+			<HomeScenes {h} />
 			{#each favs as f (f.key)}
 				{#if 'device' in f}
 					{@const c = cardFor(f.device, clock.now)}
@@ -180,6 +182,7 @@
 					</button>
 				{/if}
 			{/each}
+			<HomeScenes {h} add />
 			{#if trouble}<p class="trouble" role="alert">{trouble}</p>{/if}
 		</div>
 

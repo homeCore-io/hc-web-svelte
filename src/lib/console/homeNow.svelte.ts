@@ -37,6 +37,7 @@ import {
 	roomBox
 } from '#lib/roomBox.js';
 import { openDevice } from '#lib/popup.js';
+import { homeSceneRefs, homeScenesOf, type HomeScene } from '#lib/homeScenes.js';
 import { roomPicture } from './pictures.js';
 import { photoGlow, photoSpots } from './photo.js';
 import { roomIn } from './layout.js';
@@ -212,5 +213,23 @@ export class HomeNow {
 	runScene = async (s: CoreScene): Promise<void> => {
 		const done = await scenes.run(s.id);
 		this.trouble = done === true ? null : `${s.name} didn’t run: ${done}.`;
+	};
+
+	// ---- the scenes row: the person's own, else the house's (homeScenes.ts) ----
+	sceneRow = $derived(
+		homeScenesOf(
+			homeSceneRefs(household.doc, personal.doc).refs,
+			devices.byId,
+			scenes.list,
+			rooms.list
+		)
+	);
+	mayRun = $derived(session.mayRunScenes);
+	/** One tap runs it: homeCore's own by its scene, a plugin's by its device's `activate`. */
+	runHomeScene = async (s: HomeScene): Promise<void> => {
+		if (s.scene) return this.runScene(s.scene);
+		if (!s.device) return;
+		const ok = await commands.act(s.device.device_id, 'activate');
+		this.trouble = ok ? null : `${s.name} didn’t run.`;
 	};
 }

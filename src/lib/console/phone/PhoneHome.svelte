@@ -2,8 +2,9 @@
 	Home on the phone (the PhonePlan board), from the console's Home
 	(homeNow.svelte.ts): a greeting with the day and the temperature outside,
 	and the house in a line; what needs attention, each with its fix; Every
-	light off and the person's favorites in a row that scrolls across; then
-	every room as a lit tile, two across in Home's order.
+	light off and the person's favorites in a row that scrolls across; the
+	scenes row, two across (HomeScenes); then every room as a lit tile, two
+	across in Home's order.
 -->
 <script lang="ts">
 	import LightbulbOff from '@lucide/svelte/icons/lightbulb-off';
@@ -13,6 +14,7 @@
 	import { cardFor } from '#lib/card.js';
 	import Icon from '#lib/components/Icon.svelte';
 	import HomePills from '../HomePills.svelte';
+	import HomeScenes from '../HomeScenes.svelte';
 	import { greetingOf } from '../home.js';
 	import { HomeNow } from '../homeNow.svelte.js';
 	import PhoneTop from './PhoneTop.svelte';
@@ -88,7 +90,9 @@
 					</button>
 				{/if}
 			{/each}
+			<HomeScenes {h} add />
 		</div>
+		<HomeScenes {h} phone />
 		{#if h.trouble}<p class="trouble" role="alert">{h.trouble}</p>{/if}
 
 		<h2 class="sh">Rooms</h2>

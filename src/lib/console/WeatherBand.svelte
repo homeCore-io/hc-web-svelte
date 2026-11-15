@@ -253,6 +253,7 @@
 		display: flex;
 		flex-direction: column;
 		min-width: 0;
+		white-space: nowrap;
 		font-size: 12.5px;
 		color: var(--ink-muted);
 	}

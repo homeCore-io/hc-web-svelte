@@ -60,6 +60,7 @@
 	import EverywhereStatus from './EverywhereStatus.svelte';
 	import { everyRoom, placesOf, statusOf } from './everywhere.js';
 	import { tabChoicesOf } from './room.js';
+	import { MediaQuery } from 'svelte/reactivity';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -72,12 +73,29 @@
 	const back = $derived(heading.back ?? backFor(pathname));
 
 	// ---- the sidebar: open, or folded to the rail; the person's own choice ----
-	const folded = $derived(sidebarOf(personal.doc.console) === 'folded');
+	// A tablet stood up has room for the rail alone, whatever the choice: the
+	// sidebar slides over the page when asked for and goes again on the next tap
+	// elsewhere or the next page, and the choice stays as it was.
+	const tablet = new MediaQuery('(min-width: 761px) and (max-width: 900px)', false);
+	let peek = $state(false);
+	const chosen = $derived(sidebarOf(personal.doc.console) === 'folded');
+	const over = $derived(tablet.current && peek);
+	const folded = $derived(tablet.current ? !peek : chosen);
+	let side = $state<HTMLElement>();
+	let collapser = $state<HTMLElement>();
 	function fold() {
-		const next = folded ? undefined : 'folded';
+		if (tablet.current) {
+			peek = !peek;
+			return;
+		}
+		const next = chosen ? undefined : 'folded';
 		void personal.change((d) => withConsole(d, { sidebar: next }));
 	}
 	function keys(e: KeyboardEvent) {
+		if (e.key === 'Escape' && over) {
+			peek = false;
+			return;
+		}
 		if (e.key === 'Escape' && menu !== null) {
 			e.preventDefault();
 			closeMenu(true);
@@ -149,6 +167,8 @@
 		opener = null;
 	}
 	function outside(e: PointerEvent) {
+		if (over && !side?.contains(e.target as Node) && !collapser?.contains(e.target as Node))
+			peek = false;
 		if (menu === null) return;
 		const t = e.target as Node;
 		if (menuBox?.contains(t) || opener?.contains(t)) return;
@@ -163,6 +183,7 @@
 		closeMenu();
 	}
 	afterNavigate(() => {
+		peek = false;
 		if (menu !== null) closeMenu();
 	});
 
@@ -179,10 +200,11 @@
 
 <svelte:window onkeydown={keys} onpointerdown={outside} onfocusin={focusElsewhere} />
 
-<div class="console" class:folded class:customizing>
+<div class="console" class:folded class:over class:customizing>
 	<a class="skip" href="#main" onclick={(e) => focusMain(e)}>Skip to content</a>
 	<header class="tb" bind:offsetHeight={barHeight}>
 		<button
+			bind:this={collapser}
 			class="collapse"
 			aria-label={folded ? 'Open the sidebar' : 'Fold the sidebar'}
 			aria-expanded={!folded}
@@ -247,7 +269,7 @@
 	</header>
 
 	<div class="body">
-		<nav class="src" aria-label="Home and rooms">
+		<nav class="src" bind:this={side} aria-label="Home and rooms">
 			<a
 				class="si"
 				href="/"
@@ -585,6 +607,22 @@
 		right: 8px;
 	}
 
+	/* A tablet stood up: the sidebar over the page, the rail's room kept under it. */
+	.over .body::before {
+		content: '';
+		flex: 0 0 64px;
+	}
+	.over .src {
+		position: fixed;
+		left: 0;
+		width: 250px;
+		z-index: 40;
+		background: var(--side);
+		box-shadow:
+			inset -1px 0 0 var(--con-edge),
+			12px 0 32px rgba(0, 0, 0, 0.45);
+	}
+
 	/* Folded: the rail of icons, the room list behind one button. */
 	.customizing .src {
 		display: none;
@@ -720,6 +758,12 @@
 		outline: none;
 	}
 
+	/* A key to press means nothing to a finger. */
+	@media (pointer: coarse) {
+		.find kbd {
+			display: none;
+		}
+	}
 	/* ---- narrow screens: always the rail, the brand's mark alone ---- */
 	@media (max-width: 760px) {
 		.collapse,

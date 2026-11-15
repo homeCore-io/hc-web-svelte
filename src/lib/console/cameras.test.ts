@@ -162,6 +162,10 @@ describe('laying out the Cameras page', () => {
 		const t = wallSplit(1000, 900, 900, 3, 1);
 		expect(t.viewer).toBe(1000 - 150 - 16);
 		expect(t.rail).toBe(150);
+		// Two across on a tablet: each snapshot keeps room for its name.
+		const u = wallSplit(726, 380, 440, 6, 2, { above: 26 });
+		expect(u.rail).toBe(228);
+		expect(u.viewer).toBe(726 - 228 - 16);
 	});
 
 	it('names the areas by room, All first and no room last', () => {

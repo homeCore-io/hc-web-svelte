@@ -4,7 +4,7 @@
 	(everywhere.ts). Each view draws its own header, with what it's like now
 	and its house-wide action, which always asks first; the list under it
 	scrolls inside the page when the house has more than fits, so the page
-	itself doesn't.
+	itself doesn't. By touch the page scrolls as one.
 
 	The rows' common parts are styled here, for every view. On a phone
 	(`phone`, phone/PhoneEverywhere), the page scrolls instead, the header
@@ -312,6 +312,17 @@
 	:global(html:not([data-shell='console'])) .ev :global(.evlist) {
 		flex: none;
 		overflow: visible;
+	}
+	/* By touch, a list inside the page that scrolls on its own is one more thing
+	   for a finger to find: the page scrolls as one, as on a phone. */
+	@media (pointer: coarse) {
+		.ev {
+			height: auto;
+		}
+		.ev :global(.evlist) {
+			flex: none;
+			overflow: visible;
+		}
 	}
 	.ev.phone :global(.evhead) {
 		padding: 10px 16px 14px;

@@ -521,6 +521,9 @@
 		.via {
 			padding-left: 0;
 			border-left: 0;
+			flex-direction: row;
+			align-items: center;
+			gap: 8px;
 		}
 	}
 </style>

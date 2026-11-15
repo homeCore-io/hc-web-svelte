@@ -107,6 +107,25 @@
 			above: (rail.chips ? 38 : 0) + 26
 		})
 	);
+	// Taller than wide, a tablet stood up: the live picture across the top and
+	// the snapshots in rows under it, two rows at most, none wider than 220.
+	const stacked = $derived(midW > 0 && midW < midH * 1.2);
+	const stackCols = $derived(
+		Math.min(railCams.length, Math.max(3, Math.ceil(railCams.length / 2)), 4)
+	);
+	const stackThumb = $derived(
+		Math.min(220, Math.floor((midW - 8 * (stackCols - 1)) / Math.max(1, stackCols)))
+	);
+	const stackRail = $derived(
+		Math.ceil(railCams.length / Math.max(1, stackCols)) * Math.round((stackThumb * 9) / 16 + 8) +
+			(rail.chips ? 38 : 0) +
+			26
+	);
+	const viewerW = $derived(
+		stacked
+			? Math.max(0, Math.floor(Math.min(midW, ((midH - underH - 22 - stackRail) * 16) / 9)))
+			: split.viewer
+	);
 	const tiles = $derived(gridOf(cams.length));
 
 	// ---- the day's events ----
@@ -166,9 +185,9 @@
 	{#if cams.length === 0}
 		<p class="quiet">{devices.loaded ? 'No cameras in the house yet.' : 'Loading the house…'}</p>
 	{:else if sel}
-		<div class="mid" bind:clientWidth={midW} bind:clientHeight={midH}>
-			<div class="left" style:width={grid ? undefined : `${split.viewer}px`} class:wide={grid}>
-				<div class="view">
+		<div class="mid" class:stacked bind:clientWidth={midW} bind:clientHeight={midH}>
+			<div class="left" style:width={grid ? undefined : `${viewerW}px`} class:wide={grid}>
+				<div class="view" style:height={grid ? undefined : `${Math.round((viewerW * 9) / 16)}px`}>
 					{#if grid}
 						<div
 							class="tiles"
@@ -222,7 +241,9 @@
 			<nav
 				class="rail"
 				class:two={rail.cols === 2}
-				style:width={`${split.rail}px`}
+				style:width={stacked ? undefined : `${split.rail}px`}
+				style:--cols={stacked ? stackCols : undefined}
+				style:--tw={stacked ? `${stackThumb}px` : undefined}
 				aria-label="Cameras"
 			>
 				{#if rail.chips}
@@ -244,7 +265,7 @@
 							on={c.id === sel.id && !grid}
 							live={c.id === sel.id && !grid && !event}
 							badge={badge(c.id)}
-							small={rail.cols === 2}
+							small={rail.cols === 2 && !stacked}
 							onpick={() => pick(c.id)}
 						/>
 					{/each}
@@ -405,8 +426,27 @@
 		justify-content: center;
 		gap: 16px;
 	}
+	.mid.stacked {
+		flex-direction: column;
+		justify-content: flex-start;
+		align-items: center;
+		gap: 12px;
+	}
+	.stacked .rail {
+		width: 100%;
+		flex: none;
+		align-items: center;
+	}
+	.stacked .rail .thumbs {
+		display: grid;
+		grid-template-columns: repeat(var(--cols), var(--tw));
+		gap: 8px;
+	}
 	.left.wide {
 		flex: 1;
+	}
+	.wide .view {
+		flex: 1 1 auto;
 	}
 	.left {
 		flex: none;
@@ -416,7 +456,7 @@
 		gap: 10px;
 	}
 	.view {
-		flex: 1 1 auto;
+		flex: none;
 		min-height: 120px;
 		container-type: size;
 	}

@@ -340,7 +340,12 @@
 		gap: 10px;
 		padding: 14px 28px;
 		overflow-x: auto;
+		/* It scrolls by touch or trackpad; no bar under it. */
+		scrollbar-width: none;
 		box-shadow: inset 0 -1px 0 var(--con-edge);
+	}
+	.favs::-webkit-scrollbar {
+		display: none;
 	}
 	.fav {
 		flex: none;

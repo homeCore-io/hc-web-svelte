@@ -1,22 +1,17 @@
 <!--
 	Home in the console's look (the HomeConsole board): a greeting with the
-	day, the time and the weather outside, and the house in a line; what
-	needs attention, each with its fix; the house's favorites and its
-	scenes row (HomeScenes); every room as a tile, its drawing lit live by
-	its lights, with its temperature and what's going on; and what's playing
-	in the house, along the bottom. What the cameras saw lately shows under
-	the greeting, as the household chose (HomePills).
+	day and the time, and the house in a line; what needs attention, each
+	with its fix; the weather, now and to come (WeatherBand); the house's
+	favorites and its scenes row (HomeScenes); every room as a tile, its
+	drawing lit live by its lights, with its temperature and what's going
+	on; and what's playing in the house, along the bottom. What the cameras
+	saw lately shows under the greeting, as the household chose (HomePills).
 
 	A screen can open on a room instead (opensOn.ts). Loaded only by the
 	console's look.
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import Sun from '@lucide/svelte/icons/sun';
-	import Moon from '@lucide/svelte/icons/moon';
-	import Cloud from '@lucide/svelte/icons/cloud';
-	import CloudSun from '@lucide/svelte/icons/cloud-sun';
-	import CloudMoon from '@lucide/svelte/icons/cloud-moon';
 	import LightbulbOff from '@lucide/svelte/icons/lightbulb-off';
 	import Music from '@lucide/svelte/icons/music';
 	import Tv from '@lucide/svelte/icons/tv';
@@ -26,11 +21,11 @@
 	import { clock } from '#lib/clock.svelte.js';
 	import { commands } from '#lib/commands.svelte.js';
 	import { cardFor } from '#lib/card.js';
-	import { displayName } from '#lib/devices.js';
 	import Icon from '#lib/components/Icon.svelte';
 	import RoomPicture from './RoomPicture.svelte';
 	import HomePills from './HomePills.svelte';
 	import HomeScenes from './HomeScenes.svelte';
+	import WeatherBand from './WeatherBand.svelte';
 	import { anyLit } from './pictures.js';
 	import RoomPhoto from './RoomPhoto.svelte';
 	import { photoLit } from './photo.js';
@@ -55,17 +50,10 @@
 	const h = new HomeNow();
 	const may = $derived(h.may);
 
-	// ---- the greeting, and the weather outside ----
+	// ---- the greeting ----
 	const at = $derived(h.at);
 	const day = $derived(h.day);
 	const time = $derived(h.time);
-	const night = $derived(h.night);
-	const outside = $derived(h.outside);
-	const station = $derived(h.station);
-	const humidity = $derived(h.humidity);
-	const condition = $derived(h.condition);
-	const cloudy = $derived(h.cloudy);
-	const partly = $derived(h.partly);
 
 	// ---- every room as a tile, the house in a line, what needs attention ----
 	const tiles = $derived(h.tiles);
@@ -102,29 +90,6 @@
 				<p class="line">{line}</p>
 				<HomePills />
 			</div>
-			{#if outside}
-				<div class="outside" title={station ? `From ${displayName(station)}` : undefined}>
-					<span class="sky" aria-hidden="true">
-						{#if cloudy && partly}
-							{#if night}<CloudMoon size={40} strokeWidth={1.5} />{:else}<CloudSun
-									size={40}
-									strokeWidth={1.5}
-								/>{/if}
-						{:else if cloudy}<Cloud size={40} strokeWidth={1.5} />
-						{:else if night}<Moon size={40} strokeWidth={1.5} />
-						{:else}<Sun size={40} strokeWidth={1.5} />{/if}
-					</span>
-					<div>
-						<b>{outside}</b>
-						<small
-							>{['Outside', humidity && `${humidity} humidity`].filter(Boolean).join(' · ')}</small
-						>
-						{#if condition || station}<small class="from"
-								>{condition ?? `From ${displayName(station!)}`}</small
-							>{/if}
-					</div>
-				</div>
-			{/if}
 		</section>
 
 		{#if issues.length > 0}
@@ -143,6 +108,8 @@
 				{/each}
 			</div>
 		{/if}
+
+		<WeatherBand {h} />
 
 		<div class="favs" role="group" aria-label="Favorites">
 			<button
@@ -305,37 +272,6 @@
 	}
 	.hello :global(.pills) {
 		margin-top: 4px;
-	}
-	.outside {
-		position: relative;
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		padding: 10px 16px;
-		border-radius: 16px;
-		background: color-mix(in srgb, var(--ink) 5%, transparent);
-	}
-	.sky {
-		display: grid;
-		color: #c7d2e6;
-	}
-	:global(:root[data-theme='light']) .sky {
-		color: #5a6478;
-	}
-	.outside b {
-		display: block;
-		font-size: 28px;
-		font-weight: 700;
-		line-height: 1;
-	}
-	.outside small {
-		display: block;
-		margin-top: 2px;
-		font-size: 12px;
-		color: var(--ink-muted);
-	}
-	.outside .from {
-		font-size: 11px;
 	}
 
 	/* ---- what needs attention ---- */

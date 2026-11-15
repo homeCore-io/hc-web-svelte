@@ -219,22 +219,60 @@ export const loadLogs = (id: string, level: string, limit = 300) =>
 
 // ---- runtimes ----
 
+/** A runtime as homeCore lists it. Never carries its password. */
 export interface Runtime {
 	runtime_id: string;
-	status: 'pending' | 'approved' | 'denied';
-	capabilities?: { kind?: string; arch?: string };
+	name: string;
+	kind: string;
+	abi: string;
+	/** Its plugin id in homeCore, and its broker username. */
+	plugin_id: string;
+	homecore_url: string;
+	created_at: string;
+	/** Reported when it connects. */
+	arch?: string;
+	host_version?: string;
 	hostname?: string;
-	code?: string;
+	network_mode?: string;
 	source_ip?: string;
-	created_at?: string;
 	last_seen_at?: string;
-	plugin_id?: string;
+}
+/** What is inside a connection key. */
+export interface RuntimeKeyDetails {
+	url: string;
+	broker_host: string;
+	broker_port: number;
+	runtime_id: string;
+	username: string;
+	secret: string;
+	kind: string;
+	abi: string;
+}
+/** Returned once, when a runtime is added or its login reset. */
+export interface IssuedKey {
+	runtime: Runtime;
+	key: string;
+	details: RuntimeKeyDetails;
+}
+export interface BrokerStatus {
+	host: string;
+	port: number;
+	reachable_from_network: boolean;
+	can_open: boolean;
 }
 export const loadRuntimes = () => call<{ runtimes: Runtime[] }>('GET', '/plugin-runtimes');
-export const approveRuntime = (id: string) =>
-	call<Runtime>('POST', `/plugin-runtimes/${encodeURIComponent(id)}/approve`);
-export const denyRuntime = (id: string) =>
-	call<Runtime>('POST', `/plugin-runtimes/${encodeURIComponent(id)}/deny`);
+export const addRuntime = (body: { name: string; kind?: string; homecore_url: string }) =>
+	call<IssuedKey>('POST', '/plugin-runtimes', body);
+export const resetRuntime = (id: string) =>
+	call<IssuedKey>('POST', `/plugin-runtimes/${encodeURIComponent(id)}/reset`);
+export const removeRuntime = (id: string) =>
+	call<{ removed: string; plugins_removed: string[] }>(
+		'DELETE',
+		`/plugin-runtimes/${encodeURIComponent(id)}`
+	);
+export const loadBroker = () => call<BrokerStatus>('GET', '/plugin-runtimes/broker');
+export const openBroker = () =>
+	call<{ restart_required: boolean }>('POST', '/plugin-runtimes/broker/open');
 /** Which plugins run on which runtime. homeCore without runtimes answers 404: none. */
 export interface Placement {
 	runtime_id: string;
@@ -247,9 +285,7 @@ export async function loadPlacements(): Promise<Answer<Placement[]>> {
 	if (r.ok) return { ok: true, data: r.data.placements ?? [] };
 	return r.status === 404 ? { ok: true, data: [] } : r;
 }
-export const runtimeName = (r: Runtime | undefined, id: string) => r?.hostname ?? id;
-export const runtimeToken = () =>
-	call<{ token: string; expires_at: string }>('POST', '/plugin-runtimes/tokens');
+export const runtimeName = (r: Runtime | undefined, id: string) => r?.name ?? id;
 
 // ---- Matter (the Matter plugin's controller) ----
 

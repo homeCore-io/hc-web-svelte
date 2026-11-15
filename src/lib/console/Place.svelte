@@ -139,13 +139,28 @@
 	}
 	/* A finger needs more than the 22 px drawn: the same dots, a larger place to tap. */
 	@media (pointer: coarse) {
-		.place:not(.corner, .chip) .dots {
+		.place:not(.corner) .dots {
 			position: relative;
 		}
 		.dots::after {
 			content: '';
 			position: absolute;
 			inset: -10px;
+		}
+		/* No hover to bring a chip's dots up: they stand beside it, always there. */
+		.place.chip {
+			position: static;
+			margin: 0 0 0 3px;
+			opacity: 1;
+		}
+		.chip .dots {
+			width: 26px;
+			height: 26px;
+			background: color-mix(in srgb, var(--ink) 7%, transparent);
+			color: var(--ink-muted);
+		}
+		.chip .dots::after {
+			inset: -6px;
 		}
 	}
 	.dots:focus-visible {

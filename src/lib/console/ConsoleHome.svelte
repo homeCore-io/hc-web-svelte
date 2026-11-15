@@ -63,6 +63,22 @@
 	const line = $derived(h.line);
 	const fix = h.fix;
 
+	// ---- favorites: by touch a row that scrolls, fading at an edge with more past it ----
+	let more = $state({ left: false, right: false });
+	function edges(el: HTMLElement) {
+		const look = () =>
+			(more = {
+				left: el.scrollLeft > 1,
+				right: el.scrollLeft + el.clientWidth < el.scrollWidth - 1
+			});
+		look();
+		el.addEventListener('scroll', look, { passive: true });
+		const seen = new ResizeObserver(look);
+		seen.observe(el);
+		for (const c of el.children) seen.observe(c);
+		return { destroy: () => (el.removeEventListener('scroll', look), seen.disconnect()) };
+	}
+
 	// ---- favorites ----
 	const favs = $derived(h.favs);
 	const busy = $derived(h.busy);
@@ -111,7 +127,14 @@
 
 		<WeatherBand {h} />
 
-		<div class="favs" role="group" aria-label="Favorites">
+		<div
+			class="favs"
+			class:fade-l={more.left}
+			class:fade-r={more.right}
+			role="group"
+			aria-label="Favorites"
+			use:edges
+		>
 			<button
 				type="button"
 				class="fav"
@@ -346,6 +369,26 @@
 	}
 	.favs::-webkit-scrollbar {
 		display: none;
+	}
+	.favs.fade-r {
+		mask-image: linear-gradient(90deg, #000 calc(100% - 56px), transparent);
+	}
+	.favs.fade-l {
+		mask-image: linear-gradient(90deg, transparent, #000 56px);
+	}
+	.favs.fade-l.fade-r {
+		mask-image: linear-gradient(90deg, transparent, #000 56px, #000 calc(100% - 56px), transparent);
+	}
+	/* With a mouse or trackpad the row wraps onto more lines instead. */
+	@media (pointer: fine) {
+		.favs {
+			flex-wrap: wrap;
+			overflow-x: visible;
+		}
+		.favs.fade-l,
+		.favs.fade-r {
+			mask-image: none;
+		}
 	}
 	.fav {
 		flex: none;

@@ -140,6 +140,12 @@
 	.btns {
 		display: contents;
 	}
+	/* Where Home's row wraps (a mouse or trackpad), each scene wraps on its own. */
+	@media (pointer: fine) {
+		.hsc:not(.phone) {
+			display: contents;
+		}
+	}
 	.sc {
 		flex: none;
 		display: flex;

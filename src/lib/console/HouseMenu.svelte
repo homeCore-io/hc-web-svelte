@@ -22,6 +22,12 @@
 			sub: 'Names, and which room each is in',
 			href: '/settings/devices'
 		},
+		{
+			slug: 'scenes',
+			label: 'Scenes',
+			sub: 'Every scene, and which are on Home',
+			href: '/settings/scenes'
+		},
 		{ slug: 'plugins', label: 'Plugins', sub: 'Install, set up, logs', href: '/settings/plugins' },
 		{
 			slug: 'automations',
@@ -57,6 +63,7 @@
 	import House from '@lucide/svelte/icons/house';
 	import Cpu from '@lucide/svelte/icons/cpu';
 	import Puzzle from '@lucide/svelte/icons/puzzle';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import Workflow from '@lucide/svelte/icons/workflow';
 	import Users from '@lucide/svelte/icons/users';
 	import Thermometer from '@lucide/svelte/icons/thermometer';
@@ -69,6 +76,7 @@
 	const ICONS: Record<string, Component> = {
 		Rooms: House,
 		Devices: Cpu,
+		Scenes: Sparkles,
 		Plugins: Puzzle,
 		Automations: Workflow,
 		People: Users,

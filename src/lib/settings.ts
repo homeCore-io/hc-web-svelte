@@ -35,8 +35,8 @@ export const SETTINGS: SettingsItem[] = [
 		slug: 'scenes',
 		label: 'Scenes',
 		group: 'house',
-		words: 'movie bedtime',
-		detail: 'homeCore’s own scenes'
+		words: 'movie bedtime phantom hue lutron home',
+		detail: 'Every scene, what provides it, and which are on Home'
 	},
 	{
 		slug: 'modes',

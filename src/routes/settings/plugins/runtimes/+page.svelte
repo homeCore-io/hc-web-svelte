@@ -27,7 +27,7 @@
 		type Placement,
 		type Runtime
 	} from '#lib/pluginAdmin.js';
-	import { copyText, homecoreUrlFrom, nextName, runtimeState } from '#lib/runtimes.js';
+	import { copyText, homecoreUrlFrom, nextName, runtimePage, runtimeState } from '#lib/runtimes.js';
 
 	$effect(() => heading.show('Plugin runtimes', { href: '/settings/plugins', label: 'Plugins' }));
 
@@ -309,6 +309,7 @@
 			{#each runtimes as r (r.runtime_id)}
 				{@const st = runtimeState(r, clock.now)}
 				{@const mine = hosted(r.runtime_id)}
+				{@const its = runtimePage(r, location.hostname)}
 				<section class="card rt" aria-label={r.name}>
 					<div class="rthead">
 						<div class="who">
@@ -325,7 +326,7 @@
 									r.kind === 'python' ? 'Python 3.12' : r.kind,
 									r.arch,
 									r.host_version ? `host ${r.host_version}` : '',
-									r.source_ip ? `from ${r.source_ip}` : '',
+									its ? its.label : r.source_ip ? `from ${r.source_ip}` : '',
 									r.last_seen_at ? `seen ${when(r.last_seen_at)}` : ''
 								]
 									.filter(Boolean)
@@ -333,6 +334,13 @@
 							>
 						</div>
 						<div class="acts">
+							{#if its}<a
+									class="plain"
+									href={its.href}
+									target="_blank"
+									rel="noopener noreferrer"
+									aria-label={`Open ${r.name}'s page, in a new tab`}>Open its page</a
+								>{/if}
 							<button
 								type="button"
 								class="plain"
@@ -360,6 +368,13 @@
 							<dd>Shown only when the key is made. Reset login makes a new one.</dd>
 							<dt>Language</dt>
 							<dd>Python 3.12 ({r.abi})</dd>
+							<dt>Its page</dt>
+							<dd>
+								{#if its}<a class="mono" href={its.href} target="_blank" rel="noopener noreferrer"
+										>{its.label}</a
+									>{:else if r.last_seen_at}Not reported. Runtimes before host 0.2.1 don't say; pull
+									the newer image.{:else}Shown once it connects.{/if}
+							</dd>
 							{#if r.hostname}<dt>Container</dt>
 								<dd class="mono">
 									{r.hostname}{r.network_mode ? ` · ${r.network_mode} network` : ''}
@@ -746,6 +761,11 @@
 		font: inherit;
 		font-weight: 700;
 		cursor: pointer;
+	}
+	a.plain {
+		display: inline-flex;
+		align-items: center;
+		text-decoration: none;
 	}
 	.small {
 		height: 32px;

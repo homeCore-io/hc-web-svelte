@@ -235,6 +235,9 @@ export interface Runtime {
 	hostname?: string;
 	network_mode?: string;
 	source_ip?: string;
+	/** Its own page: the port inside its container, and an address the operator set. Host 0.2.1+. */
+	page_port?: number;
+	page_url?: string;
 	last_seen_at?: string;
 	/** The most plugins it may hold; absent means no limit. */
 	max_plugins?: number;

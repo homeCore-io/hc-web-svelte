@@ -95,7 +95,8 @@ export function titleFor(pathname: string): string {
 		'/more': 'More',
 		'/settings': 'Settings',
 		'/settings/alerts': 'Alert rules',
-		'/me': 'Me'
+		'/me': 'Me',
+		'/ask': 'Ask'
 	};
 	const setting = /^\/settings\/([^/]+)$/.exec(pathname);
 	return known[pathname] ?? (setting ? settingsItem(setting[1]!)?.label : undefined) ?? 'homeCore';

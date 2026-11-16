@@ -15,9 +15,9 @@ import { commands } from '../commands.svelte.js';
 import { session } from '../me.svelte.js';
 import { ask } from '../confirm.svelte.js';
 import { openDevice } from '../popup.js';
-import { lifecycle, loadConfig, runAction, saveConfig } from '../pluginAdmin.js';
+import { answerAction, lifecycle, loadConfig, runAction, saveConfig } from '../pluginAdmin.js';
 import { fromShown, readingText, shown, units } from '../units.js';
-import type { Alert, Device, ExtensionHost, Host, Result } from './types.js';
+import type { Alert, Device, ExtensionHost, Host, Result, StreamHandle } from './types.js';
 import kit from './kit.css?raw';
 import { look } from '../look.svelte.js';
 
@@ -89,6 +89,14 @@ export function createHost(pluginId: string): Host {
 		api: 1,
 		pluginId,
 		appVersion: __APP_VERSION__,
+		user: {
+			get username() {
+				return session.me?.username ?? '';
+			},
+			get role() {
+				return session.me?.role ?? '';
+			}
+		},
 		me: {
 			get name() {
 				return session.me?.username ?? '';
@@ -151,6 +159,30 @@ export function createHost(pluginId: string): Host {
 				: fail('It wasn’t sent.');
 		},
 		action: (id, params = {}) => reply(id, params),
+		stream(action, params, onEvent) {
+			// Its code is loaded the first time a plugin streams, not with every page.
+			let run: StreamHandle | undefined;
+			let stop = false;
+			const done = import('./stream.js').then((m) => {
+				run = m.startStream(pluginId, action, params ?? {}, onEvent);
+				if (stop) run.cancel();
+				return run.done;
+			});
+			return {
+				get requestId() {
+					return run?.requestId;
+				},
+				cancel() {
+					stop = true;
+					run?.cancel();
+				},
+				done: done.catch(() => ({ stage: 'error', message: 'The app could not start it.' }))
+			};
+		},
+		async respond(requestId, response) {
+			const r = await answerAction(pluginId, requestId, response);
+			return r.ok ? { ok: true, data: undefined } : fail(r.error);
+		},
 		async query(id, params = {}) {
 			try {
 				const r = await fetch(`/api/v1/plugins/${encodeURIComponent(pluginId)}/query`, {

@@ -151,8 +151,11 @@
 	const actions = $derived(
 		plugin?.capabilities?.actions?.filter(
 			(a) =>
-				a.requires_role !== 'admin' ||
-				(session.me?.role === 'admin' && session.can('plugins:write'))
+				// Open to anyone signed in: those belong to the plugin's own
+				// screens (the Assistant's chat), not this admin list.
+				a.requires_role !== 'signed_in' &&
+				(a.requires_role !== 'admin' ||
+					(session.me?.role === 'admin' && session.can('plugins:write')))
 		) ?? []
 	);
 	// One count everywhere on the page — the one its Devices tab shows.

@@ -64,6 +64,8 @@
 	import DetailsHost from './DetailsHost.svelte';
 	import SearchBox from './SearchBox.svelte';
 	import { finder } from '#lib/finder.svelte.js';
+	import AskButton from '#lib/pluginUi/AskButton.svelte';
+	import { assistant } from '#lib/pluginUi/assistant.svelte.js';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -244,6 +246,7 @@
 				title={liveLabel}
 			></span>
 			{#if key !== null}<EditMenu pageKey={key} />{/if}
+			<AskButton variant="shell" />
 			<button
 				class="icon"
 				aria-label="Search"
@@ -274,6 +277,13 @@
 		<DetailsHost />
 		<SearchBox />
 	</div>
+
+	<!-- The assistant's panel, loaded the first time it opens. -->
+	{#if assistant.open}
+		{#await import('#lib/pluginUi/AskPanel.svelte') then m}<m.default
+				overTop="var(--header-h, 0px)"
+			/>{/await}
+	{/if}
 
 	<nav class="bar" aria-label="Main">
 		{#each bar as d (d.id)}

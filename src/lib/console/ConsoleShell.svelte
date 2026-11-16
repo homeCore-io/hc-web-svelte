@@ -51,6 +51,8 @@
 	import UnlockedBar from '#lib/components/UnlockedBar.svelte';
 	import DetailsHost from '#lib/components/DetailsHost.svelte';
 	import SearchBox from '#lib/components/SearchBox.svelte';
+	import AskButton from '#lib/pluginUi/AskButton.svelte';
+	import { assistant } from '#lib/pluginUi/assistant.svelte.js';
 	import YouMenu from './YouMenu.svelte';
 	import HouseMenu, { houseItems } from './HouseMenu.svelte';
 	import { sidebarOf, withConsole } from './style.js';
@@ -246,6 +248,7 @@
 					>{alertCount > 99 ? '99+' : alertCount}</span
 				>{/if}
 		</a>
+		<AskButton variant="console" />
 		{#if houseList.length > 0}
 			<button
 				class="tbtn ghost"
@@ -354,6 +357,10 @@
 				{@render children()}
 			</main>
 		</div>
+		<!-- The assistant's panel, loaded the first time it opens. -->
+		{#if assistant.open}
+			{#await import('#lib/pluginUi/AskPanel.svelte') then m}<m.default top="52px" />{/await}
+		{/if}
 	</div>
 
 	{#if menu !== null}

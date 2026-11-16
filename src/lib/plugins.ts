@@ -77,7 +77,7 @@ export interface PluginAction {
 	cancelable?: boolean;
 	concurrency?: 'multi' | 'single';
 	item_key?: string;
-	requires_role?: 'admin' | 'user' | 'read_only';
+	requires_role?: 'admin' | 'user' | 'read_only' | 'signed_in';
 	timeout_ms?: number;
 	/** It can't be taken back or interrupts the house; ask first (core 0.1.84). */
 	danger?: boolean;

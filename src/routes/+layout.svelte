@@ -52,6 +52,8 @@
 
 	// Pages that stand alone: signing in, and making this screen a display.
 	const onLogin = $derived(page.url.pathname === '/login' || page.url.pathname === '/display');
+	// The assistant on a phone (/ask): the whole screen, its own way back included.
+	const bare = $derived(page.url.pathname === '/ask');
 
 	// Ask homeCore who this is once; send anyone who isn't signed in to sign in.
 	$effect(() => {
@@ -142,7 +144,8 @@
 	const drawn = $derived(
 		onLogin ||
 			session.isDisplay ||
-			(session.me !== null && (small ? PhoneShell !== null : desk ? ConsoleShell !== null : true))
+			(session.me !== null &&
+				(bare || (small ? PhoneShell !== null : desk ? ConsoleShell !== null : true)))
 	);
 	$effect(() => {
 		if (drawn) document.getElementById('hc-boot')?.remove();
@@ -163,7 +166,9 @@
 {:else if session.isDisplay}
 	<Kiosk>{@render children()}</Kiosk>
 {:else if session.me !== null}
-	{#if small}
+	{#if bare}
+		{@render children()}
+	{:else if small}
 		{#if PhoneShell}<PhoneShell>{@render children()}</PhoneShell>{/if}
 	{:else if desk}
 		{#if ConsoleShell}<ConsoleShell>{@render children()}</ConsoleShell>{/if}

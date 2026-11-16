@@ -236,6 +236,10 @@ export interface Runtime {
 	network_mode?: string;
 	source_ip?: string;
 	last_seen_at?: string;
+	/** Older than this homeCore expects: pull the newer image and restart it. */
+	outdated?: boolean;
+	/** The oldest runtime host this homeCore works with. */
+	min_host_version?: string;
 }
 /** What is inside a connection key. */
 export interface RuntimeKeyDetails {

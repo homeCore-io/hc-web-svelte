@@ -264,6 +264,12 @@
 									: `${need.on.length} runtimes can run it; you choose which.`} homeCore checks its signature
 								first. It does nothing until you give it its settings.</span
 							>
+							{#each need.on.filter((r) => r.outdated) as old (old.runtime_id)}
+								<span class="old"
+									>{old.name} is version {old.host_version}, and homeCore expects {old.min_host_version}
+									or later. Update it first: pull the newer image and restart its container.</span
+								>
+							{/each}
 						{/if}
 					</section>
 				{/if}
@@ -341,6 +347,10 @@
 	.needs.ready {
 		background: var(--surface-2);
 		color: var(--ink);
+	}
+	.needs .old {
+		color: var(--alert);
+		font-weight: 600;
 	}
 	.needs a {
 		color: inherit;

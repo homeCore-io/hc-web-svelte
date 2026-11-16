@@ -317,6 +317,12 @@
 							<button type="button" class="plain danger" onclick={() => remove(r)}>Remove</button>
 						</div>
 					</div>
+					{#if r.outdated}
+						<p class="note" role="status">
+							This runtime is version {r.host_version}, and homeCore expects {r.min_host_version} or later.
+							Pull the newer image and restart its container; its plugins come back by themselves.
+						</p>
+					{/if}
 					{#if shown[r.runtime_id]}
 						<dl class="fields two-col">
 							<dt>homeCore address</dt>

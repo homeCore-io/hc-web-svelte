@@ -45,6 +45,8 @@ const PLUGIN_NAMES: Record<string, string> = {
 	nuheat: 'NuHeat',
 	mysa: 'Mysa',
 	reolink: 'Reolink',
+	mcp: 'Assistant',
+	weather: 'Weather',
 	standin: 'Stand-in'
 };
 

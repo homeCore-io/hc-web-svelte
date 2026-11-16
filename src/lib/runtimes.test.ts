@@ -3,6 +3,7 @@ import {
 	homecoreUrlFrom,
 	nextName,
 	QUIET_AFTER_MS,
+	runtimePage,
 	runtimeNeeds,
 	runtimeState
 } from './runtimes.js';
@@ -90,5 +91,38 @@ describe('a full runtime', () => {
 	});
 	it('has no ceiling without a limit', () => {
 		expect(runtimeNeeds([py], [{ ...pi, max_plugins: undefined }], held(9)).state).toBe('ready');
+	});
+});
+
+describe('runtimePage', () => {
+	it('uses the address the runtime was heard from', () => {
+		expect(runtimePage({ source_ip: '10.0.0.7', page_port: 8790 }, 'hc.local')).toEqual({
+			href: 'http://10.0.0.7:8790/',
+			label: '10.0.0.7:8790'
+		});
+	});
+	it("uses homeCore's host for a runtime beside it", () => {
+		for (const ip of ['127.0.0.1', '::1', '172.17.0.3', '::ffff:172.18.0.2']) {
+			expect(runtimePage({ source_ip: ip, page_port: 8790 }, 'hc.local')?.label).toBe(
+				'hc.local:8790'
+			);
+		}
+	});
+	it('prefers the address the operator set', () => {
+		expect(
+			runtimePage(
+				{ source_ip: '172.17.0.3', page_port: 8790, page_url: 'https://rt.lan:9000' },
+				'x'
+			)
+		).toEqual({ href: 'https://rt.lan:9000/', label: 'rt.lan:9000' });
+	});
+	it('is null when the runtime does not say', () => {
+		expect(runtimePage({ source_ip: '10.0.0.7' }, 'hc.local')).toBeNull();
+		expect(runtimePage({ page_port: 8790 }, 'hc.local')).toBeNull();
+	});
+	it('brackets an IPv6 address', () => {
+		expect(runtimePage({ source_ip: 'fd00::5', page_port: 8790 }, 'x')?.label).toBe(
+			'[fd00::5]:8790'
+		);
 	});
 });

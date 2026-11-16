@@ -8,7 +8,6 @@
 	import { page } from '$app/state';
 	import { devices } from '#lib/devices.svelte.js';
 	import { closeDevice } from '#lib/popup.js';
-	import Details from './Details.svelte';
 	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
 
 	const id = $derived(page.url.searchParams.get('device'));
@@ -29,6 +28,13 @@
 	});
 
 	const close = () => closeDevice(page.url);
+
+	// The details themselves load the first time a device is opened: every
+	// page carries this host, and the home page has a size budget to keep.
+	let Details = $state<typeof import('./Details.svelte').default>();
+	$effect(() => {
+		if (id !== null && !Details) void import('./Details.svelte').then((m) => (Details = m.default));
+	});
 
 	// Swipe down to close, on the sheet's grab area.
 	let startY: number | null = null;
@@ -75,8 +81,10 @@
 			>
 				<span></span>
 			</div>
-			{#if device}
+			{#if device && Details}
 				<Details {device} onclose={close} />
+			{:else if device}
+				<p class="gone">Loading…</p>
 			{:else if devices.loaded}
 				<p class="gone">That device isn't in the house any more.</p>
 			{:else}

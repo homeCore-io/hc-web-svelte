@@ -63,6 +63,34 @@ export async function copyText(text: string): Promise<boolean> {
 }
 
 /** The language names people know, for a runtime kind. */
+/**
+ * Where a runtime's own page is, to link to it: the address its operator set,
+ * else the address homeCore heard it from and its page's port. An address
+ * only this machine or Docker's bridge network can reach (loopback,
+ * 172.16.0.0/12) means the runtime runs beside homeCore, so the page is on
+ * the host the browser reaches homeCore at. Null when the runtime doesn't
+ * say (its page is off, or it's older than host 0.2.1).
+ */
+export function runtimePage(
+	r: Pick<Runtime, 'page_port' | 'page_url' | 'source_ip'>,
+	browserHost: string
+): { href: string; label: string } | null {
+	if (r.page_url) {
+		try {
+			const u = new URL(r.page_url);
+			return { href: u.href, label: u.host };
+		} catch {
+			return null;
+		}
+	}
+	if (!r.page_port || !r.source_ip) return null;
+	const ip = r.source_ip.replace(/^::ffff:/, '');
+	const beside = ip === '::1' || /^127\./.test(ip) || /^172\.(1[6-9]|2\d|3[01])\./.test(ip);
+	const host = beside ? browserHost : ip.includes(':') ? `[${ip}]` : ip;
+	const label = `${host}:${r.page_port}`;
+	return { href: `http://${label}/`, label };
+}
+
 export const kindName = (kind: string) =>
 	kind === 'python' ? 'Python' : kind.charAt(0).toUpperCase() + kind.slice(1);
 

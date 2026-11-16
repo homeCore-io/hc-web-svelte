@@ -247,6 +247,19 @@ export interface Row {
 	record: PluginRecord;
 }
 
+/**
+ * The version a runtime is still installing for a plugin: the one it was
+ * placed at, while the plugin itself reports another. A runtime picks up a
+ * new version the next time it checks in, so for a minute or so they differ.
+ */
+export const incomingVersion = (
+	placed: { plugin_id: string; version: string }[],
+	p: PluginRecord
+): string | undefined => {
+	const v = placed.find((x) => x.plugin_id === p.plugin_id)?.version;
+	return v && v !== versionOf(p) ? v : undefined;
+};
+
 /** How many devices homeCore holds for each plugin: the count its own page shows. */
 export function heldBy(list: Iterable<CoreDevice>): Record<string, number> {
 	const n: Record<string, number> = {};

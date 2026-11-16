@@ -6,7 +6,7 @@
 <script lang="ts">
 	import { timeOf } from '#lib/when.js';
 	import { fieldsOf } from '#lib/system.js';
-	import { onMount, untrack } from 'svelte';
+	import { onDestroy, onMount, untrack } from 'svelte';
 	import { core } from '#lib/core.svelte.js';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -31,6 +31,7 @@
 		sizeOf,
 		startedAgain,
 		stateOf,
+		incomingVersion,
 		updateOf,
 		versionOf,
 		type LogLine,
@@ -50,7 +51,8 @@
 		setLogLevel,
 		runtimeName,
 		uninstall,
-		wasPlaced
+		wasPlaced,
+		type Placement
 	} from '#lib/pluginAdmin.js';
 	import ActionRun from '#lib/components/plugins/ActionRun.svelte';
 	import PluginSettings from '#lib/components/plugins/PluginSettings.svelte';
@@ -136,13 +138,34 @@
 
 	// Where it runs: homeCore itself, or a plugin runtime it was placed on.
 	let runsOn = $state<{ id: string; name: string } | null>(null);
+	let placed = $state<Placement[]>([]);
 	async function findRuntime() {
 		const [p, r] = await Promise.all([loadPlacements(), loadRuntimes()]);
+		if (p.ok) placed = p.data;
 		const here = p.ok ? p.data.find((x) => x.plugin_id === id) : undefined;
 		const rt =
 			here && r.ok ? r.data.runtimes.find((x) => x.runtime_id === here.runtime_id) : undefined;
 		runsOn = here ? { id: here.runtime_id, name: runtimeName(rt, here.runtime_id) } : null;
 	}
+
+	// A version its runtime is still installing: it picks it up the next time
+	// it checks in. Look often until the plugin reports it, then say so.
+	const incoming = $derived(plugin ? incomingVersion(placed, plugin) : undefined);
+	let watching: ReturnType<typeof setInterval> | undefined;
+	$effect(() => {
+		if (!incoming || watching) return;
+		const want = incoming;
+		const until = Date.now() + 5 * 60_000;
+		watching = setInterval(async () => {
+			await load();
+			if (plugin && versionOf(plugin) === want) {
+				note = `${name} is now ${want}.`;
+			} else if (Date.now() < until) return;
+			clearInterval(watching);
+			watching = undefined;
+		}, 3000);
+	});
+	onDestroy(() => clearInterval(watching));
 
 	const name = $derived(knownPluginName(id) ?? reg?.name ?? pluginLabel(id));
 	$effect(() => heading.show(name, { href: '/settings/plugins', label: 'Plugins' }));
@@ -230,8 +253,10 @@
 		note = !r.ok
 			? r.error
 			: wasPlaced(r.data)
-				? `${name} ${r.data.version} is going to ${runsOn?.name ?? r.data.placed_on}, which updates it the next time it checks in.`
+				? null
 				: `${name} ${r.data.version} is installed${r.data.activated ? ' and starting' : ' (it’s turned off, so it isn’t running)'}.`;
+		// The banner says it's on its way and the page watches for it.
+		if (r.ok && wasPlaced(r.data)) await findRuntime();
 		if (r.ok && !wasPlaced(r.data) && r.data.activated) expect('running', r.data.version);
 		await load();
 	}
@@ -471,7 +496,14 @@
 				{/if}
 			</section>
 		{:else}
-			{#if update}
+			{#if incoming}
+				<div class="banner info" role="status">
+					<span
+						><strong>Updating to {incoming} in {runsOn?.name ?? 'its runtime'}…</strong> It installs the
+						next time the runtime checks in, usually within a minute. This page says when it's done.</span
+					>
+				</div>
+			{:else if update}
 				<div class="banner lit">
 					<span
 						><strong>Version {update} is in the registry.</strong> You have {versionOf(plugin)}. {name}

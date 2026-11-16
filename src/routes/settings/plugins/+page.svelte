@@ -14,6 +14,7 @@
 	import { devices } from '#lib/devices.svelte.js';
 	import {
 		heldBy,
+		incomingVersion,
 		notInstalled,
 		rowsOf,
 		withHeld,
@@ -21,16 +22,25 @@
 		type RegistryPlugin
 	} from '#lib/plugins.js';
 	import { ask } from '#lib/confirm.svelte.js';
-	import { loadRegistry, loadRuntimes, loadStatus, updateAll } from '#lib/pluginAdmin.js';
+	import {
+		loadPlacements,
+		loadRegistry,
+		loadRuntimes,
+		loadStatus,
+		updateAll,
+		type Placement
+	} from '#lib/pluginAdmin.js';
 
 	let list = $state<PluginRecord[] | null>(null);
 	let failed = $state<string | null>(null);
 	let registry = $state<RegistryPlugin[]>([]);
 	let noRegistry = $state<string | null>(null);
 	let runtimes = $state<number | null>(null);
+	let placed = $state<Placement[]>([]);
 
 	async function load() {
-		const res = await loadStatus();
+		const [res, pl] = await Promise.all([loadStatus(), loadPlacements()]);
+		if (pl.ok) placed = pl.data;
 		if (!res.ok) return void (failed = res.error);
 		failed = null;
 		list = res.data;
@@ -46,7 +56,14 @@
 		const stop = live.listen((f) => {
 			if ((f as { type: string }).type === 'plugin_status_changed') void load();
 		});
-		const every = setInterval(load, 30_000);
+		// Often while a runtime is installing an update, so it's seen arriving.
+		let last = Date.now();
+		const every = setInterval(() => {
+			if (arriving.size || Date.now() - last >= 30_000) {
+				last = Date.now();
+				void load();
+			}
+		}, 3_000);
 		return () => {
 			stop();
 			clearInterval(every);
@@ -59,7 +76,16 @@
 		list ? withHeld(rowsOf(list, registry, clock.now, core.version), held) : []
 	);
 	const running = $derived(rows.filter((r) => r.state.word === 'Running').length);
-	const updatable = $derived(rows.filter((r) => r.update));
+	// Versions their runtimes are still installing, by plugin.
+	const arriving = $derived(
+		new Map(
+			(list ?? []).flatMap((p) => {
+				const v = incomingVersion(placed, p);
+				return v ? [[p.plugin_id, v] as const] : [];
+			})
+		)
+	);
+	const updatable = $derived(rows.filter((r) => r.update && !arriving.has(r.id)));
 	const updates = $derived(updatable.length);
 	const more = $derived(list ? notInstalled(registry, list) : []);
 	const href = (id: string) => `/settings/plugins/${encodeURIComponent(id)}`;
@@ -83,11 +109,15 @@
 		});
 		updating = false;
 		const failed = done.filter((d) => d.error);
-		const ok = done.length - failed.length;
+		const sent = done.filter((d) => d.placed).length;
+		const ok = done.length - failed.length - sent;
 		said = {
 			ok: failed.length === 0,
 			text: [
 				ok ? `${ok} updated.` : '',
+				sent
+					? `${sent} ${sent === 1 ? 'is' : 'are'} going to ${sent === 1 ? 'its runtime' : 'their runtimes'}, which install${sent === 1 ? 's it' : ' them'} within a minute or so.`
+					: '',
 				...failed.map((d) => `${d.plugin.name} didn’t update: ${d.error}`)
 			]
 				.filter(Boolean)
@@ -145,7 +175,9 @@
 						</span>
 						<span role="cell" class="ver">
 							{r.version ?? '—'}
-							{#if r.update}<span class="upd">Update to {r.update}</span>{/if}
+							{#if arriving.has(r.id)}<span class="upd coming"
+									>Updating to {arriving.get(r.id)}…</span
+								>{:else if r.update}<span class="upd">Update to {r.update}</span>{/if}
 						</span>
 						<span role="cell" class="num">{r.devices}</span>
 						<span role="cell" class="state {r.state.tone}"
@@ -166,7 +198,8 @@
 								>
 								{#if r.notice}<span class="sub bad">{r.notice.message}</span>{/if}
 							</span>
-							{#if r.update}<span class="upd">Update</span>{/if}
+							{#if arriving.has(r.id)}<span class="upd coming">Updating…</span
+								>{:else if r.update}<span class="upd">Update</span>{/if}
 							<ChevronRight size={18} aria-hidden="true" />
 						</a>
 					</li>
@@ -291,6 +324,10 @@
 		gap: 2px;
 		font-family: var(--font-num);
 		font-size: 13px;
+	}
+	.upd.coming {
+		background: var(--surface-2);
+		color: var(--ink-muted);
 	}
 	.upd {
 		align-self: flex-start;

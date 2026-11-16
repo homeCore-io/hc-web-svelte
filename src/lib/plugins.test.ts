@@ -1,5 +1,6 @@
 import { describe, expect, it, test } from 'vitest';
 import {
+	incomingVersion,
 	resultLines,
 	startedAgain,
 	buttonOf,
@@ -318,5 +319,22 @@ describe('startedAgain', () => {
 		expect(startedAgain(t, '2026-11-09T15:01:01.300Z')).toBe(false);
 		expect(startedAgain(t, '2026-11-09T15:07:12.000Z')).toBe(true);
 		expect(startedAgain(undefined, t)).toBe(true);
+	});
+});
+
+describe('incomingVersion', () => {
+	const placed = [{ plugin_id: 'plugin.mcp', version: '0.1.2' }];
+	test('is the placed version while the plugin still reports another', () => {
+		expect(incomingVersion(placed, rec({ plugin_id: 'plugin.mcp', version: '0.1.1' }))).toBe(
+			'0.1.2'
+		);
+	});
+	test('is nothing once it runs that version, or when it is not on a runtime', () => {
+		expect(incomingVersion(placed, rec({ plugin_id: 'plugin.mcp', version: '0.1.2' }))).toBe(
+			undefined
+		);
+		expect(incomingVersion(placed, rec({ plugin_id: 'plugin.hue', version: '0.2.9' }))).toBe(
+			undefined
+		);
 	});
 });

@@ -35,6 +35,7 @@
 		wasPlaced,
 		type Runtime
 	} from '#lib/pluginAdmin.js';
+	import { kindName, runtimeNeeds, type Needs } from '#lib/runtimes.js';
 
 	$effect(() => heading.show('Catalog', { href: '/settings/plugins', label: 'Plugins' }));
 
@@ -93,6 +94,19 @@
 		version = versions.find((v) => needs(v) === undefined) ?? versions[0] ?? '';
 	});
 	const tooNew = $derived(version ? needs(version) : undefined);
+	// What this version needs to run: homeCore itself, or a runtime of some kind.
+	const artifactsOf = (p: typeof chosen, v: string) =>
+		p?.versions.find((x) => x.version === v)?.artifacts ?? [];
+	const need = $derived<Needs>(
+		chosen ? runtimeNeeds(artifactsOf(chosen, version), runtimes) : { state: 'here' }
+	);
+	const blocked = $derived(need.state !== 'here' && need.state !== 'ready');
+	/** The kind of runtime a plugin needs, for its row in the list, or null. */
+	const runtimeKind = (p: NonNullable<typeof chosen>) => {
+		const latest = [...p.versions].sort((a, b) => compareVersions(a.version, b.version)).pop();
+		const n = runtimeNeeds(latest?.artifacts ?? [], []);
+		return n.state === 'here' ? null : kindName(n.kind);
+	};
 	const installed = $derived(chosen ? have.find((p) => p.plugin_id === chosen.id) : undefined);
 	const pick = (id: string) =>
 		void goto(`?id=${encodeURIComponent(id)}`, { replace: wide.current });
@@ -187,7 +201,9 @@
 						>
 							<strong>{p.name}</strong>
 							<span>{p.description || 'No description in the registry.'}</span>
-							{#if mine}<em>{installedText(mine)}</em>{/if}
+							{#if mine}<em>{installedText(mine)}</em>{:else if runtimeKind(p)}<em
+									>Runs in a {runtimeKind(p)} runtime</em
+								>{/if}
 						</button>
 					</li>
 				{/each}
@@ -215,10 +231,42 @@
 							>{/each}</select
 					>
 				</label>
-				<p class="quiet">
-					Downloads it from the homeCore-io releases, checks its signature and checksum, and starts
-					it. It does nothing until you give it its settings.
-				</p>
+				{#if need.state === 'here'}
+					<p class="quiet">
+						Downloads it from the homeCore-io releases, checks its signature and checksum, and
+						starts it. It does nothing until you give it its settings.
+					</p>
+				{:else}
+					<section class="needs {need.state}" aria-label="What it needs">
+						<strong>Needs a {kindName(need.kind)} runtime</strong>
+						{#if need.state === 'none'}
+							<span
+								>It runs in a container you set up yourself, and you don't have one yet. <a
+									href="/settings/plugins/runtimes">Add a runtime</a
+								>, start its container and paste its key, then install this.</span
+							>
+						{:else if need.state === 'waiting'}
+							<span
+								>{need.added.map((r) => r.name).join(', ')}
+								{need.added.length === 1 ? "hasn't" : "haven't"} connected yet. Paste its key into the
+								runtime's page, then install this.
+								<a href="/settings/plugins/runtimes">Plugin runtimes</a></span
+							>
+						{:else if need.state === 'mismatch'}
+							<span
+								>This version is built for {need.want}, and your {kindName(need.kind)} runtimes run on
+								{need.have}.</span
+							>
+						{:else}
+							<span
+								>{need.on.length === 1
+									? `It goes to ${need.on[0]?.name}, which installs it offline and starts it.`
+									: `${need.on.length} runtimes can run it; you choose which.`} homeCore checks its signature
+								first. It does nothing until you give it its settings.</span
+							>
+						{/if}
+					</section>
+				{/if}
 				{#if installed}
 					<p class="quiet">
 						<strong
@@ -251,7 +299,12 @@
 						an earlier version, or update homeCore first.
 					</p>
 				{/if}
-				<button type="button" class="go" disabled={busy || !version || !!tooNew} onclick={go}>
+				<button
+					type="button"
+					class="go"
+					disabled={busy || !version || !!tooNew || blocked}
+					onclick={go}
+				>
 					{busy
 						? 'Installing…'
 						: choices.length
@@ -275,6 +328,24 @@
 {/if}
 
 <style>
+	.needs {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		padding: 12px 14px;
+		border-radius: 12px;
+		background: var(--lit-bg);
+		color: var(--lit-ink);
+		font-size: 14px;
+	}
+	.needs.ready {
+		background: var(--surface-2);
+		color: var(--ink);
+	}
+	.needs a {
+		color: inherit;
+		font-weight: 700;
+	}
 	.kinds {
 		display: flex;
 		gap: var(--space-1);

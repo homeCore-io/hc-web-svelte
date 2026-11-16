@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { homecoreUrlFrom, nextName, QUIET_AFTER_MS, runtimeState } from './runtimes.js';
+import {
+	homecoreUrlFrom,
+	nextName,
+	QUIET_AFTER_MS,
+	runtimeNeeds,
+	runtimeState
+} from './runtimes.js';
 
 describe('plugin runtimes', () => {
 	const now = Date.parse('2026-11-15T12:00:00Z');
@@ -25,5 +31,37 @@ describe('plugin runtimes', () => {
 		expect(homecoreUrlFrom({ protocol: 'http:', host: 'homecore.local:3000' })).toBe(
 			'http://homecore.local:3000'
 		);
+	});
+});
+
+describe('what a plugin needs', () => {
+	const py = { arch: 'x86_64', runtime: 'python', abi: 'cp312-manylinux_2_28' };
+	const rt = (over: Partial<import('./pluginAdmin.js').Runtime>) => ({
+		runtime_id: 'rt-1',
+		name: 'Python runtime 1',
+		kind: 'python',
+		abi: 'cp312-manylinux_2_28',
+		plugin_id: 'plugin.python-rt1',
+		homecore_url: 'http://h',
+		created_at: '2026-11-15T00:00:00Z',
+		...over
+	});
+
+	it('runs here when there is a native build', () => {
+		expect(runtimeNeeds([{ arch: 'x86_64' }, py], []).state).toBe('here');
+	});
+	it('says a runtime is needed when none is added', () => {
+		expect(runtimeNeeds([py], [])).toEqual({ state: 'none', kind: 'python' });
+	});
+	it('waits for an added runtime that has not connected', () => {
+		expect(runtimeNeeds([py], [rt({})]).state).toBe('waiting');
+	});
+	it('names the runtimes that can run it', () => {
+		const n = runtimeNeeds([py], [rt({ arch: 'x86_64' })]);
+		expect(n.state === 'ready' && n.on.map((r) => r.name)).toEqual(['Python runtime 1']);
+	});
+	it('says what does not match', () => {
+		const n = runtimeNeeds([py], [rt({ arch: 'aarch64' })]);
+		expect(n).toEqual({ state: 'mismatch', kind: 'python', want: 'x86_64', have: 'aarch64' });
 	});
 });

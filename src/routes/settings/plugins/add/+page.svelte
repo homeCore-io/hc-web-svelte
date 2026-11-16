@@ -8,7 +8,7 @@
 -->
 <script lang="ts">
 	import { notAdmin } from '#lib/refusals.js';
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { session } from '#lib/me.svelte.js';
@@ -24,7 +24,7 @@
 		type PluginRecord,
 		type RegistryPlugin
 	} from '#lib/plugins.js';
-	import { installLabel, installedText } from '#lib/catalog.js';
+	import { installLabel, installedText, isInstalledVersion } from '#lib/catalog.js';
 	import {
 		install,
 		loadRegistry,
@@ -136,11 +136,65 @@
 		choices = [];
 		runOn = '';
 	});
-	let placed = $state<{ name: string; on: string } | null>(null);
+	let placed = $state<{ id: string; name: string; on: string } | null>(null);
+	// A runtime installs a placed plugin the next time it checks in, about
+	// every 30 seconds. Look for it until it runs, then open it the same way a
+	// direct install does.
+	let watching: ReturnType<typeof setInterval> | undefined;
+	let looking = $state(false);
+	const stopWatching = () => {
+		clearInterval(watching);
+		watching = undefined;
+		looking = false;
+	};
+	onDestroy(stopWatching);
+	function watchFor(id: string) {
+		stopWatching();
+		const until = Date.now() + 5 * 60_000;
+		looking = true;
+		watching = setInterval(async () => {
+			if (Date.now() > until) return stopWatching();
+			const [s, pl] = await Promise.all([loadStatus(), loadPlacements()]);
+			if (pl.ok) placements = pl.data;
+			if (!s.ok) return;
+			have = s.data;
+			if (s.data.some((p) => p.plugin_id === id && p.status === 'active')) {
+				stopWatching();
+				void goto(`/settings/plugins/${encodeURIComponent(id)}?new`);
+			}
+		}, 3000);
+	}
+	// Another plugin, or another version, is a new question.
+	$effect(() => {
+		void chosen;
+		void version;
+		if (placed && placed.id !== chosen?.id) {
+			placed = null;
+			stopWatching();
+		}
+	});
+	// Placed earlier and not running yet (a reload, or back from elsewhere):
+	// still on its way, so say so instead of offering it again.
+	$effect(() => {
+		if (!chosen || placed || looking || !registry) return;
+		const on = placements.find((p) => p.plugin_id === chosen.id);
+		if (!on || have.some((p) => p.plugin_id === chosen.id && p.status === 'active')) return;
+		placed = {
+			id: chosen.id,
+			name: chosen.name,
+			on: runtimeName(
+				runtimes.find((x) => x.runtime_id === on.runtime_id),
+				on.runtime_id
+			)
+		};
+		watchFor(chosen.id);
+	});
+	const waiting = $derived(!!placed && placed.id === chosen?.id && looking);
 	async function go() {
 		if (!chosen) return;
 		busy = true;
 		placed = null;
+		stopWatching();
 		note = `Downloading ${chosen.name} and checking its signature…`;
 		const r = await install(chosen.id, version, runOn || undefined);
 		busy = false;
@@ -155,6 +209,7 @@
 		if (wasPlaced(r.data)) {
 			const id = r.data.placed_on;
 			placed = {
+				id: chosen.id,
 				name: chosen.name,
 				on: runtimeName(
 					runtimes.find((x) => x.runtime_id === id),
@@ -163,6 +218,7 @@
 			};
 			choices = [];
 			note = null;
+			watchFor(chosen.id);
 			return;
 		}
 		// Its own page, if it has one (a sign-in, say), else its settings: the page decides.
@@ -300,7 +356,8 @@
 								? `Installed: ${versionOf(installed)}.`
 								: 'Installed, but its version isn’t known.'}</strong
 						>
-						Installing {version} replaces it and keeps its settings.
+						{#if !isInstalledVersion(version, installed)}Installing {version} replaces it and keeps its
+							settings.{/if}
 					</p>
 				{/if}
 				{#if choices.length}
@@ -328,23 +385,26 @@
 				<button
 					type="button"
 					class="go"
-					disabled={busy || !version || !!tooNew || blocked}
+					class:again={isInstalledVersion(version, installed) && !choices.length}
+					disabled={busy || waiting || !version || !!tooNew || blocked}
 					onclick={go}
 				>
 					{busy
 						? 'Installing…'
-						: choices.length
-							? `Run it on ${runtimeName(
-									runtimes.find((x) => x.runtime_id === runOn),
-									runOn
-								)}`
-							: installLabel(chosen.name, version, installed)}
+						: waiting
+							? `Waiting for ${placed?.on}…`
+							: choices.length
+								? `Run it on ${runtimeName(
+										runtimes.find((x) => x.runtime_id === runOn),
+										runOn
+									)}`
+								: installLabel(chosen.name, version, installed)}
 				</button>
 				{#if placed}
 					<p class="note" role="status">
 						{placed.name} is going to <strong>{placed.on}</strong>, which installs and starts it the
-						next time it checks in. It shows in <a href="/settings/plugins">Plugins</a> once it’s
-						running; <a href="/settings/plugins/runtimes">Plugin runtimes</a> shows what each one runs.
+						next time it checks in, usually within a minute. This page opens it once it’s running;
+						<a href="/settings/plugins/runtimes">Plugin runtimes</a> shows what each one runs.
 					</p>
 				{/if}
 				{#if note}<p class="note" role="status">{note}</p>{/if}
@@ -552,6 +612,12 @@
 	}
 	.go:disabled {
 		opacity: 0.5;
+	}
+	/* The version already installed: installing it again is the quiet choice. */
+	.go.again {
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--ink);
 	}
 	.note {
 		margin: 0;

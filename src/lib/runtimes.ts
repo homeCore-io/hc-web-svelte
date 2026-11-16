@@ -61,3 +61,59 @@ export async function copyText(text: string): Promise<boolean> {
 	area.remove();
 	return ok;
 }
+
+/** The language names people know, for a runtime kind. */
+export const kindName = (kind: string) =>
+	kind === 'python' ? 'Python' : kind.charAt(0).toUpperCase() + kind.slice(1);
+
+type Artifact = { arch: string; runtime?: string; abi?: string };
+
+/**
+ * What a plugin version needs to run, told before anyone clicks Install.
+ *
+ * - `here`: homeCore runs it itself.
+ * - `ready`: one or more connected runtimes can run it (`on` lists them).
+ * - `none`: it needs a runtime of a kind nobody has added.
+ * - `waiting`: one is added but has never connected, so where it runs is
+ *   not known yet.
+ * - `mismatch`: connected runtimes of that kind, none on a matching ABI and
+ *   architecture.
+ * - `full`: the ones that could run it all hold as many plugins as they may.
+ */
+export type Needs =
+	| { state: 'here' }
+	| { state: 'ready'; kind: string; on: Runtime[] }
+	| { state: 'none'; kind: string }
+	| { state: 'waiting'; kind: string; added: Runtime[] }
+	| { state: 'mismatch'; kind: string; want: string; have: string }
+	| { state: 'full'; kind: string; full: Runtime[] };
+
+/** How many plugins each runtime holds, and whether this one is among them. */
+export interface Held {
+	count: (runtimeId: string) => number;
+	has: (runtimeId: string) => boolean;
+}
+
+const isFull = (r: Runtime, held?: Held) =>
+	!!held && !!r.max_plugins && !held.has(r.runtime_id) && held.count(r.runtime_id) >= r.max_plugins;
+
+export function runtimeNeeds(artifacts: Artifact[], runtimes: Runtime[], held?: Held): Needs {
+	if (artifacts.some((a) => !a.runtime || a.runtime === 'native')) return { state: 'here' };
+	const kind = artifacts[0]?.runtime ?? 'python';
+	const sameKind = runtimes.filter((r) => artifacts.some((a) => a.runtime === r.kind));
+	if (!sameKind.length) return { state: 'none', kind };
+	const on = sameKind.filter((r) =>
+		artifacts.some((a) => a.runtime === r.kind && a.abi === r.abi && a.arch === r.arch)
+	);
+	const room = on.filter((r) => !isFull(r, held));
+	if (room.length) return { state: 'ready', kind, on: room };
+	if (on.length) return { state: 'full', kind, full: on };
+	const connected = sameKind.filter((r) => r.arch);
+	if (!connected.length) return { state: 'waiting', kind, added: sameKind };
+	return {
+		state: 'mismatch',
+		kind,
+		want: [...new Set(artifacts.map((a) => a.arch))].join(' or '),
+		have: [...new Set(connected.map((r) => r.arch))].join(' and ')
+	};
+}

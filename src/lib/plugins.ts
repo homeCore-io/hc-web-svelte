@@ -125,7 +125,7 @@ export interface RegistryPlugin {
 	versions: {
 		version: string;
 		min_core?: string;
-		artifacts: { os: string; arch: string; size: number; runtime?: string }[];
+		artifacts: { os: string; arch: string; size: number; runtime?: string; abi?: string }[];
 	}[];
 }
 

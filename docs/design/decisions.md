@@ -574,8 +574,9 @@ On a mid-range phone and a base iPad, on the home network:
 - cold load to a usable home ≤ 1.5 s; reload with the app cached ≤ 0.5 s;
 - tap to visible response ≤ 100 ms;
 - a device change on screen ≤ 250 ms after homeCore announces it;
-- JavaScript for the home ≤ 200 KB compressed (150 KB until the user raised it,
-  2026-11-02, with whatever can load later loading later);
+- JavaScript for the home ≤ 250 KB compressed (150 KB until the user raised it to
+  200 KB on 2026-11-02, and to 250 KB on 2026-11-16, with whatever can load later
+  loading later);
 - ≤ 1,500 elements on this house's home (184 devices);
 - smooth 60 fps scrolling.
 

@@ -1,13 +1,14 @@
 <!--
 	The top of a phone page (the PhonePlan board): its title, large, and the
-	person's picture at the right, which opens their own settings. Under
-	it, what the page says about itself.
+	assistant's Ask button and the person's picture at the right, which
+	opens their own settings. Under it, what the page says about itself.
 -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { session } from '#lib/me.svelte.js';
 	import Avatar from '#lib/components/Avatar.svelte';
 	import { openYou } from './phone.svelte.js';
+	import AskButton from '#lib/pluginUi/AskButton.svelte';
 
 	let { title, children }: { title: string; children?: Snippet } = $props();
 
@@ -17,6 +18,7 @@
 <header class="ptop">
 	<div class="row">
 		<h1>{title}</h1>
+		<AskButton variant="phone" />
 		{#if open}
 			<button
 				type="button"

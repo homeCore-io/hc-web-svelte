@@ -30,6 +30,9 @@
 	import { houseItems } from '../HouseMenu.svelte';
 	import { isCamera } from '../cameras.js';
 	import Sheet from './Sheet.svelte';
+	import AskButton from '#lib/pluginUi/AskButton.svelte';
+	import { pluginUis } from '#lib/pluginUi/uis.svelte.js';
+	import { assistant } from '#lib/pluginUi/assistant.svelte.js';
 	import { phonePageOf, sectionOf, type Section } from './phone.js';
 	import { provideYou } from './phone.svelte.js';
 
@@ -64,6 +67,8 @@
 	provideYou(() => (you = true));
 	afterNavigate(() => (you = false));
 	const houseList = $derived(houseItems((s) => session.can(s), session.isAdmin));
+	// Whether the house has an assistant, for the Ask button on plain pages.
+	pluginUis.ensure();
 
 	// The page's own loaders, so each is fetched only the first time it's shown.
 	const pages = {
@@ -109,9 +114,14 @@
 				/>{:catch}{@render failed()}{/await}
 		{:else}
 			<div class="plain">
-				{#if back}<a class="back" href={back.href}
-						><ChevronLeft size={18} strokeWidth={2.2} aria-hidden="true" />{back.label}</a
-					>{/if}
+				{#if back || assistant.offer}
+					<div class="line">
+						{#if back}<a class="back" href={back.href}
+								><ChevronLeft size={18} strokeWidth={2.2} aria-hidden="true" />{back.label}</a
+							>{/if}
+						<AskButton variant="phone" />
+					</div>
+				{/if}
 				{#if !heading.owned}<h1>{title}</h1>{/if}
 				{@render children()}
 			</div>
@@ -224,6 +234,17 @@
 		gap: 12px;
 		padding: 16px 16px 24px;
 		min-width: 0;
+	}
+	/* The way back, and the assistant at the right. */
+	.line {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		min-width: 0;
+	}
+	.line > :global(.ask:only-child) {
+		margin-left: auto;
 	}
 	.back {
 		align-self: flex-start;

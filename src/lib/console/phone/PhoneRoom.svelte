@@ -26,6 +26,7 @@
 	import SwitchSet from '../SwitchSet.svelte';
 	import { setsWithSwitches } from '../switches.js';
 	import AudioBar from '../AudioBar.svelte';
+	import AskButton from '#lib/pluginUi/AskButton.svelte';
 	import RoomPicture from '../RoomPicture.svelte';
 	import RoomPhoto from '../RoomPhoto.svelte';
 	import Placer from '../Placer.svelte';
@@ -127,6 +128,7 @@
 				onclick={() => (more = true)}
 				><Ellipsis size={20} strokeWidth={2.4} aria-hidden="true" /></button
 			>
+			<div class="ask-at"><AskButton variant="hero" /></div>
 			<div class="hc">
 				<h1>{room.name}</h1>
 				<div class="hp">
@@ -379,6 +381,11 @@
 	}
 	.more {
 		right: 12px;
+	}
+	.ask-at {
+		position: absolute;
+		top: 8px;
+		right: 64px;
 	}
 	.hc {
 		position: absolute;

@@ -332,6 +332,8 @@ export interface Pending {
 export interface Updated {
 	plugin: Pending;
 	error?: string;
+	/** Sent to its runtime, which installs it the next time it checks in. */
+	placed?: boolean;
 }
 /**
  * Every plugin with a newer version, one after another, so the house never
@@ -349,7 +351,7 @@ export async function updateAll(
 	for (const [i, p] of list.entries()) {
 		step(i, p);
 		const r = await install(p.id, p.version, on(p.id));
-		done.push(r.ok ? { plugin: p } : { plugin: p, error: r.error });
+		done.push(r.ok ? { plugin: p, placed: wasPlaced(r.data) } : { plugin: p, error: r.error });
 	}
 	return done;
 }

@@ -27,7 +27,7 @@
 	let failed = $state<string | null>(null);
 	let registry = $state<RegistryPlugin[]>([]);
 	let noRegistry = $state<string | null>(null);
-	let runtimes = $state<{ pending: number; all: number } | null>(null);
+	let runtimes = $state<number | null>(null);
 
 	async function load() {
 		const res = await loadStatus();
@@ -40,11 +40,7 @@
 		void loadRegistry().then((r) => (r.ok ? (registry = r.data.plugins) : (noRegistry = r.error)));
 		if (session.can('plugins:write'))
 			void loadRuntimes().then((r) => {
-				if (r.ok)
-					runtimes = {
-						pending: r.data.runtimes.filter((x) => x.status === 'pending').length,
-						all: r.data.runtimes.length
-					};
+				if (r.ok) runtimes = r.data.runtimes.length;
 			});
 		// Status changes are announced; heartbeats aren't, so read again now and then.
 		const stop = live.listen((f) => {
@@ -111,9 +107,7 @@
 			</span>
 			{#if session.can('plugins:write')}
 				<a class="plain" href="/settings/plugins/runtimes"
-					>Plugin runtimes{runtimes
-						? ` · ${runtimes.pending ? `${runtimes.pending} waiting` : runtimes.all || 'none'}`
-						: ''}</a
+					>Plugin runtimes{runtimes === null ? '' : ` · ${runtimes || 'none'}`}</a
 				>
 			{/if}
 			{#if updates > 1 && session.can('plugins:write')}

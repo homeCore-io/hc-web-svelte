@@ -237,10 +237,8 @@
 							<label class="radio"
 								><input type="radio" name="runtime" value={c} bind:group={runOn} />
 								<span
-									><strong>{runtimeName(rt, c)}</strong>{#if rt?.capabilities?.kind}<em
-											>{[rt.capabilities.kind, rt.capabilities.arch]
-												.filter(Boolean)
-												.join(' · ')}</em
+									><strong>{runtimeName(rt, c)}</strong>{#if rt?.kind}<em
+											>{[rt.kind, rt.arch].filter(Boolean).join(' · ')}</em
 										>{/if}</span
 								></label
 							>

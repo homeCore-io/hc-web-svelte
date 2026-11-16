@@ -372,6 +372,8 @@
 				<span class="state {health.tone}"><b>{health.word}</b> {health.detail}</span>
 				{#if !canWrite}
 					<!-- Look, don't touch. -->
+				{:else if runsOn}
+					<!-- Its runtime starts, stops and restarts it; homeCore can't. -->
 				{:else if plugin.enabled}
 					<button type="button" class="plain" disabled={busy} onclick={() => act('restart')}
 						>Restart</button
@@ -580,16 +582,16 @@
 
 			{#if canWrite}
 				<section class="card danger-zone">
-					<h2>{plugin.enabled ? 'Turn off or uninstall' : 'Uninstall'}</h2>
+					<h2>{plugin.enabled && !runsOn ? 'Turn off or uninstall' : 'Uninstall'}</h2>
 					<p class="quiet">
-						{#if plugin.enabled}Turning it off keeps its settings and stays off through restarts{mine.length
-								? `; ${its(mine.length, 'goes', 'go')} quiet`
-								: ''}.
+						{#if runsOn}It runs in {runsOn.name} for as long as it's installed there.
+						{:else if plugin.enabled}Turning it off keeps its settings and stays off through
+							restarts{mine.length ? `; ${its(mine.length, 'goes', 'go')} quiet` : ''}.
 						{/if}{' '}Uninstalling it deletes its program and its devices; rules that use them are
 						turned off.
 					</p>
 					<div class="buttons">
-						{#if plugin.enabled}<button
+						{#if plugin.enabled && !runsOn}<button
 								type="button"
 								class="plain"
 								disabled={busy}

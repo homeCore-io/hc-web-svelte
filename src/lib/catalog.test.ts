@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { installLabel, installedText } from './catalog.js';
+import { installLabel, installedText, isInstalledVersion } from './catalog.js';
 import type { PluginRecord } from './plugins.js';
 
 const rec = (version?: string): PluginRecord =>
@@ -22,5 +22,15 @@ describe('an installed plugin in the Catalog', () => {
 		expect(installLabel('Caséta', '0.1.15', rec('0.1.14'))).toBe('Update to 0.1.15');
 		expect(installLabel('Caséta', '0.1.13', rec('0.1.14'))).toBe('Install 0.1.13');
 		expect(installLabel('Caséta', '0.1.15', rec())).toBe('Install 0.1.15');
+		expect(installLabel('Caséta', '0.1.14', rec('0.1.14'))).toBe('Reinstall 0.1.14');
+	});
+});
+
+describe('isInstalledVersion', () => {
+	test('is true only for the known installed version', () => {
+		expect(isInstalledVersion('0.1.14', rec('0.1.14'))).toBe(true);
+		expect(isInstalledVersion('0.1.15', rec('0.1.14'))).toBe(false);
+		expect(isInstalledVersion('0.1.14', rec())).toBe(false);
+		expect(isInstalledVersion('0.1.14')).toBe(false);
 	});
 });

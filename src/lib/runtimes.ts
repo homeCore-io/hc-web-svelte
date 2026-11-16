@@ -78,15 +78,26 @@ type Artifact = { arch: string; runtime?: string; abi?: string };
  *   not known yet.
  * - `mismatch`: connected runtimes of that kind, none on a matching ABI and
  *   architecture.
+ * - `full`: the ones that could run it all hold as many plugins as they may.
  */
 export type Needs =
 	| { state: 'here' }
 	| { state: 'ready'; kind: string; on: Runtime[] }
 	| { state: 'none'; kind: string }
 	| { state: 'waiting'; kind: string; added: Runtime[] }
-	| { state: 'mismatch'; kind: string; want: string; have: string };
+	| { state: 'mismatch'; kind: string; want: string; have: string }
+	| { state: 'full'; kind: string; full: Runtime[] };
 
-export function runtimeNeeds(artifacts: Artifact[], runtimes: Runtime[]): Needs {
+/** How many plugins each runtime holds, and whether this one is among them. */
+export interface Held {
+	count: (runtimeId: string) => number;
+	has: (runtimeId: string) => boolean;
+}
+
+const isFull = (r: Runtime, held?: Held) =>
+	!!held && !!r.max_plugins && !held.has(r.runtime_id) && held.count(r.runtime_id) >= r.max_plugins;
+
+export function runtimeNeeds(artifacts: Artifact[], runtimes: Runtime[], held?: Held): Needs {
 	if (artifacts.some((a) => !a.runtime || a.runtime === 'native')) return { state: 'here' };
 	const kind = artifacts[0]?.runtime ?? 'python';
 	const sameKind = runtimes.filter((r) => artifacts.some((a) => a.runtime === r.kind));
@@ -94,7 +105,9 @@ export function runtimeNeeds(artifacts: Artifact[], runtimes: Runtime[]): Needs 
 	const on = sameKind.filter((r) =>
 		artifacts.some((a) => a.runtime === r.kind && a.abi === r.abi && a.arch === r.arch)
 	);
-	if (on.length) return { state: 'ready', kind, on };
+	const room = on.filter((r) => !isFull(r, held));
+	if (room.length) return { state: 'ready', kind, on: room };
+	if (on.length) return { state: 'full', kind, full: on };
 	const connected = sameKind.filter((r) => r.arch);
 	if (!connected.length) return { state: 'waiting', kind, added: sameKind };
 	return {

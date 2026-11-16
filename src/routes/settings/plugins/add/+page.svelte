@@ -28,11 +28,13 @@
 	import {
 		install,
 		loadRegistry,
+		loadPlacements,
 		loadRuntimes,
 		loadStatus,
 		runtimeName,
 		runtimesToChoose,
 		wasPlaced,
+		type Placement,
 		type Runtime
 	} from '#lib/pluginAdmin.js';
 	import { kindName, runtimeNeeds, type Needs } from '#lib/runtimes.js';
@@ -49,6 +51,7 @@
 
 	let registry = $state<RegistryPlugin[] | null>(null);
 	let runtimes = $state<Runtime[]>([]);
+	let placements = $state<Placement[]>([]);
 	let have = $state<PluginRecord[]>([]);
 	let failed = $state<string | null>(null);
 
@@ -62,7 +65,13 @@
 	);
 	const shown = $derived(registry?.filter((p) => cat === 'All' || catOf(p) === cat) ?? []);
 	onMount(async () => {
-		const [r, s, rt] = await Promise.all([loadRegistry(), loadStatus(), loadRuntimes()]);
+		const [r, s, rt, pl] = await Promise.all([
+			loadRegistry(),
+			loadStatus(),
+			loadRuntimes(),
+			loadPlacements()
+		]);
+		if (pl.ok) placements = pl.data;
 		if (rt.ok) runtimes = rt.data.runtimes;
 		if (!r.ok) return void (failed = r.error);
 		registry = named(r.data.plugins).sort((a, b) => a.name.localeCompare(b.name));
@@ -98,7 +107,12 @@
 	const artifactsOf = (p: typeof chosen, v: string) =>
 		p?.versions.find((x) => x.version === v)?.artifacts ?? [];
 	const need = $derived<Needs>(
-		chosen ? runtimeNeeds(artifactsOf(chosen, version), runtimes) : { state: 'here' }
+		chosen
+			? runtimeNeeds(artifactsOf(chosen, version), runtimes, {
+					count: (id) => placements.filter((p) => p.runtime_id === id).length,
+					has: (id) => placements.some((p) => p.runtime_id === id && p.plugin_id === chosen.id)
+				})
+			: { state: 'here' }
 	);
 	const blocked = $derived(need.state !== 'here' && need.state !== 'ready');
 	/** The kind of runtime a plugin needs, for its row in the list, or null. */
@@ -251,6 +265,12 @@
 								{need.added.length === 1 ? "hasn't" : "haven't"} connected yet. Paste its key into the
 								runtime's page, then install this.
 								<a href="/settings/plugins/runtimes">Plugin runtimes</a></span
+							>
+						{:else if need.state === 'full'}
+							<span
+								>{need.full.map((r) => `${r.name} holds ${r.max_plugins}`).join(', ')}, as many
+								plugins as you set it to. Raise the limit in
+								<a href="/settings/plugins/runtimes">Plugin runtimes</a>, or add another runtime.</span
 							>
 						{:else if need.state === 'mismatch'}
 							<span

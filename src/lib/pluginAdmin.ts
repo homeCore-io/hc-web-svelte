@@ -236,6 +236,8 @@ export interface Runtime {
 	network_mode?: string;
 	source_ip?: string;
 	last_seen_at?: string;
+	/** The most plugins it may hold; absent means no limit. */
+	max_plugins?: number;
 	/** Older than this homeCore expects: pull the newer image and restart it. */
 	outdated?: boolean;
 	/** The oldest runtime host this homeCore works with. */
@@ -265,8 +267,14 @@ export interface BrokerStatus {
 	can_open: boolean;
 }
 export const loadRuntimes = () => call<{ runtimes: Runtime[] }>('GET', '/plugin-runtimes');
-export const addRuntime = (body: { name: string; kind?: string; homecore_url: string }) =>
-	call<IssuedKey>('POST', '/plugin-runtimes', body);
+export const addRuntime = (body: {
+	name: string;
+	kind?: string;
+	homecore_url: string;
+	max_plugins?: number;
+}) => call<IssuedKey>('POST', '/plugin-runtimes', body);
+export const updateRuntime = (id: string, body: { name?: string; max_plugins?: number | null }) =>
+	call<Runtime>('PATCH', `/plugin-runtimes/${encodeURIComponent(id)}`, body);
 export const resetRuntime = (id: string) =>
 	call<IssuedKey>('POST', `/plugin-runtimes/${encodeURIComponent(id)}/reset`);
 export const removeRuntime = (id: string) =>

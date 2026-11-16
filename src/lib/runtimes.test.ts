@@ -65,3 +65,30 @@ describe('what a plugin needs', () => {
 		expect(n).toEqual({ state: 'mismatch', kind: 'python', want: 'x86_64', have: 'aarch64' });
 	});
 });
+
+describe('a full runtime', () => {
+	const py = { arch: 'x86_64', runtime: 'python', abi: 'cp312-manylinux_2_28' };
+	const pi = {
+		runtime_id: 'rt-pi',
+		name: 'Pi',
+		kind: 'python',
+		abi: 'cp312-manylinux_2_28',
+		plugin_id: 'plugin.python-rtpi',
+		homecore_url: 'http://h',
+		created_at: '2026-11-15T00:00:00Z',
+		arch: 'x86_64',
+		max_plugins: 2
+	};
+	const held = (n: number, has = false) => ({ count: () => n, has: () => has });
+
+	it('takes no new plugin', () => {
+		expect(runtimeNeeds([py], [pi], held(2)).state).toBe('full');
+		expect(runtimeNeeds([py], [pi], held(1)).state).toBe('ready');
+	});
+	it('still takes an update to one it holds', () => {
+		expect(runtimeNeeds([py], [pi], held(2, true)).state).toBe('ready');
+	});
+	it('has no ceiling without a limit', () => {
+		expect(runtimeNeeds([py], [{ ...pi, max_plugins: undefined }], held(9)).state).toBe('ready');
+	});
+});

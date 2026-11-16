@@ -21,6 +21,7 @@
 		openBroker,
 		removeRuntime,
 		resetRuntime,
+		updateRuntime,
 		type BrokerStatus,
 		type IssuedKey,
 		type Placement,
@@ -72,18 +73,26 @@
 	let dialog = $state<HTMLDialogElement | null>(null);
 	let name = $state('');
 	let url = $state('');
+	/** Blank: no limit. */
+	let limit = $state<number | null>(null);
 	let adding = $state(false);
 	let addError = $state<string | null>(null);
 	function openAdd() {
 		name = nextName(runtimes ?? []);
 		url = homecoreUrlFrom(location);
+		limit = null;
 		addError = null;
 		dialog?.showModal();
 	}
 	async function add() {
 		adding = true;
 		addError = null;
-		const r = await addRuntime({ name, kind: 'python', homecore_url: url });
+		const r = await addRuntime({
+			name,
+			kind: 'python',
+			homecore_url: url,
+			max_plugins: limit ?? undefined
+		});
 		adding = false;
 		if (!r.ok) return void (addError = r.error);
 		dialog?.close();
@@ -100,6 +109,24 @@
 	async function copy(what: string, text: string) {
 		copied = (await copyText(text)) ? what : null;
 		if (!copied) note = 'This browser would not copy it. Select it and copy it by hand.';
+	}
+
+	// ---- The plugin limit ----
+	let editingLimit = $state<string | null>(null);
+	let limitDraft = $state<number | null>(null);
+	function setLimit(r: Runtime) {
+		editingLimit = r.runtime_id;
+		limitDraft = r.max_plugins ?? null;
+	}
+	async function saveLimit(r: Runtime) {
+		const res = await updateRuntime(r.runtime_id, { max_plugins: limitDraft || null });
+		if (!res.ok) note = res.error;
+		else
+			note = res.data.max_plugins
+				? `${r.name} may hold ${res.data.max_plugins} plugins.`
+				: `${r.name} has no limit.`;
+		editingLimit = null;
+		await load();
 	}
 
 	// ---- Reset, remove, open the broker ----
@@ -341,7 +368,30 @@
 					{/if}
 					<div class="plugins">
 						<div class="phead">
-							<b>Plugins in it</b>
+							<b
+								>Plugins in it <span class="quiet count"
+									>{r.max_plugins ? `${mine.length} of ${r.max_plugins}` : 'no limit'}</span
+								></b
+							>
+							{#if editingLimit === r.runtime_id}
+								<span class="limit">
+									<input
+										type="number"
+										min="1"
+										inputmode="numeric"
+										aria-label="Most plugins it may hold"
+										placeholder="No limit"
+										bind:value={limitDraft}
+									/>
+									<button type="button" class="small go" onclick={() => saveLimit(r)}>Save</button>
+									<button type="button" class="small" onclick={() => (editingLimit = null)}
+										>Cancel</button
+									>
+								</span>
+							{:else}
+								<button type="button" class="small" onclick={() => setLimit(r)}>Change limit</button
+								>
+							{/if}
 							<a href="/settings/plugins/add">Add from the Catalog</a>
 						</div>
 						{#if mine.length}
@@ -393,6 +443,14 @@
 			<span class="quiet"
 				>Filled in from the address you're using now. Change it if the runtime reaches homeCore
 				another way.</span
+			>
+		</label>
+		<label
+			>Most plugins it may hold
+			<input type="number" min="1" inputmode="numeric" bind:value={limit} placeholder="No limit" />
+			<span class="quiet"
+				>A few suit a Raspberry Pi; a large server takes many. Leave it blank for no limit. You can
+				change it later.</span
 			>
 		</label>
 		{#if addError}<p class="error" role="alert">{addError}</p>{/if}
@@ -596,6 +654,25 @@
 	}
 	.phead b {
 		flex: 1;
+	}
+	.count {
+		font-weight: 500;
+		margin-left: 6px;
+	}
+	.limit {
+		display: flex;
+		gap: 6px;
+		align-items: center;
+	}
+	.limit input {
+		width: 96px;
+		height: 32px;
+		padding: 0 10px;
+		border-radius: var(--radius-chip);
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--ink);
+		font: inherit;
 	}
 	.plugins ul {
 		list-style: none;

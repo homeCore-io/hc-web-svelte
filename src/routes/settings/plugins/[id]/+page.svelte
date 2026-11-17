@@ -441,7 +441,7 @@
 		{#if tab === 'settings' && canWrite}
 			<!-- Read again when it restarts: a new version can bring a new form. -->
 			{#key started}
-				<PluginSettings pluginId={id} {name} running={plugin.enabled} />
+				<PluginSettings pluginId={id} {name} running={plugin.enabled} runtime={runsOn?.name} />
 			{/key}
 		{:else if tab === 'logs' && session.isAdmin}
 			<section class="logs">

@@ -4,8 +4,7 @@ The homeCore web app, and the UI server it runs in.
 
 This is the redesign: a from-scratch client built from the design in
 [`docs/design/`](docs/design/) — start with
-[`decisions.md`](docs/design/decisions.md). The earlier Svelte client lives on
-`main` and `develop` for reference only.
+[`decisions.md`](docs/design/decisions.md).
 
 ## What is here
 
@@ -21,7 +20,7 @@ This is the redesign: a from-scratch client built from the design in
 
 ```sh
 npm install
-cp .env.example .env        # set HC_CORE_URL to your homeCore
+export HC_CORE_URL=http://127.0.0.1:8080   # your homeCore; .env.example lists the rest
 npm run dev                 # http://localhost:5180  (add --host to reach it from other machines)
 ```
 

@@ -28,3 +28,34 @@ export const isInstalledVersion = (version: string, installed?: PluginRecord) =>
 	const have = installed ? versionOf(installed) : undefined;
 	return !!have && compareVersions(version, have) === 0;
 };
+
+const SHOW_INSTALLED = 'hc-catalog-installed';
+
+/**
+ * Whether the Catalog lists plugins that are already installed. Off unless
+ * this browser was told otherwise; the Plugins page is where those are kept.
+ */
+export function showsInstalled(): boolean {
+	try {
+		return localStorage.getItem(SHOW_INSTALLED) === 'show';
+	} catch {
+		return false;
+	}
+}
+
+/** Remember in this browser whether the Catalog lists installed plugins. */
+export function setShowsInstalled(show: boolean): void {
+	try {
+		if (show) localStorage.setItem(SHOW_INSTALLED, 'show');
+		else localStorage.removeItem(SHOW_INSTALLED);
+	} catch {
+		// Not kept; the Catalog hides them next time.
+	}
+}
+
+/** The registry's plugins the Catalog lists: all of them, or only those not installed. */
+export const listed = <P extends { id: string }>(
+	registry: P[],
+	have: PluginRecord[],
+	showInstalled: boolean
+) => (showInstalled ? registry : registry.filter((p) => !have.some((h) => h.plugin_id === p.id)));

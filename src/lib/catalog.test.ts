@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { installLabel, installedText, isInstalledVersion } from './catalog.js';
+import { installLabel, installedText, isInstalledVersion, listed } from './catalog.js';
 import type { PluginRecord } from './plugins.js';
 
 const rec = (version?: string): PluginRecord =>
@@ -32,5 +32,14 @@ describe('isInstalledVersion', () => {
 		expect(isInstalledVersion('0.1.15', rec('0.1.14'))).toBe(false);
 		expect(isInstalledVersion('0.1.14', rec())).toBe(false);
 		expect(isInstalledVersion('0.1.14')).toBe(false);
+	});
+});
+
+describe('listed', () => {
+	const registry = [{ id: 'plugin.hue' }, { id: 'plugin.isy' }];
+	const have = [{ plugin_id: 'plugin.hue' } as PluginRecord];
+	test('leaves out installed plugins unless asked', () => {
+		expect(listed(registry, have, false).map((p) => p.id)).toEqual(['plugin.isy']);
+		expect(listed(registry, have, true).map((p) => p.id)).toEqual(['plugin.hue', 'plugin.isy']);
 	});
 });

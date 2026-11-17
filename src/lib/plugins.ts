@@ -303,12 +303,6 @@ export function rowsOf(
 		.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** Registry plugins the house doesn't have. */
-export const notInstalled = (registry: RegistryPlugin[], list: PluginRecord[]) =>
-	named(registry)
-		.filter((r) => !list.some((p) => p.plugin_id === r.id))
-		.sort((a, b) => a.name.localeCompare(b.name));
-
 /** The registry's plugins under the house's own spelling: "WLED", not "Wled". */
 export const named = (registry: RegistryPlugin[]): RegistryPlugin[] =>
 	registry.map((r) => ({ ...r, name: knownPluginName(r.id) ?? r.name }));

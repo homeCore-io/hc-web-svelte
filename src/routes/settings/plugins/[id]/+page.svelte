@@ -38,6 +38,7 @@
 		type PluginRecord,
 		type RegistryPlugin
 	} from '#lib/plugins.js';
+	import { installsAtOnce } from '#lib/runtimes.js';
 	import {
 		install,
 		lifecycle,
@@ -137,7 +138,7 @@
 	});
 
 	// Where it runs: homeCore itself, or a plugin runtime it was placed on.
-	let runsOn = $state<{ id: string; name: string } | null>(null);
+	let runsOn = $state<{ id: string; name: string; now: boolean } | null>(null);
 	let placed = $state<Placement[]>([]);
 	async function findRuntime() {
 		const [p, r] = await Promise.all([loadPlacements(), loadRuntimes()]);
@@ -145,7 +146,13 @@
 		const here = p.ok ? p.data.find((x) => x.plugin_id === id) : undefined;
 		const rt =
 			here && r.ok ? r.data.runtimes.find((x) => x.runtime_id === here.runtime_id) : undefined;
-		runsOn = here ? { id: here.runtime_id, name: runtimeName(rt, here.runtime_id) } : null;
+		runsOn = here
+			? {
+					id: here.runtime_id,
+					name: runtimeName(rt, here.runtime_id),
+					now: installsAtOnce(rt, core.since('0.1.114'))
+				}
+			: null;
 	}
 
 	// A version its runtime is still installing: it picks it up the next time
@@ -499,8 +506,11 @@
 			{#if incoming}
 				<div class="banner info" role="status">
 					<span
-						><strong>Updating to {incoming} in {runsOn?.name ?? 'its runtime'}…</strong> It installs the
-						next time the runtime checks in, usually within a minute. This page says when it's done.</span
+						><strong>Updating to {incoming} in {runsOn?.name ?? 'its runtime'}…</strong>
+						{runsOn?.now
+							? 'It’s installing it now.'
+							: 'It installs the next time the runtime checks in, usually within a minute.'} This page
+						says when it's done.</span
 					>
 				</div>
 			{:else if update}

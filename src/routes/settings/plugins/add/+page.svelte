@@ -44,7 +44,7 @@
 		type Placement,
 		type Runtime
 	} from '#lib/pluginAdmin.js';
-	import { kindName, runtimeNeeds, type Needs } from '#lib/runtimes.js';
+	import { installsAtOnce, kindName, runtimeNeeds, type Needs } from '#lib/runtimes.js';
 
 	$effect(() => heading.show('Catalog', { href: '/settings/plugins', label: 'Plugins' }));
 
@@ -148,7 +148,7 @@
 		choices = [];
 		runOn = '';
 	});
-	let placed = $state<{ id: string; name: string; on: string } | null>(null);
+	let placed = $state<{ id: string; name: string; on: string; now: boolean } | null>(null);
 	// A runtime installs a placed plugin the next time it checks in, about
 	// every 30 seconds. Look for it until it runs, then open it the same way a
 	// direct install does.
@@ -197,6 +197,10 @@
 			on: runtimeName(
 				runtimes.find((x) => x.runtime_id === on.runtime_id),
 				on.runtime_id
+			),
+			now: installsAtOnce(
+				runtimes.find((x) => x.runtime_id === on.runtime_id),
+				core.since('0.1.114')
 			)
 		};
 		watchFor(chosen.id);
@@ -226,6 +230,10 @@
 				on: runtimeName(
 					runtimes.find((x) => x.runtime_id === id),
 					id
+				),
+				now: installsAtOnce(
+					runtimes.find((x) => x.runtime_id === id),
+					core.since('0.1.114')
 				)
 			};
 			choices = [];
@@ -421,8 +429,10 @@
 				</button>
 				{#if placed}
 					<p class="note" role="status">
-						{placed.name} is going to <strong>{placed.on}</strong>, which installs and starts it the
-						next time it checks in, usually within a minute. This page opens it once it’s running;
+						{placed.name} is going to <strong>{placed.on}</strong>, which {placed.now
+							? 'is installing and starting it now'
+							: 'installs and starts it the next time it checks in, usually within a minute'}. This
+						page opens it once it’s running;
 						<a href="/settings/plugins/runtimes">Plugin runtimes</a> shows what each one runs.
 					</p>
 				{/if}

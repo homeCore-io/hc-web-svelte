@@ -521,8 +521,8 @@
 					{#if runs.length === 0}
 						<h2>Recent runs</h2>
 						<p class="quiet">
-							Nothing since homeCore started. It keeps the last 20 times each rule’s moment came,
-							and forgets them when it restarts.
+							Nothing yet. homeCore keeps the last 20 times each rule’s moment came, including
+							across restarts.
 						</p>
 					{:else}
 						{#each runs as r, i (r.at + i)}

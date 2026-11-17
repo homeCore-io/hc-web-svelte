@@ -16,7 +16,6 @@
 	import { maskSecrets } from '#lib/config.js';
 	import { descriptorFromSchema } from '#lib/configSchema.js';
 	import {
-		lifecycle,
 		loadConfig,
 		loadDescriptor,
 		loadSchema,
@@ -27,8 +26,16 @@
 	import SaveBar from '#lib/components/admin/SaveBar.svelte';
 	import SectionForm from '#lib/components/form/SectionForm.svelte';
 
-	// `running`: turned on — so a restart (or start) applies what was saved.
-	let { pluginId, name, running }: { pluginId: string; name: string; running: boolean } = $props();
+	// `running`: turned on. homeCore restarts a plugin it runs when its
+	// settings file changes, so saving applies them. `runtime`: the plugin
+	// runtime it runs in instead, which sends it the settings; whether they
+	// apply at once is up to the plugin.
+	let {
+		pluginId,
+		name,
+		running,
+		runtime
+	}: { pluginId: string; name: string; running: boolean; runtime?: string } = $props();
 
 	const form = new FormState();
 	let config = $state<PluginConfig | null>(null);
@@ -138,12 +145,6 @@
 		saved = true;
 		await load();
 	}
-
-	async function restart() {
-		const r = await lifecycle(pluginId, 'restart');
-		if (!r.ok) trouble = r.error;
-		else saved = false;
-	}
 </script>
 
 {#if trouble}<p class="trouble" role="alert">{trouble}</p>{/if}
@@ -151,11 +152,9 @@
 	<div class="saved" role="status">
 		<span
 			><strong>Saved.</strong>
-			{name} reads its settings when it starts{running
-				? ': restart it for them to take effect'
-				: ''}.</span
+			{#if runtime}Sent to {name} in {runtime}.{:else if running}homeCore restarts {name} to use them.{:else}{name}
+				uses them when it's turned on.{/if}</span
 		>
-		{#if running}<button type="button" onclick={restart}>Restart {name}</button>{/if}
 	</div>
 {/if}
 
@@ -376,8 +375,7 @@
 		gap: var(--space-2);
 	}
 	.go,
-	.ghost,
-	.saved button {
+	.ghost {
 		height: 38px;
 		padding: 0 16px;
 		border-radius: 19px;
@@ -387,8 +385,7 @@
 		font: inherit;
 		font-weight: 700;
 	}
-	.go,
-	.saved button {
+	.go {
 		border: none;
 		background: var(--accent);
 		color: var(--accent-ink);

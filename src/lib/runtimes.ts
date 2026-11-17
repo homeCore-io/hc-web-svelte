@@ -3,6 +3,7 @@
  * one, and copying a key on a page that may not be served over https.
  */
 import type { Runtime } from './pluginAdmin.js';
+import { compareVersions } from './plugins.js';
 
 /** A runtime checks in every 30 seconds; two missed is worth saying. */
 export const QUIET_AFTER_MS = 90_000;
@@ -145,3 +146,11 @@ export function runtimeNeeds(artifacts: Artifact[], runtimes: Runtime[], held?: 
 		have: [...new Set(connected.map((r) => r.arch))].join(' and ')
 	};
 }
+
+/**
+ * Whether homeCore tells this runtime about a change at once (core 0.1.114 and
+ * runtime host 0.2.2), so it installs in seconds. Otherwise it waits for the
+ * runtime's next check-in, up to half a minute.
+ */
+export const installsAtOnce = (r: Pick<Runtime, 'host_version'> | undefined, coreTells: boolean) =>
+	coreTells && !!r?.host_version && compareVersions(r.host_version, '0.2.2') >= 0;

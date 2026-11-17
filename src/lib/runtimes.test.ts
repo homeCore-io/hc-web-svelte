@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	homecoreUrlFrom,
+	installsAtOnce,
 	nextName,
 	QUIET_AFTER_MS,
 	runtimePage,
@@ -124,5 +125,16 @@ describe('runtimePage', () => {
 		expect(runtimePage({ source_ip: 'fd00::5', page_port: 8790 }, 'x')?.label).toBe(
 			'[fd00::5]:8790'
 		);
+	});
+});
+
+describe('installsAtOnce', () => {
+	it('needs a runtime host that takes check_in and a homeCore that sends it', () => {
+		expect(installsAtOnce({ host_version: '0.2.2' }, true)).toBe(true);
+		expect(installsAtOnce({ host_version: '0.10.0' }, true)).toBe(true);
+		expect(installsAtOnce({ host_version: '0.2.1' }, true)).toBe(false);
+		expect(installsAtOnce({ host_version: '0.2.2' }, false)).toBe(false);
+		expect(installsAtOnce({}, true)).toBe(false);
+		expect(installsAtOnce(undefined, true)).toBe(false);
 	});
 });

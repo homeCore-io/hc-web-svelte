@@ -12,7 +12,6 @@ import {
 	versionAtLeast,
 	latestOf,
 	needsCore,
-	notInstalled,
 	paramDefaults,
 	paramFields,
 	rowsOf,
@@ -145,7 +144,6 @@ describe('how it is, in words', () => {
 			['Hue', '0.1.17', 'Bridge unreachable'],
 			['YoLink', undefined, undefined]
 		]);
-		expect(notInstalled(REGISTRY, [rec({})]).map((r) => r.name)).toEqual(['ISY']); // the house's spelling, not the registry's "Isy"
 	});
 
 	test('the list counts the devices homeCore holds, as a plugin’s page does', () => {

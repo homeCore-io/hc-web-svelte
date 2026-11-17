@@ -15,7 +15,6 @@
 	import {
 		heldBy,
 		incomingVersion,
-		notInstalled,
 		rowsOf,
 		withHeld,
 		type PluginRecord,
@@ -87,7 +86,6 @@
 	);
 	const updatable = $derived(rows.filter((r) => r.update && !arriving.has(r.id)));
 	const updates = $derived(updatable.length);
-	const more = $derived(list ? notInstalled(registry, list) : []);
 	const href = (id: string) => `/settings/plugins/${encodeURIComponent(id)}`;
 
 	// ---- every update at once, one plugin at a time ----
@@ -207,19 +205,7 @@
 			</ul>
 		{/if}
 
-		{#if more.length}
-			<section class="more">
-				<h2>Also in the registry</h2>
-				<ul>
-					{#each more as m (m.id)}
-						<li>
-							<span><strong>{m.name}</strong> {m.description}</span>
-							<a class="plain" href={`/settings/plugins/add?id=${encodeURIComponent(m.id)}`}>Add</a>
-						</li>
-					{/each}
-				</ul>
-			</section>
-		{:else if noRegistry}
+		{#if noRegistry}
 			<p class="quiet">The registry: {noRegistry}</p>
 		{/if}
 	</div>
@@ -393,45 +379,6 @@
 	.sub {
 		font-size: 13px;
 		color: var(--ink-muted);
-	}
-	.more {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-	}
-	h2 {
-		margin: 0 4px;
-		font-size: 12px;
-		font-weight: 600;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--ink-muted);
-	}
-	.more ul {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		border-radius: var(--radius);
-		background: var(--surface);
-		border: 1px solid var(--card-line);
-	}
-	.more li {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-		padding: 10px var(--space-4);
-	}
-	.more li + li {
-		border-top: 1px solid var(--line);
-	}
-	.more li > span {
-		flex: 1;
-		color: var(--ink-muted);
-		font-size: 13.5px;
-	}
-	.more strong {
-		color: var(--ink);
-		margin-right: 6px;
 	}
 	.quiet {
 		margin: 0;

@@ -24,7 +24,14 @@
 		type PluginRecord,
 		type RegistryPlugin
 	} from '#lib/plugins.js';
-	import { installLabel, installedText, isInstalledVersion } from '#lib/catalog.js';
+	import {
+		installLabel,
+		installedText,
+		isInstalledVersion,
+		listed,
+		setShowsInstalled,
+		showsInstalled
+	} from '#lib/catalog.js';
 	import {
 		install,
 		loadRegistry,
@@ -63,7 +70,12 @@
 			? ['All', ...[...new Set(registry.map(catOf))].sort((a, b) => a.localeCompare(b))]
 			: []
 	);
-	const shown = $derived(registry?.filter((p) => cat === 'All' || catOf(p) === cat) ?? []);
+	// Installed plugins are left out unless asked for; the Plugins page keeps those.
+	let showInstalled = $state(showsInstalled());
+	const toggleInstalled = () => setShowsInstalled((showInstalled = !showInstalled));
+	const inCat = $derived(registry?.filter((p) => cat === 'All' || catOf(p) === cat) ?? []);
+	const shown = $derived(listed(inCat, have, showInstalled));
+	const hidden = $derived(inCat.length - shown.length);
 	onMount(async () => {
 		const [r, s, rt, pl] = await Promise.all([
 			loadRegistry(),
@@ -80,7 +92,7 @@
 
 	const chosenId = $derived(page.url.searchParams.get('id'));
 	const chosen = $derived(
-		registry?.find((p) => p.id === chosenId) ?? (wide.current ? registry?.[0] : undefined)
+		registry?.find((p) => p.id === chosenId) ?? (wide.current ? shown[0] : undefined)
 	);
 	const versions = $derived(
 		chosen
@@ -251,13 +263,18 @@
 	<p class="quiet">Reading the registry…</p>
 {:else}
 	<p class="quiet top">From the homeCore registry · signed releases</p>
-	{#if cats.length}
-		<div class="cats">
-			{#each cats as c (c)}
-				<button type="button" aria-pressed={cat === c} onclick={() => (cat = c)}>{c}</button>
-			{/each}
-		</div>
-	{/if}
+	<div class="cats">
+		{#each cats as c (c)}
+			<button type="button" aria-pressed={cat === c} onclick={() => (cat = c)}>{c}</button>
+		{/each}
+		{#if have.length}
+			<button type="button" class="installed" aria-pressed={showInstalled} onclick={toggleInstalled}
+				>{showInstalled
+					? 'Hide installed'
+					: `Show installed${hidden ? ` · ${hidden}` : ''}`}</button
+			>
+		{/if}
+	</div>
 	<div class="split" class:one={!wide.current}>
 		{#if wide.current || !chosen}
 			<ul class="list">
@@ -276,6 +293,8 @@
 								>{/if}
 						</button>
 					</li>
+				{:else}
+					<li class="none">{hidden ? 'Everything here is installed.' : 'Nothing here yet.'}</li>
 				{/each}
 			</ul>
 		{/if}
@@ -471,6 +490,9 @@
 		font-weight: 600;
 		cursor: pointer;
 	}
+	.cats .installed {
+		margin-left: auto;
+	}
 	.cats button[aria-pressed='true'] {
 		border-color: var(--accent);
 		background: color-mix(in srgb, var(--accent) 18%, var(--surface));
@@ -495,6 +517,11 @@
 		background: var(--surface);
 		border: 1px solid var(--card-line);
 		overflow: hidden;
+	}
+	.list .none {
+		padding: var(--space-3) var(--space-4);
+		color: var(--ink-muted);
+		font-size: 13.5px;
 	}
 	.list li + li {
 		border-top: 1px solid var(--line);

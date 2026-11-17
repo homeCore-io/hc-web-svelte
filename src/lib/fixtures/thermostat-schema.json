@@ -46,7 +46,7 @@
 				},
 				"log_forward_level": {
 					"default": "info",
-					"description": "Minimum log level forwarded to the HomeCore broker over MQTT.\nLogs below this level are only written to the local file / stderr.\n\"info\" (default) | \"warn\" | \"debug\" | \"error\" | \"off\"",
+					"description": "Minimum log level forwarded to the homeCore broker over MQTT.\nLogs below this level are only written to the local file / stderr.\n\"info\" (default) | \"warn\" | \"debug\" | \"error\" | \"off\"",
 					"type": "string"
 				},
 				"max_size_mb": {

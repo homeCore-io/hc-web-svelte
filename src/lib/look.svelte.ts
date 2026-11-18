@@ -1,6 +1,6 @@
 /**
  * The look this screen shows (13 §3): the person's own, else a display's or
- * the house's, else Classic, as a whole look (looks/model.ts), not just a
+ * the house's, else the Console, as a whole look (looks/model.ts), not just a
  * name. Its feel is on the page as tokens and `data-motion`, its id as
  * `data-look`, its frame as `data-shell` when it's the console's, and this
  * browser keeps a copy so the first paint is drawn in it before anything has
@@ -34,19 +34,21 @@ interface Kept {
 function read(): Look {
 	try {
 		const raw = localStorage.getItem(KEY);
+		// Nothing kept yet: the default look, the console.
+		if (raw === null) return CONSOLE;
 		if (raw === 'lit') return BUILT_IN[1]!;
 		const kept = raw ? (JSON.parse(raw) as Kept) : null;
 		const l = findLook(BUILT_IN, kept?.id);
 		// A look of someone's own in the console's frame: the console, until it loads.
 		return kept?.shell === 'console' && shellOf(l) !== 'console' ? CONSOLE : l;
 	} catch {
-		return CLASSIC;
+		return CONSOLE;
 	}
 }
 
 class LookNow {
-	/** The look shown; until the documents load, the built-in one kept here, or Classic. */
-	def = $state<Look>(typeof localStorage === 'undefined' ? CLASSIC : read());
+	/** The look shown; until the documents load, the built-in one kept here, or the Console. */
+	def = $state<Look>(typeof localStorage === 'undefined' ? CONSOLE : read());
 	/** Every look there is to choose: built in, the house's, the person's. */
 	all = $state<readonly Look[]>(BUILT_IN);
 	/** A display's own look (13 §10), set while this screen is one. */
@@ -80,17 +82,16 @@ class LookNow {
 		if (desk) root.dataset.shell = 'console';
 		else delete root.dataset.shell;
 		try {
-			if (l.id === 'classic') localStorage.removeItem(KEY);
-			else
-				localStorage.setItem(
-					KEY,
-					JSON.stringify({
-						id: l.id,
-						vars,
-						motion: l.feel.motion,
-						...(desk ? { shell: 'console' } : {})
-					} satisfies Kept)
-				);
+			// Classic is kept too: with nothing kept, a screen starts in the console.
+			localStorage.setItem(
+				KEY,
+				JSON.stringify({
+					id: l.id,
+					vars,
+					motion: l.feel.motion,
+					...(desk ? { shell: 'console' } : {})
+				} satisfies Kept)
+			);
 		} catch {
 			// Private browsing: the copy lasts this visit.
 		}

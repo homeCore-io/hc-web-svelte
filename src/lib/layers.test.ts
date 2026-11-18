@@ -276,11 +276,11 @@ describe('themes (D9a)', () => {
 });
 
 describe('looks (12)', () => {
-	it('a person 19s own, else the house 19s, else Classic; unknown ones are ignored', () => {
-		expect(lookOf().id).toBe('classic');
+	it('a person 19s own, else the house 19s, else the Console; unknown ones are ignored', () => {
+		expect(lookOf().id).toBe('console');
 		expect(lookOf({ version: 1 }, { version: 1, look: 'lit' }).id).toBe('lit');
 		expect(lookOf({ version: 1, look: 'classic' }, { version: 1, look: 'lit' }).id).toBe('classic');
-		expect(lookOf({ version: 1, look: 'neon' }, { version: 1 }).id).toBe('classic');
+		expect(lookOf({ version: 1, look: 'neon' }, { version: 1 }).id).toBe('console');
 	});
 
 	it('finds the house’s own looks and a person’s, and a look’s theme under theirs (13 §15)', () => {

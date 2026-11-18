@@ -97,7 +97,7 @@
 			live.stop();
 		};
 	});
-	// The look (13 §3.1): a display's own, else the person's, else the house's, else Classic.
+	// The look (13 §3.1): a display's own, else the person's, else the house's, else the Console.
 	const shown = $derived.by(() => {
 		const all = looksOf(personal.doc, household.doc);
 		const own = look.display;

@@ -23,8 +23,16 @@
 				try {
 					l = JSON.parse(localStorage.getItem('hc.look') || 'null');
 				} catch (e) {}
+				// Nothing kept yet: the default look, the console (round corners, gentle motion).
+				if (l === null)
+					l = {
+						id: 'console',
+						shell: 'console',
+						motion: 'gentle',
+						vars: { '--feel-card-radius': '18px', '--feel-box-radius': '20px' }
+					};
 				if (l && typeof l.id === 'string' && /^[a-z0-9-]+$/.test(l.id)) {
-					document.documentElement.dataset.look = l.id;
+					if (l.id !== 'classic') document.documentElement.dataset.look = l.id;
 					// The console's frame is dark unless the person chose light.
 					if (l.shell === 'console') {
 						document.documentElement.dataset.shell = 'console';

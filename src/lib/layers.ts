@@ -441,10 +441,10 @@ export const PALETTES = [
 export const looksOf = (doc?: PersonDoc, house?: HouseDoc): Look[] =>
 	allLooks(house?.looks, doc?.looks);
 
-/** The look a person sees: their own, else the house's, else Classic (L1, L3). */
+/** The look a person sees: their own, else the house's, else the Console (L1, L3). */
 export function lookOf(doc?: PersonDoc, house?: HouseDoc, all = looksOf(doc, house)): Look {
 	const has = (id?: string) => id !== undefined && all.some((l) => l.id === id);
-	return findLook(all, has(doc?.look) ? doc?.look : has(house?.look) ? house?.look : 'classic');
+	return findLook(all, has(doc?.look) ? doc?.look : has(house?.look) ? house?.look : 'console');
 }
 
 /** The theme a person sees: their own, else the house's, else their look's, else Amber (13 §3.1). */

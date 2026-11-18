@@ -2,8 +2,7 @@
 	The house's Everywhere views in the console (the Everywhere board): one of
 	Lights, Media, Climate, Security and Water across every room
 	(everywhere.ts). Each view draws its own header, with what it's like now
-	and its house-wide action, which asks first unless it's harmless (Fans
-	off acts at once, by design); the list under it
+	and its house-wide action, which always asks first; the list under it
 	scrolls inside the page when the house has more than fits, so the page
 	itself doesn't. By touch the page scrolls as one.
 

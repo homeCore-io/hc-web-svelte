@@ -98,6 +98,25 @@ export const kindName = (kind: string) =>
 type Artifact = { arch: string; runtime?: string; abi?: string };
 
 /**
+ * The platform part of an abi tag. A package says `cp313-manylinux_2_28`: the
+ * Python it was built for, then the platform. A runtime says only the platform,
+ * since homeCore sends each plugin its own Python.
+ */
+export const platformOf = (abi = '') => abi.replace(/^cp\d+-/, '');
+
+/** `cp313` as people say it: `3.13`. */
+export const seriesName = (series: string) => {
+	const m = /^cp(\d)(\d+)$/.exec(series);
+	return m ? `${m[1]}.${m[2]}` : series;
+};
+
+/** `python 3.13.18`, as homeCore lists a placement's interpreter, for people. */
+export const interpreterName = (i: string) => {
+	const [kind = '', version] = i.split(' ');
+	return version ? `${kindName(kind)} ${version}` : i;
+};
+
+/**
  * What a plugin version needs to run, told before anyone clicks Install.
  *
  * - `here`: homeCore runs it itself.
@@ -132,7 +151,9 @@ export function runtimeNeeds(artifacts: Artifact[], runtimes: Runtime[], held?: 
 	const sameKind = runtimes.filter((r) => artifacts.some((a) => a.runtime === r.kind));
 	if (!sameKind.length) return { state: 'none', kind };
 	const on = sameKind.filter((r) =>
-		artifacts.some((a) => a.runtime === r.kind && a.abi === r.abi && a.arch === r.arch)
+		artifacts.some(
+			(a) => a.runtime === r.kind && platformOf(a.abi) === platformOf(r.abi) && a.arch === r.arch
+		)
 	);
 	const room = on.filter((r) => !isFull(r, held));
 	if (room.length) return { state: 'ready', kind, on: room };

@@ -2,10 +2,13 @@
 	Plugin runtimes: containers you run yourself that host plugins written in
 	other languages. Add one here; homeCore makes its login and shows its key
 	once, to paste into the runtime's own page (or set as HC_RUNTIME_KEY).
-	Mockups: the "Plugin runtime setup" canvas (Main, Key, Joined).
+	Mockups: the "Plugin runtime setup" canvas (Main, Key, Joined; Python
+	updates are screens 6 and 7).
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import Download from '@lucide/svelte/icons/download';
+	import Info from '@lucide/svelte/icons/info';
 	import { ask } from '#lib/confirm.svelte.js';
 	import { restart } from '#lib/config.js';
 	import { session } from '#lib/me.svelte.js';
@@ -16,23 +19,37 @@
 	import {
 		addRuntime,
 		loadBroker,
+		loadInterpreters,
 		loadPlacements,
 		loadRuntimes,
 		openBroker,
 		removeRuntime,
 		resetRuntime,
+		updateInterpreter,
 		updateRuntime,
 		type BrokerStatus,
+		type InterpreterUse,
 		type IssuedKey,
 		type Placement,
 		type Runtime
 	} from '#lib/pluginAdmin.js';
-	import { copyText, homecoreUrlFrom, nextName, runtimePage, runtimeState } from '#lib/runtimes.js';
+	import {
+		copyText,
+		homecoreUrlFrom,
+		interpreterName,
+		kindName,
+		nextName,
+		platformOf,
+		runtimePage,
+		runtimeState,
+		seriesName
+	} from '#lib/runtimes.js';
 
 	$effect(() => heading.show('Plugin runtimes', { href: '/settings/plugins', label: 'Plugins' }));
 
 	let runtimes = $state<Runtime[] | null>(null);
 	let placements = $state<Placement[]>([]);
+	let interpreters = $state<InterpreterUse[]>([]);
 	let broker = $state<BrokerStatus | null>(null);
 	let note = $state<string | null>(null);
 	let unlisted = $state(false);
@@ -55,12 +72,30 @@
 		if (p.ok) placements = p.data;
 		if (b.ok) broker = b.data;
 	}
+	/** Read from the registry, so less often than the rest. */
+	async function loadPythons() {
+		const r = await loadInterpreters();
+		if (r.ok) interpreters = r.data;
+	}
 	onMount(() => {
 		void load();
+		void loadPythons();
 		const t = setInterval(load, 5_000);
-		return () => clearInterval(t);
+		const u = setInterval(loadPythons, 60_000);
+		return () => {
+			clearInterval(t);
+			clearInterval(u);
+		};
 	});
 	const hosted = (id: string) => placements.filter((p) => p.runtime_id === id);
+	const pythons = (id: string) => interpreters.filter((u) => u.runtime_id === id);
+	const names = (ids: string[]) => {
+		const n = ids.map(pluginLabel);
+		return n.length < 2 ? n.join('') : `${n.slice(0, -1).join(', ')} and ${n.at(-1)}`;
+	};
+	/** What a runtime's Language says: its kind, and the platform its packages need. */
+	const language = (kind: string, abi: string) =>
+		`${kindName(kind)}, the version each plugin was built for (${platformOf(abi)})`;
 	const when = (iso?: string) => (iso ? `${ago(clock.now - Date.parse(iso))} ago` : '');
 	/** The issued runtime as the list has it now, for its live status. */
 	const issuedNow = $derived(
@@ -160,6 +195,34 @@
 		if (issued?.runtime.runtime_id === r.runtime_id) issued = null;
 		await load();
 	}
+	// ---- A newer Python ----
+	let updatingPython = $state<string | null>(null);
+	async function updatePython(r: Runtime, u: InterpreterUse) {
+		const at = (id: string) =>
+			placements.find((p) => p.runtime_id === r.runtime_id && p.plugin_id === id)?.interpreter;
+		const yes = await ask({
+			title: `Update ${kindName(u.kind)} to ${u.update}?`,
+			body: `${r.name} gets the new ${kindName(u.kind)}, then restarts these plugins on it. Their settings and devices stay as they are. They're back within a minute, and the runtime keeps the old one until the update has worked.`,
+			lost: u.plugins.map((id) => {
+				const from = at(id)?.split(' ')[1];
+				return `${pluginLabel(id)}${from ? `, ${from} to ${u.update}` : ''}`;
+			}),
+			go: 'Update and restart',
+			stay: 'Not now'
+		});
+		if (!yes) return;
+		updatingPython = `${r.runtime_id}/${u.series}`;
+		const res = await updateInterpreter(r.runtime_id, u.kind, u.series);
+		updatingPython = null;
+		const moved = res.ok ? res.data.plugins.map((p) => p.plugin_id) : [];
+		note = !res.ok
+			? res.error
+			: moved.length
+				? `${r.name} is moving ${names(moved)} to ${kindName(u.kind)} ${res.data.version}.`
+				: `Everything on ${r.name} already runs on ${kindName(u.kind)} ${res.data.version}.`;
+		await Promise.all([load(), loadPythons()]);
+	}
+
 	async function open() {
 		const yes = await ask({
 			title: 'Open the broker to the network?',
@@ -258,7 +321,7 @@
 						>
 					</dd>
 					<dt>Language</dt>
-					<dd>Python 3.12 ({k.abi})</dd>
+					<dd>{language(k.kind, k.abi)}</dd>
 					<dd></dd>
 				</dl>
 				<p class="quiet">
@@ -323,7 +386,7 @@
 							</div>
 							<span class="quiet"
 								>{[
-									r.kind === 'python' ? 'Python 3.12' : r.kind,
+									kindName(r.kind),
 									r.arch,
 									r.host_version ? `host ${r.host_version}` : '',
 									its ? its.label : r.source_ip ? `from ${r.source_ip}` : '',
@@ -358,6 +421,42 @@
 							Pull the newer image and restart its container; its plugins come back by themselves.
 						</p>
 					{/if}
+					{#each pythons(r.runtime_id) as u (u.series)}
+						{#if u.update}
+							<div class="py update" role="status">
+								<Download size={22} aria-hidden="true" />
+								<div>
+									<b>{kindName(u.kind)} {u.update} is available</b>
+									<span class="quiet"
+										>{names(u.plugins)}
+										{u.plugins.length === 1 ? 'runs' : 'run'} on {u.versions.join(' and ')}.
+										Updating restarts {u.plugins.length === 1 ? 'it' : 'them'}; {u.plugins
+											.length === 1
+											? "it's"
+											: "they're"} back within a minute.</span
+									>
+								</div>
+								<button
+									type="button"
+									class="go"
+									disabled={updatingPython === `${r.runtime_id}/${u.series}`}
+									onclick={() => updatePython(r, u)}>Update {kindName(u.kind)}</button
+								>
+							</div>
+						{/if}
+						{#if u.eol}
+							<div class="py" role="status">
+								<Info size={22} aria-hidden="true" />
+								<span
+									><b>{kindName(u.kind)} {seriesName(u.series)} no longer gets fixes.</b>
+									{names(u.plugins)}
+									{u.plugins.length === 1 ? 'keeps' : 'keep'} running on it, and
+									{u.plugins.length === 1 ? 'moves' : 'move'} to a newer {kindName(u.kind)} when
+									{u.plugins.length === 1 ? 'its' : 'their'} next version is built for one.</span
+								>
+							</div>
+						{/if}
+					{/each}
 					{#if shown[r.runtime_id]}
 						<dl class="fields two-col">
 							<dt>homeCore address</dt>
@@ -367,7 +466,7 @@
 							<dt>Password</dt>
 							<dd>Shown only when the key is made. Reset login makes a new one.</dd>
 							<dt>Language</dt>
-							<dd>Python 3.12 ({r.abi})</dd>
+							<dd>{language(r.kind, r.abi)}</dd>
 							<dt>Its page</dt>
 							<dd>
 								{#if its}<a class="mono" href={its.href} target="_blank" rel="noopener noreferrer"
@@ -417,6 +516,9 @@
 											>{pluginLabel(p.plugin_id)}</a
 										>
 										<span class="mono quiet">{p.version}</span>
+										{#if p.interpreter}<span class="quiet py-ver"
+												>{interpreterName(p.interpreter)}</span
+											>{/if}
 									</li>
 								{/each}
 							</ul>
@@ -448,7 +550,7 @@
 		<fieldset>
 			<legend>Language</legend>
 			<div class="chips">
-				<button type="button" class="chip on" aria-pressed="true">Python 3.12</button>
+				<button type="button" class="chip on" aria-pressed="true">Python</button>
 				<button type="button" class="chip" disabled>Node, later</button>
 			</div>
 		</fieldset>
@@ -742,6 +844,36 @@
 		border-radius: var(--radius);
 		background: var(--lit-bg);
 		color: var(--lit-ink);
+	}
+	/* A Python update waiting, or a Python that no longer gets fixes. */
+	.py {
+		display: flex;
+		gap: var(--space-3);
+		align-items: center;
+		flex-wrap: wrap;
+		padding: 12px 16px;
+		border-radius: 12px;
+		background: var(--surface-2);
+		border: 1px solid var(--line);
+	}
+	.py.update {
+		background: var(--lit-bg);
+		color: var(--lit-ink);
+		border-color: transparent;
+	}
+	.py > div,
+	.py > span {
+		flex: 1 1 320px;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+	.py > span {
+		display: block;
+	}
+	.py-ver {
+		width: 120px;
+		font-size: 13px;
 	}
 	.warn div {
 		flex: 1 1 320px;

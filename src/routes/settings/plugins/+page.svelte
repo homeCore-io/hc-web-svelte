@@ -22,6 +22,7 @@
 	} from '#lib/plugins.js';
 	import { ask } from '#lib/confirm.svelte.js';
 	import {
+		loadInterpreters,
 		loadPlacements,
 		loadRegistry,
 		loadRuntimes,
@@ -36,6 +37,8 @@
 	let noRegistry = $state<string | null>(null);
 	let runtimes = $state<number | null>(null);
 	let placed = $state<Placement[]>([]);
+	/** Plugins on a runtime whose Python has a newer patch, applied from the runtime's card. */
+	let pythonBehind = $state(new Set<string>());
 
 	async function load() {
 		const [res, pl] = await Promise.all([loadStatus(), loadPlacements()]);
@@ -50,6 +53,10 @@
 		if (session.can('plugins:write'))
 			void loadRuntimes().then((r) => {
 				if (r.ok) runtimes = r.data.runtimes.length;
+			});
+		if (session.can('plugins:write'))
+			void loadInterpreters().then((r) => {
+				if (r.ok) pythonBehind = new Set(r.data.filter((u) => u.update).flatMap((u) => u.plugins));
 			});
 		// Status changes are announced; heartbeats aren't, so read again now and then.
 		const stop = live.listen((f) => {
@@ -135,7 +142,10 @@
 			</span>
 			{#if session.can('plugins:write')}
 				<a class="plain" href="/settings/plugins/runtimes"
-					>Plugin runtimes{runtimes === null ? '' : ` · ${runtimes || 'none'}`}</a
+					>Plugin runtimes{runtimes === null
+						? ''
+						: ` · ${runtimes || 'none'}`}{#if pythonBehind.size}
+						· <span class="tag">Python update</span>{/if}</a
 				>
 			{/if}
 			{#if updates > 1 && session.can('plugins:write')}
@@ -175,7 +185,8 @@
 							{r.version ?? '—'}
 							{#if arriving.has(r.id)}<span class="upd coming"
 									>Updating to {arriving.get(r.id)}…</span
-								>{:else if r.update}<span class="upd">Update to {r.update}</span>{/if}
+								>{:else if r.update}<span class="upd">Update to {r.update}</span
+								>{:else if pythonBehind.has(r.id)}<span class="upd">Python update</span>{/if}
 						</span>
 						<span role="cell" class="num">{r.devices}</span>
 						<span role="cell" class="state {r.state.tone}"
@@ -197,7 +208,8 @@
 								{#if r.notice}<span class="sub bad">{r.notice.message}</span>{/if}
 							</span>
 							{#if arriving.has(r.id)}<span class="upd coming">Updating…</span
-								>{:else if r.update}<span class="upd">Update</span>{/if}
+								>{:else if r.update}<span class="upd">Update</span
+								>{:else if pythonBehind.has(r.id)}<span class="upd">Python update</span>{/if}
 							<ChevronRight size={18} aria-hidden="true" />
 						</a>
 					</li>
@@ -205,6 +217,14 @@
 			</ul>
 		{/if}
 
+		{#if pythonBehind.size}
+			<p class="quiet">
+				Update all covers plugin versions only. A Python update restarts every plugin on that Python
+				in a runtime, so it's applied from <a href="/settings/plugins/runtimes"
+					>the runtime's card</a
+				>, one runtime at a time.
+			</p>
+		{/if}
 		{#if noRegistry}
 			<p class="quiet">The registry: {noRegistry}</p>
 		{/if}
@@ -255,6 +275,17 @@
 	button.go:disabled {
 		opacity: 0.6;
 		cursor: default;
+	}
+	.tag {
+		display: inline-flex;
+		align-items: center;
+		height: 22px;
+		margin-left: 6px;
+		padding: 0 8px;
+		border-radius: 11px;
+		background: var(--lit-bg);
+		color: var(--lit-ink);
+		font-size: 12px;
 	}
 	.said {
 		margin: 0;

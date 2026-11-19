@@ -6,6 +6,9 @@ import {
 	QUIET_AFTER_MS,
 	runtimePage,
 	runtimeNeeds,
+	platformOf,
+	seriesName,
+	interpreterName,
 	runtimeState
 } from './runtimes.js';
 
@@ -136,5 +139,31 @@ describe('installsAtOnce', () => {
 		expect(installsAtOnce({ host_version: '0.2.2' }, false)).toBe(false);
 		expect(installsAtOnce({}, true)).toBe(false);
 		expect(installsAtOnce(undefined, true)).toBe(false);
+	});
+});
+
+describe('interpreters', () => {
+	const py = { arch: 'x86_64', runtime: 'python', abi: 'cp313-manylinux_2_28' };
+	const rt = {
+		runtime_id: 'rt1',
+		name: 'Python runtime 1',
+		kind: 'python',
+		abi: 'manylinux_2_28',
+		arch: 'x86_64',
+		plugin_id: 'rt.rt1',
+		homecore_url: 'http://hc:8080',
+		created_at: '2026-11-19T00:00:00Z'
+	};
+	it('matches a package to a runtime by platform, whatever its Python', () => {
+		expect(runtimeNeeds([py], [rt]).state).toBe('ready');
+		expect(runtimeNeeds([{ ...py, abi: 'cp312-manylinux_2_28' }], [rt]).state).toBe('ready');
+		expect(runtimeNeeds([{ ...py, abi: 'cp313-manylinux_2_17' }], [rt]).state).toBe('mismatch');
+	});
+	it('names them for people', () => {
+		expect(platformOf('cp313-manylinux_2_28')).toBe('manylinux_2_28');
+		expect(platformOf('manylinux_2_28')).toBe('manylinux_2_28');
+		expect(seriesName('cp313')).toBe('3.13');
+		expect(seriesName('cp310')).toBe('3.10');
+		expect(interpreterName('python 3.13.18')).toBe('Python 3.13.18');
 	});
 });

@@ -294,6 +294,8 @@ export interface Placement {
 	plugin_id: string;
 	version: string;
 	placed_at: string;
+	/** The Python it runs on, as `python 3.13.18`. Absent before core 0.1.119. */
+	interpreter?: string | null;
 }
 export async function loadPlacements(): Promise<Answer<Placement[]>> {
 	const r = await call<{ placements: Placement[] }>('GET', '/plugin-runtimes/placements');
@@ -301,6 +303,35 @@ export async function loadPlacements(): Promise<Answer<Placement[]>> {
 	return r.status === 404 ? { ok: true, data: [] } : r;
 }
 export const runtimeName = (r: Runtime | undefined, id: string) => r?.name ?? id;
+
+/** One Python series in use on one runtime, and whether a newer patch waits. */
+export interface InterpreterUse {
+	runtime_id: string;
+	kind: string;
+	/** e.g. `cp313`. */
+	series: string;
+	/** The versions its plugins run on now; normally one. */
+	versions: string[];
+	/** The newest the registry lists, when it is newer than one in use. */
+	update?: string | null;
+	/** It gets no more fixes upstream. */
+	eol: boolean;
+	/** The plugins that run on it, and restart when it is updated. */
+	plugins: string[];
+}
+/** homeCore before interpreters, or without runtimes or a registry: none. */
+export async function loadInterpreters(): Promise<Answer<InterpreterUse[]>> {
+	const r = await call<{ interpreters: InterpreterUse[] }>('GET', '/plugin-runtimes/interpreters');
+	if (r.ok) return { ok: true, data: r.data.interpreters ?? [] };
+	return r.status === 404 || r.status === 405 || r.status === 503 ? { ok: true, data: [] } : r;
+}
+/** Move every plugin on this runtime that runs on `series` to its newest patch. */
+export const updateInterpreter = (runtimeId: string, kind: string, series: string) =>
+	call<{ version: string; plugins: { plugin_id: string; from: string }[] }>(
+		'POST',
+		`/plugin-runtimes/${encodeURIComponent(runtimeId)}/interpreters/update`,
+		{ kind, series }
+	);
 
 // ---- Matter (the Matter plugin's controller) ----
 

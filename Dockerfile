@@ -3,7 +3,7 @@
 #   docker build -t hc-web .
 #   docker run -p 3000:3000 -e HC_CORE_URL=http://homecore:8080 -v hc-web-data:/data hc-web
 
-FROM node:24-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -13,7 +13,7 @@ ARG APP_VERSION
 ENV APP_VERSION=${APP_VERSION}
 RUN npm run build && npm run budget
 
-FROM node:24-alpine
+FROM node:26-alpine
 WORKDIR /app
 # BODY_SIZE_LIMIT: lifted, because adding a picture or video (up to 200 MB)
 # and putting back a backup with its pictures stream their body to disk. The

@@ -92,13 +92,13 @@ describe('cards for the kinds in this house (03 §3)', () => {
 				FIXTURE_NOW
 			);
 		const a = playing({
-			media_image_url: 'http://10.0.10.28:1400/getaa?u=one',
+			media_image_url: 'http://192.168.1.28:1400/getaa?u=one',
 			media_artist: 'Nils'
 		});
 		expect(a.art).toMatch(/^\/api\/v1\/devices\/sonos_kitchen\/media\/art\?t=/);
 		expect(a.artLogo).toBeUndefined();
 		const b = playing({
-			media_image_url: 'http://10.0.10.28:1400/getaa?u=two',
+			media_image_url: 'http://192.168.1.28:1400/getaa?u=two',
 			media_artist: 'Nils'
 		});
 		expect(b.art).not.toBe(a.art);
@@ -115,7 +115,7 @@ describe('cards for the kinds in this house (03 §3)', () => {
 					state: 'playing',
 					media_title: 'hls.m3u8?rj-ttl=5&rj-tok=AAAB',
 					title: 'hls.m3u8?rj-ttl=5&rj-tok=AAAB',
-					media_image_url: 'http://10.0.10.28:1400/getaa?s=1&u=x-sonosapi-hls'
+					media_image_url: 'http://192.168.1.28:1400/getaa?s=1&u=x-sonosapi-hls'
 				}
 			},
 			FIXTURE_NOW

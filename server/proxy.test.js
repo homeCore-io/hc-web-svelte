@@ -37,11 +37,11 @@ describe('the headers homeCore gets', () => {
 				connection: 'keep-alive'
 			},
 			'tok',
-			'10.0.10.150:8080'
+			'192.168.1.50:8080'
 		);
 		expect(out).toEqual({
 			accept: 'application/json',
-			host: '10.0.10.150:8080',
+			host: '192.168.1.50:8080',
 			authorization: 'Bearer tok'
 		});
 	});

@@ -493,8 +493,8 @@ describe('a webhook', () => {
 	});
 
 	test('its address is this app’s, under homeCore’s webhooks', () => {
-		expect(webhookAddress('http://10.0.10.150:3001', 'hook-abc')).toBe(
-			'http://10.0.10.150:3001/api/v1/webhooks/hook-abc'
+		expect(webhookAddress('http://192.168.1.50:3001', 'hook-abc')).toBe(
+			'http://192.168.1.50:3001/api/v1/webhooks/hook-abc'
 		);
 	});
 

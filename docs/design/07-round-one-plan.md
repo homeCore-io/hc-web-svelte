@@ -130,7 +130,7 @@ if set (V2); PIN unlock.
 after personalising and editing. *Recommend as written* — the generated home,
 details and personalising are what every person uses every day.
 
-**P2 — Where milestones are tried.** *Recommend* a dev instance on fractal,
+**P2 — Where milestones are tried.** *Recommend* a dev instance on the dev machine,
 reachable from the Mac like the current one (a different port), talking to
 the live homeCore. From R2 on, its controls operate real devices — that is
 what trying it means. Its own data (the UI server's volume) is separate from
@@ -140,7 +140,7 @@ anything existing.
 (S7); to try them they must run on the house's homeCore.
 (a) Deploy `develop` to the house's homeCore after each H-change, with a
 backup taken first (H1 includes a data migration).
-(b) Run a second, test homeCore on fractal with a copy of the house's data,
+(b) Run a second, test homeCore on the dev machine with a copy of the house's data,
 and point the dev instance at it until the change has been tried.
 *Recommend (b) for H1* (the migration) *and (a) for the rest* — but this is
 your production system, so it's your call.

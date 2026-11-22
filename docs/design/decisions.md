@@ -595,7 +595,7 @@ Settings → R6 alerts → R7 displays.
 
 ## P2 — Try-outs on a dev instance against the live homeCore (2026-10-15)
 
-- A dev instance on fractal, on its own port, reachable from the Mac, talking
+- A dev instance on the dev machine, on its own port, reachable from the Mac, talking
   to the live homeCore. From R2 its controls operate real devices.
 - Its UI data is its own volume, separate from anything that exists today.
 
@@ -641,16 +641,16 @@ Settings → R6 alerts → R7 displays.
 ## B2 — The UI server never forwards an anonymous request (R0, 2026-10-15)
 
 - Found while testing R0 against the house: homeCore treats whitelisted
-  addresses as admin with no token, the UI server's own address (fractal,
-  10.0.10.200) is whitelisted on the house's homeCore, and every request
+  addresses as admin with no token, the UI server's own address (here
+  192.168.1.60) is whitelisted on the house's homeCore, and every request
   through the UI server comes from that address.
 - So the UI server refuses (401) any request to homeCore that carries no
   session and no `Authorization` header, except signing in and refreshing. A
   credential wins over the whitelist in homeCore's REST API — and, from H2,
   on the event stream too (B5).
-- The old hc-web-lit dev server on fractal had the same exposure; it was
+- The old hc-web-lit dev server on the dev machine had the same exposure; it was
   stopped on 2026-10-16. The whitelist itself is described in homeCore as
-  deprecated; removing fractal from it is the household's call.
+  deprecated; removing the dev machine from it is the household's call.
 
 ## B3 — Rooms a bridge reports are made; renames and merges leave aliases (R1, 2026-10-16)
 

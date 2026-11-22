@@ -16,6 +16,6 @@ permissions:
 
 jobs:
   ci:
-    # No node_version override: node-ci.yml's pin (24) is the Node the
-    # Dockerfile ships (node:24-alpine). Bump them together.
+    # No node_version override: node-ci.yml's pin (26) is the Node the
+    # Dockerfile ships (node:26-alpine). Bump them together.
     uses: homeCore-io/hc-scripts/.github/workflows/node-ci.yml@main

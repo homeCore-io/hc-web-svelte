@@ -270,10 +270,10 @@ test('what an action hands back reads as lines', () => {
 	expect(
 		resultLines({
 			devices: {
-				wled_desk: { host: '10.0.10.74', effects: ['Solid', 'Blink'], palettes: ['Default'] }
+				wled_desk: { host: '192.168.1.74', effects: ['Solid', 'Blink'], palettes: ['Default'] }
 			}
 		})
-	).toEqual([{ label: 'Devices', value: 'wled_desk: host 10.0.10.74, 2 effects, 1 palette' }]);
+	).toEqual([{ label: 'Devices', value: 'wled_desk: host 192.168.1.74, 2 effects, 1 palette' }]);
 });
 
 describe('what a plugin says about its fields', () => {
@@ -288,8 +288,8 @@ describe('what a plugin says about its fields', () => {
 					description: 'Pick which bridge to pair against',
 					enum: ['001788fffe1', '001788fffe2'],
 					'x-options': [
-						{ value: '001788fffe1', label: 'Hue Bridge (10.0.10.20)' },
-						{ value: '001788fffe2', label: 'Upstairs (10.0.10.21)' }
+						{ value: '001788fffe1', label: 'Hue Bridge (192.168.1.20)' },
+						{ value: '001788fffe2', label: 'Upstairs (192.168.1.21)' }
 					]
 				},
 				server: { type: 'string', description: 'Leave blank to auto-detect (recommended)' },
@@ -300,8 +300,8 @@ describe('what a plugin says about its fields', () => {
 			kind: 'choice',
 			help: 'Pick which bridge to pair against',
 			options: [
-				{ value: '001788fffe1', label: 'Hue Bridge (10.0.10.20)' },
-				{ value: '001788fffe2', label: 'Upstairs (10.0.10.21)' }
+				{ value: '001788fffe1', label: 'Hue Bridge (192.168.1.20)' },
+				{ value: '001788fffe2', label: 'Upstairs (192.168.1.21)' }
 			]
 		});
 		expect(server).toMatchObject({ help: 'Leave blank to auto-detect (recommended)' });

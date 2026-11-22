@@ -12,11 +12,11 @@ describe('secure cookies', () => {
 
 	it('not over plain HTTP, whatever adapter-node calls the request', () => {
 		// adapter-node with no ORIGIN reports https for a plain-HTTP request.
-		expect(secure(event('https://10.0.10.150:3001/ui/auth/login'))).toBe(false);
+		expect(secure(event('https://192.168.1.50:3001/ui/auth/login'))).toBe(false);
 	});
 
 	it('when a TLS proxy in front says so, or ORIGIN is https', () => {
-		expect(secure(event('http://10.0.10.150:3001/', { 'x-forwarded-proto': 'https' }))).toBe(true);
+		expect(secure(event('http://192.168.1.50:3001/', { 'x-forwarded-proto': 'https' }))).toBe(true);
 		process.env.ORIGIN = 'https://home.example';
 		expect(secure(event('https://home.example/'))).toBe(true);
 	});

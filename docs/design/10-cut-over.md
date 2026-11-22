@@ -90,7 +90,7 @@ round three builds pages properly.
 
 ## 2. How the house moves
 
-The house runs the stack under Dockhand on 10.0.10.150, host networking,
+The house runs the stack under Dockhand on 192.168.1.50, host networking,
 from `/opt/stacks/homecore/compose.host.yml`. Dockhand itself holds port
 3000; the Flutter console is on **3001**, which the household knows.
 

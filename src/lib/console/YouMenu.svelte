@@ -26,6 +26,7 @@
 	import CircleUserRound from '@lucide/svelte/icons/circle-user-round';
 	import DoorOpen from '@lucide/svelte/icons/door-open';
 	import LogOut from '@lucide/svelte/icons/log-out';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import { session } from '#lib/me.svelte.js';
 	import { personal } from '#lib/personal.svelte.js';
 	import { household } from '#lib/household.svelte.js';
@@ -121,14 +122,16 @@
 	</div>
 {/snippet}
 
-<div class="mh">
+<!-- Who you are opens Me, where everything about you is. -->
+<a class="mh link" href="/me" onclick={close} title="Me: everything about you">
 	<Avatar person={session.me?.id} name={session.me?.username ?? ''} size={30} />
 	<span class="who"
 		><b>{session.me?.username}</b><small
 			>{session.me ? `${roleName(session.me.role)}. ` : ''}Only you, on every screen you sign in to.</small
 		></span
 	>
-</div>
+	<span class="go"><ChevronRight size={16} strokeWidth={1.9} aria-hidden="true" /></span>
+</a>
 
 <a class="row link" href="/me/picture" onclick={close}>
 	<span class="mic"><CircleUserRound size={15} strokeWidth={1.9} aria-hidden="true" /></span>
@@ -226,7 +229,9 @@
 {/if}
 <a class="row link" href="/me" onclick={close}>
 	<span class="mic"><UserRound size={15} strokeWidth={1.9} aria-hidden="true" /></span>
-	<span class="mt">Everything else about you<small>Theme, PIN, password</small></span>
+	<span class="mt"
+		>Me<small>Theme, units, PIN, password, API keys and where you're signed in</small></span
+	>
 </a>
 {@render more?.()}
 <button class="row link out" onclick={signOut}>
@@ -240,6 +245,16 @@
 		align-items: center;
 		gap: 10px;
 		padding: 8px 10px 10px;
+		border-radius: 10px;
+		color: var(--ink);
+	}
+	.mh .who {
+		flex: 1;
+	}
+	.go {
+		flex: none;
+		display: grid;
+		color: var(--ink-muted);
 	}
 	.who {
 		display: flex;

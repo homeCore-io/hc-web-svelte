@@ -22,7 +22,6 @@
 	import SlidersVertical from '@lucide/svelte/icons/sliders-vertical';
 	import LayoutGrid from '@lucide/svelte/icons/layout-grid';
 	import PanelLeft from '@lucide/svelte/icons/panel-left';
-	import UserRound from '@lucide/svelte/icons/user-round';
 	import CircleUserRound from '@lucide/svelte/icons/circle-user-round';
 	import DoorOpen from '@lucide/svelte/icons/door-open';
 	import LogOut from '@lucide/svelte/icons/log-out';
@@ -227,12 +226,6 @@
 		>
 	</a>
 {/if}
-<a class="row link" href="/me" onclick={close}>
-	<span class="mic"><UserRound size={15} strokeWidth={1.9} aria-hidden="true" /></span>
-	<span class="mt"
-		>Me<small>Theme, units, PIN, password, API keys and where you're signed in</small></span
-	>
-</a>
 {@render more?.()}
 <button class="row link out" onclick={signOut}>
 	<span class="mic"><LogOut size={15} strokeWidth={1.9} aria-hidden="true" /></span>

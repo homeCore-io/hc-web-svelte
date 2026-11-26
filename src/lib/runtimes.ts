@@ -16,14 +16,16 @@ export function runtimeState(r: Pick<Runtime, 'last_seen_at'>, now: number): Run
 	return now - Date.parse(r.last_seen_at) <= QUIET_AFTER_MS ? 'connected' : 'quiet';
 }
 
-/** "Python runtime 1", or the next number up from the ones already added. */
-export function nextName(existing: Pick<Runtime, 'name'>[]): string {
+/** "Python runtime 1" for `python`, or the next number up from the ones already added. */
+export function nextName(existing: Pick<Runtime, 'name'>[], kind = 'python'): string {
+	const base = `${kindName(kind)} runtime `;
 	let n = 1;
 	for (const r of existing) {
-		const m = /^Python runtime (\d+)$/.exec(r.name ?? '');
-		if (m) n = Math.max(n, Number(m[1]) + 1);
+		const name = r.name ?? '';
+		const num = name.startsWith(base) ? name.slice(base.length) : '';
+		if (/^\d+$/.test(num)) n = Math.max(n, Number(num) + 1);
 	}
-	return `Python runtime ${n}`;
+	return `${base}${n}`;
 }
 
 /**
@@ -63,7 +65,6 @@ export async function copyText(text: string): Promise<boolean> {
 	return ok;
 }
 
-/** The language names people know, for a runtime kind. */
 /**
  * Where a runtime's own page is, to link to it: the address its operator set,
  * else the address homeCore heard it from and its page's port. An address
@@ -92,22 +93,37 @@ export function runtimePage(
 	return { href: `http://${label}/`, label };
 }
 
+/** How people write some languages; any other kind is shown capitalised. */
+const KNOWN_NAMES: Record<string, string> = {
+	python: 'Python',
+	node: 'Node.js',
+	dotnet: '.NET',
+	java: 'Java'
+};
+
+/** The language names people know, for a runtime kind. homeCore keeps no list of kinds. */
 export const kindName = (kind: string) =>
-	kind === 'python' ? 'Python' : kind.charAt(0).toUpperCase() + kind.slice(1);
+	KNOWN_NAMES[kind] ?? kind.charAt(0).toUpperCase() + kind.slice(1);
 
 type Artifact = { arch: string; runtime?: string; abi?: string };
 
 /**
- * The platform part of an abi tag. A package says `cp313-manylinux_2_28`: the
- * Python it was built for, then the platform. A runtime says only the platform,
- * since homeCore sends each plugin its own Python.
+ * The platform part of an abi tag. A package says `cp313-manylinux_2_28` or
+ * `node24-glibc_2_28`: the interpreter series it was built for, then the
+ * platform. A runtime says only the platform, since homeCore sends each plugin
+ * its own interpreter. Platform tags never contain `-`.
  */
-export const platformOf = (abi = '') => abi.replace(/^cp\d+-/, '');
+export const platformOf = (abi = '') => {
+	const i = abi.indexOf('-');
+	return i > 0 ? abi.slice(i + 1) : abi;
+};
 
-/** `cp313` as people say it: `3.13`. */
+/** A series as people say it: `cp313` is `3.13`, `node24` is `24`. */
 export const seriesName = (series: string) => {
-	const m = /^cp(\d)(\d+)$/.exec(series);
-	return m ? `${m[1]}.${m[2]}` : series;
+	const py = /^cp(\d)(\d+)$/.exec(series);
+	if (py) return `${py[1]}.${py[2]}`;
+	const m = /^[a-z]+(\d+)$/.exec(series);
+	return m ? m[1] : series;
 };
 
 /** `python 3.13.18`, as homeCore lists a placement's interpreter, for people. */
@@ -147,7 +163,7 @@ const isFull = (r: Runtime, held?: Held) =>
 
 export function runtimeNeeds(artifacts: Artifact[], runtimes: Runtime[], held?: Held): Needs {
 	if (artifacts.some((a) => !a.runtime || a.runtime === 'native')) return { state: 'here' };
-	const kind = artifacts[0]?.runtime ?? 'python';
+	const kind = artifacts[0]?.runtime ?? '';
 	const sameKind = runtimes.filter((r) => artifacts.some((a) => a.runtime === r.kind));
 	if (!sameKind.length) return { state: 'none', kind };
 	const on = sameKind.filter((r) =>

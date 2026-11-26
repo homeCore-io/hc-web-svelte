@@ -20,6 +20,7 @@
 		addRuntime,
 		loadBroker,
 		loadInterpreters,
+		loadKinds,
 		loadPlacements,
 		loadRuntimes,
 		openBroker,
@@ -73,22 +74,22 @@
 		if (b.ok) broker = b.data;
 	}
 	/** Read from the registry, so less often than the rest. */
-	async function loadPythons() {
+	async function loadInterpreterUses() {
 		const r = await loadInterpreters();
 		if (r.ok) interpreters = r.data;
 	}
 	onMount(() => {
 		void load();
-		void loadPythons();
+		void loadInterpreterUses();
 		const t = setInterval(load, 5_000);
-		const u = setInterval(loadPythons, 60_000);
+		const u = setInterval(loadInterpreterUses, 60_000);
 		return () => {
 			clearInterval(t);
 			clearInterval(u);
 		};
 	});
 	const hosted = (id: string) => placements.filter((p) => p.runtime_id === id);
-	const pythons = (id: string) => interpreters.filter((u) => u.runtime_id === id);
+	const usesOn = (id: string) => interpreters.filter((u) => u.runtime_id === id);
 	const names = (ids: string[]) => {
 		const n = ids.map(pluginLabel);
 		return n.length < 2 ? n.join('') : `${n.slice(0, -1).join(', ')} and ${n.at(-1)}`;
@@ -107,24 +108,35 @@
 	// ---- Add a runtime ----
 	let dialog = $state<HTMLDialogElement | null>(null);
 	let name = $state('');
+	/** The languages on offer, and the one chosen. */
+	let kinds = $state<string[]>([]);
+	let kind = $state('');
 	let url = $state('');
 	/** Blank: no limit. */
 	let limit = $state<number | null>(null);
 	let adding = $state(false);
 	let addError = $state<string | null>(null);
-	function openAdd() {
-		name = nextName(runtimes ?? []);
+	async function openAdd() {
+		const k = await loadKinds();
+		kinds = k.ok ? k.data : [];
+		kind = kinds.includes('python') ? 'python' : (kinds[0] ?? '');
+		name = nextName(runtimes ?? [], kind || 'python');
 		url = homecoreUrlFrom(location);
 		limit = null;
-		addError = null;
+		addError = k.ok ? null : k.error;
 		dialog?.showModal();
+	}
+	/** Choosing another language renames a runtime whose name was only the suggestion. */
+	function choose(k: string) {
+		if (name === nextName(runtimes ?? [], kind || 'python')) name = nextName(runtimes ?? [], k);
+		kind = k;
 	}
 	async function add() {
 		adding = true;
 		addError = null;
 		const r = await addRuntime({
 			name,
-			kind: 'python',
+			kind: kind.trim().toLowerCase(),
 			homecore_url: url,
 			max_plugins: limit ?? undefined
 		});
@@ -195,9 +207,9 @@
 		if (issued?.runtime.runtime_id === r.runtime_id) issued = null;
 		await load();
 	}
-	// ---- A newer Python ----
-	let updatingPython = $state<string | null>(null);
-	async function updatePython(r: Runtime, u: InterpreterUse) {
+	// ---- A newer interpreter ----
+	let updating = $state<string | null>(null);
+	async function updateUse(r: Runtime, u: InterpreterUse) {
 		const at = (id: string) =>
 			placements.find((p) => p.runtime_id === r.runtime_id && p.plugin_id === id)?.interpreter;
 		const yes = await ask({
@@ -211,16 +223,16 @@
 			stay: 'Not now'
 		});
 		if (!yes) return;
-		updatingPython = `${r.runtime_id}/${u.series}`;
+		updating = `${r.runtime_id}/${u.series}`;
 		const res = await updateInterpreter(r.runtime_id, u.kind, u.series);
-		updatingPython = null;
+		updating = null;
 		const moved = res.ok ? res.data.plugins.map((p) => p.plugin_id) : [];
 		note = !res.ok
 			? res.error
 			: moved.length
 				? `${r.name} is moving ${names(moved)} to ${kindName(u.kind)} ${res.data.version}.`
 				: `Everything on ${r.name} already runs on ${kindName(u.kind)} ${res.data.version}.`;
-		await Promise.all([load(), loadPythons()]);
+		await Promise.all([load(), loadInterpreterUses()]);
 	}
 
 	async function open() {
@@ -337,8 +349,8 @@
 	<div class="page">
 		<div class="title">
 			<p class="lead">
-				A runtime is a container you run yourself that holds plugins written in Python. Add one
-				here, then paste its key into the runtime.
+				A runtime is a container you run yourself that holds plugins written in a language other
+				than homeCore's own, such as Python. Add one here, then paste its key into the runtime.
 			</p>
 			<button type="button" class="go" onclick={openAdd}>Add runtime</button>
 		</div>
@@ -366,7 +378,7 @@
 		{:else if runtimes.length === 0}
 			<section class="card empty">
 				<b>No runtimes yet</b>
-				<span class="quiet">Python plugins in the Catalog need one.</span>
+				<span class="quiet">Catalog plugins marked "Runs in a runtime" need one.</span>
 			</section>
 		{:else}
 			{#each runtimes as r (r.runtime_id)}
@@ -421,7 +433,7 @@
 							Pull the newer image and restart its container; its plugins come back by themselves.
 						</p>
 					{/if}
-					{#each pythons(r.runtime_id) as u (u.series)}
+					{#each usesOn(r.runtime_id) as u (u.series)}
 						{#if u.update}
 							<div class="py update" role="status">
 								<Download size={22} aria-hidden="true" />
@@ -439,8 +451,8 @@
 								<button
 									type="button"
 									class="go"
-									disabled={updatingPython === `${r.runtime_id}/${u.series}`}
-									onclick={() => updatePython(r, u)}>Update {kindName(u.kind)}</button
+									disabled={updating === `${r.runtime_id}/${u.series}`}
+									onclick={() => updateUse(r, u)}>Update {kindName(u.kind)}</button
 								>
 							</div>
 						{/if}
@@ -525,8 +537,8 @@
 						{:else}
 							<p class="quiet">
 								{st === 'waiting'
-									? 'Once it connects, install a Python plugin from the Catalog and choose this runtime.'
-									: 'Nothing yet. Install a Python plugin from the Catalog and it goes here.'}
+									? `Once it connects, install a ${kindName(r.kind)} plugin from the Catalog and choose this runtime.`
+									: `Nothing yet. Install a ${kindName(r.kind)} plugin from the Catalog and it goes here.`}
 							</p>
 						{/if}
 					</div>
@@ -547,13 +559,30 @@
 		<h3>Add a runtime</h3>
 		<p class="quiet">homeCore makes its login now. You'll get one key to paste into the runtime.</p>
 		<label>Name <input type="text" bind:value={name} required /></label>
-		<fieldset>
-			<legend>Language</legend>
-			<div class="chips">
-				<button type="button" class="chip on" aria-pressed="true">Python</button>
-				<button type="button" class="chip" disabled>Node, later</button>
-			</div>
-		</fieldset>
+		{#if kinds.length > 1}
+			<fieldset>
+				<legend>Language</legend>
+				<div class="chips">
+					{#each kinds as k (k)}
+						<button
+							type="button"
+							class="chip"
+							class:on={kind === k}
+							aria-pressed={kind === k}
+							onclick={() => choose(k)}>{kindName(k)}</button
+						>
+					{/each}
+				</div>
+			</fieldset>
+		{:else if kinds.length === 0}
+			<label
+				>Language
+				<input type="text" class="mono" bind:value={kind} required placeholder="python" />
+				<span class="quiet">The kind its image hosts, as the image's documentation names it.</span>
+			</label>
+		{:else}
+			<p class="quiet">Language: {kindName(kind)}</p>
+		{/if}
 		<label
 			>How it reaches homeCore
 			<input type="text" class="mono" bind:value={url} required spellcheck="false" />

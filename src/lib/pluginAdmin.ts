@@ -270,9 +270,19 @@ export interface BrokerStatus {
 	can_open: boolean;
 }
 export const loadRuntimes = () => call<{ runtimes: Runtime[] }>('GET', '/plugin-runtimes');
+/**
+ * The languages a runtime can be added for: what the registry publishes for,
+ * plus kinds already added. A homeCore from before runtimes for any language
+ * (0.1.124) hosts only Python.
+ */
+export async function loadKinds(): Promise<Answer<string[]>> {
+	const r = await call<{ kinds: string[] }>('GET', '/plugin-runtimes/kinds');
+	if (r.ok) return { ok: true, data: r.data.kinds ?? [] };
+	return r.status === 404 || r.status === 405 ? { ok: true, data: ['python'] } : r;
+}
 export const addRuntime = (body: {
 	name: string;
-	kind?: string;
+	kind: string;
 	homecore_url: string;
 	max_plugins?: number;
 }) => call<IssuedKey>('POST', '/plugin-runtimes', body);

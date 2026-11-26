@@ -21,6 +21,7 @@
 		type RegistryPlugin
 	} from '#lib/plugins.js';
 	import { ask } from '#lib/confirm.svelte.js';
+	import { kindName } from '#lib/runtimes.js';
 	import {
 		loadInterpreters,
 		loadPlacements,
@@ -37,8 +38,16 @@
 	let noRegistry = $state<string | null>(null);
 	let runtimes = $state<number | null>(null);
 	let placed = $state<Placement[]>([]);
-	/** Plugins on a runtime whose Python has a newer patch, applied from the runtime's card. */
-	let pythonBehind = $state(new Set<string>());
+	/**
+	 * Plugins on a runtime whose interpreter (Python, Node.js, …) has a newer
+	 * patch, applied from the runtime's card: plugin id to the language.
+	 */
+	let behind = $state(new Map<string, string>());
+	const updateWord = (kind?: string) => `${kind ? kindName(kind) : 'Interpreter'} update`;
+	/** One language: its name; several: "Interpreter update". */
+	const behindKind = $derived(
+		new Set(behind.values()).size === 1 ? [...behind.values()][0] : undefined
+	);
 
 	async function load() {
 		const [res, pl] = await Promise.all([loadStatus(), loadPlacements()]);
@@ -56,7 +65,12 @@
 			});
 		if (session.can('plugins:write'))
 			void loadInterpreters().then((r) => {
-				if (r.ok) pythonBehind = new Set(r.data.filter((u) => u.update).flatMap((u) => u.plugins));
+				if (r.ok)
+					behind = new Map(
+						r.data
+							.filter((u) => u.update)
+							.flatMap((u) => u.plugins.map((p) => [p, u.kind] as const))
+					);
 			});
 		// Status changes are announced; heartbeats aren't, so read again now and then.
 		const stop = live.listen((f) => {
@@ -142,10 +156,8 @@
 			</span>
 			{#if session.can('plugins:write')}
 				<a class="plain" href="/settings/plugins/runtimes"
-					>Plugin runtimes{runtimes === null
-						? ''
-						: ` · ${runtimes || 'none'}`}{#if pythonBehind.size}
-						· <span class="tag">Python update</span>{/if}</a
+					>Plugin runtimes{runtimes === null ? '' : ` · ${runtimes || 'none'}`}{#if behind.size}
+						· <span class="tag">{updateWord(behindKind)}</span>{/if}</a
 				>
 			{/if}
 			{#if updates > 1 && session.can('plugins:write')}
@@ -186,7 +198,8 @@
 							{#if arriving.has(r.id)}<span class="upd coming"
 									>Updating to {arriving.get(r.id)}…</span
 								>{:else if r.update}<span class="upd">Update to {r.update}</span
-								>{:else if pythonBehind.has(r.id)}<span class="upd">Python update</span>{/if}
+								>{:else if behind.has(r.id)}<span class="upd">{updateWord(behind.get(r.id))}</span
+								>{/if}
 						</span>
 						<span role="cell" class="num">{r.devices}</span>
 						<span role="cell" class="state {r.state.tone}"
@@ -208,8 +221,9 @@
 								{#if r.notice}<span class="sub bad">{r.notice.message}</span>{/if}
 							</span>
 							{#if arriving.has(r.id)}<span class="upd coming">Updating…</span
-								>{:else if r.update}<span class="upd">Update</span
-								>{:else if pythonBehind.has(r.id)}<span class="upd">Python update</span>{/if}
+								>{:else if r.update}<span class="upd">Update</span>{:else if behind.has(r.id)}<span
+									class="upd">{updateWord(behind.get(r.id))}</span
+								>{/if}
 							<ChevronRight size={18} aria-hidden="true" />
 						</a>
 					</li>
@@ -217,12 +231,11 @@
 			</ul>
 		{/if}
 
-		{#if pythonBehind.size}
+		{#if behind.size}
 			<p class="quiet">
-				Update all covers plugin versions only. A Python update restarts every plugin on that Python
-				in a runtime, so it's applied from <a href="/settings/plugins/runtimes"
-					>the runtime's card</a
-				>, one runtime at a time.
+				Update all covers plugin versions only. A {behindKind ? kindName(behindKind) : 'language'}
+				update restarts every plugin on that version in a runtime, so it's applied from
+				<a href="/settings/plugins/runtimes">the runtime's card</a>, one runtime at a time.
 			</p>
 		{/if}
 		{#if noRegistry}

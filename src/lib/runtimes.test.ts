@@ -9,6 +9,7 @@ import {
 	platformOf,
 	seriesName,
 	interpreterName,
+	kindName,
 	runtimeState
 } from './runtimes.js';
 
@@ -164,6 +165,11 @@ describe('interpreters', () => {
 		expect(platformOf('manylinux_2_28')).toBe('manylinux_2_28');
 		expect(seriesName('cp313')).toBe('3.13');
 		expect(seriesName('cp310')).toBe('3.10');
+		expect(platformOf('node24-glibc_2_28')).toBe('glibc_2_28');
+		expect(seriesName('node24')).toBe('24');
+		expect(kindName('node')).toBe('Node.js');
+		expect(kindName('deno')).toBe('Deno');
+		expect(nextName([{ name: 'Node.js runtime 1' }], 'node')).toBe('Node.js runtime 2');
 		expect(interpreterName('python 3.13.18')).toBe('Python 3.13.18');
 	});
 });

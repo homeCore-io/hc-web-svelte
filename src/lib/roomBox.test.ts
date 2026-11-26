@@ -220,6 +220,18 @@ describe('a room’s box', () => {
 		expect(b.lines.filter((l) => l.alert).map((l) => l.text)).toEqual(['Leak', 'door open']);
 	});
 
+	it('says carbon monoxide, as it says smoke', () => {
+		const list = [...office, dev('alarm', 'smoke_alarm', { smoke: false, co_detected: true })];
+		const b = roomBox(
+			list,
+			list.map((d) => cardFor(d, NOW)),
+			all,
+			resolve([{ lights: false, doors: false }], ROOM_BUILT_IN)
+		);
+		expect(b.alarm).toBe(true);
+		expect(b.lines.filter((l) => l.alert).map((l) => l.text)).toEqual(['Carbon monoxide']);
+	});
+
 	it('counts open and unlocked as security does, by the household’s choice', () => {
 		const list = [
 			dev('pantry', 'contact_sensor', { open: true }, { security: false }),

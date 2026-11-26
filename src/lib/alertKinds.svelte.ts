@@ -20,6 +20,7 @@ export interface AlertKindSetting {
 export const BUILT_IN_KINDS: { value: string; label: string }[] = [
 	{ value: 'wet', label: 'Water' },
 	{ value: 'smoke', label: 'Smoke' },
+	{ value: 'carbon_monoxide', label: 'Carbon monoxide' },
 	{ value: 'offline', label: 'Offline' },
 	{ value: 'jammed', label: 'Jammed lock' },
 	{ value: 'low_battery', label: 'Low battery' },

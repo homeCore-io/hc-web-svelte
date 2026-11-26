@@ -168,6 +168,7 @@ export interface Line {
 type Said =
 	| 'leak'
 	| 'smoke'
+	| 'carbon monoxide'
 	| 'jammed'
 	| 'open'
 	| 'offline'
@@ -233,6 +234,8 @@ function wrong(cards: CardView[], all: Devices): { lines: Line[]; alarm: boolean
 		});
 	const smoke = cards.filter((c) => c.alarm === 'smoke');
 	if (smoke.length > 0) lines.push({ text: 'Smoke', alert: true, what: 'smoke' });
+	const co = cards.filter((c) => c.alarm === 'carbon monoxide');
+	if (co.length > 0) lines.push({ text: 'Carbon monoxide', alert: true, what: 'carbon monoxide' });
 	const jammed = cards.filter((c) => c.alarm === 'jammed');
 	for (const c of jammed) lines.push({ text: `${c.name} jammed`, alert: true, what: 'jammed' });
 	const open = cards.filter((c) => cardOpen(c, all));
@@ -243,7 +246,7 @@ function wrong(cards: CardView[], all: Devices): { lines: Line[]; alarm: boolean
 		lines.push({ text: `${off[0]!.name} offline`, alert: true, what: 'offline' });
 	else if (off.length > 1)
 		lines.push({ text: `${off.length} offline`, alert: true, what: 'offline' });
-	return { lines, alarm: wet.length + smoke.length + jammed.length > 0 };
+	return { lines, alarm: wet.length + smoke.length + co.length + jammed.length > 0 };
 }
 
 /**

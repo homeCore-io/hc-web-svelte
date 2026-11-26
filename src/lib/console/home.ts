@@ -151,7 +151,7 @@ export interface Issue {
 export const ISSUES_SHOWN = 4;
 
 /** Alerts that need someone now, each shown on its own. */
-const URGENT = new Set(['wet', 'smoke', 'jammed', 'rule']);
+const URGENT = new Set(['wet', 'smoke', 'carbon_monoxide', 'jammed', 'rule']);
 const TAB_FOR: Record<string, string> = { wet: 'water', smoke: 'sensors', jammed: 'doors' };
 
 /**

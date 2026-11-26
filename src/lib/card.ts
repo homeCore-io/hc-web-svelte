@@ -650,6 +650,7 @@ function alarmOf(d: CoreDevice, kind: string): string | undefined {
 	const a = d.attributes;
 	if (a.water_detected === true) return 'wet';
 	if (a.smoke === true || a.smoke_detected === true) return 'smoke';
+	if (a.co_detected === true) return 'carbon monoxide';
 	if (kind === 'lock' && typeof a.last_alert === 'string' && /jam/i.test(a.last_alert))
 		return 'jammed';
 	// homeCore's word where it gives one, with or without a level to show.

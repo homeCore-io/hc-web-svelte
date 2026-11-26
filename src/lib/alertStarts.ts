@@ -87,8 +87,15 @@ export interface Names {
 	topicLabel: (pluginId: string, topic: string) => string | undefined;
 }
 
-export type OwnKind = 'wet' | 'smoke' | 'offline' | 'jammed' | 'low_battery';
-export const OWN_KINDS: OwnKind[] = ['wet', 'smoke', 'offline', 'jammed', 'low_battery'];
+export type OwnKind = 'wet' | 'smoke' | 'carbon_monoxide' | 'offline' | 'jammed' | 'low_battery';
+export const OWN_KINDS: OwnKind[] = [
+	'wet',
+	'smoke',
+	'carbon_monoxide',
+	'offline',
+	'jammed',
+	'low_battery'
+];
 
 /** homeCore's own kinds: their name, what raises one, and how it's said. */
 export const OWN: Record<
@@ -123,6 +130,16 @@ export const OWN: Record<
 		anywhere: 'Smoke anywhere in the house',
 		anywhereHelp: 'Any device from any plugin that reports smoke',
 		attrs: ['smoke', 'smoke_detected']
+	},
+	carbon_monoxide: {
+		label: 'Carbon monoxide',
+		word: 'carbon monoxide',
+		one: 'CO alarm',
+		many: 'CO alarms',
+		is: 'detects carbon monoxide',
+		anywhere: 'Carbon monoxide anywhere in the house',
+		anywhereHelp: 'Any device from any plugin that reports carbon monoxide',
+		attrs: ['co_detected']
 	},
 	offline: {
 		label: 'Offline',

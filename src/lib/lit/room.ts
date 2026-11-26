@@ -227,7 +227,12 @@ export function litRoom(
 				title: `${name} isn't answering`,
 				detail: view.stateLine
 			});
-		else if (view.alarm === 'wet' || view.alarm === 'smoke' || view.alarm === 'jammed')
+		else if (
+			view.alarm === 'wet' ||
+			view.alarm === 'smoke' ||
+			view.alarm === 'carbon monoxide' ||
+			view.alarm === 'jammed'
+		)
 			problems.push({
 				key: `${card.ref}/${view.alarm}`,
 				title: `${name}: ${view.stateLine}`,

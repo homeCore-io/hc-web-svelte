@@ -154,6 +154,7 @@
 	const ICON = {
 		wet: 'water',
 		smoke: 'alert',
+		carbon_monoxide: 'alert',
 		offline: 'router',
 		jammed: 'lock',
 		low_battery: 'alert',

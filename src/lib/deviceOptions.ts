@@ -51,6 +51,7 @@ const USEFUL = [
 	'occupancy',
 	'water_detected',
 	'smoke',
+	'co_detected',
 	'temperature',
 	'humidity',
 	'illuminance',

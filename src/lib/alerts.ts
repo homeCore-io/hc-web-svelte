@@ -16,7 +16,8 @@ import type { CoreDevice } from './devices.js';
 import { fromShown, shown, shownUnit } from './units.js';
 import { hhmmOf } from './when.js';
 
-export type AlertKind = 'wet' | 'smoke' | 'offline' | 'jammed' | 'low_battery' | 'rule' | 'plugin';
+export type AlertKind =
+	'wet' | 'smoke' | 'carbon_monoxide' | 'offline' | 'jammed' | 'low_battery' | 'rule' | 'plugin';
 
 /** A plugin alert's button (homeCore 0.1.85): one of the device's actions, or the plugin's. */
 export interface AlertAction {
@@ -72,6 +73,7 @@ export interface AlertIgnore {
 export const KIND_WORDS: Record<AlertKind, string> = {
 	wet: 'something wet',
 	smoke: 'smoke',
+	carbon_monoxide: 'carbon monoxide',
 	offline: 'offline',
 	jammed: 'a jammed lock',
 	low_battery: 'low battery',
@@ -134,7 +136,9 @@ export function describeIgnore(
 	} else if (i.kind) {
 		const k = KIND_WORDS[i.kind];
 		const K = k.charAt(0).toUpperCase() + k.slice(1);
-		s = device ? `${K} on ${device}` : `Every ${k === 'smoke' ? 'smoke alert' : k}`;
+		s = device
+			? `${K} on ${device}`
+			: `Every ${k === 'smoke' || k === 'carbon monoxide' ? `${k} alert` : k}`;
 	} else s = device ? `Everything about ${device}` : 'Nothing';
 	if (i.until) s += `, until ${untilText ? untilText(i.until) : i.until}`;
 	return s;

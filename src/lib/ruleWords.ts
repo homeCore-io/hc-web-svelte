@@ -508,6 +508,7 @@ function offsetText(min: number, of: string): string {
 const ALERT_KIND: Record<string, string> = {
 	wet: 'water',
 	smoke: 'smoke',
+	carbon_monoxide: 'carbon monoxide',
 	offline: 'offline',
 	jammed: 'jammed lock',
 	low_battery: 'low battery',

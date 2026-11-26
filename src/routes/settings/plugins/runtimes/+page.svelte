@@ -378,7 +378,7 @@
 		{:else if runtimes.length === 0}
 			<section class="card empty">
 				<b>No runtimes yet</b>
-				<span class="quiet">Catalog plugins marked "Runs in a runtime" need one.</span>
+				<span class="quiet">Catalog plugins that run in a runtime need one.</span>
 			</section>
 		{:else}
 			{#each runtimes as r (r.runtime_id)}

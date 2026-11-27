@@ -107,6 +107,12 @@
 		{#if note}<p class="note" role="status">{note}</p>{/if}
 		{#if stale}<p class="quiet" role="status">Not up to date: {stale}</p>{/if}
 
+		{#if view.warnings?.length}
+			<ul class="warnings" role="status">
+				{#each view.warnings as w (w)}<li>{w}</li>{/each}
+			</ul>
+		{/if}
+
 		<section class="ready" aria-label="Readiness">
 			<div class="card" class:bad={broker && !broker.reachable_from_network}>
 				<p class="head">
@@ -552,6 +558,15 @@
 		margin: 0;
 		font-size: 13px;
 		color: var(--ink-muted);
+	}
+	.warnings {
+		margin: 0;
+		padding: var(--space-2) var(--space-3) var(--space-2) var(--space-6);
+		border-radius: 10px;
+		background: var(--alert-bg);
+		border: 1px solid var(--alert-line);
+		color: var(--ink);
+		font-size: 14px;
 	}
 	.note {
 		margin: 0;

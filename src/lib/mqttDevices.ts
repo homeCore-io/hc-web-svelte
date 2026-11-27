@@ -39,6 +39,8 @@ export interface Overview {
 	shipped_off: { file: string; name: string; description: string | null }[];
 	off: OffProfile[];
 	heard: HeardTopic[];
+	/** What is wrong with the profiles as a whole (homeCore 0.1.128). */
+	warnings?: string[];
 }
 
 export interface ProfileDevice {

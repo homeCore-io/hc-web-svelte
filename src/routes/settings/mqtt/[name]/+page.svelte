@@ -46,6 +46,8 @@
 	let note = $state<string | null>(null);
 	let busy = $state(false);
 	let onlyUntyped = $state(false);
+	/** On a phone, the list's rows are ticked rather than opened. */
+	let selecting = $state(false);
 	let query = $state('');
 	let picked = $state<Record<string, boolean>>({});
 	let bulkType = $state('');
@@ -226,6 +228,17 @@
 			</label>
 		</div>
 
+		{#if !wide.current && devices.length > 1}
+			<button
+				type="button"
+				class="select"
+				aria-pressed={selecting}
+				onclick={() => {
+					selecting = !selecting;
+					if (!selecting) picked = {};
+				}}>{selecting ? 'Done selecting' : 'Select several'}</button
+			>
+		{/if}
 		{#if chosen.length > 0}
 			<div class="bulk">
 				<span class="count">{chosen.length} selected</span>
@@ -308,19 +321,35 @@
 			<ul class="list">
 				{#each shown as d (d.device_id)}
 					<li>
-						<button type="button" onclick={() => (open = d)}>
-							<span class="text">
-								<span class="name">{d.name}</span>
-								<span class="sub"
-									>{d.device_type
-										? typeLabel(d.device_type)
-										: d.suggestion
-											? `Suggested: ${typeLabel(d.suggestion)}`
-											: 'Needs a type'}</span
-								>
-							</span>
-							<ChevronRight size={18} aria-hidden="true" />
-						</button>
+						{#if selecting}
+							<label class="tick">
+								<input
+									type="checkbox"
+									checked={!!picked[d.device_id]}
+									onchange={() => (picked = { ...picked, [d.device_id]: !picked[d.device_id] })}
+								/>
+								<span class="text">
+									<span class="name">{d.name}</span>
+									<span class="sub"
+										>{d.device_type ? typeLabel(d.device_type) : 'Needs a type'}</span
+									>
+								</span>
+							</label>
+						{:else}
+							<button type="button" onclick={() => (open = d)}>
+								<span class="text">
+									<span class="name">{d.name}</span>
+									<span class="sub"
+										>{d.device_type
+											? typeLabel(d.device_type)
+											: d.suggestion
+												? `Suggested: ${typeLabel(d.suggestion)}`
+												: 'Needs a type'}</span
+									>
+								</span>
+								<ChevronRight size={18} aria-hidden="true" />
+							</button>
+						{/if}
 					</li>
 				{/each}
 			</ul>
@@ -597,6 +626,34 @@
 	}
 	.list li + li {
 		border-top: 1px solid var(--line);
+	}
+	.select {
+		align-self: flex-start;
+		min-height: 40px;
+		padding: 0 16px;
+		border-radius: 10px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--ink);
+		font: inherit;
+		font-weight: 700;
+		font-size: 14px;
+	}
+	.select[aria-pressed='true'] {
+		border-color: var(--accent);
+	}
+	.tick {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		min-height: 58px;
+		padding: 6px var(--space-3) 6px var(--space-4);
+		cursor: pointer;
+	}
+	.tick input {
+		width: 20px;
+		height: 20px;
+		accent-color: var(--accent);
 	}
 	.list button {
 		display: flex;

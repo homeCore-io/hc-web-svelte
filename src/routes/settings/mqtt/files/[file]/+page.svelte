@@ -15,6 +15,7 @@
 	import EcoTabs from '#lib/components/mqtt/EcoTabs.svelte';
 	import {
 		deleteFile,
+		takeShipped,
 		ecosystemName,
 		loadFile,
 		loadOverview,
@@ -38,6 +39,9 @@
 	let note = $state<string | null>(null);
 	let busy = $state(false);
 	let heard = $state<HeardTopic[]>([]);
+	/** homeCore's profile of this name, to compare a copy with. */
+	let shippedText = $state<string | null>(null);
+	let comparing = $state(false);
 
 	let topic = $state('');
 	let payload = $state('');
@@ -68,6 +72,7 @@
 				saved = r.data.text;
 				on = r.data.on;
 				status = r.data.status;
+				shippedText = r.data.shipped_text ?? null;
 			}
 			const o = await loadOverview();
 			if (o.ok) {
@@ -119,12 +124,35 @@
 		if (back.ok) {
 			file = back.data.file;
 			on = back.data.on;
+			shippedText = back.data.shipped_text ?? null;
 			status = back.data.status;
 		}
 		if (isNew) {
 			draft.text = '';
 			void goto(`/settings/mqtt/files/${encodeURIComponent(target)}`, { replace: true });
 		}
+	}
+
+	async function takeTheirs() {
+		const yes = await ask({
+			title: `Take homeCore's ${file}?`,
+			body: 'Your copy is replaced with the one this homeCore ships. The devices it names keep their types and names; any other change made to it goes.',
+			go: 'Take homeCore\u2019s'
+		});
+		if (!yes) return;
+		busy = true;
+		const r = await takeShipped(file);
+		busy = false;
+		if (!r.ok) return void (note = r.error);
+		const back = await loadFile(file);
+		if (back.ok) {
+			text = back.data.text;
+			saved = back.data.text;
+			status = back.data.status;
+			shippedText = back.data.shipped_text ?? null;
+		}
+		comparing = false;
+		note = 'Now homeCore\u2019s, with your devices. It applies now.';
 	}
 
 	async function remove() {
@@ -185,6 +213,22 @@
 			</div>
 		</div>
 
+		{#if status?.differs_from_shipped && shippedText && !isNew}
+			<div class="differs">
+				<span
+					>Your copy differs from the one this homeCore ships, apart from the devices it names:
+					homeCore's may have been fixed since it was copied, or it was changed here.</span
+				>
+				<div class="row">
+					<button type="button" class="btn" onclick={() => (comparing = !comparing)}
+						>{comparing ? 'Try it' : 'Compare'}</button
+					>
+					<button type="button" class="done" disabled={busy} onclick={takeTheirs}
+						>Take homeCore's, keeping your devices</button
+					>
+				</div>
+			</div>
+		{/if}
 		{#if problem}
 			<div class="problem" role="alert">
 				<b>It doesn’t load:</b>
@@ -205,49 +249,56 @@
 					rows={Math.max(18, lines + 1)}></textarea>
 			</div>
 
-			<section class="try" aria-labelledby="try-h">
-				<h2 id="try-h">Try it</h2>
-				{#if heard.length > 0}
-					<label
-						>A topic it heard
-						<select value={topic} onchange={(e) => useHeard(e.currentTarget.value)}>
-							{#each heard as h (h.topic)}<option value={h.topic}>{h.topic}</option>{/each}
-							{#if !heard.some((h) => h.topic === topic)}<option value={topic}
-									>{topic || '—'}</option
-								>{/if}
-						</select>
-					</label>
-				{/if}
-				<label>A topic<input type="text" class="mono" bind:value={topic} /></label>
-				<label>Its message<textarea class="mono" rows="3" bind:value={payload}></textarea></label>
-				<div class="out" aria-live="polite">
-					<p class="over">homeCore would make</p>
-					{#if problem}
-						<p class="quiet">Nothing until the profile loads.</p>
-					{:else if !result}
-						<p class="quiet">…</p>
-					{:else if result.kind === 'state'}
-						<p>
-							<span class="mono">{result.device_id}</span>{#if result.device_type}, a {result.device_type.replace(
-									/_/g,
-									' '
-								)}{:else}, with no type (no controls){/if}{#if result.name}
-								called “{result.name}”{/if}
-						</p>
-						<pre class="mono state">{JSON.stringify(result.state, null, 1)}</pre>
-						{#if result.partial}<p class="quiet">Merged into what it already reports.</p>{/if}
-					{:else if result.kind === 'availability'}
-						<p>
-							<span class="mono">{result.device_id}</span>
-							{result.available ? 'online' : 'offline'}
-						</p>
-					{:else if result.kind === 'no_match'}
-						<p class="quiet">Nothing: no topic in the profile matches this one.</p>
-					{:else}
-						<p class="error">{result.error}</p>
+			{#if comparing && shippedText}
+				<section class="theirs" aria-labelledby="theirs-h">
+					<h2 id="theirs-h">homeCore's</h2>
+					<pre class="mono">{shippedText}</pre>
+				</section>
+			{:else}
+				<section class="try" aria-labelledby="try-h">
+					<h2 id="try-h">Try it</h2>
+					{#if heard.length > 0}
+						<label
+							>A topic it heard
+							<select value={topic} onchange={(e) => useHeard(e.currentTarget.value)}>
+								{#each heard as h (h.topic)}<option value={h.topic}>{h.topic}</option>{/each}
+								{#if !heard.some((h) => h.topic === topic)}<option value={topic}
+										>{topic || '—'}</option
+									>{/if}
+							</select>
+						</label>
 					{/if}
-				</div>
-			</section>
+					<label>A topic<input type="text" class="mono" bind:value={topic} /></label>
+					<label>Its message<textarea class="mono" rows="3" bind:value={payload}></textarea></label>
+					<div class="out" aria-live="polite">
+						<p class="over">homeCore would make</p>
+						{#if problem}
+							<p class="quiet">Nothing until the profile loads.</p>
+						{:else if !result}
+							<p class="quiet">…</p>
+						{:else if result.kind === 'state'}
+							<p>
+								<span class="mono">{result.device_id}</span>{#if result.device_type}, a {result.device_type.replace(
+										/_/g,
+										' '
+									)}{:else}, with no type (no controls){/if}{#if result.name}
+									called “{result.name}”{/if}
+							</p>
+							<pre class="mono state">{JSON.stringify(result.state, null, 1)}</pre>
+							{#if result.partial}<p class="quiet">Merged into what it already reports.</p>{/if}
+						{:else if result.kind === 'availability'}
+							<p>
+								<span class="mono">{result.device_id}</span>
+								{result.available ? 'online' : 'offline'}
+							</p>
+						{:else if result.kind === 'no_match'}
+							<p class="quiet">Nothing: no topic in the profile matches this one.</p>
+						{:else}
+							<p class="error">{result.error}</p>
+						{/if}
+					</div>
+				</section>
+			{/if}
 		</div>
 
 		<div class="split">
@@ -310,6 +361,40 @@
 	.mono {
 		font-family: var(--font-num);
 		font-size: 13px;
+	}
+	.differs {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 10px 16px;
+		padding: 12px 16px;
+		border-radius: var(--radius);
+		background: var(--lit-bg);
+		color: var(--lit-ink);
+		font-weight: 600;
+	}
+	.differs > span {
+		flex: 1 1 360px;
+	}
+	.theirs {
+		flex: 1 1 360px;
+		min-width: 0;
+		padding: 16px;
+		border-radius: var(--radius);
+		background: var(--surface);
+		border: 1px solid var(--card-line);
+	}
+	.theirs h2 {
+		margin: 0 0 8px;
+		font-size: 17px;
+	}
+	.theirs pre {
+		margin: 0;
+		max-height: 640px;
+		overflow: auto;
+		white-space: pre;
+		line-height: 20px;
 	}
 	.problem {
 		display: flex;

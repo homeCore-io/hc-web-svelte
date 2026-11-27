@@ -34,6 +34,7 @@
 	import { guards } from '#lib/security.js';
 	import { choiceFor, ownTab } from '#lib/console/placing.js';
 	import { setDeviceTab } from '#lib/console/tabChoice.js';
+	import { ecosystemName, loadDeviceEcosystem } from '#lib/mqttDevices.js';
 
 	const id = $derived(page.params.id ?? '');
 	const device = $derived(devices.byId[id]);
@@ -41,6 +42,19 @@
 	const room = $derived(device ? roomOf(device, rooms.list) : undefined);
 	const name = $derived(device ? displayName(device) : id);
 	const fromPlugin = $derived(!!device && !device.plugin_id?.startsWith('core.'));
+
+	// The ecosystem a device over MQTT comes in through (homeCore 0.1.126), for
+	// saying what it is there: an admin's, and only for a device no plugin owns.
+	let ecosystem = $state<{ profile: string } | null>(null);
+	$effect(() => {
+		ecosystem = null;
+		const pid = device?.plugin_id ?? '';
+		if (!session.isAdmin || !device || pid.startsWith('plugin.') || pid.startsWith('core.')) return;
+		const which = device.device_id;
+		void loadDeviceEcosystem(which).then((r) => {
+			if (r.ok && device?.device_id === which) ecosystem = r.data;
+		});
+	});
 
 	// Back to where it was opened from: a plugin's devices, a room, or Devices.
 	const back = $derived.by(() => {
@@ -261,7 +275,7 @@
 		{ label: '7 d', ms: 7 * 24 * 3600_000 },
 		{ label: '30 d', ms: 30 * 24 * 3600_000 }
 	];
-	let period = $state(PERIODS[0]!);
+	let period = $state.raw(PERIODS[0]!);
 	/** How many periods back the charts end: 0 is now. */
 	let ago = $state(0);
 	const chartEnd = $derived(ago === 0 ? undefined : Date.now() - ago * period.ms);
@@ -432,6 +446,15 @@
 						</select>
 					</label>
 					{#if hintNote}<p class="hint" role="status">{hintNote}</p>{/if}
+					{#if ecosystem}
+						<p class="hint">
+							It comes in through {ecosystemName(ecosystem.profile)}.
+							<a
+								href={`/settings/mqtt/${encodeURIComponent(ecosystem.profile)}?device=${encodeURIComponent(device.device_id)}`}
+								>{device.device_type ? 'Change what it is' : 'Say what it is, for its controls'}</a
+							>
+						</p>
+					{/if}
 					<label class="row">
 						<span class="k">Symbol</span>
 						<select

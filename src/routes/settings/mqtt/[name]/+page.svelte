@@ -16,12 +16,16 @@
 	import { wide } from '#lib/wide.svelte.js';
 	import { agoOf } from '#lib/when.js';
 	import TypeSheet from '#lib/components/mqtt/TypeSheet.svelte';
+	import EcoTabs from '#lib/components/mqtt/EcoTabs.svelte';
+	import { goto } from '$app/navigation';
+	import { ask } from '#lib/confirm.svelte.js';
 	import {
 		ecosystemName,
 		loadProfile,
 		loadTypes,
 		readingsLine,
 		setDevices,
+		turnOff,
 		suggestionChanges,
 		typeLabel,
 		untypedOf,
@@ -112,6 +116,21 @@
 		}
 	}
 
+	async function off() {
+		if (!profile) return;
+		const yes = await ask({
+			title: `Turn ${label} off?`,
+			body: `Its devices stay, and stop being updated until it's on again. Its profile is kept as it is, changes and all.`,
+			go: 'Turn off'
+		});
+		if (!yes) return;
+		busy = true;
+		const r = await turnOff(profile.file);
+		busy = false;
+		if (!r.ok) return void (note = r.error);
+		void goto('/settings/mqtt');
+	}
+
 	function toggleAll() {
 		const next = { ...picked };
 		for (const d of shown) next[d.device_id] = !allOn;
@@ -127,11 +146,15 @@
 	<p class="quiet">Loading…</p>
 {:else}
 	<div class="page">
-		<p class="lead">
-			{devices.length === 1 ? 'One device' : `${devices.length} devices`}{profile.shipped
-				? ' · comes with homeCore'
-				: ' · yours'} · <code>{profile.file}</code>
-		</p>
+		<div class="top">
+			<p class="lead">
+				{devices.length === 1 ? 'One device' : `${devices.length} devices`}{profile.shipped
+					? ' · comes with homeCore'
+					: ' · yours'} · <code>{profile.file}</code>
+			</p>
+			<button type="button" class="off" disabled={busy} onclick={off}>Turn off</button>
+		</div>
+		<EcoTabs {name} file={profile.file} current="devices" />
 		{#if note}<p class="note" role="status">{note}</p>{/if}
 
 		{#if counted.suggested.length > 0}
@@ -295,6 +318,23 @@
 		flex-direction: column;
 		gap: var(--space-3);
 		max-width: 1000px;
+	}
+	.top {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-2);
+	}
+	.top .off {
+		min-height: 40px;
+		padding: 0 14px;
+		border-radius: 10px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--ink);
+		font: inherit;
+		font-weight: 700;
 	}
 	.lead {
 		margin: 0;

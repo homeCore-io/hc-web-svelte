@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+	deviceOf,
+	draftProfile,
 	ecosystemName,
 	givesOf,
+	guessPattern,
+	slug,
 	likelyTypes,
 	readingsLine,
 	suggestionChanges,
@@ -103,5 +107,40 @@ describe('likely types', () => {
 			'temperature_sensor'
 		]);
 		expect(likelyTypes({ linkquality: 112 }, known)).toEqual([]);
+	});
+});
+
+describe('drafting a profile from a heard topic', () => {
+	it('guesses the device from the second level, and reads a topic back by it', () => {
+		const p = guessPattern('esphome/garage-door/sensor/state');
+		expect(p).toBe('esphome/{device}/sensor/state');
+		expect(deviceOf(p, 'esphome/garage-door/sensor/state')).toBe('garage-door');
+		expect(deviceOf(p, 'esphome/porch/sensor/state')).toBe('porch');
+		expect(deviceOf(p, 'esphome/porch/light/state')).toBeNull();
+		expect(deviceOf(p, 'esphome/porch')).toBeNull();
+		expect(guessPattern('lonely')).toBe('lonely');
+	});
+
+	it('makes plain words for names', () => {
+		expect(slug('My Firmware!')).toBe('my-firmware');
+	});
+
+	it('drafts a profile, wrapping a plain message under a reading', () => {
+		const plain = draftProfile({
+			name: 'esphome',
+			prefix: 'esphome_',
+			pattern: 'esphome/{device}/sensor/state',
+			payload: 'closed'
+		});
+		expect(plain).toContain('name   = "esphome"');
+		expect(plain).toContain('pattern = "esphome/{device}/sensor/state"');
+		expect(plain).toContain('attribute     = "state"');
+		const json = draftProfile({
+			name: 'esphome',
+			prefix: 'esphome_',
+			pattern: 'esphome/{device}/state',
+			payload: '{"state":"closed"}'
+		});
+		expect(json).not.toContain('attribute     =');
 	});
 });

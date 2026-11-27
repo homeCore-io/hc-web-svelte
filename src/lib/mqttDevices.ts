@@ -35,6 +35,7 @@ export interface Overview {
 	profiles: ProfileStatus[];
 	untyped: number;
 	shipped_off: { file: string; name: string; description: string | null }[];
+	off: OffProfile[];
 	heard: HeardTopic[];
 }
 
@@ -217,3 +218,148 @@ export function likelyTypes(readings: Record<string, unknown>, known: string[]):
 			for (const t of types) if (known.includes(t) && !out.includes(t)) out.push(t);
 	return out.slice(0, 3);
 }
+
+// ---- round 2: on and off, the editor, trying, logins ----
+
+export interface OffProfile {
+	file: string;
+	name: string | null;
+	description: string | null;
+}
+
+export interface PreviewDevice {
+	device_id: string;
+	device_type: string | null;
+	name: string | null;
+}
+
+export type TryResult =
+	| {
+			kind: 'state';
+			device_id: string;
+			state: Record<string, unknown>;
+			partial: boolean;
+			device_type: string | null;
+			name: string | null;
+	  }
+	| { kind: 'availability'; device_id: string; available: boolean }
+	| { kind: 'no_match' }
+	| { kind: 'error'; error: string };
+
+export interface DeviceLogin {
+	user: string;
+	profile: string;
+	label: string;
+	created: string;
+	last_login: string | null;
+}
+
+export const turnOn = (file: string) => call<{ ok: boolean }>('POST', '/mqtt/on', { file });
+export const turnOff = (file: string) => call<{ ok: boolean }>('POST', '/mqtt/off', { file });
+export const loadPreview = (file: string) =>
+	call<{ devices: PreviewDevice[] }>('GET', `/mqtt/preview?file=${encodeURIComponent(file)}`);
+export const loadFile = (file: string) =>
+	call<{ file: string; text: string; on: boolean; status: ProfileStatus | null }>(
+		'GET',
+		`/mqtt/files/${encodeURIComponent(file)}`
+	);
+export const saveFile = (file: string, text: string) =>
+	call<{ ok: boolean }>('PUT', `/mqtt/files/${encodeURIComponent(file)}`, { text });
+export const deleteFile = (file: string) =>
+	call<{ ok: boolean }>('DELETE', `/mqtt/files/${encodeURIComponent(file)}`);
+export const tryMessage = (text: string, topic: string, payload: string) =>
+	call<TryResult>('POST', '/mqtt/try', { text, topic, payload });
+export const loadLogins = (profile: string) =>
+	call<{ broker_asks: boolean | null; logins: DeviceLogin[] }>(
+		'GET',
+		`/mqtt/logins?profile=${encodeURIComponent(profile)}`
+	);
+export const addLogin = (profile: string, user: string, label: string) =>
+	call<{ user: string; password: string }>('POST', '/mqtt/logins', { profile, user, label });
+export const resetLogin = (user: string) =>
+	call<{ password: string }>('POST', `/mqtt/logins/${encodeURIComponent(user)}/password`);
+export const removeLogin = (user: string) =>
+	call<{ ok: boolean }>('DELETE', `/mqtt/logins/${encodeURIComponent(user)}`);
+
+/** A plain word for files and IDs: "My Firmware!" → "my-firmware". */
+export const slug = (s: string) =>
+	s
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '');
+
+/**
+ * A topic pattern guessed from one heard topic: the part that names the
+ * device is usually the second level (`esphome/garage-door/sensor/state`),
+ * so that becomes `{device}`; a topic of one level is taken as it is.
+ */
+export function guessPattern(topic: string): string {
+	const parts = topic.split('/');
+	if (parts.length < 2) return topic;
+	parts[1] = '{device}';
+	return parts.join('/');
+}
+
+/** The device a pattern makes of a topic, or null when it doesn't match. */
+export function deviceOf(pattern: string, topic: string): string | null {
+	const p = pattern.split('/');
+	const t = topic.split('/');
+	if (p.length !== t.length) return null;
+	let device: string | null = null;
+	for (let i = 0; i < p.length; i++) {
+		if (p[i] === '{device}') device = t[i]!;
+		else if (!/^\{.+\}$/.test(p[i]!) && p[i] !== t[i]) return null;
+	}
+	return device;
+}
+
+const tomlString = (s: string) => JSON.stringify(s);
+
+/** A new profile's text: commented, ready to edit and save. */
+export function draftProfile(d: {
+	name: string;
+	prefix: string;
+	pattern: string;
+	payload?: string;
+}): string {
+	const json = (() => {
+		try {
+			const v = JSON.parse(d.payload ?? '');
+			return v !== null && typeof v === 'object' && !Array.isArray(v);
+		} catch {
+			return false;
+		}
+	})();
+	const lines = [
+		`# ${d.name}: devices homeCore takes in from MQTT.`,
+		'# Settings › Devices over MQTT edits this file; so can you.',
+		'',
+		'[ecosystem]',
+		`name   = ${tomlString(d.name)}`,
+		`prefix = ${tomlString(d.prefix)}`,
+		'',
+		'[[ecosystem.state_topics]]',
+		`pattern = ${tomlString(d.pattern)}`
+	];
+	if (!json) {
+		lines.push(
+			'# The message is one value; name the reading it is.',
+			'attribute     = "state"',
+			'coerce_scalar = true'
+		);
+	}
+	lines.push(
+		'# What the devices on this topic are, for their controls in the app:',
+		'# device_type = "switch"',
+		'',
+		'# Commands back to the device, when it takes them:',
+		'# [[ecosystem.cmd_topics]]',
+		`# source    = "homecore/devices/${d.prefix}{device}/cmd"`,
+		`# target    = ${tomlString(d.pattern.replace(/[^/]+$/, 'set'))}`,
+		'# attribute = "on"',
+		''
+	);
+	return lines.join('\n');
+}
+
+export const reloadFolder = () => call<{ ok: boolean }>('POST', '/mqtt/reload');

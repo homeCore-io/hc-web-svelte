@@ -13,13 +13,35 @@
 	import { session } from '#lib/me.svelte.js';
 	import { agoOf } from '#lib/when.js';
 	import { loadBroker, type BrokerStatus } from '#lib/pluginAdmin.js';
+	import TurnOn from '#lib/components/mqtt/TurnOn.svelte';
+	import AddEcosystem from '#lib/components/mqtt/AddEcosystem.svelte';
 	import {
 		addCatalog,
 		ecosystemName,
 		loadOverview,
 		looksLike,
+		reloadFolder,
 		type Overview
 	} from '#lib/mqttDevices.js';
+
+	/** The ecosystem being turned on: its file, name and what it is. */
+	let turning = $state<{ file: string; label: string; description: string | null } | null>(null);
+	/** Adding one of your own, perhaps from a heard topic. */
+	let adding = $state<{ topic: string | null } | null>(null);
+
+	async function readAgain() {
+		busy = true;
+		const r = await reloadFolder();
+		busy = false;
+		note = r.ok ? 'Read the profiles folder again.' : r.error;
+		await load();
+	}
+
+	/** The shipped profile a heard topic belongs to, by its name, as a file to turn on. */
+	const shippedFile = (name: string) =>
+		view?.shipped_off.find((s) => s.name === name)?.file ??
+		view?.off.find((o) => o.name === name)?.file ??
+		null;
 
 	let view = $state<Overview | null>(null);
 	let broker = $state<BrokerStatus | null>(null);
@@ -65,10 +87,15 @@
 	<p class="quiet">Loading…</p>
 {:else}
 	<div class="page">
-		<p class="lead">
-			Tasmota, Shelly, Zigbee2MQTT and other devices that already talk MQTT, taken in without a
-			plugin.
-		</p>
+		<div class="top">
+			<p class="lead">
+				Tasmota, Shelly, Zigbee2MQTT and other devices that already talk MQTT, taken in without a
+				plugin.
+			</p>
+			<button type="button" class="primary" onclick={() => (adding = { topic: null })}
+				>Add an ecosystem</button
+			>
+		</div>
 		{#if note}<p class="note" role="status">{note}</p>{/if}
 
 		<section class="ready" aria-label="Readiness">
@@ -125,12 +152,8 @@
 
 		<section aria-labelledby="eco-h">
 			<h2 id="eco-h">Ecosystems</h2>
-			{#if on.length === 0 && broken.length === 0}
-				<p class="quiet">
-					None is on. Copy a profile from <code>config/profiles/examples</code> into
-					<code>{view.folder ?? 'config/profiles'}</code> to turn one on; turning them on from here comes
-					next.
-				</p>
+			{#if on.length === 0 && broken.length === 0 && view.shipped_off.length === 0 && view.off.length === 0}
+				<p class="quiet">None yet. Add one of your own.</p>
 			{:else}
 				<ul class="list">
 					{#each on as p (p.file)}
@@ -160,18 +183,64 @@
 									<span class="name">{p.file}</span>
 									<span class="sub error">Not loaded: {p.error}</span>
 								</span>
+								<a class="btn" href={`/settings/mqtt/files/${encodeURIComponent(p.file)}`}>Fix it</a
+								>
+							</div>
+						</li>
+					{/each}
+					{#each view.off as o (o.file)}
+						<li>
+							<div class="row">
+								<span class="mark off">{initial(ecosystemName(o.name ?? o.file))}</span>
+								<span class="text">
+									<span class="name">{ecosystemName(o.name ?? o.file)}</span>
+									<span class="sub">Off · kept as you left it</span>
+								</span>
+								<a class="btn" href={`/settings/mqtt/files/${encodeURIComponent(o.file)}`}
+									>Profile</a
+								>
+								<button
+									type="button"
+									class="btn"
+									onclick={() =>
+										(turning = {
+											file: o.file,
+											label: ecosystemName(o.name ?? o.file),
+											description: o.description
+										})}>Turn on</button
+								>
+							</div>
+						</li>
+					{/each}
+					{#each view.shipped_off.filter((s) => !view?.off.some((o) => o.file === s.file)) as s (s.file)}
+						<li>
+							<div class="row">
+								<span class="mark off">{initial(ecosystemName(s.name))}</span>
+								<span class="text">
+									<span class="name">{ecosystemName(s.name)}</span>
+									<span class="sub">Off · comes with homeCore</span>
+								</span>
+								<button
+									type="button"
+									class="btn"
+									onclick={() =>
+										(turning = {
+											file: s.file,
+											label: ecosystemName(s.name),
+											description: s.description
+										})}>Turn on</button
+								>
 							</div>
 						</li>
 					{/each}
 				</ul>
 			{/if}
-			{#if view.shipped_off.length > 0}
-				<p class="quiet">
-					Off, and ready to turn on: {view.shipped_off
-						.map((s) => ecosystemName(s.name))
-						.join(', ')}.
-				</p>
-			{/if}
+			<p class="quiet">
+				Changed a profile file by hand?
+				<button type="button" class="link" disabled={busy} onclick={readAgain}
+					>Read the folder again</button
+				>
+			</p>
 		</section>
 
 		<section aria-labelledby="heard-h">
@@ -188,7 +257,7 @@
 							<tr
 								><th scope="col">Topic</th><th scope="col">Messages</th><th scope="col"
 									>Looks like</th
-								></tr
+								><th scope="col"><span class="hidden">Action</span></th></tr
 							>
 						</thead>
 						<tbody>
@@ -199,6 +268,26 @@
 									<td class:quiet={!h.looks_like}
 										>{looksLike(h) ? `${looksLike(h)}, which is off` : 'Nothing homeCore has'}</td
 									>
+									<td class="act">
+										{#if h.looks_like && shippedFile(h.looks_like)}
+											<button
+												type="button"
+												class="btn"
+												onclick={() =>
+													(turning = {
+														file: shippedFile(h.looks_like!)!,
+														label: looksLike(h)!,
+														description: null
+													})}>Turn on</button
+											>
+										{:else}
+											<button
+												type="button"
+												class="btn"
+												onclick={() => (adding = { topic: h.topic })}>Write a profile</button
+											>
+										{/if}
+									</td>
 								</tr>
 							{/each}
 						</tbody>
@@ -212,7 +301,70 @@
 	</div>
 {/if}
 
+{#if turning && view}
+	<TurnOn
+		file={turning.file}
+		label={turning.label}
+		description={turning.description}
+		brokerOpen={broker ? broker.reachable_from_network : null}
+		catalog={view.catalog.present}
+		close={() => (turning = null)}
+		done={(n) => {
+			note = n;
+			void load();
+		}}
+	/>
+{/if}
+{#if adding && view}
+	<AddEcosystem heard={view.heard} topic={adding.topic} close={() => (adding = null)} />
+{/if}
+
 <style>
+	.top {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-2) var(--space-3);
+	}
+	.primary {
+		min-height: var(--target);
+		padding: 0 18px;
+		border-radius: 11px;
+		border: 1px solid var(--accent);
+		background: var(--accent);
+		color: var(--accent-ink);
+		font: inherit;
+		font-weight: 700;
+	}
+	.btn {
+		flex: none;
+		display: inline-flex;
+		align-items: center;
+		min-height: 40px;
+		padding: 0 14px;
+		border-radius: 10px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--ink);
+		font: inherit;
+		font-weight: 700;
+		font-size: 14px;
+		text-decoration: none;
+		cursor: pointer;
+	}
+	.mark.off {
+		background: var(--side);
+		color: var(--ink-muted);
+	}
+	.act {
+		text-align: right;
+		white-space: nowrap;
+	}
+	.hidden {
+		position: absolute;
+		left: -9999px;
+	}
 	.page {
 		display: flex;
 		flex-direction: column;
@@ -388,9 +540,5 @@
 		background: var(--lit-bg);
 		color: var(--lit-ink);
 		font-weight: 600;
-	}
-	code {
-		font-family: var(--font-num);
-		font-size: 12px;
 	}
 </style>

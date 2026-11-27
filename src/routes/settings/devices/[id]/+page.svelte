@@ -275,7 +275,7 @@
 		{ label: '7 d', ms: 7 * 24 * 3600_000 },
 		{ label: '30 d', ms: 30 * 24 * 3600_000 }
 	];
-	let period = $state(PERIODS[0]!);
+	let period = $state.raw(PERIODS[0]!);
 	/** How many periods back the charts end: 0 is now. */
 	let ago = $state(0);
 	const chartEnd = $derived(ago === 0 ? undefined : Date.now() - ago * period.ms);

@@ -25,6 +25,13 @@ export const SETTINGS: SettingsItem[] = [
 		detail: 'Names, and which room each is in'
 	},
 	{
+		slug: 'mqtt',
+		label: 'Devices over MQTT',
+		group: 'house',
+		words: 'tasmota shelly zigbee zigbee2mqtt profiles ecosystems topics broker types',
+		detail: 'Tasmota, Shelly and Zigbee2MQTT, with no plugin'
+	},
+	{
 		slug: 'rooms',
 		label: 'Rooms',
 		group: 'house',

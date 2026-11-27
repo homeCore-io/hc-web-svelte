@@ -41,9 +41,14 @@
 	const start = (() =>
 		device.device_type ?? device.configured?.device_type ?? device.suggestion ?? '')();
 	let chosen = $state(start);
-	let name = $state((() => device.configured?.name ?? device.name)());
+	// The name shown is the device's, which may be one given in the app; it
+	// goes into the profile only when changed here.
+	const startName = (() => device.configured?.name ?? device.name)();
+	let name = $state(startName);
 	let error = $state<string | null>(null);
 	let busy = $state(false);
+	/** Whether the click now ending began on the backdrop. */
+	let downOnBackdrop = false;
 
 	/** The quick choices: the suggestion, what it is now, then what its readings point to. */
 	const choices = $derived(
@@ -63,7 +68,12 @@
 		error = await save({
 			device_id: device.device_id,
 			device_type: chosen || null,
-			name: name.trim() && name.trim() !== device.device_id ? name.trim() : null
+			name:
+				name.trim() === startName.trim()
+					? (device.configured?.name ?? null)
+					: name.trim() && name.trim() !== device.device_id
+						? name.trim()
+						: null
 		});
 		busy = false;
 		if (!error) dialog?.close();
@@ -74,8 +84,9 @@
 	bind:this={dialog}
 	aria-labelledby="type-sheet-title"
 	onclose={close}
+	onpointerdown={(e) => (downOnBackdrop = e.target === dialog)}
 	onclick={(e) => {
-		if (e.target === dialog) dialog?.close();
+		if (e.target === dialog && downOnBackdrop && !busy) dialog?.close();
 	}}
 >
 	<div class="box">

@@ -15,6 +15,7 @@
 		description,
 		brokerOpen,
 		catalog,
+		kept = false,
 		close,
 		done
 	}: {
@@ -25,6 +26,8 @@
 		brokerOpen: boolean | null;
 		/** Whether the type catalog is there (it comes with the ecosystem if not). */
 		catalog: boolean;
+		/** One of yours, turned off: it comes back as it was, not copied. */
+		kept?: boolean;
 		close: () => void;
 		done: (note: string) => void;
 	} = $props();
@@ -33,6 +36,8 @@
 	let devices = $state<PreviewDevice[] | null>(null);
 	let error = $state<string | null>(null);
 	let busy = $state(false);
+	/** Whether the click now ending began on the backdrop. */
+	let downOnBackdrop = false;
 
 	onMount(() => {
 		dialog?.showModal();
@@ -56,28 +61,33 @@
 	bind:this={dialog}
 	aria-labelledby="turn-on-title"
 	onclose={close}
+	onpointerdown={(e) => (downOnBackdrop = e.target === dialog)}
 	onclick={(e) => {
-		if (e.target === dialog) dialog?.close();
+		if (e.target === dialog && downOnBackdrop && !busy) dialog?.close();
 	}}
 >
 	<div class="box">
 		<header>
 			<h2 id="turn-on-title">Turn on {label}?</h2>
 			<p>
-				{description ?? 'Its devices, taken in from MQTT.'} homeCore copies its profile into your profiles
-				folder, where you can change it.
+				{description ?? 'Its devices, taken in from MQTT.'}
+				{kept
+					? 'Its profile comes back as you left it.'
+					: 'homeCore copies its profile into your profiles folder, where you can change it.'}
 			</p>
 		</header>
 
 		<ul class="ready">
 			<li class:bad={brokerOpen === false}>
-				{#if brokerOpen === false}<CircleAlert size={18} aria-hidden="true" />{:else}<Check
+				{#if brokerOpen === true}<Check size={18} aria-hidden="true" />{:else}<CircleAlert
 						size={18}
 						aria-hidden="true"
 					/>{/if}
-				{brokerOpen === false
-					? 'The broker is only on this machine: devices elsewhere can’t reach it yet'
-					: 'The broker is open to the network'}
+				{brokerOpen === true
+					? 'The broker is open to the network'
+					: brokerOpen === false
+						? 'The broker is only on this machine: devices elsewhere can’t reach it yet'
+						: 'Whether devices elsewhere can reach the broker isn’t known just now'}
 			</li>
 			<li>
 				<Check size={18} aria-hidden="true" />
@@ -92,8 +102,8 @@
 				<p class="quiet">Looking…</p>
 			{:else if devices && devices.length === 0}
 				<p class="quiet">
-					Nothing yet: none of its devices has reported on the broker in the last hour. They appear
-					when they do.
+					Nothing yet: none of its devices has reported on the broker in the last 15 minutes. They
+					appear when they do.
 				</p>
 			{:else if devices}
 				<ul class="list">

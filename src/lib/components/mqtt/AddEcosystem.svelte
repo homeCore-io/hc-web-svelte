@@ -33,6 +33,8 @@
 	let pattern = $state(first ? guessPattern(first) : '');
 	let shared = $state<{ file: string; text: string } | null>(null);
 	let error = $state<string | null>(null);
+	/** Whether the click now ending began on the backdrop. */
+	let downOnBackdrop = false;
 
 	const heardOne = $derived(heard.find((h) => h.topic === topic) ?? null);
 	const matches = $derived(
@@ -82,8 +84,9 @@
 	bind:this={dialog}
 	aria-labelledby="add-eco-title"
 	onclose={close}
+	onpointerdown={(e) => (downOnBackdrop = e.target === dialog)}
 	onclick={(e) => {
-		if (e.target === dialog) dialog?.close();
+		if (e.target === dialog && downOnBackdrop) dialog?.close();
 	}}
 >
 	<div class="box">

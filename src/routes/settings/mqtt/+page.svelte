@@ -49,12 +49,20 @@
 	let note = $state<string | null>(null);
 	let busy = $state(false);
 
+	/** Why the last refresh failed, while what came before stays shown. */
+	let stale = $state<string | null>(null);
 	async function load() {
+		if (!session.isAdmin) return;
 		const [o, b] = await Promise.all([loadOverview(), loadBroker()]);
-		if (!o.ok) return void (failed = o.error);
-		failed = null;
+		if (!o.ok) {
+			// A failed refresh keeps the page; only a first load that fails replaces it.
+			if (view) stale = o.error;
+			else failed = o.error;
+			return;
+		}
+		failed = stale = null;
 		view = o.data;
-		if (b.ok) broker = b.data;
+		broker = b.ok ? b.data : null;
 	}
 	onMount(() => {
 		void load();
@@ -97,6 +105,7 @@
 			>
 		</div>
 		{#if note}<p class="note" role="status">{note}</p>{/if}
+		{#if stale}<p class="quiet" role="status">Not up to date: {stale}</p>{/if}
 
 		<section class="ready" aria-label="Readiness">
 			<div class="card" class:bad={broker && !broker.reachable_from_network}>
@@ -105,9 +114,11 @@
 							size={18}
 							aria-hidden="true"
 						/>{:else}<CircleAlert size={18} aria-hidden="true" />{/if}
-					{broker?.reachable_from_network
-						? 'Broker open to the network'
-						: 'Broker only on this machine'}
+					{!broker
+						? 'Broker: not known'
+						: broker.reachable_from_network
+							? 'Broker open to the network'
+							: 'Broker only on this machine'}
 				</p>
 				<p class="sub">
 					{#if broker}{broker.host}:{broker.port}{/if}
@@ -312,6 +323,7 @@
 		description={turning.description}
 		brokerOpen={broker ? broker.reachable_from_network : null}
 		catalog={view.catalog.present}
+		kept={view.off.some((o) => o.file === turning?.file)}
 		close={() => (turning = null)}
 		done={(n) => {
 			note = n;

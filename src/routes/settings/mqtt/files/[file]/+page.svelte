@@ -7,7 +7,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
+	import { beforeNavigate, goto } from '$app/navigation';
 	import { session } from '#lib/me.svelte.js';
 	import { heading } from '#lib/heading.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
@@ -31,6 +31,8 @@
 	const isNew = $derived(param === 'new');
 
 	let file = $state('');
+	/** Whether the file (or the draft) is in: an empty text is still one. */
+	let loaded = $state(false);
 	let text = $state('');
 	let saved = $state('');
 	let on = $state(false);
@@ -45,8 +47,10 @@
 
 	let topic = $state('');
 	let payload = $state('');
-	/** Whether the text loads; null while it is being checked. */
+	/** Why the text doesn't load; null when it does, or isn't known yet. */
 	let problem = $state<string | null>(null);
+	/** Why it couldn't be checked: homeCore didn't answer, and so on. */
+	let unchecked = $state<string | null>(null);
 	let result = $state<TryResult | null>(null);
 
 	const name = $derived(status?.name ?? null);
@@ -64,6 +68,7 @@
 				file = draft.file;
 				text = draft.text;
 				saved = '';
+				loaded = true;
 			} else {
 				const r = await loadFile(param);
 				if (!r.ok) return void (failed = r.error);
@@ -73,6 +78,7 @@
 				on = r.data.on;
 				status = r.data.status;
 				shippedText = r.data.shipped_text ?? null;
+				loaded = true;
 			}
 			const o = await loadOverview();
 			if (o.ok) {
@@ -86,19 +92,35 @@
 	});
 
 	// Check the text, and try it on the message, a moment after each change.
+	// Only the latest check's answer counts: an earlier one can come back
+	// after it. Only a 400 says the text doesn't load; homeCore not answering
+	// says nothing about the text, and doesn't stop it being saved.
+	let checks = 0;
 	$effect(() => {
 		const t = text;
 		const tp = topic;
 		const pl = payload;
-		if (!t) return;
+		const n = ++checks;
+		if (!t.trim()) {
+			problem = loaded ? 'It is empty.' : null;
+			unchecked = null;
+			result = null;
+			return;
+		}
 		const timer = setTimeout(async () => {
 			const r = await tryMessage(t, tp, pl);
-			if (!r.ok) {
+			if (n !== checks) return;
+			if (r.ok) {
+				problem = unchecked = null;
+				result = r.data;
+			} else if (r.status === 400) {
 				problem = r.error;
+				unchecked = null;
 				result = null;
 			} else {
 				problem = null;
-				result = r.data;
+				unchecked = r.error;
+				result = null;
 			}
 		}, 500);
 		return () => clearTimeout(timer);
@@ -107,13 +129,44 @@
 	const changed = $derived(text !== saved);
 	const lines = $derived(text.split('\n').length);
 
+	// Leaving with changes not saved asks first. Closing the tab: the browser
+	// asks; a page can't word it.
+	let leaving = false;
+	beforeNavigate((nav) => {
+		if (leaving || !loaded || !changed || nav.to === null) return;
+		nav.cancel();
+		if (nav.type === 'leave') return;
+		const to = nav.to.url;
+		void ask({
+			title: 'Leave without saving?',
+			body: isNew
+				? 'This ecosystem isn’t saved yet; leaving drops it.'
+				: 'Your changes to this profile aren’t saved; leaving drops them.',
+			go: 'Leave',
+			danger: true
+		}).then((yes) => {
+			if (!yes) return;
+			leaving = true;
+			void goto(`${to.pathname}${to.search}${to.hash}`);
+		});
+	});
+
 	async function save() {
 		const target = isNew ? `${slug(file.replace(/\.toml$/, ''))}.toml` : file;
+		// A new ecosystem never takes the place of a file already there, on or
+		// off: saving would replace it, with the devices it names.
+		if (isNew) {
+			const there = await loadFile(target);
+			if (there.ok)
+				return void (note = `There is already a ${target}${there.data.on ? '' : ' (off)'}. Give this one another file name, or open that one.`);
+		}
+		// What was sent is what is saved: typing goes on while it saves.
+		const sent = text;
 		busy = true;
-		const r = await saveFile(target, text);
+		const r = await saveFile(target, sent);
 		busy = false;
 		if (!r.ok) return void (note = r.error);
-		saved = text;
+		saved = sent;
 		note = isNew
 			? 'Saved and on.'
 			: on
@@ -129,6 +182,7 @@
 		}
 		if (isNew) {
 			draft.text = '';
+			leaving = true;
 			void goto(`/settings/mqtt/files/${encodeURIComponent(target)}`, { replace: true });
 		}
 	}
@@ -189,7 +243,7 @@
 	<p class="quiet">Devices over MQTT are for the house’s admins.</p>
 {:else if failed}
 	<p class="quiet">{failed} <a href="/settings/mqtt">All ecosystems</a></p>
-{:else if !text && !isNew}
+{:else if !loaded}
 	<p class="quiet">Loading…</p>
 {:else}
 	<div class="page">
@@ -234,6 +288,9 @@
 				<b>It doesn’t load:</b>
 				<span class="mono">{problem}</span>
 			</div>
+		{/if}
+		{#if unchecked}
+			<p class="quiet" role="status">It couldn’t be checked just now: {unchecked}</p>
 		{/if}
 		{#if note}<p class="note" role="status">{note}</p>{/if}
 
@@ -432,6 +489,10 @@
 		background: #12161c;
 		overflow: auto;
 	}
+	.editor:focus-within {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
 	.gutter {
 		margin: 0;
 		padding: 14px 10px 14px 14px;
@@ -455,7 +516,8 @@
 		font-size: 13px;
 		line-height: 20px;
 		white-space: pre;
-		overflow: hidden;
+		overflow-x: auto;
+		overflow-y: hidden;
 	}
 	.try {
 		flex: 1 1 300px;

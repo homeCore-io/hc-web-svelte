@@ -171,6 +171,10 @@
 								{#if (p.untyped ?? 0) > 0}<span class="chip bad"
 										>{p.untyped === 1 ? '1 needs a type' : `${p.untyped} need a type`}</span
 									>{/if}
+								{#if p.differs_from_shipped}<span
+										class="chip lit"
+										title="Open its Profile tab to compare">Differs from homeCore's</span
+									>{/if}
 								<ChevronRight size={18} aria-hidden="true" />
 							</a>
 						</li>
@@ -490,6 +494,10 @@
 	.chip.bad {
 		background: var(--alert-bg);
 		color: var(--alert);
+	}
+	.chip.lit {
+		background: var(--lit-bg);
+		color: var(--lit-ink);
 	}
 	.split {
 		display: flex;

@@ -12,6 +12,8 @@ export interface ProfileStatus {
 	prefix: string | null;
 	/** homeCore ships a profile of this name (this is a copy of it). */
 	shipped: boolean;
+	/** A copy that differs from the one this homeCore ships, devices aside. */
+	differs_from_shipped?: boolean;
 	/** Why it didn't load, with the line. */
 	error: string | null;
 	devices?: number;
@@ -259,10 +261,13 @@ export const turnOff = (file: string) => call<{ ok: boolean }>('POST', '/mqtt/of
 export const loadPreview = (file: string) =>
 	call<{ devices: PreviewDevice[] }>('GET', `/mqtt/preview?file=${encodeURIComponent(file)}`);
 export const loadFile = (file: string) =>
-	call<{ file: string; text: string; on: boolean; status: ProfileStatus | null }>(
-		'GET',
-		`/mqtt/files/${encodeURIComponent(file)}`
-	);
+	call<{
+		file: string;
+		text: string;
+		on: boolean;
+		status: ProfileStatus | null;
+		shipped_text?: string | null;
+	}>('GET', `/mqtt/files/${encodeURIComponent(file)}`);
 export const saveFile = (file: string, text: string) =>
 	call<{ ok: boolean }>('PUT', `/mqtt/files/${encodeURIComponent(file)}`, { text });
 export const deleteFile = (file: string) =>
@@ -367,3 +372,7 @@ export const reloadFolder = () => call<{ ok: boolean }>('POST', '/mqtt/reload');
 /** The ecosystem a device comes in through, if one does. */
 export const loadDeviceEcosystem = (id: string) =>
 	call<{ profile: string; file: string | null }>('GET', `/mqtt/devices/${encodeURIComponent(id)}`);
+
+/** Replace a copy with homeCore's profile, keeping the devices it names. */
+export const takeShipped = (file: string) =>
+	call<{ ok: boolean }>('POST', `/mqtt/files/${encodeURIComponent(file)}/shipped`);

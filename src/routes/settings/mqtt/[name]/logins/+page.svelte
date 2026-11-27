@@ -5,7 +5,7 @@
 	the device; a new password, or removing the login, shuts the old one out.
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { session } from '#lib/me.svelte.js';
 	import { heading } from '#lib/heading.svelte.js';
@@ -55,7 +55,9 @@
 	const suggestedUser = $derived(newLabel.trim() ? `${slug(name)}-${slug(newLabel)}` : '');
 
 	async function load() {
-		const [l, p, b] = await Promise.all([loadLogins(name), loadProfile(name), loadBroker()]);
+		const asking = name;
+		const [l, p, b] = await Promise.all([loadLogins(asking), loadProfile(asking), loadBroker()]);
+		if (asking !== name) return;
 		if (!l.ok) return void (failed = l.error);
 		failed = null;
 		logins = l.data.logins;
@@ -63,8 +65,14 @@
 		if (p.ok) file = p.data.profile.file;
 		if (b.ok) broker = b.data;
 	}
-	onMount(() => {
-		void load();
+	// Each ecosystem from the start; a password shown for one isn't for the next.
+	$effect(() => {
+		void name;
+		untrack(() => {
+			shown = null;
+			note = failed = null;
+			void load();
+		});
 	});
 
 	async function add() {

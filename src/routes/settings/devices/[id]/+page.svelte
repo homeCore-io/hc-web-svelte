@@ -45,15 +45,21 @@
 
 	// The ecosystem a device over MQTT comes in through (homeCore 0.1.126), for
 	// saying what it is there: an admin's, and only for a device no plugin owns.
+	// Asked once per device, not on each report it makes: `device` is a new
+	// object with every state change, so the effect follows only these two.
 	let ecosystem = $state<{ profile: string } | null>(null);
+	const deviceId = $derived(device?.device_id ?? null);
+	const pluginId = $derived(device?.plugin_id ?? '');
 	$effect(() => {
 		ecosystem = null;
-		const pid = device?.plugin_id ?? '';
-		if (!session.isAdmin || !device || pid.startsWith('plugin.') || pid.startsWith('core.')) return;
-		const which = device.device_id;
+		const which = deviceId;
+		const pid = pluginId;
+		if (!session.isAdmin || !which || pid.startsWith('plugin.') || pid.startsWith('core.')) return;
+		let gone = false;
 		void loadDeviceEcosystem(which).then((r) => {
-			if (r.ok && device?.device_id === which) ecosystem = r.data;
+			if (r.ok && !gone) ecosystem = r.data;
 		});
+		return () => (gone = true);
 	});
 
 	// Back to where it was opened from: a plugin's devices, a room, or Devices.

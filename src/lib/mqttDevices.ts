@@ -39,6 +39,8 @@ export interface Overview {
 	shipped_off: { file: string; name: string; description: string | null }[];
 	off: OffProfile[];
 	heard: HeardTopic[];
+	/** What is wrong with the profiles as a whole (homeCore 0.1.128). */
+	warnings?: string[];
 }
 
 export interface ProfileDevice {
@@ -68,7 +70,8 @@ export interface DeviceChange {
 	name?: string | null;
 }
 
-export type Answer<T> = { ok: true; data: T } | { ok: false; error: string };
+/** `status` is homeCore's answer, 0 when it didn't answer. */
+export type Answer<T> = { ok: true; data: T } | { ok: false; error: string; status: number };
 
 async function call<T>(method: string, path: string, body?: unknown): Promise<Answer<T>> {
 	let res: Response;
@@ -79,7 +82,7 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<An
 			body: body === undefined ? undefined : JSON.stringify(body)
 		});
 	} catch {
-		return { ok: false, error: 'homeCore is not answering.' };
+		return { ok: false, error: 'homeCore is not answering.', status: 0 };
 	}
 	let data: unknown = null;
 	try {
@@ -88,14 +91,21 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<An
 		// An answer with no body.
 	}
 	if (res.ok) return { ok: true, data: data as T };
-	if (res.status === 401 || res.status === 403)
-		return { ok: false, error: "You aren't allowed to do this." };
-	if (res.status === 404 && path === '/mqtt')
-		return { ok: false, error: 'This homeCore is older than 0.1.126, which brings this page.' };
+	const status = res.status;
+	if (status === 401)
+		return { ok: false, error: 'You are signed out. Sign in again to go on.', status };
+	if (status === 403) return { ok: false, error: "You aren't allowed to do this.", status };
+	if (status === 404 && path === '/mqtt')
+		return {
+			ok: false,
+			error: 'This homeCore is older than 0.1.126, which brings this page.',
+			status
+		};
 	const said = (data as { error?: unknown } | null)?.error;
 	return {
 		ok: false,
-		error: typeof said === 'string' ? said : `homeCore said no (${res.status}).`
+		error: typeof said === 'string' ? said : `homeCore said no (${status}).`,
+		status
 	};
 }
 

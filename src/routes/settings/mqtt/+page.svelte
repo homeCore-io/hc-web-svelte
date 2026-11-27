@@ -129,7 +129,7 @@
 				<p class="sub">
 					{#if broker}{broker.host}:{broker.port}{/if}
 					{#if broker && !broker.reachable_from_network}· Devices can’t reach it.
-						<a href="/settings/plugins/runtimes">Open it</a>{/if}
+						<a class="keep" href="/settings/plugins/runtimes">Open it</a>{/if}
 				</p>
 			</div>
 			<div class="card" class:bad={!view.catalog.present}>
@@ -575,5 +575,8 @@
 		background: var(--lit-bg);
 		color: var(--lit-ink);
 		font-weight: 600;
+	}
+	.keep {
+		white-space: nowrap;
 	}
 </style>

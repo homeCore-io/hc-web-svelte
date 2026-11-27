@@ -245,7 +245,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-3);
-		max-width: 900px;
+		max-width: 1100px;
 	}
 	.lead {
 		margin: 0;

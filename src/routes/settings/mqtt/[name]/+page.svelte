@@ -177,6 +177,7 @@
 	<p class="quiet">Loading…</p>
 {:else}
 	<div class="page">
+		<EcoTabs {name} file={profile.file} current="devices" />
 		<div class="top">
 			<p class="lead">
 				{devices.length === 1 ? 'One device' : `${devices.length} devices`}{profile.shipped
@@ -185,7 +186,6 @@
 			</p>
 			<button type="button" class="off" disabled={busy} onclick={off}>Turn off</button>
 		</div>
-		<EcoTabs {name} file={profile.file} current="devices" />
 		{#if note}<p class="note" role="status">{note}</p>{/if}
 		{#if stale}<p class="quiet" role="status">Not up to date: {stale}</p>{/if}
 
@@ -213,9 +213,11 @@
 				<button type="button" aria-pressed={!onlyUntyped} onclick={() => (onlyUntyped = false)}
 					>All <span class="n">{devices.length}</span></button
 				>
-				<button type="button" aria-pressed={onlyUntyped} onclick={() => (onlyUntyped = true)}
-					>Need a type <span class="n">{counted.untyped.length}</span></button
-				>
+				{#if counted.untyped.length > 0 || onlyUntyped}
+					<button type="button" aria-pressed={onlyUntyped} onclick={() => (onlyUntyped = true)}
+						>Need a type <span class="n">{counted.untyped.length}</span></button
+					>
+				{/if}
 			</div>
 			<label class="search">
 				<Search size={18} aria-hidden="true" />
@@ -298,7 +300,7 @@
 								>
 								<td
 									><button type="button" class="name" onclick={() => (open = d)}>{d.name}</button>
-									<span class="id">{d.device_id}</span></td
+									{#if d.name !== d.device_id}<span class="id">{d.device_id}</span>{/if}</td
 								>
 								<td class="muted">{readingsLine(d.readings) || '—'}</td>
 								<td>
@@ -330,7 +332,7 @@
 								/>
 								<span class="text">
 									<span class="name">{d.name}</span>
-									<span class="sub"
+									<span class="sub" class:bad={!d.device_type}
 										>{d.device_type ? typeLabel(d.device_type) : 'Needs a type'}</span
 									>
 								</span>
@@ -339,7 +341,7 @@
 							<button type="button" onclick={() => (open = d)}>
 								<span class="text">
 									<span class="name">{d.name}</span>
-									<span class="sub"
+									<span class="sub" class:bad={!d.device_type && !d.suggestion}
 										>{d.device_type
 											? typeLabel(d.device_type)
 											: d.suggestion
@@ -376,7 +378,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-3);
-		max-width: 1000px;
+		max-width: 1100px;
 	}
 	.top {
 		display: flex;
@@ -609,6 +611,9 @@
 	.chip.lit {
 		background: var(--lit-bg);
 		color: var(--lit-ink);
+	}
+	.sub.bad {
+		color: var(--alert);
 	}
 	.chip.bad {
 		background: var(--alert-bg);

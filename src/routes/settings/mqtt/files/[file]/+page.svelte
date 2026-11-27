@@ -55,10 +55,16 @@
 
 	const name = $derived(status?.name ?? null);
 	$effect(() =>
-		heading.show(isNew ? 'New ecosystem' : name ? `${ecosystemName(name)} profile` : file, {
-			href: name ? `/settings/mqtt/${encodeURIComponent(name)}` : '/settings/mqtt',
-			label: name ? ecosystemName(name) : 'Devices over MQTT'
-		})
+		heading.show(
+			isNew
+				? 'New ecosystem'
+				: name && on
+					? ecosystemName(name)
+					: name
+						? `${ecosystemName(name)} profile`
+						: file,
+			{ href: '/settings/mqtt', label: 'Devices over MQTT' }
+		)
 	);
 
 	onMount(() => {

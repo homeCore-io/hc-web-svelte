@@ -363,3 +363,7 @@ export function draftProfile(d: {
 }
 
 export const reloadFolder = () => call<{ ok: boolean }>('POST', '/mqtt/reload');
+
+/** The ecosystem a device comes in through, if one does. */
+export const loadDeviceEcosystem = (id: string) =>
+	call<{ profile: string; file: string | null }>('GET', `/mqtt/devices/${encodeURIComponent(id)}`);

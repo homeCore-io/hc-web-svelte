@@ -50,6 +50,7 @@
 	let picked = $state<Record<string, boolean>>({});
 	let bulkType = $state('');
 	let open = $state<ProfileDevice | null>(null);
+	let openedAsked = false;
 
 	async function load() {
 		const r = await loadProfile(name);
@@ -57,6 +58,12 @@
 		failed = null;
 		profile = r.data.profile;
 		devices = r.data.devices;
+		// Arrived from a device's own page: open its sheet, once.
+		const asked = page.url.searchParams.get('device');
+		if (asked && !openedAsked) {
+			openedAsked = true;
+			open = devices.find((d) => d.device_id === asked) ?? null;
+		}
 	}
 	onMount(() => {
 		void load();

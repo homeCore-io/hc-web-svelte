@@ -12,9 +12,22 @@ export type PeriodUnit = 'hour' | 'day' | 'week';
 export type RotationAdvance =
 	'each_use' | { every: { n: number; unit: PeriodUnit } } | { schedule: { cron: string } };
 
+export type Weekday = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
+export const WEEKDAYS: Weekday[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+/** When a choice may play (homeCore 0.1.130): every part given must hold. */
+export interface ChoiceWhen {
+	/** One of these modes is on (mode device ids). */
+	modes?: string[];
+	/** Local times, "22:00:00"; a start after the end runs past midnight. */
+	between?: { start: string; end: string };
+	days?: Weekday[];
+}
+
 export interface RotationChoice {
 	label?: string;
 	command: Record<string, unknown>;
+	only_when?: ChoiceWhen;
 }
 
 export interface RotationNow {
@@ -25,6 +38,8 @@ export interface RotationNow {
 	missing: number[];
 	missing_names: string[];
 	last_played: string | null;
+	/** Whether each choice may play now (its times, days, modes). */
+	for_now?: boolean[];
 }
 
 export interface Rotation {
@@ -144,6 +159,31 @@ export function summary(r: Pick<Rotation, 'choices' | 'order' | 'advance'>): str
 	const n = r.choices.length;
 	const pace = r.advance === 'each_use' ? 'next each time' : `new ${advanceWords(r.advance)}`;
 	return `${n === 1 ? 'One choice' : `${n} choices`} · ${orderWords(r.order)} · ${pace}`;
+}
+
+/** `when` with its empty parts left out; undefined when nothing is left. */
+export function tidyWhen(when: ChoiceWhen): ChoiceWhen | undefined {
+	const out: ChoiceWhen = {};
+	if (when.modes?.length) out.modes = when.modes;
+	if (when.between) out.between = when.between;
+	if (when.days?.length && when.days.length < 7)
+		out.days = WEEKDAYS.filter((d) => when.days!.includes(d));
+	return Object.keys(out).length ? out : undefined;
+}
+
+/** "22:00:00" → "22:00". */
+export const hhmm = (t: string) => t.slice(0, 5);
+/** "22:00" → "22:00:00", as homeCore reads a time. */
+export const fullTime = (t: string) => (t.length === 5 ? `${t}:00` : t);
+
+/** When a choice plays, in words: "only when Night is on · 22:00–06:00 · Sat, Sun". */
+export function whenWords(when: ChoiceWhen | undefined, modeName: (id: string) => string): string {
+	if (!when) return 'any time';
+	const parts: string[] = [];
+	if (when.modes?.length) parts.push(`when ${when.modes.map(modeName).join(' or ')} is on`);
+	if (when.between) parts.push(`${hhmm(when.between.start)}–${hhmm(when.between.end)}`);
+	if (when.days?.length) parts.push(when.days.join(', '));
+	return parts.length ? `only ${parts.join(' · ')}` : 'any time';
 }
 
 /** Cron as the scheduler reads it: six fields, seconds first. */

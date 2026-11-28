@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { CoreDevice } from './devices.js';
 import {
 	advanceWords,
+	tidyWhen,
+	whenWords,
 	choiceName,
 	choiceSources,
 	commandFor,
@@ -107,6 +109,24 @@ describe('rotations', () => {
 		expect(choiceName({ command: cmd }, [src!])).toBe('Autumn');
 		expect(choiceName({ command: cmd })).toBe('7');
 		expect(choiceName({ label: 'Fall', command: cmd })).toBe('Fall');
+	});
+
+	it('says when a choice plays, and drops what limits nothing', () => {
+		const night = (id: string) => (id === 'mode_night' ? 'Night' : id);
+		expect(whenWords(undefined, night)).toBe('any time');
+		expect(
+			whenWords(
+				{
+					modes: ['mode_night'],
+					between: { start: '22:00:00', end: '06:00:00' },
+					days: ['Sat', 'Sun']
+				},
+				night
+			)
+		).toBe('only when Night is on · 22:00–06:00 · Sat, Sun');
+		expect(tidyWhen({ modes: [], days: [] })).toBeUndefined();
+		expect(tidyWhen({ days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] })).toBeUndefined();
+		expect(tidyWhen({ days: ['Sun', 'Sat'] })).toEqual({ days: ['Sat', 'Sun'] });
 	});
 
 	it('says how often it moves on, in words', () => {

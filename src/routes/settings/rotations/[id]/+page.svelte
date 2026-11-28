@@ -14,6 +14,12 @@
 	import { rotations } from '#lib/rotations.svelte.js';
 	import {
 		ORDERS,
+		WEEKDAYS,
+		fullTime,
+		hhmm,
+		tidyWhen,
+		whenWords,
+		type ChoiceWhen,
 		choiceKind,
 		choiceName,
 		choiceSources,
@@ -133,6 +139,25 @@
 		}
 		deviceId = next;
 	}
+
+	// ---- when each choice may play ----
+	const modes = $derived(
+		Object.values(devices.byId)
+			.filter((d) => d.plugin_id === 'core.mode')
+			.map((d) => ({ id: d.device_id, name: displayName(d) }))
+			.sort((a, b) => a.name.localeCompare(b.name))
+	);
+	const modeName = (id: string) => modes.find((m) => m.id === id)?.name ?? id;
+	let openWhen = $state<number | null>(null);
+	function setWhen(i: number, change: (w: ChoiceWhen) => ChoiceWhen) {
+		const next = [...choices];
+		const c = next[i]!;
+		const only_when = tidyWhen(change({ ...(c.only_when ?? {}) }));
+		next[i] = only_when ? { ...c, only_when } : { label: c.label, command: c.command };
+		choices = next;
+	}
+	const flip = <T,>(list: T[] | undefined, x: T) =>
+		(list ?? []).includes(x) ? (list ?? []).filter((y) => y !== x) : [...(list ?? []), x];
 
 	// ---- saving ----
 	const advance = $derived<RotationAdvance>(
@@ -259,6 +284,14 @@
 										it comes round</span
 									>
 								{/if}
+								<button
+									type="button"
+									class="when"
+									class:limited={!!c.only_when}
+									aria-expanded={openWhen === i}
+									onclick={() => (openWhen = openWhen === i ? null : i)}
+									>{c.only_when ? whenWords(c.only_when, modeName) : 'Any time · limit it…'}</button
+								>
 							</span>
 							<button
 								type="button"
@@ -281,6 +314,85 @@
 								onclick={() => (choices = choices.filter((_, j) => j !== i))}
 								><X size={18} /></button
 							>
+							{#if openWhen === i}
+								{@const w = c.only_when ?? {}}
+								<div class="whenedit">
+									{#if modes.length}
+										<div class="wrow">
+											<span class="wk">When</span>
+											<div class="chips">
+												{#each modes as m (m.id)}
+													<button
+														type="button"
+														aria-pressed={w.modes?.includes(m.id) ?? false}
+														onclick={() =>
+															setWhen(i, (x) => ({ ...x, modes: flip(x.modes, m.id) }))}
+														>{m.name} is on</button
+													>
+												{/each}
+											</div>
+										</div>
+									{/if}
+									<div class="wrow">
+										<label class="wk"
+											><input
+												type="checkbox"
+												checked={!!w.between}
+												onchange={(e) =>
+													setWhen(i, (x) => ({
+														...x,
+														between: e.currentTarget.checked
+															? { start: '22:00:00', end: '06:00:00' }
+															: undefined
+													}))}
+											/> Between</label
+										>
+										{#if w.between}
+											<input
+												type="time"
+												aria-label="From"
+												value={hhmm(w.between.start)}
+												onchange={(e) =>
+													setWhen(i, (x) => ({
+														...x,
+														between: { start: fullTime(e.currentTarget.value), end: x.between!.end }
+													}))}
+											/>
+											<span>and</span>
+											<input
+												type="time"
+												aria-label="Until"
+												value={hhmm(w.between.end)}
+												onchange={(e) =>
+													setWhen(i, (x) => ({
+														...x,
+														between: {
+															start: x.between!.start,
+															end: fullTime(e.currentTarget.value)
+														}
+													}))}
+											/>
+										{/if}
+									</div>
+									<div class="wrow">
+										<span class="wk">On</span>
+										<div class="chips">
+											{#each WEEKDAYS as d (d)}
+												<button
+													type="button"
+													aria-pressed={w.days?.includes(d) ?? false}
+													onclick={() => setWhen(i, (x) => ({ ...x, days: flip(x.days, d) }))}
+													>{d}</button
+												>
+											{/each}
+										</div>
+									</div>
+									<p class="quiet">
+										Outside this it is passed over, and one playing gives way to the next that is
+										for now. No days ticked means every day.
+									</p>
+								</div>
+							{/if}
 						</li>
 					{/each}
 				</ol>
@@ -467,6 +579,7 @@
 	}
 	.chosen li {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		gap: 4px;
 		padding: 6px var(--space-2) 6px var(--space-3);
@@ -582,5 +695,75 @@
 	.primary:disabled,
 	.btn:disabled {
 		opacity: 0.6;
+	}
+	.when {
+		align-self: flex-start;
+		padding: 0;
+		border: none;
+		background: none;
+		color: var(--accent);
+		font: inherit;
+		font-size: 13px;
+		font-weight: 600;
+		text-align: left;
+	}
+	.when:not(.limited) {
+		color: var(--ink-muted);
+		font-weight: 500;
+	}
+	.whenedit {
+		flex-basis: 100%;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		margin: 4px 0 6px;
+		padding: var(--space-3);
+		border-radius: 12px;
+		background: var(--bg);
+		border: 1px solid var(--line);
+	}
+	.wrow {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px;
+	}
+	.wk {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		min-width: 70px;
+		font-weight: 600;
+		font-size: 14px;
+	}
+	input[type='time'] {
+		height: 38px;
+		padding: 0 8px;
+		border-radius: 10px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--ink);
+		font: inherit;
+	}
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+	.chips button {
+		height: 34px;
+		padding: 0 12px;
+		border-radius: 17px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--ink);
+		font: inherit;
+		font-weight: 600;
+		font-size: 13px;
+	}
+	.chips button[aria-pressed='true'] {
+		background: var(--ink);
+		color: var(--bg);
+		border-color: var(--ink);
 	}
 </style>

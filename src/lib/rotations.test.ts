@@ -101,6 +101,33 @@ describe('rotations', () => {
 		expect(rotatable({ ...sonos, schema: { attributes: {} } } as CoreDevice)).toBe(false);
 	});
 
+	it('offers a WLED effect, whose optional segment list is a detail', () => {
+		const effects = {
+			...wled,
+			attributes: { effects: [{ id: 3, name: 'Twinklefox' }] },
+			schema: {
+				attributes: {},
+				actions: [
+					{
+						id: 'set_effect',
+						label: 'Choose an effect',
+						params: [
+							{
+								name: 'effect_id',
+								kind: 'int',
+								required: true,
+								options_from: { attribute: { attribute: 'effects', value_key: 'id' } }
+							},
+							{ name: 'segment', kind: 'enum', options: [{ value: 'all' }] }
+						]
+					},
+					{ id: 'play_pause', label: 'Play / pause' }
+				]
+			}
+		} as unknown as CoreDevice;
+		expect(choiceSources(effects).map((x) => x.action.id)).toEqual(['set_effect']);
+	});
+
 	it('makes a WLED preset a number, as the device takes it', () => {
 		const [src] = choiceSources(wled);
 		const cmd = commandFor(src!, src!.options[0]!);
@@ -125,7 +152,9 @@ describe('rotations', () => {
 			)
 		).toBe('only when Night is on · 22:00–06:00 · Sat, Sun');
 		expect(tidyWhen({ modes: [], days: [] })).toBeUndefined();
-		expect(tidyWhen({ days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] })).toBeUndefined();
+		expect(
+			tidyWhen({ days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] })?.days
+		).toHaveLength(7);
 		expect(tidyWhen({ days: ['Sun', 'Sat'] })).toEqual({ days: ['Sat', 'Sun'] });
 	});
 

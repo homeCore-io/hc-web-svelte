@@ -774,7 +774,7 @@ export function commandsOf(d: CoreDevice): Command[] {
 	}
 	const category = new Map((d.schema?.actions ?? []).map((a) => [`act:${a.id}`, a.category]));
 	for (const c of out)
-		c.group = c.key.startsWith('act:') ? (category.get(c.key) ?? 'More') : 'Settings';
+		c.group = c.key.startsWith('act:') ? (category.get(c.key) ?? 'More') : 'Basics';
 	return out;
 }
 
@@ -787,7 +787,7 @@ export function commandsOf(d: CoreDevice): Command[] {
 export function groupedCommands(cmds: Command[]): { group: string; cmds: Command[] }[] {
 	const groups = new Map<string, Command[]>();
 	for (const c of cmds) {
-		const g = c.group ?? 'Settings';
+		const g = c.group ?? 'Basics';
 		groups.set(g, [...(groups.get(g) ?? []), c]);
 	}
 	const plays = (list: Command[]) => list.some((c) => PLAYS.test(c.key.replace(/^act:/, '')));
@@ -796,7 +796,8 @@ export function groupedCommands(cmds: Command[]): { group: string; cmds: Command
 		.sort(
 			(a, b) =>
 				Number(plays(b.cmds)) - Number(plays(a.cmds)) ||
-				Number(a.group === 'Settings') - Number(b.group === 'Settings')
+				// On, off and levels next: what most steps set.
+				Number(b.group === 'Basics') - Number(a.group === 'Basics')
 		);
 }
 
@@ -1302,6 +1303,14 @@ export function problemsOf(r: Rule, has: (id: string) => boolean): string[] {
 	if (!(r.actions ?? []).length) out.push('It doesn’t do anything yet. Add a step.');
 	const ifs = JSON.stringify(r.actions ?? []).includes('"Conditional":{"condition":""');
 	if (ifs) out.push('An if/otherwise doesn’t ask anything yet.');
+	// homeCore reads a rotation by its id, and an empty one is no id at all:
+	// the save failed with homeCore's words for that, not these.
+	if (
+		/"(PlayFromRotation|AdvanceRotation)":\{[^}]*"rotation_id":""/.test(
+			JSON.stringify(r.actions ?? [])
+		)
+	)
+		out.push('A step still needs its rotation chosen.');
 	return out;
 }
 

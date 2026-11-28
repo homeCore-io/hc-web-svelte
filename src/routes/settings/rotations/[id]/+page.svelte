@@ -69,6 +69,12 @@
 		const r = saved;
 		untrack(() => {
 			if (filled === key) return;
+			// Nothing of the last one opened carries over.
+			note = null;
+			openWhen = null;
+			everyN = 1;
+			everyUnit = 'day';
+			cron = '0 0 */2 * * *';
 			if (isNew) {
 				name = '';
 				deviceId = page.url.searchParams.get('for') ?? '';
@@ -121,6 +127,7 @@
 		const next = [...choices];
 		[next[i], next[j]] = [next[j]!, next[i]!];
 		choices = next;
+		openWhen = null;
 	}
 	/** Whether the device still lists it (else it is skipped when it comes round). */
 	const stillThere = (c: RotationChoice) =>
@@ -311,8 +318,10 @@
 								type="button"
 								class="icon"
 								aria-label={`Take ${choiceName(c, sources)} out`}
-								onclick={() => (choices = choices.filter((_, j) => j !== i))}
-								><X size={18} /></button
+								onclick={() => {
+									choices = choices.filter((_, j) => j !== i);
+									openWhen = null;
+								}}><X size={18} /></button
 							>
 							{#if openWhen === i}
 								{@const w = c.only_when ?? {}}
@@ -352,25 +361,29 @@
 												type="time"
 												aria-label="From"
 												value={hhmm(w.between.start)}
-												onchange={(e) =>
-													setWhen(i, (x) => ({
-														...x,
-														between: { start: fullTime(e.currentTarget.value), end: x.between!.end }
-													}))}
+												onchange={(e) => {
+													// A cleared field keeps the time it had.
+													const t = e.currentTarget.value;
+													if (t)
+														setWhen(i, (x) => ({
+															...x,
+															between: { start: fullTime(t), end: x.between!.end }
+														}));
+												}}
 											/>
 											<span>and</span>
 											<input
 												type="time"
 												aria-label="Until"
 												value={hhmm(w.between.end)}
-												onchange={(e) =>
-													setWhen(i, (x) => ({
-														...x,
-														between: {
-															start: x.between!.start,
-															end: fullTime(e.currentTarget.value)
-														}
-													}))}
+												onchange={(e) => {
+													const t = e.currentTarget.value;
+													if (t)
+														setWhen(i, (x) => ({
+															...x,
+															between: { start: x.between!.start, end: fullTime(t) }
+														}));
+												}}
 											/>
 										{/if}
 									</div>

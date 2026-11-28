@@ -373,7 +373,10 @@
 				]
 			}}
 			value={f.rotation_id ?? ''}
-			onchange={(v) => set('rotation_id', v)}
+			onchange={(v) =>
+				// Another rotation's device may be another plugin's: the
+				// device it played on goes with the old one.
+				onchange({ [tag]: { rotation_id: v } })}
 		/>
 		<FieldInput
 			field={{

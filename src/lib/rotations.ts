@@ -72,14 +72,19 @@ export interface ChoiceSource {
  * power-on" take a preset too, Sonos's Repeat a mode.
  */
 export const PLAYS =
-	/^(play|apply|start|launch|select|activate|show)_|^set_(effect|palette|scene)$/;
+	/^(apply|start|launch|select|activate|show)_|^play_(?!pause)|^set_(effect|palette|scene)$/;
 
 export function choiceSources(d: CoreDevice): ChoiceSource[] {
 	const out: ChoiceSource[] = [];
 	for (const action of d.schema?.actions ?? []) {
 		if (!PLAYS.test(action.id) || action.confirm) continue;
 		const params = action.params ?? [];
-		const listed = params.filter((p) => p.options || typeof p.options_from === 'object');
+		// The list to choose from: a live one (presets, favorites), or a fixed
+		// one it must be given. An optional fixed list beside it (a WLED
+		// effect's `segment`) is a detail, not a second list.
+		const listed = params.filter(
+			(p) => typeof p.options_from === 'object' || (p.options && p.required)
+		);
 		// One list to choose from, and nothing else it must be told.
 		if (listed.length !== 1) continue;
 		const param = listed[0]!;
@@ -92,7 +97,10 @@ export function choiceSources(d: CoreDevice): ChoiceSource[] {
 				: [];
 		if (from || param.options) out.push({ action, param, options });
 	}
-	return out;
+	// What it plays (presets, playlists, favorites) before how it looks (effects).
+	return out.sort(
+		(a, b) => Number(a.action.id.startsWith('set_')) - Number(b.action.id.startsWith('set_'))
+	);
 }
 
 /** Devices a rotation can be made for. */
@@ -167,8 +175,9 @@ export function tidyWhen(when: ChoiceWhen): ChoiceWhen | undefined {
 	const out: ChoiceWhen = {};
 	if (when.modes?.length) out.modes = when.modes;
 	if (when.between) out.between = when.between;
-	if (when.days?.length && when.days.length < 7)
-		out.days = WEEKDAYS.filter((d) => when.days!.includes(d));
+	// Seven days ticked stay ticked: the same as none to homeCore, but the
+	// chips going blank at the seventh looked like it had undone them.
+	if (when.days?.length) out.days = WEEKDAYS.filter((d) => when.days!.includes(d));
 	return Object.keys(out).length ? out : undefined;
 }
 

@@ -40,6 +40,7 @@ import {
 	type VariantSpec
 } from './ruleEdit.js';
 import type { CoreDevice } from './devices.js';
+import type { Rule } from './ruleWords.js';
 
 const d = (id: string) => DEVICES.find((x) => x.device_id === id)!;
 const labels = (xs: { label: string }[]) => xs.map((x) => x.label);
@@ -148,6 +149,18 @@ describe('what a device can be told', () => {
 	});
 });
 
+test('a rotation step with no rotation stops the save', () => {
+	const r = {
+		id: 'r',
+		name: 'Music',
+		enabled: true,
+		trigger: 'ManualTrigger',
+		conditions: [],
+		actions: [{ enabled: true, action: { PlayFromRotation: { rotation_id: '' } } }]
+	} as unknown as Rule;
+	expect(problemsOf(r, () => true)).toContain('A step still needs its rotation chosen.');
+});
+
 describe('a long list of commands, grouped', () => {
 	test('what plays comes first, settings last', () => {
 		const speaker = {
@@ -166,7 +179,7 @@ describe('a long list of commands, grouped', () => {
 			}
 		} as unknown as CoreDevice;
 		const g = groupedCommands(commandsOf(speaker));
-		expect(g.map((x) => x.group)).toEqual(['Content', 'Playback', 'Grouping', 'Settings']);
+		expect(g.map((x) => x.group)).toEqual(['Content', 'Basics', 'Playback', 'Grouping']);
 	});
 });
 

@@ -185,10 +185,17 @@ export function unfinished(
 		for (const [i, step] of steps.entries()) {
 			const at = `${who}, step ${i + 1}`;
 			if (step === undefined || step === null) return `${at}: choose what it does`;
-			const action = typeof step === 'object' ? (step as { action?: unknown }).action : undefined;
+			// `{ action: id, …}`, or the keyed form `{ id: { … } }`.
+			const obj = typeof step === 'object' ? (step as Record<string, unknown>) : {};
+			const keys = Object.keys(obj);
+			const keyed =
+				obj.action === undefined && keys.length === 1 && typeof obj[keys[0]!] === 'object';
+			const action = keyed ? keys[0] : obj.action;
+			const values = (keyed ? obj[keys[0]!] : obj) as Record<string, unknown> | null;
 			const spec = d?.schema?.actions?.find((a) => a.id === action);
+			// A parameter with a default is filled by it when left empty.
 			const missing = spec?.params?.find(
-				(p) => p.required && ((step as Record<string, unknown>)[p.name] ?? '') === ''
+				(p) => p.required && p.default === undefined && (values?.[p.name] ?? '') === ''
 			);
 			if (missing) return `${at}: choose its ${missing.label ?? words(missing.name)}`;
 		}

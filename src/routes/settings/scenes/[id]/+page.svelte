@@ -104,7 +104,9 @@
 	 * what a scene is for. Music and lights: lights set, a speaker playing.
 	 */
 	function startOf(d: CoreDevice): Record<string, unknown> {
-		const plays = choiceSources(d)[0];
+		// Only with something listed to choose: an empty favorites list made
+		// a step the scene couldn't be saved with.
+		const plays = choiceSources(d).find((s) => s.options.length);
 		const onOff = d.schema?.attributes?.on?.writable;
 		return plays && !onOff ? { actions: [{ action: plays.action.id }] } : stateNow(d);
 	}

@@ -44,12 +44,27 @@ class Rotations {
 	loaded = $state(false);
 	failed = $state<string | null>(null);
 	#unfollow: (() => void) | null = null;
+	/** Counts loads and changes, so an answer knows what came after it. */
+	#seq = 0;
+	/** The newest load started; an older one's answer is dropped. */
+	#loading = 0;
+	/** When each rotation was last changed or removed here, by `#seq`. */
+	#touched = new Map<string, number>();
 
 	async load(): Promise<void> {
 		this.#follow();
+		const seq = ++this.#seq;
+		this.#loading = seq;
 		const r = await call('/api/v1/rotations');
+		// A later load is on its way: its answer is the newer one.
+		if (this.#loading !== seq) return;
 		if (r.ok) {
-			this.list = sorted(r.data as Rotation[]);
+			// A rotation changed or removed here since this load asked (a
+			// Play's refetch, an event) is as it is now, not as it answered.
+			const newer = (id: string) => (this.#touched.get(id) ?? 0) > seq;
+			const kept = this.list.filter((x) => newer(x.id));
+			const fresh = (r.data as Rotation[]).filter((x) => !newer(x.id));
+			this.list = sorted([...fresh, ...kept]);
 			this.failed = null;
 		} else this.failed = r.error;
 		this.loaded = true;
@@ -74,6 +89,7 @@ class Rotations {
 	async remove(id: string): Promise<true | string> {
 		const r = await call(`/api/v1/rotations/${encodeURIComponent(id)}`, { method: 'DELETE' });
 		if (!r.ok) return r.error;
+		this.#touched.set(id, ++this.#seq);
 		this.list = this.list.filter((x) => x.id !== id);
 		return true;
 	}
@@ -97,6 +113,7 @@ class Rotations {
 	}
 
 	#put(r: Rotation): void {
+		this.#touched.set(r.id, ++this.#seq);
 		this.list = sorted([...this.list.filter((x) => x.id !== r.id), r]);
 	}
 
@@ -108,10 +125,15 @@ class Rotations {
 	#follow(): void {
 		this.#unfollow ??= live.listen((frame) => {
 			const f = frame as { type: string; rotation?: Rotation; rotation_id?: string };
-			if (f.type === 'rotation_changed' && f.rotation) void this.#refetch(f.rotation.id);
+			// Each connect starts with a snapshot, which has no rotations: one
+			// after a dropped connection means rotation events were missed.
+			if (f.type === 'snapshot' && this.loaded) void this.load();
+			else if (f.type === 'rotation_changed' && f.rotation) void this.#refetch(f.rotation.id);
 			else if (f.type === 'rotation_advanced' && f.rotation_id) void this.#refetch(f.rotation_id);
-			else if (f.type === 'rotation_removed')
+			else if (f.type === 'rotation_removed' && f.rotation_id) {
+				this.#touched.set(f.rotation_id, ++this.#seq);
 				this.list = this.list.filter((x) => x.id !== f.rotation_id);
+			}
 		});
 	}
 }

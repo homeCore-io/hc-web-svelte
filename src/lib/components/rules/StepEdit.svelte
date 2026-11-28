@@ -7,6 +7,7 @@
 	import StepList from './StepList.svelte';
 	import { displayName } from '#lib/devices.js';
 	import { rooms } from '#lib/rooms.svelte.js';
+	import { rotations } from '#lib/rotations.svelte.js';
 	import { stepLine, tagOf } from '#lib/ruleWords.js';
 	import {
 		STEP_KINDS,
@@ -68,6 +69,23 @@
 		else next[field] = v;
 		onchange({ [tag]: next });
 	};
+
+	// ---- play from a rotation ----
+	$effect(() => {
+		if (kind === 'rotation') void rotations.load();
+	});
+	const rotation = $derived(
+		kind === 'rotation' ? rotations.byId(String(f.rotation_id ?? '')) : undefined
+	);
+	/** Other devices it can play on: the same plugin's, as its own device is. */
+	const playOn = $derived.by(() => {
+		const own = rotation ? ctx.house.device(rotation.device_id) : undefined;
+		if (!own) return [];
+		return ctx.devices
+			.filter((d) => d.plugin_id === own.plugin_id && d.device_id !== own.device_id)
+			.map((d) => ({ value: d.device_id, label: displayName(d) }))
+			.sort((a, b) => a.label.localeCompare(b.label));
+	});
 
 	// ---- set a device ----
 	const device = $derived(kind === 'device' ? ctx.house.device(f.device_id ?? '') : undefined);
@@ -334,6 +352,54 @@
 			value={tag}
 			onchange={(v) => onchange({ [String(v)]: { room: f.room ?? '' } })}
 		/>
+	{:else if kind === 'rotation'}
+		{#if rotations.loaded && rotations.list.length === 0}
+			<p class="hint">
+				No rotations yet. <a href="/settings/rotations/new">Make one</a> — a WLED's presets, a speaker's
+				playlists — then choose it here.
+			</p>
+		{/if}
+		<FieldInput
+			field={{
+				kind: 'choice',
+				name: 'rotation_id',
+				label: 'Rotation',
+				options: [
+					...(f.rotation_id ? [] : [{ value: '', label: 'Choose a rotation' }]),
+					...rotations.list.map((r) => ({ value: r.id, label: r.name })),
+					...(f.rotation_id && rotations.loaded && !rotation
+						? [{ value: String(f.rotation_id), label: 'A rotation that’s gone' }]
+						: [])
+				]
+			}}
+			value={f.rotation_id ?? ''}
+			onchange={(v) => set('rotation_id', v)}
+		/>
+		<FieldInput
+			field={{
+				kind: 'choice',
+				name: 'what',
+				label: 'Do',
+				options: [
+					{ value: 'PlayFromRotation', label: 'play the next' },
+					{ value: 'AdvanceRotation', label: 'move it on without playing' }
+				]
+			}}
+			value={tag}
+			onchange={(v) => onchange({ [String(v)]: { rotation_id: f.rotation_id ?? '' } })}
+		/>
+		{#if tag === 'PlayFromRotation' && playOn.length}
+			<FieldInput
+				field={{
+					kind: 'choice',
+					name: 'device_id',
+					label: 'On',
+					options: [{ value: 'own', label: 'its own device' }, ...playOn]
+				}}
+				value={f.device_id ?? 'own'}
+				onchange={(v) => set('device_id', v === 'own' ? undefined : v)}
+			/>
+		{/if}
 	{:else if kind === 'mode'}
 		<FieldInput
 			field={{
@@ -528,5 +594,14 @@
 		align-items: flex-start;
 		font-size: 13.5px;
 		color: var(--ink-muted);
+	}
+	.hint {
+		margin: 0;
+		font-size: 13.5px;
+		color: var(--ink-muted);
+	}
+	.hint a {
+		color: var(--accent);
+		font-weight: 600;
 	}
 </style>

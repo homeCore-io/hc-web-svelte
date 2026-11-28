@@ -9,6 +9,7 @@ import { onMount } from 'svelte';
 import { devices } from '../../devices.svelte.js';
 import { rooms } from '../../rooms.svelte.js';
 import { scenes } from '../../scenes.svelte.js';
+import { rotations } from '../../rotations.svelte.js';
 import { session } from '../../me.svelte.js';
 import { roomOf } from '../../summary.js';
 import { loadConfig } from '../../config.js';
@@ -37,6 +38,7 @@ export function provideHouse(rules: () => Rule[]): EditorContext {
 			.then((r) => (r.ok ? r.json() : []))
 			.then((list: { id: string }[]) => (calendars = list.map((c) => c.id).sort()))
 			.catch(() => {});
+		if (session.can('automations:read')) void rotations.load();
 		vocab = await loadVocabulary();
 		// Channel names live in homecore.toml, which only an admin reads.
 		if (session.isAdmin) {
@@ -47,7 +49,16 @@ export function provideHouse(rules: () => Rule[]): EditorContext {
 	});
 	const all = $derived(Object.values(devices.byId));
 	const house = $derived(
-		houseOf(devices.byId, scenes.list, rules(), alertKinds.list, describeStep, [], rooms.list)
+		houseOf(
+			devices.byId,
+			scenes.list,
+			rules(),
+			alertKinds.list,
+			describeStep,
+			[],
+			rooms.list,
+			rotations.list
+		)
 	);
 	const features = $derived(featuresOf(vocab));
 	const usedChannels = $derived(

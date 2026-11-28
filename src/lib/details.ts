@@ -592,7 +592,7 @@ function chartFor(d: CoreDevice, s: Schema): DetailsView['chart'] {
 	return undefined;
 }
 
-function optionsFromList(list: unknown, labelKey = 'name', valueKey?: string): Option[] {
+export function optionsFromList(list: unknown, labelKey = 'name', valueKey?: string): Option[] {
 	if (!Array.isArray(list)) return [];
 	return list
 		.map((item): Option | undefined => {

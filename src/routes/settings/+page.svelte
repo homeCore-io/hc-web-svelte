@@ -10,6 +10,7 @@
 	import Cpu from '@lucide/svelte/icons/cpu';
 	import DoorOpen from '@lucide/svelte/icons/door-open';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import Shuffle from '@lucide/svelte/icons/shuffle';
 	import SunMoon from '@lucide/svelte/icons/sun-moon';
 	import Timer from '@lucide/svelte/icons/timer';
 	import Workflow from '@lucide/svelte/icons/workflow';
@@ -32,6 +33,7 @@
 	import { devices } from '#lib/devices.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { scenes } from '#lib/scenes.svelte.js';
+	import { rotations } from '#lib/rotations.svelte.js';
 	import { alerts } from '#lib/alerts.svelte.js';
 	import { houseDevices, pluginSceneCount } from '#lib/inventory.js';
 	import { isRunning, type PluginRecord } from '#lib/plugins.js';
@@ -52,6 +54,7 @@
 		devices: Cpu,
 		rooms: DoorOpen,
 		scenes: Sparkles,
+		rotations: Shuffle,
 		modes: SunMoon,
 		helpers: Timer,
 		automations: Workflow,
@@ -98,6 +101,9 @@
 		return res?.ok ? ((await res.json()) as T) : null;
 	};
 	$effect(() => {
+		if (session.can('automations:read')) void rotations.load();
+	});
+	$effect(() => {
 		if (!session.isAdmin) return;
 		void get<Status>('/system/status').then((s) => (status = s));
 		void get<{ role: string }[]>('/auth/users').then((u) => (people = u));
@@ -127,6 +133,7 @@
 				} offline`
 			: undefined,
 		rooms: rooms.list.length ? plural(rooms.list.length, 'room') : undefined,
+		rotations: rotations.list.length ? plural(rotations.list.length, 'rotation') : undefined,
 		scenes:
 			scenes.list.length || pluginScenes
 				? [

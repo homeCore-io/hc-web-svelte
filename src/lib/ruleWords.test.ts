@@ -28,7 +28,9 @@ const ROOMS = [
 		aliases: ['Lounge']
 	}
 ];
-const h = houseOf(byId, [{ id: 's1', name: 'Movie' }], RULES, [], undefined, [], ROOMS);
+const h = houseOf(byId, [{ id: 's1', name: 'Movie' }], RULES, [], undefined, [], ROOMS, [
+	{ id: 'rot-1', name: 'Bathroom music' }
+]);
 const rule = (id: string) => RULES.find((r) => r.id === id) as Rule;
 const say = (id: string) => plain(sentence(h, rule(id)));
 
@@ -195,7 +197,13 @@ describe('every kind homeCore has reads as words', () => {
 		[
 			{ RoomOff: { room: 'Den' } },
 			'turn off the lights in a room called “Den” that no longer exists'
-		]
+		],
+		[{ PlayFromRotation: { rotation_id: 'rot-1' } }, 'play the next from Bathroom music'],
+		[
+			{ PlayFromRotation: { rotation_id: 'rot-1', device_id: 'zz_lamp_1' } },
+			'play the next from Bathroom music on Reading Lamp'
+		],
+		[{ AdvanceRotation: { rotation_id: 'gone' } }, 'move a rotation on']
 	])('%j', (action, words) => {
 		expect(plain(stepOf(h, action).words)).toBe(words);
 	});

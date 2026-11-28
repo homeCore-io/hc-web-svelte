@@ -238,7 +238,8 @@ test('the rest of the vocabulary, as fields', () => {
 		testAt: false,
 		ifAnyCheck: false,
 		alertRules: false,
-		roomLights: false
+		roomLights: false,
+		rotations: false
 	});
 	expect(
 		featuresOf({

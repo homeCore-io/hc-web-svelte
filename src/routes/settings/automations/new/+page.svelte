@@ -18,6 +18,7 @@
 	import { devices } from '#lib/devices.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { scenes } from '#lib/scenes.svelte.js';
+	import { rotations } from '#lib/rotations.svelte.js';
 	import { plain, sentence, tagOf, type Rule } from '#lib/ruleWords.js';
 	import { familiesOf, houseOf } from '#lib/ruleList.js';
 	import { describeStep } from '#lib/pluginUi/describe.js';
@@ -88,8 +89,20 @@
 	let alertRuleNames = $state<{ id: string; name: string }[]>([]);
 	onMount(() => void alertRules().then((r) => (alertRuleNames = r ?? [])));
 	const house = $derived(
-		houseOf(devices.byId, scenes.list, rules, [], describeStep, alertRuleNames, rooms.list)
+		houseOf(
+			devices.byId,
+			scenes.list,
+			rules,
+			[],
+			describeStep,
+			alertRuleNames,
+			rooms.list,
+			rotations.list
+		)
 	);
+	$effect(() => {
+		if (session.can('automations:read')) void rotations.load();
+	});
 	const kept = $derived(readDraft('new'));
 
 	async function save() {

@@ -46,6 +46,13 @@ export const SETTINGS: SettingsItem[] = [
 		detail: 'Every scene, what provides it, and which are on Home'
 	},
 	{
+		slug: 'rotations',
+		label: 'Rotations',
+		group: 'house',
+		words: 'playlists favorites favourites presets music wled sonos shuffle rotate schedule',
+		detail: 'Presets and playlists that change on their own'
+	},
+	{
 		slug: 'modes',
 		label: 'Modes',
 		group: 'house',
@@ -187,6 +194,7 @@ const NEEDS: Record<string, string> = {
 	devices: 'devices:write',
 	rooms: 'areas:write',
 	scenes: 'scenes:write',
+	rotations: 'automations:write',
 	modes: 'devices:write',
 	helpers: 'devices:write',
 	automations: 'automations:read',

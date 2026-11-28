@@ -24,6 +24,7 @@
 	import { devices } from '#lib/devices.svelte.js';
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { scenes } from '#lib/scenes.svelte.js';
+	import { rotations } from '#lib/rotations.svelte.js';
 	import { session } from '#lib/me.svelte.js';
 	import { wide } from '#lib/wide.svelte.js';
 	import { ask } from '#lib/confirm.svelte.js';
@@ -176,10 +177,14 @@
 			alertKinds.list,
 			describeStep,
 			rulesOfAlerts,
-			rooms.list
+			rooms.list,
+			rotations.list
 		)
 	);
 	$effect(() => alertKinds.ensure());
+	$effect(() => {
+		if (session.can('automations:read')) void rotations.load();
+	});
 	const linksById = $derived(Object.fromEntries(alertLinks.list.map((x) => [x.id, x])));
 	const alertNames = $derived(houseNames(rulesOfAlerts));
 	const rows = $derived(rules ? rowsOf(rules, house, runs, byMode, linksById) : []);

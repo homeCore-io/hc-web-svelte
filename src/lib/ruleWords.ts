@@ -45,6 +45,8 @@ export interface House {
 	alertRule?(id: string): string | undefined;
 	/** A room by its id, slug, alias or name, as homeCore finds it: "Living Room". */
 	room?(ref: string): string | undefined;
+	/** A rotation by its name: "Bathroom music". */
+	rotation?(id: string): string | undefined;
 	/**
 	 * A step on a plugin's devices in the plugin's own words, with
 	 * `{devices}` where their names go — from its `rule.step` form.
@@ -931,6 +933,18 @@ export function stepOf(h: House, a: Json): Step {
 				...check(h, String(f.expression)),
 				t(f.hold_duration_ms ? ` for ${ms(f.hold_duration_ms)}` : ''),
 				t(f.timeout_ms ? `, at most ${ms(f.timeout_ms)}` : '')
+			]);
+		case 'PlayFromRotation':
+			return s([
+				t('play the next from '),
+				t(h.rotation?.(String(f.rotation_id ?? '')) ?? 'a rotation'),
+				...(f.device_id ? [t(' on '), deviceBit(h, f.device_id)] : [])
+			]);
+		case 'AdvanceRotation':
+			return s([
+				t('move '),
+				t(h.rotation?.(String(f.rotation_id ?? '')) ?? 'a rotation'),
+				t(' on')
 			]);
 		case 'RoomOff':
 			return s([t('turn off the lights in '), roomBit(h, String(f.room ?? ''))]);

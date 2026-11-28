@@ -35,6 +35,8 @@
 	import { choiceFor, ownTab } from '#lib/console/placing.js';
 	import { setDeviceTab } from '#lib/console/tabChoice.js';
 	import { ecosystemName, loadDeviceEcosystem } from '#lib/mqttDevices.js';
+	import { rotations } from '#lib/rotations.svelte.js';
+	import { rotatable } from '#lib/rotations.js';
 
 	const id = $derived(page.params.id ?? '');
 	const device = $derived(devices.byId[id]);
@@ -61,6 +63,17 @@
 		});
 		return () => (gone = true);
 	});
+
+	// The rotations made for it, and the way to make one (homeCore 0.1.130).
+	$effect(() => {
+		if (session.can('automations:read')) void rotations.load();
+	});
+	const itsRotations = $derived(
+		deviceId ? rotations.list.filter((r) => r.device_id === deviceId) : []
+	);
+	const mayRotate = $derived(
+		!!device && session.can('automations:write') && rotations.loaded && rotatable(device)
+	);
 
 	// Back to where it was opened from: a plugin's devices, a room, or Devices.
 	const back = $derived.by(() => {
@@ -459,6 +472,21 @@
 								href={`/settings/mqtt/${encodeURIComponent(ecosystem.profile)}?device=${encodeURIComponent(device.device_id)}`}
 								>{device.device_type ? 'Change what it is' : 'Say what it is, for its controls'}</a
 							>
+						</p>
+					{/if}
+					{#if itsRotations.length}
+						<p class="hint">
+							In {itsRotations.length === 1 ? 'the rotation' : 'the rotations'}
+							{#each itsRotations as r, i (r.id)}{i ? ', ' : ''}<a
+									href={`/settings/rotations/${r.id}`}>{r.name}</a
+								>{/each}.
+						</p>
+					{:else if mayRotate}
+						<p class="hint">
+							Its presets or playlists can change on their own:
+							<a href={`/settings/rotations/new?for=${encodeURIComponent(device.device_id)}`}
+								>make a rotation</a
+							>.
 						</p>
 					{/if}
 					<label class="row">

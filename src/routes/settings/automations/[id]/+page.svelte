@@ -22,6 +22,7 @@
 	import { rooms } from '#lib/rooms.svelte.js';
 	import { displayName } from '#lib/devices.js';
 	import { scenes } from '#lib/scenes.svelte.js';
+	import { rotations } from '#lib/rotations.svelte.js';
 	import { session } from '#lib/me.svelte.js';
 	import { heading } from '#lib/heading.svelte.js';
 	import { clock } from '#lib/clock.svelte.js';
@@ -145,10 +146,14 @@
 			alertKinds.list,
 			describeStep,
 			alertRuleNames,
-			rooms.list
+			rooms.list,
+			rotations.list
 		)
 	);
 	$effect(() => alertKinds.ensure());
+	$effect(() => {
+		if (session.can('automations:read')) void rotations.load();
+	});
 	const row = $derived(rule ? rowsOf([rule], house, {}, byMode)[0] : undefined);
 	const reading = $derived(rule ? readRule(house, rule) : null);
 	const words = $derived(rule ? sentence(house, rule) : []);

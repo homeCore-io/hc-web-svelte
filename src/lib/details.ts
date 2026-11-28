@@ -601,7 +601,7 @@ export function optionsFromList(list: unknown, labelKey = 'name', valueKey?: str
 			if (item && typeof item === 'object') {
 				const o = item as Record<string, unknown>;
 				const value = o[valueKey ?? 'id'] ?? o.value ?? o[labelKey];
-				const label = o[labelKey] ?? value;
+				const label = o[labelKey] ?? o.label ?? value;
 				if (value === undefined) return undefined;
 				return { value: String(value), label: String(label) };
 			}

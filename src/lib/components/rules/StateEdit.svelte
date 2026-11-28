@@ -5,7 +5,7 @@
 	scene's steps (which pass the device, having no editor around them).
 -->
 <script lang="ts">
-	import { commandOf, commandsOf, rebuild } from '#lib/ruleEdit.js';
+	import { commandOf, commandsOf, groupedCommands, rebuild } from '#lib/ruleEdit.js';
 	import type { CoreDevice } from '#lib/devices.js';
 	import { editor } from './context.js';
 	import FieldInput from './FieldInput.svelte';
@@ -29,6 +29,7 @@
 	const ctx = editor();
 	const device = $derived(given ?? ctx?.house.device(deviceId));
 	const cmds = $derived(device ? commandsOf(device) : []);
+	const groups = $derived(groupedCommands(cmds));
 	const current = $derived(value === undefined ? undefined : commandOf(cmds, value));
 	function setCommand(key: string, values?: Record<string, unknown>) {
 		const cmd = cmds.find((c) => c.key === key);
@@ -48,7 +49,15 @@
 							? 'As written (see the JSON tab)'
 							: 'As written, below'}</option
 				>{/if}
-			{#each cmds as c (c.key)}<option value={c.key}>{c.label}</option>{/each}
+			{#if groups.length > 1}
+				{#each groups as g (g.group)}
+					<optgroup label={g.group}>
+						{#each g.cmds as c (c.key)}<option value={c.key}>{c.label}</option>{/each}
+					</optgroup>
+				{/each}
+			{:else}
+				{#each cmds as c (c.key)}<option value={c.key}>{c.label}</option>{/each}
+			{/if}
 		</select>
 	</label>
 	{#if !current && value !== undefined && !ctx}

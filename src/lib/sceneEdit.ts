@@ -92,7 +92,12 @@ export function describeState(state: Record<string, unknown>, settings: Setting[
 		.map((s) =>
 			s.kind === 'range'
 				? valueText(s, state[s.attr])
-				: (s.options?.find((o) => o.value === state[s.attr])?.label ?? String(state[s.attr]))
+				: s.kind === 'bool'
+					? // "not muted", not a bare "false".
+						state[s.attr]
+						? s.label.toLowerCase()
+						: `not ${s.label.toLowerCase()}`
+					: (s.options?.find((o) => o.value === state[s.attr])?.label ?? String(state[s.attr]))
 		);
 	return [state.on === true ? 'on' : '', ...parts].filter(Boolean).join(' · ') || 'as set';
 }
@@ -160,3 +165,33 @@ export function othersIn(st: Record<string, unknown>, settings: Setting[]): [str
 /** The settings shown for an entry: the first few, and any it already sets. */
 export const shownSettings = (all: Setting[], st: Record<string, unknown>, more: boolean) =>
 	more ? all : all.filter((s, i) => i < FIRST || st[s.attr] !== undefined);
+
+/**
+ * The first step that can't be sent as it is, in words — "Bathroom, step 1:
+ * choose its Favourite" — or null. A speaker joins a scene as "play a
+ * favourite" with the favorite still to choose, and a scene saved like that
+ * sent a command its plugin had to refuse.
+ */
+export function unfinished(
+	states: Record<string, Record<string, unknown>>,
+	deviceOf: (id: string) => CoreDevice | undefined,
+	nameOf: (d: CoreDevice) => string
+): string | null {
+	for (const [id, st] of Object.entries(states)) {
+		if (!isSteps(st)) continue;
+		const d = deviceOf(id);
+		const who = d ? nameOf(d) : id;
+		const steps = stepsOf(st);
+		for (const [i, step] of steps.entries()) {
+			const at = `${who}, step ${i + 1}`;
+			if (step === undefined || step === null) return `${at}: choose what it does`;
+			const action = typeof step === 'object' ? (step as { action?: unknown }).action : undefined;
+			const spec = d?.schema?.actions?.find((a) => a.id === action);
+			const missing = spec?.params?.find(
+				(p) => p.required && ((step as Record<string, unknown>)[p.name] ?? '') === ''
+			);
+			if (missing) return `${at}: choose its ${missing.label ?? words(missing.name)}`;
+		}
+	}
+	return null;
+}

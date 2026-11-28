@@ -10,6 +10,8 @@
  * (D13). Everything here is pure: a value in, a value out.
  */
 import { cap, words } from './card.js';
+import { PLAYS } from './rotations.js';
+import { optionsFromList } from './details.js';
 import { displayName, type AttributeSchema, type CoreDevice, type ParamSpec } from './devices.js';
 import { tagOf, type Rule } from './ruleWords.js';
 
@@ -484,6 +486,8 @@ export function stateOf(c: Json): { key: string; id: string; value?: number } | 
 export interface Command {
 	key: string;
 	label: string;
+	/** Where it sits in a long list: the plugin's category for an action ("Content"), else "Settings". */
+	group?: string;
 	fields: Field[];
 	build(v: Record<string, unknown>): Json;
 	/** The values a state for this command carries, or undefined if it isn't this command. */
@@ -495,14 +499,12 @@ export function paramField(p: ParamSpec, d: CoreDevice): Field {
 	const label = p.label ?? cap(words(p.name));
 	const from = typeof p.options_from === 'object' ? p.options_from.attribute : undefined;
 	if (from) {
+		// Read as the device's own page and core read it: plain values (a
+		// Sonos's favorites are names) as well as objects. Only objects were
+		// read here, so a speaker's favorites and playlists were a text box.
 		const list = d.attributes[from.attribute];
 		if (Array.isArray(list)) {
-			const options = list
-				.filter((x): x is Record<string, unknown> => x !== null && typeof x === 'object')
-				.map((x) => ({
-					value: String(x[from.value_key ?? 'value']),
-					label: String(x[from.label_key ?? 'label'] ?? x[from.value_key ?? 'value'])
-				}));
+			const options = optionsFromList(list, from.label_key, from.value_key);
 			if (options.length)
 				return {
 					kind: 'choice',
@@ -770,7 +772,32 @@ export function commandsOf(d: CoreDevice): Command[] {
 			}
 		});
 	}
+	const category = new Map((d.schema?.actions ?? []).map((a) => [`act:${a.id}`, a.category]));
+	for (const c of out)
+		c.group = c.key.startsWith('act:') ? (category.get(c.key) ?? 'More') : 'Settings';
 	return out;
+}
+
+/**
+ * A device's commands in groups for a list: the groups with something that
+ * plays first (a speaker's "Content", a WLED's "Presets"), then the rest of
+ * its actions as the plugin orders them, then its settings. A speaker has
+ * thirty commands; "play a playlist" was the twenty-third.
+ */
+export function groupedCommands(cmds: Command[]): { group: string; cmds: Command[] }[] {
+	const groups = new Map<string, Command[]>();
+	for (const c of cmds) {
+		const g = c.group ?? 'Settings';
+		groups.set(g, [...(groups.get(g) ?? []), c]);
+	}
+	const plays = (list: Command[]) => list.some((c) => PLAYS.test(c.key.replace(/^act:/, '')));
+	return [...groups]
+		.map(([group, list]) => ({ group, cmds: list }))
+		.sort(
+			(a, b) =>
+				Number(plays(b.cmds)) - Number(plays(a.cmds)) ||
+				Number(a.group === 'Settings') - Number(b.group === 'Settings')
+		);
 }
 
 /** Choice values are strings in a form; numbers stay numbers elsewhere. */

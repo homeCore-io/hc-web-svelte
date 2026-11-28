@@ -31,9 +31,11 @@
 		shownSettings,
 		stateNow,
 		stepsOf,
+		unfinished,
 		valueText
 	} from '#lib/sceneEdit.js';
 	import { commandsOf } from '#lib/ruleEdit.js';
+	import { choiceSources } from '#lib/rotations.js';
 	import { fromShown, shownRange, toShown } from '#lib/units.js';
 	import StateEdit from '#lib/components/rules/StateEdit.svelte';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
@@ -92,8 +94,19 @@
 	function toggle(d: CoreDevice) {
 		const next = { ...states };
 		if (next[d.device_id]) delete next[d.device_id];
-		else next[d.device_id] = stateNow(d);
+		else next[d.device_id] = startOf(d);
 		states = next;
+	}
+	/**
+	 * How a device joins a scene. Most as they are now; one that plays
+	 * something and has no on/off (a speaker) as a step that plays — its
+	 * favorite or playlist to choose — since its volume and mute are rarely
+	 * what a scene is for. Music and lights: lights set, a speaker playing.
+	 */
+	function startOf(d: CoreDevice): Record<string, unknown> {
+		const plays = choiceSources(d)[0];
+		const onOff = d.schema?.attributes?.on?.writable;
+		return plays && !onOff ? { actions: [{ action: plays.action.id }] } : stateNow(d);
 	}
 	const put = (did: string, attr: string, value: unknown) => {
 		const cur = { ...states[did], [attr]: value };
@@ -144,6 +157,8 @@
 	let note = $state<string | null>(null);
 	let busy = $state(false);
 	async function tryIt() {
+		const why = unfinished(states, (did) => devices.byId[did], displayName);
+		if (why) return void (note = why);
 		busy = true;
 		note = null;
 		// As homeCore runs it: an entry's steps one after another.
@@ -164,6 +179,8 @@
 			: !!scene && (name.trim() !== scene.name || differ(states, scene.states ?? {}))
 	);
 	async function save() {
+		const why = unfinished(states, (did) => devices.byId[did], displayName);
+		if (why) return void (note = why);
 		busy = true;
 		const body = { name: name.trim(), states: $state.snapshot(states) };
 		if (isNew) {

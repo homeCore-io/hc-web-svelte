@@ -71,7 +71,8 @@ export interface ChoiceSource {
  * action with a list is one — WLED's "Delete a preset" and "Preset at
  * power-on" take a preset too, Sonos's Repeat a mode.
  */
-const PLAYS = /^(play|apply|start|launch|select|activate|show)_|^set_(effect|palette|scene)$/;
+export const PLAYS =
+	/^(play|apply|start|launch|select|activate|show)_|^set_(effect|palette|scene)$/;
 
 export function choiceSources(d: CoreDevice): ChoiceSource[] {
 	const out: ChoiceSource[] = [];

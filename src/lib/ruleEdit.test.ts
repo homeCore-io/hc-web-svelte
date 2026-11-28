@@ -3,6 +3,8 @@ import { DEVICES } from './fixtures/rules.js';
 import {
 	commandOf,
 	commandsOf,
+	groupedCommands,
+	paramField,
 	featuresOf,
 	ifChecks,
 	ifCondition,
@@ -144,6 +146,49 @@ describe('what a device can be told', () => {
 		const vol = commandOf(commandsOf(d('zz_speaker_den')), { action: 'set_volume', volume: 15 })!;
 		expect(vol.values).toEqual({ volume: 15 });
 	});
+});
+
+describe('a long list of commands, grouped', () => {
+	test('what plays comes first, settings last', () => {
+		const speaker = {
+			device_id: 'sp',
+			name: 'Speaker',
+			plugin_id: 'plugin.sonos',
+			available: true,
+			attributes: { volume: 10 },
+			schema: {
+				attributes: { volume: { kind: 'integer', writable: true, min: 0, max: 100 } },
+				actions: [
+					{ id: 'pause', label: 'Pause', category: 'Playback' },
+					{ id: 'play_favorite', label: 'Play a favourite', category: 'Content' },
+					{ id: 'join', label: 'Group with…', category: 'Grouping' }
+				]
+			}
+		} as unknown as CoreDevice;
+		const g = groupedCommands(commandsOf(speaker));
+		expect(g.map((x) => x.group)).toEqual(['Content', 'Playback', 'Grouping', 'Settings']);
+	});
+});
+
+test('a list of plain names is a choice: a speaker’s favorites', () => {
+	const d = {
+		device_id: 'sp',
+		name: 'Speaker',
+		plugin_id: 'plugin.sonos',
+		available: true,
+		attributes: { available_favorites: ['ALT Radio', 'Jazz'] }
+	} as unknown as CoreDevice;
+	const f = paramField(
+		{
+			name: 'favorite',
+			kind: 'enum',
+			required: true,
+			options_from: { attribute: { attribute: 'available_favorites' } }
+		},
+		d
+	);
+	expect(f.kind).toBe('choice');
+	expect(f.kind === 'choice' && f.options.map((o) => o.value)).toEqual(['ALT Radio', 'Jazz']);
 });
 
 describe('if/otherwise asks', () => {

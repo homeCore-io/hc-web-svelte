@@ -3,6 +3,7 @@ import {
 	asSettings,
 	asSteps,
 	describeState,
+	unfinished,
 	othersIn,
 	sceneable,
 	settingsOf,
@@ -55,10 +56,46 @@ it('takes how it is now, and off is just off', () => {
 	});
 });
 
+it('names the first step that can’t be sent as it is', () => {
+	const speaker = {
+		device_id: 'sp',
+		name: 'Bathroom',
+		plugin_id: 'plugin.sonos',
+		available: true,
+		attributes: {},
+		schema: {
+			attributes: {},
+			actions: [
+				{
+					id: 'play_favorite',
+					label: 'Play a favourite',
+					params: [{ name: 'favorite', label: 'Favourite', kind: 'enum', required: true }]
+				}
+			]
+		}
+	} as unknown as CoreDevice;
+	const name = (d: CoreDevice) => d.name;
+	const of = (id: string) => (id === 'sp' ? speaker : undefined);
+	expect(unfinished({ sp: { actions: [{ action: 'play_favorite' }] } }, of, name)).toBe(
+		'Bathroom, step 1: choose its Favourite'
+	);
+	expect(unfinished({ sp: { actions: [undefined] } }, of, name)).toBe(
+		'Bathroom, step 1: choose what it does'
+	);
+	expect(
+		unfinished({ sp: { actions: [{ action: 'play_favorite', favorite: 'Jazz' }] } }, of, name)
+	).toBeNull();
+	expect(unfinished({ lamp: { on: true } }, of, name)).toBeNull();
+});
+
 it('says a state in words', () => {
 	const s = settingsOf(dimmer);
 	expect(describeState({ on: true, brightness_pct: 30 }, s)).toBe('on · 30 %');
 	expect(describeState({ on: false }, s)).toBe('off');
+	// A speaker's mute reads in words, not as a bare false.
+	const mute = [{ attr: 'muted', label: 'Muted', kind: 'bool' as const }];
+	expect(describeState({ muted: false }, mute)).toBe('not muted');
+	expect(describeState({ muted: true }, mute)).toBe('muted');
 	expect(describeState({ actions: [{ on: true }] }, s)).toBe('one step');
 	expect(describeState({ actions: [{ on: true }, { action: 'x' }] }, s)).toBe('2 steps, in order');
 });
